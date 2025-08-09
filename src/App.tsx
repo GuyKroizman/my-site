@@ -10,7 +10,7 @@ function App() {
               Welcome to My Site
             </h1>
             <p className="text-xl text-gray-600">
-              A collection of stories and games
+              One children's story and two games to play
             </p>
           </header>
 
@@ -23,7 +23,7 @@ function App() {
                 <p className="text-gray-600 mt-2">Snake Bitter Story</p>
               </div>
               <p className="text-gray-700 mb-4 text-sm">
-                A charming Hebrew children's story about Sharga, a boy who loves to bite snakes.
+                A charming Hebrew children's story about Shraga, a boy who loves to bite snakes.
               </p>
               <Link
                 to="/snake-bitter"
@@ -69,10 +69,6 @@ function App() {
               </Link>
             </div>
           </div>
-
-          <footer className="text-center mt-12 text-gray-500">
-            <p>Built with React, TypeScript, and Phaser</p>
-          </footer>
         </div>
       </div>
     </div>
