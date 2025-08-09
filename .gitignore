@@ -30,5 +30,3 @@ dist-ssr
 .env.test.local
 .env.production.local
 
-# Reference files from original site
-reference/

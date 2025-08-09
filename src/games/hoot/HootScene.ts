@@ -39,6 +39,7 @@ export class HootGameScene extends Phaser.Scene {
   private gameState: 'menu' | 'playing' | 'gameOver' = 'menu'; // Game state management
   private menuTitle!: Phaser.GameObjects.Text;
   private menuSubtitle!: Phaser.GameObjects.Text;
+  private gmtkText!: Phaser.GameObjects.Text;
   private creditsText!: Phaser.GameObjects.Text;
   private instructionsText!: Phaser.GameObjects.Text;
   private menuPlayer!: Phaser.GameObjects.Container;
@@ -793,6 +794,14 @@ export class HootGameScene extends Phaser.Scene {
     this.freezeCountdownText.setOrigin(0.5);
     this.freezeCountdownText.setVisible(false);
 
+    // Create GMTK credit text
+    this.gmtkText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 80, 'Game for the 2025 GMTK', {
+      fontSize: '24px',
+      color: '#1a365d'
+    });
+    this.gmtkText.setOrigin(0.5);
+    this.gmtkText.setVisible(false);
+
     // Create credits text
     this.creditsText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 40, 'Sound and Music by Hed Gilboa', {
       fontSize: '26px',
@@ -1198,6 +1207,7 @@ export class HootGameScene extends Phaser.Scene {
     this.stageTimeText.setVisible(false);
 
     // Show menu game objects and instructions
+    this.gmtkText.setVisible(true);
     this.creditsText.setVisible(true);
     this.instructionsText.setVisible(true);
     this.menuPlayer.setVisible(true);
@@ -1220,6 +1230,7 @@ export class HootGameScene extends Phaser.Scene {
     // Hide menu
     this.menuTitle.setVisible(false);
     this.menuSubtitle.setVisible(false);
+    this.gmtkText.setVisible(false);
     this.creditsText.setVisible(false);
     this.instructionsText.setVisible(false);
     this.menuPlayer.setVisible(false);
