@@ -13,7 +13,6 @@ export class HootGameScene extends Phaser.Scene {
   private enemies: Phaser.GameObjects.Container[] = [];
   private enemyHealths: Map<Phaser.GameObjects.Container, number> = new Map();
   private enemyDeathStates: Map<Phaser.GameObjects.Container, 'alive' | 'dying' | 'dead'> = new Map();
-  private enemySplats: Phaser.GameObjects.Graphics[] = [];
   private enemy2: Phaser.GameObjects.Container | null = null;
   private enemy2Mode: 'chase' | 'avoid' = 'chase';
   private enemy2Speed: number = 1;
@@ -223,7 +222,7 @@ export class HootGameScene extends Phaser.Scene {
 
   createPlayerGraphics(x: number = 0, y: number = 0, scale: number = 1): Phaser.GameObjects.Container {
     const playerContainer = this.add.container(x, y);
-    
+
     // Create the main brown capsule body using graphics
     const bodyGraphics = this.add.graphics();
     bodyGraphics.fillStyle(0x8B4513); // Brown color
@@ -260,7 +259,7 @@ export class HootGameScene extends Phaser.Scene {
     }
 
     this.player = this.createPlayerGraphics(playerX, playerY, 1);
-    
+
     // Store references to pupils for updating their positions
     this.leftPupil = this.player.getAt(4) as Phaser.GameObjects.Shape; // Left pupil
     this.rightPupil = this.player.getAt(5) as Phaser.GameObjects.Shape; // Right pupil
@@ -396,38 +395,38 @@ export class HootGameScene extends Phaser.Scene {
   createPrettyBall(x: number, y: number, radius: number) {
     // Create a container for the ball and its effects
     const ballContainer = this.add.container(x, y);
-    
+
     // Create the main ball with gradient effect
     const ballGraphics = this.add.graphics();
-    
+
     // Create gradient effect (outer to inner)
     const gradientSteps = 5;
     for (let i = 0; i < gradientSteps; i++) {
       const currentRadius = radius - (i * radius / gradientSteps);
       const alpha = 1 - (i * 0.15); // Fade from outer to inner
-      
+
       // Color gradient from bright red to darker red
       const color = 0xff0000 + (i * 0x110000); // Darken the red
-      
+
       ballGraphics.fillStyle(color, alpha);
       ballGraphics.fillCircle(0, 0, currentRadius);
     }
-    
+
     // Add highlight (reflection effect)
     const highlightGraphics = this.add.graphics();
     highlightGraphics.fillStyle(0xffffff, 0.3);
     highlightGraphics.fillCircle(-radius * 0.3, -radius * 0.3, radius * 0.4);
-    
+
     // Add glow effect
     const glowGraphics = this.add.graphics();
     glowGraphics.fillStyle(0xff6666, 0.2);
     glowGraphics.fillCircle(0, 0, radius * 1.2);
-    
+
     // Add all graphics to container
     ballContainer.add(ballGraphics);
     ballContainer.add(highlightGraphics);
     ballContainer.add(glowGraphics);
-    
+
     // Add pulsing animation
     this.tweens.add({
       targets: ballContainer,
@@ -438,7 +437,7 @@ export class HootGameScene extends Phaser.Scene {
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
-    
+
     // Add rotation animation
     this.tweens.add({
       targets: ballContainer,
@@ -447,10 +446,10 @@ export class HootGameScene extends Phaser.Scene {
       repeat: -1,
       ease: 'Linear'
     });
-    
+
     // Store the radius for collision detection
     (ballContainer as any).radius = radius;
-    
+
     return ballContainer;
   }
 
@@ -655,58 +654,58 @@ export class HootGameScene extends Phaser.Scene {
 
   createSpaceInvaderEnemy(x: number, y: number): Phaser.GameObjects.Container {
     const enemyContainer = this.add.container(x, y);
-    
+
     // Create the main enemy body using graphics
     const bodyGraphics = this.add.graphics();
-    
+
     // Space Invaders enemy design - classic alien shape
     const enemyWidth = 20;
     const enemyHeight = 20;
-    
+
     // Main body - dark green with gradient
     bodyGraphics.fillStyle(0x006400); // Dark green
-    bodyGraphics.fillRoundedRect(-enemyWidth/2, -enemyHeight/2, enemyWidth, enemyHeight, 4);
-    
+    bodyGraphics.fillRoundedRect(-enemyWidth / 2, -enemyHeight / 2, enemyWidth, enemyHeight, 4);
+
     // Add lighter green details for the classic Space Invaders look
     bodyGraphics.fillStyle(0x00ff00, 0.7); // Lighter green overlay
-    bodyGraphics.fillRoundedRect(-enemyWidth/2 + 2, -enemyHeight/2 + 2, enemyWidth - 4, enemyHeight - 4, 3);
-    
+    bodyGraphics.fillRoundedRect(-enemyWidth / 2 + 2, -enemyHeight / 2 + 2, enemyWidth - 4, enemyHeight - 4, 3);
+
     // Add "eyes" - classic Space Invaders feature
     bodyGraphics.fillStyle(0xffffff); // White eyes
     bodyGraphics.fillCircle(-6, -4, 2);
     bodyGraphics.fillCircle(6, -4, 2);
-    
+
     // Add pupils
     bodyGraphics.fillStyle(0x000000); // Black pupils
     bodyGraphics.fillCircle(-6, -4, 1);
     bodyGraphics.fillCircle(6, -4, 1);
-    
+
     // Add "mouth" - simple line
     bodyGraphics.lineStyle(2, 0x000000);
     bodyGraphics.beginPath();
     bodyGraphics.moveTo(-4, 4);
     bodyGraphics.lineTo(4, 4);
     bodyGraphics.strokePath();
-    
+
     // Add "antennae" - classic Space Invaders feature
     bodyGraphics.lineStyle(2, 0x00ff00);
     bodyGraphics.beginPath();
     bodyGraphics.moveTo(-8, -8);
     bodyGraphics.lineTo(-4, -12);
     bodyGraphics.strokePath();
-    
+
     bodyGraphics.beginPath();
     bodyGraphics.moveTo(8, -8);
     bodyGraphics.lineTo(4, -12);
     bodyGraphics.strokePath();
-    
+
     // Add small dots at antennae tips
     bodyGraphics.fillStyle(0xff0000); // Red dots
     bodyGraphics.fillCircle(-4, -12, 1);
     bodyGraphics.fillCircle(4, -12, 1);
-    
+
     enemyContainer.add(bodyGraphics);
-    
+
     // Add pulsing animation
     this.tweens.add({
       targets: enemyContainer,
@@ -717,7 +716,7 @@ export class HootGameScene extends Phaser.Scene {
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
-    
+
     // Add slight rotation animation for more dynamic movement
     this.tweens.add({
       targets: enemyContainer,
@@ -727,7 +726,7 @@ export class HootGameScene extends Phaser.Scene {
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
-    
+
     // Add color cycling animation for the eyes
     const eyeAnimation = this.tweens.add({
       targets: bodyGraphics,
@@ -737,56 +736,56 @@ export class HootGameScene extends Phaser.Scene {
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
-    
+
     // Store the enemy container for later reference
     (enemyContainer as any).bodyGraphics = bodyGraphics;
     (enemyContainer as any).eyeAnimation = eyeAnimation;
-    
+
     // Initialize death state
     this.enemyDeathStates.set(enemyContainer, 'alive');
-    
+
     return enemyContainer;
   }
 
   startEnemyDeathSequence(enemy: Phaser.GameObjects.Container) {
     // Set enemy to dying state
     this.enemyDeathStates.set(enemy, 'dying');
-    
+
     // Stop all animations on the enemy
     this.tweens.killTweensOf(enemy);
     this.tweens.killTweensOf((enemy as any).bodyGraphics);
-    
+
     // Play death sound
     this.sound.play('enemyDie');
-    
+
     // Create explosion effect
     const explosion = this.add.circle(enemy.x, enemy.y, 30, 0xff0000, 0.6);
-    
+
     // Remove explosion after 200ms
     this.time.delayedCall(200, () => {
       explosion.destroy();
     });
-    
+
     // Create crumbling effect - break enemy into pieces
     const pieces: Phaser.GameObjects.Graphics[] = [];
     const numPieces = 8;
-    
+
     for (let i = 0; i < numPieces; i++) {
       const piece = this.add.graphics();
       piece.fillStyle(0x00ff00, 0.8);
-      
+
       // Create different sized pieces
       const size = 3 + Math.random() * 4;
       piece.fillCircle(0, 0, size);
-      
+
       // Position pieces around the enemy
       const angle = (i / numPieces) * 2 * Math.PI;
       const distance = 10 + Math.random() * 15;
       piece.x = enemy.x + Math.cos(angle) * distance;
       piece.y = enemy.y + Math.sin(angle) * distance;
-      
+
       pieces.push(piece);
-      
+
       // Animate pieces falling and fading
       this.tweens.add({
         targets: piece,
@@ -797,33 +796,15 @@ export class HootGameScene extends Phaser.Scene {
         ease: 'Power2'
       });
     }
-    
+
     // Hide the original enemy
     enemy.setVisible(false);
-    
-    // After 3 seconds, create the permanent splat
+
+    // After 3 seconds, set enemy to dead state
     this.time.delayedCall(3000, () => {
       // Set enemy to dead state
       this.enemyDeathStates.set(enemy, 'dead');
-      
-      // Create permanent splat
-      const splat = this.add.graphics();
-      splat.fillStyle(0x006400, 0.7); // Dark green splat
-      
-      // Create irregular splat shape
-      const splatRadius = 12 + Math.random() * 8;
-      splat.fillCircle(enemy.x, enemy.y, splatRadius);
-      
-      // Add some darker spots to make it look more realistic
-      splat.fillStyle(0x004000, 0.9);
-      for (let i = 0; i < 3; i++) {
-        const spotX = enemy.x + (Math.random() - 0.5) * splatRadius;
-        const spotY = enemy.y + (Math.random() - 0.5) * splatRadius;
-        splat.fillCircle(spotX, spotY, 2 + Math.random() * 3);
-      }
-      
-      this.enemySplats.push(splat);
-      
+
       // Remove pieces
       pieces.forEach(piece => piece.destroy());
     });
@@ -838,10 +819,6 @@ export class HootGameScene extends Phaser.Scene {
     this.enemies = [];
     this.enemyHealths.clear();
     this.enemyDeathStates.clear();
-    
-    // Clear existing splats
-    this.enemySplats.forEach(splat => splat.destroy());
-    this.enemySplats = [];
 
     // Clear enemy2 for stage 4
     if (this.enemy2) {
@@ -1186,7 +1163,7 @@ export class HootGameScene extends Phaser.Scene {
     // Make enemies slowly advance toward the player
     this.enemies.forEach((enemy) => {
       if (!enemy || !enemy.active || !this.player) return;
-      
+
       // Check if enemy is alive (not dying or dead)
       const deathState = this.enemyDeathStates.get(enemy);
       if (deathState !== 'alive') return;
@@ -1310,7 +1287,7 @@ export class HootGameScene extends Phaser.Scene {
     if (this.currentStage === 4) {
       // Stage 4: check if enemy2 is destroyed
       stageComplete = !this.enemy2 || !this.enemy2.active;
-      
+
       // Debug logging for stage 4 completion
       if (stageComplete) {
         console.log('Stage 4 completion detected!');
@@ -1319,7 +1296,7 @@ export class HootGameScene extends Phaser.Scene {
       }
     } else {
       // Other stages: check if all enemies are destroyed (only count alive enemies)
-      const aliveEnemies = this.enemies.filter(enemy => 
+      const aliveEnemies = this.enemies.filter(enemy =>
         this.enemyDeathStates.get(enemy) === 'alive'
       );
       stageComplete = aliveEnemies.length === 0;
@@ -1327,7 +1304,7 @@ export class HootGameScene extends Phaser.Scene {
 
     if (stageComplete) {
       console.log(`Stage ${this.currentStage} completed!`);
-      
+
       // Set transitioning flag to prevent multiple calls
       this.isTransitioning = true;
 
@@ -1369,7 +1346,7 @@ export class HootGameScene extends Phaser.Scene {
 
   showMenu() {
     this.gameState = 'menu';
-    
+
     // Clear all game elements first
     if (this.player) {
       this.player.destroy();
@@ -1381,10 +1358,7 @@ export class HootGameScene extends Phaser.Scene {
     this.enemies = [];
     this.enemyHealths.clear();
     this.enemyDeathStates.clear();
-    
-    // Clear splats
-    this.enemySplats.forEach(splat => splat.destroy());
-    this.enemySplats = [];
+
     if (this.enemy2) {
       // TypeScript error after site migration - ignoring for game functionality
       // @ts-ignore
@@ -1393,13 +1367,13 @@ export class HootGameScene extends Phaser.Scene {
     }
     this.context.balls.forEach(ball => ball.destroy());
     this.context.balls = [];
-    
+
     // Destroy dotted border if it exists
     if (this.dottedBorder) {
       this.dottedBorder.destroy();
       this.dottedBorder = null;
     }
-    
+
     // Show menu UI
     this.menuTitle.setVisible(true);
     this.menuSubtitle.setVisible(true);
@@ -1458,11 +1432,7 @@ export class HootGameScene extends Phaser.Scene {
     this.enemies = [];
     this.enemyHealths.clear();
     this.enemyDeathStates.clear();
-    
-    // Clear splats
-    this.enemySplats.forEach(splat => splat.destroy());
-    this.enemySplats = [];
-    
+
     if (this.enemy2) {
       // TypeScript error after site migration - ignoring for game functionality
       // @ts-ignore
@@ -1471,7 +1441,7 @@ export class HootGameScene extends Phaser.Scene {
     }
     this.context.balls.forEach(ball => ball.destroy());
     this.context.balls = [];
-    
+
     // Destroy dotted border if it exists
     if (this.dottedBorder) {
       this.dottedBorder.destroy();
@@ -1798,7 +1768,7 @@ export class HootGameScene extends Phaser.Scene {
           // @ts-ignore
           this.enemy2.destroy();
           this.enemy2 = null;
-          
+
           // Immediately check for stage completion
           this.checkStageCompletion();
         }
@@ -1858,7 +1828,7 @@ export class HootGameScene extends Phaser.Scene {
           // On level 4, bullets bounce off enemy2 in random direction
           const randomAngle = Math.random() * 2 * Math.PI; // Random angle between 0 and 2π
           const bulletSpeed = Math.sqrt((bullet as any).velocityX * (bullet as any).velocityX + (bullet as any).velocityY * (bullet as any).velocityY);
-          
+
           // Set new random direction while maintaining bullet speed
           (bullet as any).velocityX = Math.cos(randomAngle) * bulletSpeed;
           (bullet as any).velocityY = Math.sin(randomAngle) * bulletSpeed;
