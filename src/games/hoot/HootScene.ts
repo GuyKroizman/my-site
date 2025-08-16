@@ -10,8 +10,8 @@ export class HootGameScene extends Phaser.Scene {
   private pupilUpdateTimer: number = 0;
   private pupilUpdateInterval: number = 4000; // 4 seconds in milliseconds
   private bullets: Phaser.GameObjects.Shape[] = [];
-  private enemies: Phaser.GameObjects.Rectangle[] = [];
-  private enemyHealths: Map<Phaser.GameObjects.Rectangle, number> = new Map();
+  private enemies: Phaser.GameObjects.Container[] = [];
+  private enemyHealths: Map<Phaser.GameObjects.Container, number> = new Map();
   private enemy2: Phaser.GameObjects.Container | null = null;
   private enemy2Mode: 'chase' | 'avoid' = 'chase';
   private enemy2Speed: number = 1;
@@ -43,7 +43,7 @@ export class HootGameScene extends Phaser.Scene {
   private creditsText!: Phaser.GameObjects.Text;
   private instructionsText!: Phaser.GameObjects.Text;
   private menuPlayer!: Phaser.GameObjects.Container;
-  private menuEnemy!: Phaser.GameObjects.Rectangle;
+  private menuEnemy!: Phaser.GameObjects.Container;
   private menuBall!: Phaser.GameObjects.Shape;
   private menuPlayerLabel!: Phaser.GameObjects.Text;
   private menuEnemyLabel!: Phaser.GameObjects.Text;
@@ -651,6 +651,98 @@ export class HootGameScene extends Phaser.Scene {
     this.enemy2.y = Math.max(enemy2Radius, Math.min(this.cameras.main.height - enemy2Radius, this.enemy2.y));
   }
 
+  createSpaceInvaderEnemy(x: number, y: number): Phaser.GameObjects.Container {
+    const enemyContainer = this.add.container(x, y);
+    
+    // Create the main enemy body using graphics
+    const bodyGraphics = this.add.graphics();
+    
+    // Space Invaders enemy design - classic alien shape
+    const enemyWidth = 20;
+    const enemyHeight = 20;
+    
+    // Main body - dark green with gradient
+    bodyGraphics.fillStyle(0x006400); // Dark green
+    bodyGraphics.fillRoundedRect(-enemyWidth/2, -enemyHeight/2, enemyWidth, enemyHeight, 4);
+    
+    // Add lighter green details for the classic Space Invaders look
+    bodyGraphics.fillStyle(0x00ff00, 0.7); // Lighter green overlay
+    bodyGraphics.fillRoundedRect(-enemyWidth/2 + 2, -enemyHeight/2 + 2, enemyWidth - 4, enemyHeight - 4, 3);
+    
+    // Add "eyes" - classic Space Invaders feature
+    bodyGraphics.fillStyle(0xffffff); // White eyes
+    bodyGraphics.fillCircle(-6, -4, 2);
+    bodyGraphics.fillCircle(6, -4, 2);
+    
+    // Add pupils
+    bodyGraphics.fillStyle(0x000000); // Black pupils
+    bodyGraphics.fillCircle(-6, -4, 1);
+    bodyGraphics.fillCircle(6, -4, 1);
+    
+    // Add "mouth" - simple line
+    bodyGraphics.lineStyle(2, 0x000000);
+    bodyGraphics.beginPath();
+    bodyGraphics.moveTo(-4, 4);
+    bodyGraphics.lineTo(4, 4);
+    bodyGraphics.strokePath();
+    
+    // Add "antennae" - classic Space Invaders feature
+    bodyGraphics.lineStyle(2, 0x00ff00);
+    bodyGraphics.beginPath();
+    bodyGraphics.moveTo(-8, -8);
+    bodyGraphics.lineTo(-4, -12);
+    bodyGraphics.strokePath();
+    
+    bodyGraphics.beginPath();
+    bodyGraphics.moveTo(8, -8);
+    bodyGraphics.lineTo(4, -12);
+    bodyGraphics.strokePath();
+    
+    // Add small dots at antennae tips
+    bodyGraphics.fillStyle(0xff0000); // Red dots
+    bodyGraphics.fillCircle(-4, -12, 1);
+    bodyGraphics.fillCircle(4, -12, 1);
+    
+    enemyContainer.add(bodyGraphics);
+    
+    // Add pulsing animation
+    this.tweens.add({
+      targets: enemyContainer,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+    
+    // Add slight rotation animation for more dynamic movement
+    this.tweens.add({
+      targets: enemyContainer,
+      angle: 5,
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+    
+    // Add color cycling animation for the eyes
+    const eyeAnimation = this.tweens.add({
+      targets: bodyGraphics,
+      alpha: 0.5,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+    
+    // Store the enemy container for later reference
+    (enemyContainer as any).bodyGraphics = bodyGraphics;
+    (enemyContainer as any).eyeAnimation = eyeAnimation;
+    
+    return enemyContainer;
+  }
+
   createEnemies() {
     const currentConfig = this.stageConfigs[this.currentStage - 1];
     const enemyCount = currentConfig.enemies;
@@ -732,7 +824,8 @@ export class HootGameScene extends Phaser.Scene {
         // Stage 4 uses enemy2 instead of regular enemies
         this.createEnemy2();
       } else {
-        const enemy = this.add.rectangle(pos.x, pos.y, 20, 20, 0x00ff00); // Green rectangle
+        // Create Space Invaders-style enemy instead of simple rectangle
+        const enemy = this.createSpaceInvaderEnemy(pos.x, pos.y);
         this.enemies.push(enemy);
         this.enemyHealths.set(enemy, 100);
       }
@@ -826,8 +919,8 @@ export class HootGameScene extends Phaser.Scene {
     // Create a static player for the menu using the shared method
     this.menuPlayer = this.createPlayerGraphics(150, 240, 1);
 
-    // Create menu enemy (green rectangle) - second row
-    this.menuEnemy = this.add.rectangle(150, 270, 20, 20, 0x00ff00);
+    // Create menu enemy (Space Invaders style) - second row
+    this.menuEnemy = this.createSpaceInvaderEnemy(150, 270);
 
     // Create menu ball (yellow circle) - third row
     this.menuBall = this.add.circle(150, 300, 15, 0xff0000);
@@ -1080,7 +1173,7 @@ export class HootGameScene extends Phaser.Scene {
     }
   }
 
-  triggerExplosion(enemy: Phaser.GameObjects.Rectangle) {
+  triggerExplosion(enemy: Phaser.GameObjects.Container) {
     // Create explosion effect
     const explosion = this.add.circle(enemy.x, enemy.y, this.explosionRadius, 0xff0000, 0.3);
 
