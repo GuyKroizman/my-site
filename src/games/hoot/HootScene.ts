@@ -2297,6 +2297,9 @@ export class HootGameScene extends Phaser.Scene {
             // Play shot hit enemy sound
             this.sound.play('shotHitEnemy');
 
+            // Add red flash effect for 300ms
+            this.flashEnemyRed(enemy);
+
             // Reduce enemy health
             const currentHealth = this.enemyHealths.get(enemy) || 0;
             const newHealth = currentHealth - 19;
@@ -2413,6 +2416,111 @@ export class HootGameScene extends Phaser.Scene {
     const ballHitSounds = ['ballHitBall1', 'ballHitBall2', 'ballHitBall3'];
     const randomSound = ballHitSounds[Math.floor(Math.random() * ballHitSounds.length)];
     this.sound.play(randomSound);
+  }
+
+  flashEnemyRed(enemy: Phaser.GameObjects.Container) {
+    // Get the body graphics from the enemy
+    const bodyGraphics = (enemy as any).bodyGraphics;
+    if (!bodyGraphics) return;
+
+    // Store original color (we'll use a default green if we can't get it)
+    const originalColor = 0x00ff00; // Default green color
+
+    // Create a red flash effect by temporarily changing the graphics
+    // Clear the graphics and redraw with red color
+    bodyGraphics.clear();
+    bodyGraphics.fillStyle(0xff0000, 1); // Red color
+    
+    // Redraw the enemy shape with red color
+    const enemyWidth = 20;
+    const enemyHeight = 20;
+    bodyGraphics.fillRoundedRect(-enemyWidth / 2, -enemyHeight / 2, enemyWidth, enemyHeight, 4);
+    
+    // Add the lighter red details
+    bodyGraphics.fillStyle(0xff6666, 0.7); // Lighter red overlay
+    bodyGraphics.fillRoundedRect(-enemyWidth / 2 + 2, -enemyHeight / 2 + 2, enemyWidth - 4, enemyHeight - 4, 3);
+    
+    // Add "eyes" - white
+    bodyGraphics.fillStyle(0xffffff); // White eyes
+    bodyGraphics.fillCircle(-6, -4, 2);
+    bodyGraphics.fillCircle(6, -4, 2);
+    
+    // Add pupils - black
+    bodyGraphics.fillStyle(0x000000); // Black pupils
+    bodyGraphics.fillCircle(-6, -4, 1);
+    bodyGraphics.fillCircle(6, -4, 1);
+    
+    // Add "mouth" - black line
+    bodyGraphics.lineStyle(2, 0x000000);
+    bodyGraphics.beginPath();
+    bodyGraphics.moveTo(-4, 4);
+    bodyGraphics.lineTo(4, 4);
+    bodyGraphics.strokePath();
+    
+    // Add "antennae" - red
+    bodyGraphics.lineStyle(2, 0xff0000);
+    bodyGraphics.beginPath();
+    bodyGraphics.moveTo(-8, -8);
+    bodyGraphics.lineTo(-4, -12);
+    bodyGraphics.strokePath();
+    
+    bodyGraphics.beginPath();
+    bodyGraphics.moveTo(8, -8);
+    bodyGraphics.lineTo(4, -12);
+    bodyGraphics.strokePath();
+    
+    // Add small dots at antennae tips - red
+    bodyGraphics.fillStyle(0xff0000); // Red dots
+    bodyGraphics.fillCircle(-4, -12, 1);
+    bodyGraphics.fillCircle(4, -12, 1);
+
+    // Return to original color after 300ms
+    this.time.delayedCall(300, () => {
+      if (bodyGraphics && bodyGraphics.active) {
+        // Redraw with original green colors
+        bodyGraphics.clear();
+        bodyGraphics.fillStyle(0x006400); // Dark green
+        bodyGraphics.fillRoundedRect(-enemyWidth / 2, -enemyHeight / 2, enemyWidth, enemyHeight, 4);
+        
+        // Add lighter green details
+        bodyGraphics.fillStyle(0x00ff00, 0.7); // Lighter green overlay
+        bodyGraphics.fillRoundedRect(-enemyWidth / 2 + 2, -enemyHeight / 2 + 2, enemyWidth - 4, enemyHeight - 4, 3);
+        
+        // Add "eyes" - white
+        bodyGraphics.fillStyle(0xffffff); // White eyes
+        bodyGraphics.fillCircle(-6, -4, 2);
+        bodyGraphics.fillCircle(6, -4, 2);
+        
+        // Add pupils - black
+        bodyGraphics.fillStyle(0x000000); // Black pupils
+        bodyGraphics.fillCircle(-6, -4, 1);
+        bodyGraphics.fillCircle(6, -4, 1);
+        
+        // Add "mouth" - black line
+        bodyGraphics.lineStyle(2, 0x000000);
+        bodyGraphics.beginPath();
+        bodyGraphics.moveTo(-4, 4);
+        bodyGraphics.lineTo(4, 4);
+        bodyGraphics.strokePath();
+        
+        // Add "antennae" - green
+        bodyGraphics.lineStyle(2, 0x00ff00);
+        bodyGraphics.beginPath();
+        bodyGraphics.moveTo(-8, -8);
+        bodyGraphics.lineTo(-4, -12);
+        bodyGraphics.strokePath();
+        
+        bodyGraphics.beginPath();
+        bodyGraphics.moveTo(8, -8);
+        bodyGraphics.lineTo(4, -12);
+        bodyGraphics.strokePath();
+        
+        // Add small dots at antennae tips - red
+        bodyGraphics.fillStyle(0xff0000); // Red dots
+        bodyGraphics.fillCircle(-4, -12, 1);
+        bodyGraphics.fillCircle(4, -12, 1);
+      }
+    });
   }
 
   updateUI() {
