@@ -1825,18 +1825,87 @@ export class HootGameScene extends Phaser.Scene {
           // Play shot hit enemy sound
           this.sound.play('shotHitEnemy');
 
-          // On level 4, bullets bounce off enemy2 in random direction
-          const randomAngle = Math.random() * 2 * Math.PI; // Random angle between 0 and 2π
+          // Calculate which side of enemy2 the bullet hit
+          const enemy2Size = 120; // Enemy2 is 120x120
+          const halfSize = enemy2Size / 2;
+
+          // Determine collision side based on bullet position relative to enemy2 center
+          let collisionSide: 'top' | 'bottom' | 'left' | 'right';
+
+          // Calculate the relative position of bullet to enemy2 center
+          const relativeX = dx;
+          const relativeY = dy;
+
+          // Determine which side was hit based on the closest edge
+          const absX = Math.abs(relativeX);
+          const absY = Math.abs(relativeY);
+
+          if (absX > absY) {
+            // Hit left or right side
+            collisionSide = relativeX > 0 ? 'right' : 'left';
+          } else {
+            // Hit top or bottom side
+            collisionSide = relativeY > 0 ? 'bottom' : 'top';
+          }
+
+          // Calculate deflection based on collision side
+          let newVelocityX: number;
+          let newVelocityY: number;
           const bulletSpeed = Math.sqrt((bullet as any).velocityX * (bullet as any).velocityX + (bullet as any).velocityY * (bullet as any).velocityY);
 
-          // Set new random direction while maintaining bullet speed
-          (bullet as any).velocityX = Math.cos(randomAngle) * bulletSpeed;
-          (bullet as any).velocityY = Math.sin(randomAngle) * bulletSpeed;
+          switch (collisionSide) {
+            case 'bottom':
+              // Deflect downward with angle to left or right
+              const bottomAngle = Math.random() > 0.5 ?
+                Math.PI / 2 + Math.PI / 6 : // Down-right (π/2 + π/6 = 2π/3)
+                Math.PI / 2 - Math.PI / 6;  // Down-left (π/2 - π/6 = π/3)
+              newVelocityX = Math.cos(bottomAngle) * bulletSpeed;
+              newVelocityY = Math.sin(bottomAngle) * bulletSpeed;
+              break;
+
+            case 'top':
+              // Deflect upward with angle to left or right
+              const topAngle = Math.random() > 0.5 ?
+                -Math.PI / 2 + Math.PI / 6 : // Up-right (-π/2 + π/6 = -π/3)
+                -Math.PI / 2 - Math.PI / 6;  // Up-left (-π/2 - π/6 = -2π/3)
+              newVelocityX = Math.cos(topAngle) * bulletSpeed;
+              newVelocityY = Math.sin(topAngle) * bulletSpeed;
+              break;
+
+            case 'left':
+              // Deflect leftward with angle up or down
+              const leftAngle = Math.random() > 0.5 ?
+                Math.PI + Math.PI / 6 : // Left-up (π + π/6 = 7π/6)
+                Math.PI - Math.PI / 6;  // Left-down (π - π/6 = 5π/6)
+              newVelocityX = Math.cos(leftAngle) * bulletSpeed;
+              newVelocityY = Math.sin(leftAngle) * bulletSpeed;
+              break;
+
+            case 'right':
+              // Deflect rightward with angle up or down
+              const rightAngle = Math.random() > 0.5 ?
+                0 + Math.PI / 6 : // Right-up (0 + π/6 = π/6)
+                0 - Math.PI / 6;  // Right-down (0 - π/6 = -π/6)
+              newVelocityX = Math.cos(rightAngle) * bulletSpeed;
+              newVelocityY = Math.sin(rightAngle) * bulletSpeed;
+              break;
+
+            default:
+              // Fallback to random direction (shouldn't happen)
+              const randomAngle = Math.random() * 2 * Math.PI;
+              newVelocityX = Math.cos(randomAngle) * bulletSpeed;
+              newVelocityY = Math.sin(randomAngle) * bulletSpeed;
+          }
+
+          // Set new velocity
+          (bullet as any).velocityX = newVelocityX;
+          (bullet as any).velocityY = newVelocityY;
 
           // Move bullet outside of enemy2 to prevent multiple collisions
           const pushDistance = minDistance + 5;
-          bullet.x = this.enemy2.x + Math.cos(randomAngle) * pushDistance;
-          bullet.y = this.enemy2.y + Math.sin(randomAngle) * pushDistance;
+          const pushAngle = Math.atan2(newVelocityY, newVelocityX);
+          bullet.x = this.enemy2.x + Math.cos(pushAngle) * pushDistance;
+          bullet.y = this.enemy2.y + Math.sin(pushAngle) * pushDistance;
 
           // Don't destroy the bullet - let it continue in new direction
           bulletDestroyed = false;
