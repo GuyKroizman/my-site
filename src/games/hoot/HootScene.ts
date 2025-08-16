@@ -61,7 +61,7 @@ export class HootGameScene extends Phaser.Scene {
     "Now I know AI will definitely take over the world. You poor excuse for a human."
   ];
   private playerSize: number = 15; // Player size (width and height)
-  private debugLevel: number = 0; // 0 = normal game, 1-4 = start at specific level
+  private debugLevel: number = 4; // 0 = normal game, 1-4 = start at specific level
 
   constructor(context: HootGameContext) {
     super("hoot-game-scene");
@@ -504,6 +504,78 @@ export class HootGameScene extends Phaser.Scene {
     (this.enemy2 as any).rightPupil = rightPupil;
     (this.enemy2 as any).leftEye = leftEye;
     (this.enemy2 as any).rightEye = rightEye;
+    (this.enemy2 as any).leftEyebrow = leftEyebrow;
+    (this.enemy2 as any).rightEyebrow = rightEyebrow;
+    (this.enemy2 as any).body = body;
+
+    // Add breathing animation - enemy2 slowly grows and shrinks
+    this.tweens.add({
+      targets: this.enemy2,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Add eyebrow twitching animation
+    this.tweens.add({
+      targets: leftEyebrow,
+      rotation: -0.5,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      delay: 1000
+    });
+
+    this.tweens.add({
+      targets: rightEyebrow,
+      rotation: 0.5,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      delay: 1500
+    });
+
+    // Add eye blinking animation
+    this.tweens.add({
+      targets: [leftEye, rightEye],
+      scaleX: 0.1,
+      scaleY: 0.1,
+      duration: 100,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Power2',
+      delay: 3000,
+      repeatDelay: 5000 // Blink every 5 seconds
+    });
+
+    // Add color pulsing animation for the body
+    this.tweens.add({
+      targets: body,
+      fillColor: 0x00ee00, // Very subtle darker green
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Add rotation animation when in chase mode
+    this.tweens.add({
+      targets: this.enemy2,
+      angle: 5,
+      duration: 1000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      delay: 2000
+    });
+
+    // Initialize animations based on current mode
+    this.updateEnemy2Animations();
   }
 
   updateEnemy2Pupils() {
@@ -545,6 +617,123 @@ export class HootGameScene extends Phaser.Scene {
     }
   }
 
+  updateEnemy2Animations() {
+    if (!this.enemy2) return;
+
+    // Stop existing animations
+    this.tweens.killTweensOf(this.enemy2);
+    this.tweens.killTweensOf((this.enemy2 as any).body);
+    this.tweens.killTweensOf((this.enemy2 as any).leftEyebrow);
+    this.tweens.killTweensOf((this.enemy2 as any).rightEyebrow);
+
+    if (this.enemy2Mode === 'chase') {
+      // Chase mode animations - more aggressive
+      // Faster breathing
+      this.tweens.add({
+        targets: this.enemy2,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 1000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      // More aggressive eyebrow twitching
+      this.tweens.add({
+        targets: (this.enemy2 as any).leftEyebrow,
+        rotation: -0.8,
+        duration: 300,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      this.tweens.add({
+        targets: (this.enemy2 as any).rightEyebrow,
+        rotation: 0.8,
+        duration: 300,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        delay: 150
+      });
+
+      // Red color pulsing for aggression
+      this.tweens.add({
+        targets: (this.enemy2 as any).body,
+        fillColor: 0x00cc00, // Subtle darker green instead of red
+        duration: 800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      // Faster rotation
+      this.tweens.add({
+        targets: this.enemy2,
+        angle: 10,
+        duration: 500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+    } else {
+      // Avoid mode animations - more frantic/panicked
+      // Rapid breathing
+      this.tweens.add({
+        targets: this.enemy2,
+        scaleX: 0.95,
+        scaleY: 0.95,
+        duration: 400,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      // Very fast eyebrow twitching
+      this.tweens.add({
+        targets: (this.enemy2 as any).leftEyebrow,
+        rotation: -1.2,
+        duration: 200,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      this.tweens.add({
+        targets: (this.enemy2 as any).rightEyebrow,
+        rotation: 1.2,
+        duration: 200,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        delay: 100
+      });
+
+      // Yellow color pulsing for panic
+      this.tweens.add({
+        targets: (this.enemy2 as any).body,
+        fillColor: 0x00dd00, // Subtle darker green instead of yellow
+        duration: 300,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      // Shaking rotation
+      this.tweens.add({
+        targets: this.enemy2,
+        angle: 15,
+        duration: 200,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    }
+  }
+
   updateEnemy2() {
     if (!this.enemy2 || !this.player || this.currentStage !== 4) return;
 
@@ -578,11 +767,19 @@ export class HootGameScene extends Phaser.Scene {
     const dyToPlayer = this.player.y - this.enemy2.y;
     const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
 
+    // Store previous mode to detect changes
+    const previousMode = this.enemy2Mode;
+
     // Determine mode based on closest ball vs player distance
     if (closestBall && closestBallDistance < distanceToPlayer) {
       this.enemy2Mode = 'avoid';
     } else {
       this.enemy2Mode = 'chase';
+    }
+
+    // Update animations based on mode changes
+    if (previousMode !== this.enemy2Mode) {
+      this.updateEnemy2Animations();
     }
 
     // Move enemy2 based on current mode
