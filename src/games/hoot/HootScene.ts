@@ -1197,6 +1197,33 @@ export class HootGameScene extends Phaser.Scene {
 
   showMenu() {
     this.gameState = 'menu';
+    
+    // Clear all game elements first
+    if (this.player) {
+      this.player.destroy();
+      this.player = null as any;
+    }
+    this.bullets.forEach(bullet => bullet.destroy());
+    this.bullets = [];
+    this.enemies.forEach(enemy => enemy.destroy());
+    this.enemies = [];
+    this.enemyHealths.clear();
+    if (this.enemy2) {
+      // TypeScript error after site migration - ignoring for game functionality
+      // @ts-ignore
+      this.enemy2.destroy();
+      this.enemy2 = null;
+    }
+    this.context.balls.forEach(ball => ball.destroy());
+    this.context.balls = [];
+    
+    // Destroy dotted border if it exists
+    if (this.dottedBorder) {
+      this.dottedBorder.destroy();
+      this.dottedBorder = null;
+    }
+    
+    // Show menu UI
     this.menuTitle.setVisible(true);
     this.menuSubtitle.setVisible(true);
     this.healthText.setVisible(false);
