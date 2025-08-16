@@ -219,8 +219,35 @@ export class HootGameScene extends Phaser.Scene {
     }
   }
 
+  createPlayerGraphics(x: number = 0, y: number = 0, scale: number = 1): Phaser.GameObjects.Container {
+    const playerContainer = this.add.container(x, y);
+    
+    // Create the main brown capsule body using graphics
+    const bodyGraphics = this.add.graphics();
+    bodyGraphics.fillStyle(0x8B4513); // Brown color
+    const scaledSize = this.playerSize * scale;
+    bodyGraphics.fillRoundedRect(-scaledSize / 2, -scaledSize / 2, scaledSize, scaledSize, scaledSize / 2);
+    playerContainer.add(bodyGraphics);
+
+    // Create eyes with consistent sizing
+    const eyeSize = 5 * scale;
+    const cornerOffset = (scaledSize / 2) - 3 * scale;
+    const leftEye = this.add.circle(-cornerOffset, -cornerOffset, eyeSize, 0xffff00);
+    const rightEye = this.add.circle(cornerOffset, -cornerOffset, eyeSize, 0xffff00);
+    playerContainer.add(leftEye);
+    playerContainer.add(rightEye);
+
+    // Create pupils
+    const pupilSize = 2 * scale;
+    const leftPupil = this.add.circle(-cornerOffset, -cornerOffset, pupilSize, 0x000000);
+    const rightPupil = this.add.circle(cornerOffset, -cornerOffset, pupilSize, 0x000000);
+    playerContainer.add(leftPupil);
+    playerContainer.add(rightPupil);
+
+    return playerContainer;
+  }
+
   createPlayer() {
-    // Create a container for the complex player object
     let playerX = this.cameras.main.width / 2;
     let playerY = this.cameras.main.height / 2;
 
@@ -230,38 +257,11 @@ export class HootGameScene extends Phaser.Scene {
       playerY = this.cameras.main.height / 2;
     }
 
-    this.player = this.add.container(playerX, playerY);
-
-    // Array to hold all player shapes
-    const playerShapes: Phaser.GameObjects.GameObject[] = [];
-
-    // Create the main brown capsule body using graphics
-    const bodyGraphics = this.add.graphics();
-    bodyGraphics.fillStyle(0x8B4513); // Brown color
-    bodyGraphics.fillRoundedRect(-this.playerSize / 2, -this.playerSize / 2, this.playerSize, this.playerSize, this.playerSize / 2);
-    playerShapes.push(bodyGraphics);
-
-
-
-    const eyeSize = 5;
-    const cornerOffset = (this.playerSize / 2) - 3;
-    const leftEye = this.add.circle(-cornerOffset, -cornerOffset, eyeSize, 0xffff00);
-    const rightEye = this.add.circle(cornerOffset, -cornerOffset, eyeSize, 0xffff00);
-    playerShapes.push(leftEye);
-    playerShapes.push(rightEye);
-
-    const pupilSize = 2;
-    const leftPupil = this.add.circle(-cornerOffset, -cornerOffset, pupilSize, 0x000000);
-    const rightPupil = this.add.circle(cornerOffset, -cornerOffset, pupilSize, 0x000000);
-
+    this.player = this.createPlayerGraphics(playerX, playerY, 1);
+    
     // Store references to pupils for updating their positions
-    this.leftPupil = leftPupil;
-    this.rightPupil = rightPupil;
-
-    playerShapes.push(leftPupil);
-    playerShapes.push(rightPupil);
-
-    this.player.add(playerShapes);
+    this.leftPupil = this.player.getAt(4) as Phaser.GameObjects.Shape; // Left pupil
+    this.rightPupil = this.player.getAt(5) as Phaser.GameObjects.Shape; // Right pupil
 
     // Initialize pupil direction
     this.updatePupilDirection();
@@ -823,26 +823,8 @@ export class HootGameScene extends Phaser.Scene {
   }
 
   createMenuGameObjects() {
-    // Create a static player for the menu (similar to the real player but simplified)
-    this.menuPlayer = this.add.container(150, 240);
-
-    // Create player body (brown capsule)
-    const bodyGraphics = this.add.graphics();
-    bodyGraphics.fillStyle(0x8B4513); // Brown color
-    bodyGraphics.fillRoundedRect(-this.playerSize / 2, -this.playerSize / 2, this.playerSize, this.playerSize, this.playerSize / 2);
-    this.menuPlayer.add(bodyGraphics);
-
-    // Create player eyes
-    const leftEye = this.add.circle(-5, -5, 3, 0xffff00);
-    const rightEye = this.add.circle(5, -5, 3, 0xffff00);
-    this.menuPlayer.add(leftEye);
-    this.menuPlayer.add(rightEye);
-
-    // Create player pupils
-    const leftPupil = this.add.circle(-5, -5, 1, 0x000000);
-    const rightPupil = this.add.circle(5, -5, 1, 0x000000);
-    this.menuPlayer.add(leftPupil);
-    this.menuPlayer.add(rightPupil);
+    // Create a static player for the menu using the shared method
+    this.menuPlayer = this.createPlayerGraphics(150, 240, 1);
 
     // Create menu enemy (green rectangle) - second row
     this.menuEnemy = this.add.rectangle(150, 270, 20, 20, 0x00ff00);
