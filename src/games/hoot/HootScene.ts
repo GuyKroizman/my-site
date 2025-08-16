@@ -12,6 +12,8 @@ export class HootGameScene extends Phaser.Scene {
   private bullets: Phaser.GameObjects.Shape[] = [];
   private enemies: Phaser.GameObjects.Container[] = [];
   private enemyHealths: Map<Phaser.GameObjects.Container, number> = new Map();
+  private enemyDeathStates: Map<Phaser.GameObjects.Container, 'alive' | 'dying' | 'dead'> = new Map();
+  private enemySplats: Phaser.GameObjects.Graphics[] = [];
   private enemy2: Phaser.GameObjects.Container | null = null;
   private enemy2Mode: 'chase' | 'avoid' = 'chase';
   private enemy2Speed: number = 1;
@@ -740,7 +742,91 @@ export class HootGameScene extends Phaser.Scene {
     (enemyContainer as any).bodyGraphics = bodyGraphics;
     (enemyContainer as any).eyeAnimation = eyeAnimation;
     
+    // Initialize death state
+    this.enemyDeathStates.set(enemyContainer, 'alive');
+    
     return enemyContainer;
+  }
+
+  startEnemyDeathSequence(enemy: Phaser.GameObjects.Container) {
+    // Set enemy to dying state
+    this.enemyDeathStates.set(enemy, 'dying');
+    
+    // Stop all animations on the enemy
+    this.tweens.killTweensOf(enemy);
+    this.tweens.killTweensOf((enemy as any).bodyGraphics);
+    
+    // Play death sound
+    this.sound.play('enemyDie');
+    
+    // Create explosion effect
+    const explosion = this.add.circle(enemy.x, enemy.y, 30, 0xff0000, 0.6);
+    
+    // Remove explosion after 200ms
+    this.time.delayedCall(200, () => {
+      explosion.destroy();
+    });
+    
+    // Create crumbling effect - break enemy into pieces
+    const pieces: Phaser.GameObjects.Graphics[] = [];
+    const numPieces = 8;
+    
+    for (let i = 0; i < numPieces; i++) {
+      const piece = this.add.graphics();
+      piece.fillStyle(0x00ff00, 0.8);
+      
+      // Create different sized pieces
+      const size = 3 + Math.random() * 4;
+      piece.fillCircle(0, 0, size);
+      
+      // Position pieces around the enemy
+      const angle = (i / numPieces) * 2 * Math.PI;
+      const distance = 10 + Math.random() * 15;
+      piece.x = enemy.x + Math.cos(angle) * distance;
+      piece.y = enemy.y + Math.sin(angle) * distance;
+      
+      pieces.push(piece);
+      
+      // Animate pieces falling and fading
+      this.tweens.add({
+        targets: piece,
+        y: piece.y + 50 + Math.random() * 30,
+        x: piece.x + (Math.random() - 0.5) * 40,
+        alpha: 0,
+        duration: 2000 + Math.random() * 1000,
+        ease: 'Power2'
+      });
+    }
+    
+    // Hide the original enemy
+    enemy.setVisible(false);
+    
+    // After 3 seconds, create the permanent splat
+    this.time.delayedCall(3000, () => {
+      // Set enemy to dead state
+      this.enemyDeathStates.set(enemy, 'dead');
+      
+      // Create permanent splat
+      const splat = this.add.graphics();
+      splat.fillStyle(0x006400, 0.7); // Dark green splat
+      
+      // Create irregular splat shape
+      const splatRadius = 12 + Math.random() * 8;
+      splat.fillCircle(enemy.x, enemy.y, splatRadius);
+      
+      // Add some darker spots to make it look more realistic
+      splat.fillStyle(0x004000, 0.9);
+      for (let i = 0; i < 3; i++) {
+        const spotX = enemy.x + (Math.random() - 0.5) * splatRadius;
+        const spotY = enemy.y + (Math.random() - 0.5) * splatRadius;
+        splat.fillCircle(spotX, spotY, 2 + Math.random() * 3);
+      }
+      
+      this.enemySplats.push(splat);
+      
+      // Remove pieces
+      pieces.forEach(piece => piece.destroy());
+    });
   }
 
   createEnemies() {
@@ -751,6 +837,11 @@ export class HootGameScene extends Phaser.Scene {
     this.enemies.forEach(enemy => enemy.destroy());
     this.enemies = [];
     this.enemyHealths.clear();
+    this.enemyDeathStates.clear();
+    
+    // Clear existing splats
+    this.enemySplats.forEach(splat => splat.destroy());
+    this.enemySplats = [];
 
     // Clear enemy2 for stage 4
     if (this.enemy2) {
@@ -1095,6 +1186,10 @@ export class HootGameScene extends Phaser.Scene {
     // Make enemies slowly advance toward the player
     this.enemies.forEach((enemy) => {
       if (!enemy || !enemy.active || !this.player) return;
+      
+      // Check if enemy is alive (not dying or dead)
+      const deathState = this.enemyDeathStates.get(enemy);
+      if (deathState !== 'alive') return;
 
       // Calculate direction to player
       const dx = this.player!.x - enemy.x;
@@ -1161,14 +1256,13 @@ export class HootGameScene extends Phaser.Scene {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= this.explosionRadius) {
-        // Enemy is within proximity - trigger explosion
-        this.triggerExplosion(enemy);
-
-        // Remove the enemy
-        this.sound.play('enemyDie');
-        enemy.destroy();
-        this.enemies.splice(i, 1);
-        this.enemyHealths.delete(enemy);
+        // Enemy is within proximity - check if not already dying
+        const deathState = this.enemyDeathStates.get(enemy);
+        if (deathState === 'alive') {
+          // Trigger explosion and start death sequence
+          this.triggerExplosion(enemy);
+          this.startEnemyDeathSequence(enemy);
+        }
       }
     }
   }
@@ -1224,8 +1318,11 @@ export class HootGameScene extends Phaser.Scene {
         console.log('enemy2.active:', this.enemy2?.active);
       }
     } else {
-      // Other stages: check if all enemies are destroyed
-      stageComplete = this.enemies.length === 0;
+      // Other stages: check if all enemies are destroyed (only count alive enemies)
+      const aliveEnemies = this.enemies.filter(enemy => 
+        this.enemyDeathStates.get(enemy) === 'alive'
+      );
+      stageComplete = aliveEnemies.length === 0;
     }
 
     if (stageComplete) {
@@ -1283,6 +1380,11 @@ export class HootGameScene extends Phaser.Scene {
     this.enemies.forEach(enemy => enemy.destroy());
     this.enemies = [];
     this.enemyHealths.clear();
+    this.enemyDeathStates.clear();
+    
+    // Clear splats
+    this.enemySplats.forEach(splat => splat.destroy());
+    this.enemySplats = [];
     if (this.enemy2) {
       // TypeScript error after site migration - ignoring for game functionality
       // @ts-ignore
@@ -1355,6 +1457,12 @@ export class HootGameScene extends Phaser.Scene {
     this.enemies.forEach(enemy => enemy.destroy());
     this.enemies = [];
     this.enemyHealths.clear();
+    this.enemyDeathStates.clear();
+    
+    // Clear splats
+    this.enemySplats.forEach(splat => splat.destroy());
+    this.enemySplats = [];
+    
     if (this.enemy2) {
       // TypeScript error after site migration - ignoring for game functionality
       // @ts-ignore
@@ -1658,11 +1766,12 @@ export class HootGameScene extends Phaser.Scene {
         const minDistance = ball.radius + 10; // Enemy radius is 10
 
         if (distance < minDistance) {
-          // Ball hit enemy - destroy the enemy
-          this.sound.play('enemyDie');
-          enemy.destroy();
-          this.enemies.splice(j, 1);
-          this.enemyHealths.delete(enemy);
+          // Ball hit enemy - check if not already dying
+          const deathState = this.enemyDeathStates.get(enemy);
+          if (deathState === 'alive') {
+            // Start death sequence
+            this.startEnemyDeathSequence(enemy);
+          }
         }
       }
     }
@@ -1784,13 +1893,12 @@ export class HootGameScene extends Phaser.Scene {
             const newHealth = currentHealth - 19;
 
             if (newHealth <= 0) {
-              // Play enemy die sound
-              this.sound.play('enemyDie');
-
-              // Destroy enemy
-              enemy.destroy();
-              this.enemies.splice(j, 1);
-              this.enemyHealths.delete(enemy);
+              // Check if enemy is not already dying
+              const deathState = this.enemyDeathStates.get(enemy);
+              if (deathState === 'alive') {
+                // Start death sequence
+                this.startEnemyDeathSequence(enemy);
+              }
             } else {
               // Update enemy health
               this.enemyHealths.set(enemy, newHealth);
