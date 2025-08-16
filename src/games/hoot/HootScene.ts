@@ -49,6 +49,7 @@ export class HootGameScene extends Phaser.Scene {
   private menuPlayerLabel!: Phaser.GameObjects.Text;
   private menuEnemyLabel!: Phaser.GameObjects.Text;
   private menuBallLabel!: Phaser.GameObjects.Text;
+  private menuStamp!: Phaser.GameObjects.Container; // Stamp element for menu
   private dottedBorder: Phaser.GameObjects.Graphics | null = null; // Track dotted border
   private isStageFrozen: boolean = false; // Freeze state for stage transitions
   private freezeCountdownText!: Phaser.GameObjects.Text;
@@ -1335,6 +1336,60 @@ export class HootGameScene extends Phaser.Scene {
     });
     this.menuBallLabel.setOrigin(0, 0.5);
     this.menuBallLabel.setVisible(false);
+
+    // Create the stamp
+    this.createMenuStamp();
+  }
+
+  createMenuStamp() {
+    // Create a container for the stamp
+    this.menuStamp = this.add.container(900, 650);
+
+    // Create the stamp background (circular stamp shape)
+    const stampBackground = this.add.graphics();
+    stampBackground.fillStyle(0xff8080, 0.9); // Lighter red background with slight transparency
+    stampBackground.fillCircle(0, 0, 80); // 80px radius circle
+
+    // Add a border to make it look more like a stamp
+    stampBackground.lineStyle(4, 0xff6666, 1); // Lighter red border
+    stampBackground.strokeCircle(0, 0, 80);
+
+    // Add some texture to make it look stamped (dotted pattern)
+    const stampTexture = this.add.graphics();
+    stampTexture.fillStyle(0xff6666, 0.3); // Lighter red dots
+    for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * 2 * Math.PI;
+      const radius = 30 + Math.random() * 40; // Random distance from center
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      stampTexture.fillCircle(x, y, 1 + Math.random() * 2); // Small random dots
+    }
+
+    // Create the text for the stamp
+    const stampText = this.add.text(0, 5, 'Five minutes\ngame!', {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      align: 'center'
+    });
+    stampText.setOrigin(0.5);
+
+    // Add a small decorative element to make it look more like a stamp
+    const decorativeRing = this.add.graphics();
+    decorativeRing.lineStyle(2, 0xffffff, 0.8);
+    decorativeRing.strokeCircle(0, 0, 60);
+
+    // Add all elements to the stamp container
+    this.menuStamp.add(stampBackground);
+    this.menuStamp.add(stampTexture);
+    this.menuStamp.add(decorativeRing);
+    this.menuStamp.add(stampText);
+
+    // Add a slight rotation to make it look more natural
+    this.menuStamp.setRotation(0.1); // Slight tilt
+
+    // Initially hide the stamp
+    this.menuStamp.setVisible(false);
   }
 
   setupInput() {
@@ -1715,6 +1770,7 @@ export class HootGameScene extends Phaser.Scene {
     this.menuPlayerLabel.setVisible(true);
     this.menuEnemyLabel.setVisible(true);
     this.menuBallLabel.setVisible(true);
+    this.menuStamp.setVisible(true);
 
     // Stop background music when returning to menu
     this.sound.stopAll();
@@ -1738,6 +1794,7 @@ export class HootGameScene extends Phaser.Scene {
     this.menuPlayerLabel.setVisible(false);
     this.menuEnemyLabel.setVisible(false);
     this.menuBallLabel.setVisible(false);
+    this.menuStamp.setVisible(false);
 
     // Show game UI
     this.healthText.setVisible(true);
