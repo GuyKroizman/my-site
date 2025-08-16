@@ -734,6 +734,130 @@ export class HootGameScene extends Phaser.Scene {
     }
   }
 
+  startEnemy2DeathSequence() {
+    if (!this.enemy2) return;
+
+    // Stop all animations on enemy2
+    this.tweens.killTweensOf(this.enemy2);
+    this.tweens.killTweensOf((this.enemy2 as any).body);
+    this.tweens.killTweensOf((this.enemy2 as any).leftEyebrow);
+    this.tweens.killTweensOf((this.enemy2 as any).rightEyebrow);
+    this.tweens.killTweensOf((this.enemy2 as any).leftEye);
+    this.tweens.killTweensOf((this.enemy2 as any).rightEye);
+
+    // Play death sound
+    this.sound.play('enemyDie');
+
+    // Create multiple explosion effects for bigger impact
+    const explosion1 = this.add.circle(this.enemy2.x, this.enemy2.y, 60, 0xff0000, 0.7);
+    const explosion2 = this.add.circle(this.enemy2.x, this.enemy2.y, 40, 0xff6600, 0.8);
+    const explosion3 = this.add.circle(this.enemy2.x, this.enemy2.y, 20, 0xffff00, 0.9);
+
+    // Animate explosions growing and fading
+    this.tweens.add({
+      targets: [explosion1, explosion2, explosion3],
+      scaleX: 2,
+      scaleY: 2,
+      alpha: 0,
+      duration: 500,
+      ease: 'Power2',
+      onComplete: () => {
+        explosion1.destroy();
+        explosion2.destroy();
+        explosion3.destroy();
+      }
+    });
+
+    // Create enhanced crumbling effect - break enemy2 into more pieces
+    const pieces: Phaser.GameObjects.Graphics[] = [];
+    const numPieces = 16; // More pieces for bigger enemy
+
+    for (let i = 0; i < numPieces; i++) {
+      const piece = this.add.graphics();
+      
+      // Different colors for variety
+      const colors = [0x00ff00, 0x00dd00, 0x00cc00, 0x00bb00];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      piece.fillStyle(color, 0.9);
+
+      // Create different sized pieces
+      const size = 4 + Math.random() * 8; // Bigger pieces for bigger enemy
+      piece.fillCircle(0, 0, size);
+
+      // Position pieces around the enemy2
+      const angle = (i / numPieces) * 2 * Math.PI;
+      const distance = 20 + Math.random() * 40; // Larger spread for bigger enemy
+      piece.x = this.enemy2.x + Math.cos(angle) * distance;
+      piece.y = this.enemy2.y + Math.sin(angle) * distance;
+
+      pieces.push(piece);
+
+      // Animate pieces falling and fading with more dramatic movement
+      this.tweens.add({
+        targets: piece,
+        y: piece.y + 80 + Math.random() * 60,
+        x: piece.x + (Math.random() - 0.5) * 80,
+        alpha: 0,
+        angle: Math.random() * 360,
+        scaleX: 0.5,
+        scaleY: 0.5,
+        duration: 2500 + Math.random() * 1500,
+        ease: 'Power2'
+      });
+    }
+
+    // Add special effects - create some larger chunks
+    const chunks: Phaser.GameObjects.Graphics[] = [];
+    const numChunks = 4;
+
+    for (let i = 0; i < numChunks; i++) {
+      const chunk = this.add.graphics();
+      chunk.fillStyle(0x00ff00, 0.8);
+      
+      // Create rectangular chunks
+      const width = 8 + Math.random() * 12;
+      const height = 8 + Math.random() * 12;
+      chunk.fillRect(-width/2, -height/2, width, height);
+
+      const angle = (i / numChunks) * 2 * Math.PI;
+      const distance = 30 + Math.random() * 30;
+      chunk.x = this.enemy2.x + Math.cos(angle) * distance;
+      chunk.y = this.enemy2.y + Math.sin(angle) * distance;
+
+      chunks.push(chunk);
+
+      // Animate chunks with rotation
+      this.tweens.add({
+        targets: chunk,
+        y: chunk.y + 100 + Math.random() * 80,
+        x: chunk.x + (Math.random() - 0.5) * 100,
+        alpha: 0,
+        angle: Math.random() * 720, // Multiple rotations
+        scaleX: 0.3,
+        scaleY: 0.3,
+        duration: 3000 + Math.random() * 2000,
+        ease: 'Power2'
+      });
+    }
+
+    // Hide the original enemy2
+    this.enemy2.setVisible(false);
+
+    // After 4 seconds, destroy enemy2 and clean up
+    this.time.delayedCall(4000, () => {
+      // Remove pieces and chunks
+      pieces.forEach(piece => piece.destroy());
+      chunks.forEach(chunk => chunk.destroy());
+      
+      // Destroy the enemy2 container
+      this.enemy2?.destroy();
+      this.enemy2 = null;
+
+      // Immediately check for stage completion
+      this.checkStageCompletion();
+    });
+  }
+
   updateEnemy2() {
     if (!this.enemy2 || !this.player || this.currentStage !== 4) return;
 
@@ -1959,15 +2083,8 @@ export class HootGameScene extends Phaser.Scene {
         const minDistance = ball.radius + 60; // Enemy2 radius is 60 (half of 120x120)
 
         if (distance < minDistance) {
-          // Ball hit enemy2 - destroy the enemy2
-          this.sound.play('enemyDie');
-          // TypeScript error after site migration - ignoring for game functionality
-          // @ts-ignore
-          this.enemy2.destroy();
-          this.enemy2 = null;
-
-          // Immediately check for stage completion
-          this.checkStageCompletion();
+          // Ball hit enemy2 - start death sequence
+          this.startEnemy2DeathSequence();
         }
       }
     }
