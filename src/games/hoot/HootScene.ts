@@ -1631,6 +1631,37 @@ export class HootGameScene extends Phaser.Scene {
         }
       }
 
+      // Check bullet vs enemy2 collisions (only if bullet still exists and on level 4)
+      if (!bulletDestroyed && bullet && bullet.active && this.currentStage === 4 && this.enemy2 && this.enemy2.active) {
+        // @ts-ignore
+        const dx = bullet.x - this.enemy2.x;
+        // @ts-ignore
+        const dy = bullet.y - this.enemy2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const minDistance = (bullet as any).radius + 60; // Enemy2 radius is 60 (half of 120x120)
+
+        if (distance < minDistance) {
+          // Play shot hit enemy sound
+          this.sound.play('shotHitEnemy');
+
+          // On level 4, bullets bounce off enemy2 in random direction
+          const randomAngle = Math.random() * 2 * Math.PI; // Random angle between 0 and 2π
+          const bulletSpeed = Math.sqrt((bullet as any).velocityX * (bullet as any).velocityX + (bullet as any).velocityY * (bullet as any).velocityY);
+          
+          // Set new random direction while maintaining bullet speed
+          (bullet as any).velocityX = Math.cos(randomAngle) * bulletSpeed;
+          (bullet as any).velocityY = Math.sin(randomAngle) * bulletSpeed;
+
+          // Move bullet outside of enemy2 to prevent multiple collisions
+          const pushDistance = minDistance + 5;
+          bullet.x = this.enemy2.x + Math.cos(randomAngle) * pushDistance;
+          bullet.y = this.enemy2.y + Math.sin(randomAngle) * pushDistance;
+
+          // Don't destroy the bullet - let it continue in new direction
+          bulletDestroyed = false;
+        }
+      }
+
       // Check bullet vs enemy collisions (only if bullet still exists)
       if (!bulletDestroyed && bullet && bullet.active) {
         for (let j = this.enemies.length - 1; j >= 0; j--) {
