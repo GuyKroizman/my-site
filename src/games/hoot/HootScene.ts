@@ -2140,8 +2140,7 @@ export class HootGameScene extends Phaser.Scene {
           this.sound.play('shotHitEnemy');
 
           // Calculate which side of enemy2 the bullet hit
-          const enemy2Size = 120; // Enemy2 is 120x120
-          const halfSize = enemy2Size / 2;
+          // Enemy2 is 120x120
 
           // Determine collision side based on bullet position relative to enemy2 center
           let collisionSide: 'top' | 'bottom' | 'left' | 'right';
