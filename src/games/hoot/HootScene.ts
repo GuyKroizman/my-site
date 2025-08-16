@@ -61,7 +61,7 @@ export class HootGameScene extends Phaser.Scene {
     "Now I know AI will definitely take over the world. You poor excuse for a human."
   ];
   private playerSize: number = 15; // Player size (width and height)
-  private debugLevel: number = 4; // 0 = normal game, 1-4 = start at specific level
+  private debugLevel: number = 0; // 0 = normal game, 1-4 = start at specific level
 
   constructor(context: HootGameContext) {
     super("hoot-game-scene");
@@ -774,7 +774,7 @@ export class HootGameScene extends Phaser.Scene {
 
     for (let i = 0; i < numPieces; i++) {
       const piece = this.add.graphics();
-      
+
       // Different colors for variety
       const colors = [0x00ff00, 0x00dd00, 0x00cc00, 0x00bb00];
       const color = colors[Math.floor(Math.random() * colors.length)];
@@ -813,11 +813,11 @@ export class HootGameScene extends Phaser.Scene {
     for (let i = 0; i < numChunks; i++) {
       const chunk = this.add.graphics();
       chunk.fillStyle(0x00ff00, 0.8);
-      
+
       // Create rectangular chunks
       const width = 8 + Math.random() * 12;
       const height = 8 + Math.random() * 12;
-      chunk.fillRect(-width/2, -height/2, width, height);
+      chunk.fillRect(-width / 2, -height / 2, width, height);
 
       const angle = (i / numChunks) * 2 * Math.PI;
       const distance = 30 + Math.random() * 30;
@@ -848,7 +848,7 @@ export class HootGameScene extends Phaser.Scene {
       // Remove pieces and chunks
       pieces.forEach(piece => piece.destroy());
       chunks.forEach(chunk => chunk.destroy());
-      
+
       // Destroy the enemy2 container
       this.enemy2?.destroy();
       this.enemy2 = null;
