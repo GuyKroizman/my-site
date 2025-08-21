@@ -20,10 +20,10 @@ function App() {
               <div className="text-center mb-4">
                 <div className="text-4xl mb-2">🐍</div>
                 <h2 className="text-2xl font-semibold text-gray-800">נושך הנחשים</h2>
-                <p className="text-gray-600 mt-2">Snake Bitter Story</p>
+                <p className="text-gray-600 mt-2">סיפור ילדים</p>
               </div>
-              <p className="text-gray-700 mb-4 text-sm">
-                A charming Hebrew children's story about Shraga, a boy who loves to bite snakes.
+              <p dir="rtl" className="text-gray-700 mb-4 text-sm">
+                סיפור ילדים שנכתב במשך כמה ארוחות ערב עם הילדים.
               </p>
               <Link
                 to="/snake-bitter"
@@ -41,7 +41,7 @@ function App() {
                 <p className="text-gray-600 mt-2">Dungeon Adventure</p>
               </div>
               <p className="text-gray-700 mb-4 text-sm">
-                A classic roguelike dungeon crawler with heroes, monsters, and treasures.
+                Work in progress. Nothing t see here yet.
               </p>
               <Link
                 to="/rogue0"
@@ -56,10 +56,10 @@ function App() {
               <div className="text-center mb-4">
                 <div className="text-4xl mb-2">🎯</div>
                 <h2 className="text-2xl font-semibold text-gray-800">Hoot</h2>
-                <p className="text-gray-600 mt-2">Shooting Game</p>
+                <p className="text-gray-600 mt-2">Cute 2d survival game</p>
               </div>
               <p className="text-gray-700 mb-4 text-sm">
-                An action-packed shooting game with multiple stages and challenging enemies.
+                Desktop game with 3 Stages and a bose fight.
               </p>
               <Link
                 to="/hoot"
