@@ -10,7 +10,7 @@ function App() {
               Welcome to My Site
             </h1>
             <p className="text-xl text-gray-600">
-              One children's story and two games to play
+              Below are some things I did
             </p>
           </header>
 
