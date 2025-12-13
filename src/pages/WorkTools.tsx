@@ -1,13 +1,32 @@
 import { Link } from 'react-router-dom'
 import { useState, useRef, useEffect, useCallback } from 'react'
 
+// Load from localStorage with fallback
+const loadFromStorage = (key: string, defaultValue: number): number => {
+  if (typeof window === 'undefined') return defaultValue
+  const stored = localStorage.getItem(key)
+  if (stored === null) return defaultValue
+  const parsed = parseFloat(stored)
+  return isNaN(parsed) ? defaultValue : parsed
+}
+
+// Save to localStorage
+const saveToStorage = (key: string, value: number) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(key, value.toString())
+  }
+}
+
 export default function WorkTools() {
+  // Load initial values from localStorage
   const [isPlaying, setIsPlaying] = useState(false)
-  const [volume, setVolume] = useState(0.5)
+  const [volume, setVolume] = useState(() => loadFromStorage('workTools-volume', 0.5))
+  const [frequencyCutoff, setFrequencyCutoff] = useState(() => loadFromStorage('workTools-frequency', 1000))
   const [elapsedTime, setElapsedTime] = useState(0)
   const audioContextRef = useRef<AudioContext | null>(null)
   const noiseNodeRef = useRef<AudioBufferSourceNode | null>(null)
   const gainNodeRef = useRef<GainNode | null>(null)
+  const filterNodeRef = useRef<BiquadFilterNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const timerIntervalRef = useRef<number | null>(null)
 
@@ -52,11 +71,21 @@ export default function WorkTools() {
     const sampleRate = audioContext.sampleRate
     const bufferLength = sampleRate * 2 // 2 seconds of audio
 
+    // Create low-pass filter
+    const filterNode = audioContext.createBiquadFilter()
+    filterNode.type = 'lowpass'
+    filterNode.frequency.value = frequencyCutoff
+    filterNode.Q.value = 1
+    filterNodeRef.current = filterNode
+
     // Create gain node for volume control
     const gainNode = audioContext.createGain()
     gainNode.gain.value = volume
-    gainNode.connect(audioContext.destination)
     gainNodeRef.current = gainNode
+
+    // Connect: source -> filter -> gain -> destination
+    filterNode.connect(gainNode)
+    gainNode.connect(audioContext.destination)
 
     // Create buffer with brown noise
     const buffer = audioContext.createBuffer(1, bufferLength, sampleRate)
@@ -68,7 +97,7 @@ export default function WorkTools() {
     const source = audioContext.createBufferSource()
     source.buffer = buffer
     source.loop = true
-    source.connect(gainNode)
+    source.connect(filterNode)
     source.start(0)
     noiseNodeRef.current = source
 
@@ -81,6 +110,10 @@ export default function WorkTools() {
       noiseNodeRef.current.stop()
       noiseNodeRef.current.disconnect()
       noiseNodeRef.current = null
+    }
+    if (filterNodeRef.current) {
+      filterNodeRef.current.disconnect()
+      filterNodeRef.current = null
     }
     setIsPlaying(false)
     setElapsedTime(0) // Reset timer when stopping
@@ -98,14 +131,25 @@ export default function WorkTools() {
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value)
     setVolume(newVolume)
+    saveToStorage('workTools-volume', newVolume)
     if (gainNodeRef.current) {
       gainNodeRef.current.gain.value = newVolume
+    }
+  }
+
+  const handleFrequencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFrequency = parseFloat(e.target.value)
+    setFrequencyCutoff(newFrequency)
+    saveToStorage('workTools-frequency', newFrequency)
+    if (filterNodeRef.current) {
+      filterNodeRef.current.frequency.value = newFrequency
     }
   }
 
   const increaseVolume = useCallback(() => {
     setVolume((prevVolume) => {
       const newVolume = Math.min(1, prevVolume + 0.05)
+      saveToStorage('workTools-volume', newVolume)
       if (gainNodeRef.current) {
         gainNodeRef.current.gain.value = newVolume
       }
@@ -116,6 +160,7 @@ export default function WorkTools() {
   const decreaseVolume = useCallback(() => {
     setVolume((prevVolume) => {
       const newVolume = Math.max(0, prevVolume - 0.05)
+      saveToStorage('workTools-volume', newVolume)
       if (gainNodeRef.current) {
         gainNodeRef.current.gain.value = newVolume
       }
@@ -244,25 +289,50 @@ export default function WorkTools() {
                 {isPlaying ? '⏸' : '▶'}
               </button>
 
-              {/* Volume Control */}
-              <div className="w-full max-w-xs">
-                <label htmlFor="volume" className="block text-sm text-gray-400 mb-2 text-center">
-                  Volume
-                </label>
-                <input
-                  id="volume"
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={volume}
-                  onChange={handleVolumeChange}
-                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>0%</span>
-                  <span>{Math.round(volume * 100)}%</span>
-                  <span>100%</span>
+              {/* Sound Controls */}
+              <div className="w-full max-w-2xl space-y-6">
+                {/* Volume Control */}
+                <div className="w-full">
+                  <label htmlFor="volume" className="block text-sm text-gray-400 mb-2 text-center">
+                    Volume
+                  </label>
+                  <input
+                    id="volume"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={handleVolumeChange}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>0%</span>
+                    <span>{Math.round(volume * 100)}%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+
+                {/* Frequency Control */}
+                <div className="w-full">
+                  <label htmlFor="frequency" className="block text-sm text-gray-400 mb-2 text-center">
+                    Frequency Cutoff
+                  </label>
+                  <input
+                    id="frequency"
+                    type="range"
+                    min="200"
+                    max="5000"
+                    step="10"
+                    value={frequencyCutoff}
+                    onChange={handleFrequencyChange}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>200 Hz</span>
+                    <span>{Math.round(frequencyCutoff)} Hz</span>
+                    <span>5000 Hz</span>
+                  </div>
                 </div>
               </div>
 
