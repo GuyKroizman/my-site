@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "security:check": "npm audit",
+    "security:fix": "npm audit fix",
+    "security:fix:force": "npm audit fix --force",
+    "security:update": "npm audit fix && npm update"
   },
   "dependencies": {
     "pathfinding": "^0.4.18",
