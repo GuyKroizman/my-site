@@ -17,6 +17,8 @@ const saveToStorage = (key: string, value: number) => {
   }
 }
 
+type PomodoroSession = 'work' | 'shortBreak' | 'longBreak'
+
 export default function WorkTools() {
   // Load initial values from localStorage
   const [isPlaying, setIsPlaying] = useState(false)
@@ -29,6 +31,16 @@ export default function WorkTools() {
   const filterNodeRef = useRef<BiquadFilterNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const timerIntervalRef = useRef<number | null>(null)
+
+  // Pomodoro timer state
+  const [pomodoroWorkDuration, setPomodoroWorkDuration] = useState(() => loadFromStorage('pomodoro-work', 25))
+  const [pomodoroShortBreak, setPomodoroShortBreak] = useState(() => loadFromStorage('pomodoro-shortBreak', 5))
+  const [pomodoroLongBreak, setPomodoroLongBreak] = useState(() => loadFromStorage('pomodoro-longBreak', 15))
+  const [pomodoroSession, setPomodoroSession] = useState<PomodoroSession>('work')
+  const [pomodoroTimeRemaining, setPomodoroTimeRemaining] = useState(25 * 60) // in seconds
+  const [pomodoroIsRunning, setPomodoroIsRunning] = useState(false)
+  const [pomodoroCompletedSessions, setPomodoroCompletedSessions] = useState(0)
+  const pomodoroIntervalRef = useRef<number | null>(null)
 
   // Generate brown noise buffer
   const generateBrownNoise = (length: number, sampleRate: number): Float32Array => {
@@ -56,6 +68,143 @@ export default function WorkTools() {
     }
     return `${minutes}:${secs.toString().padStart(2, '0')}`
   }
+
+  const formatPomodoroTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Pomodoro timer functions
+  const getSessionDuration = (session: PomodoroSession): number => {
+    switch (session) {
+      case 'work':
+        return pomodoroWorkDuration * 60
+      case 'shortBreak':
+        return pomodoroShortBreak * 60
+      case 'longBreak':
+        return pomodoroLongBreak * 60
+    }
+  }
+
+  const playNotificationSound = () => {
+    // Create a simple beep sound using Web Audio API
+    if (audioContextRef.current) {
+      const audioContext = audioContextRef.current
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+
+      oscillator.frequency.value = 800
+      oscillator.type = 'sine'
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.5)
+    }
+  }
+
+  const startPomodoro = () => {
+    setPomodoroIsRunning(true)
+  }
+
+  const pausePomodoro = () => {
+    setPomodoroIsRunning(false)
+  }
+
+  const resetPomodoro = () => {
+    setPomodoroIsRunning(false)
+    setPomodoroTimeRemaining(getSessionDuration(pomodoroSession))
+  }
+
+  const switchPomodoroSession = (session: PomodoroSession) => {
+    setPomodoroIsRunning(false)
+    setPomodoroSession(session)
+    setPomodoroTimeRemaining(getSessionDuration(session))
+  }
+
+  // Pomodoro timer countdown effect
+  useEffect(() => {
+    if (pomodoroIsRunning && pomodoroTimeRemaining > 0) {
+      pomodoroIntervalRef.current = window.setInterval(() => {
+        setPomodoroTimeRemaining((prev) => {
+          if (prev <= 1) {
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } else {
+      if (pomodoroIntervalRef.current) {
+        clearInterval(pomodoroIntervalRef.current)
+        pomodoroIntervalRef.current = null
+      }
+    }
+
+    return () => {
+      if (pomodoroIntervalRef.current) {
+        clearInterval(pomodoroIntervalRef.current)
+        pomodoroIntervalRef.current = null
+      }
+    }
+  }, [pomodoroIsRunning, pomodoroTimeRemaining])
+
+  // Handle timer completion
+  useEffect(() => {
+    if (pomodoroTimeRemaining === 0 && !pomodoroIsRunning) {
+      playNotificationSound()
+      
+      // Show browser notification if permission granted
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const sessionName = pomodoroSession === 'work' ? 'Work' : pomodoroSession === 'shortBreak' ? 'Short Break' : 'Long Break'
+        new Notification(`Pomodoro ${sessionName} Complete!`, {
+          body: `Time to ${pomodoroSession === 'work' ? 'take a break' : 'get back to work'}!`,
+          icon: '/vite.svg',
+        })
+      }
+
+      // Auto-switch to next session
+      if (pomodoroSession === 'work') {
+        const completed = pomodoroCompletedSessions + 1
+        setPomodoroCompletedSessions(completed)
+        
+        // Every 4 work sessions, take a long break
+        setTimeout(() => {
+          if (completed % 4 === 0) {
+            setPomodoroSession('longBreak')
+            setPomodoroTimeRemaining(pomodoroLongBreak * 60)
+          } else {
+            setPomodoroSession('shortBreak')
+            setPomodoroTimeRemaining(pomodoroShortBreak * 60)
+          }
+        }, 1000)
+      } else {
+        // Break finished, go back to work
+        setTimeout(() => {
+          setPomodoroSession('work')
+          setPomodoroTimeRemaining(pomodoroWorkDuration * 60)
+        }, 1000)
+      }
+    }
+  }, [pomodoroTimeRemaining, pomodoroIsRunning, pomodoroSession, pomodoroCompletedSessions, pomodoroWorkDuration, pomodoroShortBreak, pomodoroLongBreak])
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
+  // Update timer when session changes
+  useEffect(() => {
+    if (!pomodoroIsRunning) {
+      setPomodoroTimeRemaining(getSessionDuration(pomodoroSession))
+    }
+  }, [pomodoroSession, pomodoroWorkDuration, pomodoroShortBreak, pomodoroLongBreak])
 
   const startBrownNoise = () => {
     if (audioContextRef.current?.state === 'suspended') {
@@ -238,6 +387,10 @@ export default function WorkTools() {
         clearInterval(timerIntervalRef.current)
         timerIntervalRef.current = null
       }
+      if (pomodoroIntervalRef.current) {
+        clearInterval(pomodoroIntervalRef.current)
+        pomodoroIntervalRef.current = null
+      }
     }
   }, [])
 
@@ -351,14 +504,173 @@ export default function WorkTools() {
             </div>
           </div>
 
-          {/* Future Tools Placeholder */}
-          <div className="bg-gray-800 rounded-lg p-8 shadow-lg opacity-50">
-            <h2 className="text-2xl md:text-3xl font-semibold mb-4 text-center text-gray-500">
-              More Tools Coming Soon
+          {/* Pomodoro Timer Section */}
+          <div className="bg-gray-800 rounded-lg p-8 shadow-lg">
+            <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-center">
+              Pomodoro Timer
             </h2>
-            <p className="text-gray-400 text-center">
-              Pomodoro timer and other productivity tools will be added here
-            </p>
+
+            {/* Session Selector */}
+            <div className="flex justify-center gap-4 mb-6">
+              <button
+                onClick={() => switchPomodoroSession('work')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  pomodoroSession === 'work'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Work
+              </button>
+              <button
+                onClick={() => switchPomodoroSession('shortBreak')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  pomodoroSession === 'shortBreak'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Short Break
+              </button>
+              <button
+                onClick={() => switchPomodoroSession('longBreak')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  pomodoroSession === 'longBreak'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Long Break
+              </button>
+            </div>
+
+            {/* Timer Display */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="text-6xl md:text-8xl font-mono font-bold mb-4 text-center">
+                {formatPomodoroTime(pomodoroTimeRemaining)}
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="w-full max-w-md h-2 bg-gray-700 rounded-full mb-4">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ${
+                    pomodoroSession === 'work'
+                      ? 'bg-blue-600'
+                      : pomodoroSession === 'shortBreak'
+                      ? 'bg-green-600'
+                      : 'bg-purple-600'
+                  }`}
+                  style={{
+                    width: `${((getSessionDuration(pomodoroSession) - pomodoroTimeRemaining) / getSessionDuration(pomodoroSession)) * 100}%`,
+                  }}
+                />
+              </div>
+
+              {/* Session Info */}
+              <div className="text-sm text-gray-400 mb-4">
+                {pomodoroSession === 'work' && 'Focus time'}
+                {pomodoroSession === 'shortBreak' && 'Take a short break'}
+                {pomodoroSession === 'longBreak' && 'Take a long break'}
+                {pomodoroCompletedSessions > 0 && (
+                  <span className="ml-2">• {pomodoroCompletedSessions} session{pomodoroCompletedSessions !== 1 ? 's' : ''} completed</span>
+                )}
+              </div>
+
+              {/* Control Buttons */}
+              <div className="flex gap-4">
+                {!pomodoroIsRunning ? (
+                  <button
+                    onClick={startPomodoro}
+                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Start
+                  </button>
+                ) : (
+                  <button
+                    onClick={pausePomodoro}
+                    className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Pause
+                  </button>
+                )}
+                <button
+                  onClick={resetPomodoro}
+                  className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {/* Settings */}
+            <div className="mt-8 pt-6 border-t border-gray-700">
+              <h3 className="text-lg font-semibold mb-4 text-center">Settings</h3>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="work-duration" className="block text-sm text-gray-400 mb-2">
+                    Work Duration (minutes)
+                  </label>
+                  <input
+                    id="work-duration"
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={pomodoroWorkDuration}
+                    onChange={(e) => {
+                      const value = Math.max(1, Math.min(60, parseInt(e.target.value) || 25))
+                      setPomodoroWorkDuration(value)
+                      saveToStorage('pomodoro-work', value)
+                      if (pomodoroSession === 'work' && !pomodoroIsRunning) {
+                        setPomodoroTimeRemaining(value * 60)
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="short-break-duration" className="block text-sm text-gray-400 mb-2">
+                    Short Break (minutes)
+                  </label>
+                  <input
+                    id="short-break-duration"
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={pomodoroShortBreak}
+                    onChange={(e) => {
+                      const value = Math.max(1, Math.min(30, parseInt(e.target.value) || 5))
+                      setPomodoroShortBreak(value)
+                      saveToStorage('pomodoro-shortBreak', value)
+                      if (pomodoroSession === 'shortBreak' && !pomodoroIsRunning) {
+                        setPomodoroTimeRemaining(value * 60)
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="long-break-duration" className="block text-sm text-gray-400 mb-2">
+                    Long Break (minutes)
+                  </label>
+                  <input
+                    id="long-break-duration"
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={pomodoroLongBreak}
+                    onChange={(e) => {
+                      const value = Math.max(1, Math.min(60, parseInt(e.target.value) || 15))
+                      setPomodoroLongBreak(value)
+                      saveToStorage('pomodoro-longBreak', value)
+                      if (pomodoroSession === 'longBreak' && !pomodoroIsRunning) {
+                        setPomodoroTimeRemaining(value * 60)
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
