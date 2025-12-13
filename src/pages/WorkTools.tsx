@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 export default function WorkTools() {
   const [isPlaying, setIsPlaying] = useState(false)
@@ -71,13 +71,14 @@ export default function WorkTools() {
     setIsPlaying(false)
   }
 
-  const toggleNoise = () => {
-    if (isPlaying) {
+  const toggleNoise = useCallback(() => {
+    // Check if noise is currently playing by checking if node exists
+    if (noiseNodeRef.current) {
       stopBrownNoise()
     } else {
       startBrownNoise()
     }
-  }
+  }, [])
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value)
@@ -86,6 +87,60 @@ export default function WorkTools() {
       gainNodeRef.current.gain.value = newVolume
     }
   }
+
+  const increaseVolume = useCallback(() => {
+    setVolume((prevVolume) => {
+      const newVolume = Math.min(1, prevVolume + 0.05)
+      if (gainNodeRef.current) {
+        gainNodeRef.current.gain.value = newVolume
+      }
+      return newVolume
+    })
+  }, [])
+
+  const decreaseVolume = useCallback(() => {
+    setVolume((prevVolume) => {
+      const newVolume = Math.max(0, prevVolume - 0.05)
+      if (gainNodeRef.current) {
+        gainNodeRef.current.gain.value = newVolume
+      }
+      return newVolume
+    })
+  }, [])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when user is typing in an input field
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return
+      }
+
+      switch (e.key) {
+        case ' ':
+          e.preventDefault() // Prevent page scroll
+          toggleNoise()
+          break
+        case 'ArrowUp':
+          e.preventDefault() // Prevent page scroll
+          increaseVolume()
+          break
+        case 'ArrowDown':
+          e.preventDefault() // Prevent page scroll
+          decreaseVolume()
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [toggleNoise, increaseVolume, decreaseVolume])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -124,8 +179,11 @@ export default function WorkTools() {
             <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-center">
               Brown Noise
             </h2>
-            <p className="text-gray-300 mb-6 text-center">
+            <p className="text-gray-300 mb-2 text-center">
               Mask outside noise and improve focus with brown noise
+            </p>
+            <p className="text-gray-500 mb-6 text-center text-sm">
+              Keyboard shortcuts: Space to play/pause • ↑/↓ to adjust volume
             </p>
 
             <div className="flex flex-col items-center space-y-6">
