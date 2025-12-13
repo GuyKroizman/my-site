@@ -4,10 +4,12 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 export default function WorkTools() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [volume, setVolume] = useState(0.5)
+  const [elapsedTime, setElapsedTime] = useState(0)
   const audioContextRef = useRef<AudioContext | null>(null)
   const noiseNodeRef = useRef<AudioBufferSourceNode | null>(null)
   const gainNodeRef = useRef<GainNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+  const timerIntervalRef = useRef<number | null>(null)
 
   // Generate brown noise buffer
   const generateBrownNoise = (length: number, sampleRate: number): Float32Array => {
@@ -23,6 +25,17 @@ export default function WorkTools() {
     }
 
     return buffer
+  }
+
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`
   }
 
   const startBrownNoise = () => {
@@ -60,6 +73,7 @@ export default function WorkTools() {
     noiseNodeRef.current = source
 
     setIsPlaying(true)
+    setElapsedTime(0) // Reset timer when starting
   }
 
   const stopBrownNoise = () => {
@@ -69,6 +83,7 @@ export default function WorkTools() {
       noiseNodeRef.current = null
     }
     setIsPlaying(false)
+    setElapsedTime(0) // Reset timer when stopping
   }
 
   const toggleNoise = useCallback(() => {
@@ -107,6 +122,27 @@ export default function WorkTools() {
       return newVolume
     })
   }, [])
+
+  // Timer effect - updates elapsed time while playing
+  useEffect(() => {
+    if (isPlaying) {
+      timerIntervalRef.current = window.setInterval(() => {
+        setElapsedTime((prev) => prev + 1)
+      }, 1000)
+    } else {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
+      }
+    }
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
+      }
+    }
+  }, [isPlaying])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -152,6 +188,10 @@ export default function WorkTools() {
       }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
+      }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+        timerIntervalRef.current = null
       }
     }
   }, [])
@@ -226,11 +266,16 @@ export default function WorkTools() {
                 </div>
               </div>
 
-              {/* Status Indicator */}
+              {/* Status Indicator and Timer */}
               {isPlaying && (
-                <div className="flex items-center space-x-2 text-green-400">
-                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-sm">Playing</span>
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="flex items-center space-x-2 text-green-400">
+                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm">Playing</span>
+                  </div>
+                  <div className="text-2xl md:text-3xl font-mono font-semibold text-gray-300">
+                    {formatTime(elapsedTime)}
+                  </div>
                 </div>
               )}
             </div>
