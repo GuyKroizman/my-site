@@ -43,7 +43,7 @@ export default function WorkTools() {
   const pomodoroIntervalRef = useRef<number | null>(null)
 
   // Generate brown noise buffer
-  const generateBrownNoise = (length: number, sampleRate: number): Float32Array => {
+  const generateBrownNoise = (length: number): Float32Array => {
     const buffer = new Float32Array(length)
     let lastValue = 0
 
@@ -239,7 +239,7 @@ export default function WorkTools() {
     // Create buffer with brown noise
     const buffer = audioContext.createBuffer(1, bufferLength, sampleRate)
     const channelData = buffer.getChannelData(0)
-    const noise = generateBrownNoise(bufferLength, sampleRate)
+    const noise = generateBrownNoise(bufferLength)
     channelData.set(noise)
 
     // Create and start the source
