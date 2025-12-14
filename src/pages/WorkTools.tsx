@@ -17,6 +17,30 @@ const saveToStorage = (key: string, value: number) => {
   }
 }
 
+// Link Book types and utilities
+type LinkItem = {
+  id: string
+  url: string
+  title: string
+}
+
+const loadLinksFromStorage = (): LinkItem[] => {
+  if (typeof window === 'undefined') return []
+  const stored = localStorage.getItem('linkBook-links')
+  if (stored === null) return []
+  try {
+    return JSON.parse(stored)
+  } catch {
+    return []
+  }
+}
+
+const saveLinksToStorage = (links: LinkItem[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('linkBook-links', JSON.stringify(links))
+  }
+}
+
 type PomodoroSession = 'work' | 'shortBreak' | 'longBreak'
 
 export default function WorkTools() {
@@ -41,6 +65,11 @@ export default function WorkTools() {
   const [pomodoroIsRunning, setPomodoroIsRunning] = useState(false)
   const [pomodoroCompletedSessions, setPomodoroCompletedSessions] = useState(0)
   const pomodoroIntervalRef = useRef<number | null>(null)
+
+  // Link Book state
+  const [links, setLinks] = useState<LinkItem[]>(() => loadLinksFromStorage())
+  const [newLinkUrl, setNewLinkUrl] = useState('')
+  const [newLinkTitle, setNewLinkTitle] = useState('')
 
   // Generate brown noise buffer
   const generateBrownNoise = (length: number): Float32Array => {
@@ -157,7 +186,7 @@ export default function WorkTools() {
   useEffect(() => {
     if (pomodoroTimeRemaining === 0 && !pomodoroIsRunning) {
       playNotificationSound()
-      
+
       // Show browser notification if permission granted
       if ('Notification' in window && Notification.permission === 'granted') {
         const sessionName = pomodoroSession === 'work' ? 'Work' : pomodoroSession === 'shortBreak' ? 'Short Break' : 'Long Break'
@@ -171,7 +200,7 @@ export default function WorkTools() {
       if (pomodoroSession === 'work') {
         const completed = pomodoroCompletedSessions + 1
         setPomodoroCompletedSessions(completed)
-        
+
         // Every 4 work sessions, take a long break
         setTimeout(() => {
           if (completed % 4 === 0) {
@@ -338,6 +367,49 @@ export default function WorkTools() {
     }
   }, [isPlaying])
 
+  // Link Book functions
+  const addLink = () => {
+    if (!newLinkUrl.trim()) return
+
+    // Ensure URL has protocol
+    let url = newLinkUrl.trim()
+    if (!url.match(/^https?:\/\//)) {
+      url = 'https://' + url
+    }
+
+    const title = newLinkTitle.trim() || new URL(url).hostname
+    const newLink: LinkItem = {
+      id: Date.now().toString(),
+      url,
+      title,
+    }
+
+    if (links.length < 10) {
+      const updatedLinks = [...links, newLink]
+      setLinks(updatedLinks)
+      saveLinksToStorage(updatedLinks)
+      setNewLinkUrl('')
+      setNewLinkTitle('')
+    }
+  }
+
+  const deleteLink = (id: string) => {
+    const updatedLinks = links.filter(link => link.id !== id)
+    setLinks(updatedLinks)
+    saveLinksToStorage(updatedLinks)
+  }
+
+  const openLink = (index: number) => {
+    if (index >= 0 && index < links.length) {
+      window.open(links[index].url, '_blank')
+    }
+  }
+
+  // Save links to storage whenever they change
+  useEffect(() => {
+    saveLinksToStorage(links)
+  }, [links])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -347,6 +419,16 @@ export default function WorkTools() {
         e.target instanceof HTMLTextAreaElement ||
         (e.target as HTMLElement).isContentEditable
       ) {
+        return
+      }
+
+      // Handle number keys 0-9 for link shortcuts
+      if (e.key >= '0' && e.key <= '9') {
+        const index = e.key === '0' ? 9 : parseInt(e.key) - 1
+        if (index < links.length) {
+          e.preventDefault()
+          openLink(index)
+        }
         return
       }
 
@@ -370,7 +452,7 @@ export default function WorkTools() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [toggleNoise, increaseVolume, decreaseVolume])
+  }, [toggleNoise, increaseVolume, decreaseVolume, links])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -411,17 +493,18 @@ export default function WorkTools() {
           Work Tools
         </h1>
 
-        <div className="max-w-2xl mx-auto space-y-8">
+        {/* Dashboard Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
           {/* Brown Noise Section */}
-          <div className="bg-gray-800 rounded-lg p-8 shadow-lg">
-            <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-center">
+          <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+            <h2 className="text-2xl font-semibold mb-4 text-center">
               Brown Noise
             </h2>
-            <p className="text-gray-300 mb-2 text-center">
-              Mask outside noise and improve focus with brown noise
+            <p className="text-gray-300 mb-2 text-center text-sm">
+              Mask outside noise and improve focus
             </p>
-            <p className="text-gray-500 mb-6 text-center text-sm">
-              Keyboard shortcuts: Space to play/pause • ↑/↓ to adjust volume
+            <p className="text-gray-500 mb-4 text-center text-xs">
+              Space: play/pause • ↑/↓: volume
             </p>
 
             <div className="flex flex-col items-center space-y-6">
@@ -429,7 +512,7 @@ export default function WorkTools() {
               <button
                 onClick={toggleNoise}
                 className={`
-                  w-24 h-24 rounded-full text-4xl font-bold
+                  w-20 h-20 rounded-full text-3xl font-bold
                   transition-all duration-200 transform hover:scale-105
                   focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
                   ${isPlaying
@@ -443,7 +526,7 @@ export default function WorkTools() {
               </button>
 
               {/* Sound Controls */}
-              <div className="w-full max-w-2xl space-y-6">
+              <div className="w-full space-y-4">
                 {/* Volume Control */}
                 <div className="w-full">
                   <label htmlFor="volume" className="block text-sm text-gray-400 mb-2 text-center">
@@ -496,7 +579,7 @@ export default function WorkTools() {
                     <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                     <span className="text-sm">Playing</span>
                   </div>
-                  <div className="text-2xl md:text-3xl font-mono font-semibold text-gray-300">
+                  <div className="text-xl font-mono font-semibold text-gray-300">
                     {formatTime(elapsedTime)}
                   </div>
                 </div>
@@ -505,8 +588,8 @@ export default function WorkTools() {
           </div>
 
           {/* Pomodoro Timer Section */}
-          <div className="bg-gray-800 rounded-lg p-8 shadow-lg">
-            <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-center">
+          <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+            <h2 className="text-2xl font-semibold mb-4 text-center">
               Pomodoro Timer
             </h2>
 
@@ -514,52 +597,48 @@ export default function WorkTools() {
             <div className="flex justify-center gap-4 mb-6">
               <button
                 onClick={() => switchPomodoroSession('work')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  pomodoroSession === 'work'
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${pomodoroSession === 'work'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+                  }`}
               >
                 Work
               </button>
               <button
                 onClick={() => switchPomodoroSession('shortBreak')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  pomodoroSession === 'shortBreak'
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${pomodoroSession === 'shortBreak'
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+                  }`}
               >
                 Short Break
               </button>
               <button
                 onClick={() => switchPomodoroSession('longBreak')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  pomodoroSession === 'longBreak'
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${pomodoroSession === 'longBreak'
                     ? 'bg-purple-600 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+                  }`}
               >
                 Long Break
               </button>
             </div>
 
             {/* Timer Display */}
-            <div className="flex flex-col items-center mb-6">
-              <div className="text-6xl md:text-8xl font-mono font-bold mb-4 text-center">
+            <div className="flex flex-col items-center mb-4">
+              <div className="text-5xl md:text-6xl font-mono font-bold mb-3 text-center">
                 {formatPomodoroTime(pomodoroTimeRemaining)}
               </div>
-              
+
               {/* Progress Bar */}
               <div className="w-full max-w-md h-2 bg-gray-700 rounded-full mb-4">
                 <div
-                  className={`h-full rounded-full transition-all duration-1000 ${
-                    pomodoroSession === 'work'
+                  className={`h-full rounded-full transition-all duration-1000 ${pomodoroSession === 'work'
                       ? 'bg-blue-600'
                       : pomodoroSession === 'shortBreak'
-                      ? 'bg-green-600'
-                      : 'bg-purple-600'
-                  }`}
+                        ? 'bg-green-600'
+                        : 'bg-purple-600'
+                    }`}
                   style={{
                     width: `${((getSessionDuration(pomodoroSession) - pomodoroTimeRemaining) / getSessionDuration(pomodoroSession)) * 100}%`,
                   }}
@@ -603,9 +682,9 @@ export default function WorkTools() {
             </div>
 
             {/* Settings */}
-            <div className="mt-8 pt-6 border-t border-gray-700">
-              <h3 className="text-lg font-semibold mb-4 text-center">Settings</h3>
-              <div className="space-y-4">
+            <div className="mt-6 pt-4 border-t border-gray-700">
+              <h3 className="text-base font-semibold mb-3 text-center">Settings</h3>
+              <div className="space-y-3">
                 <div>
                   <label htmlFor="work-duration" className="block text-sm text-gray-400 mb-2">
                     Work Duration (minutes)
@@ -670,6 +749,90 @@ export default function WorkTools() {
                   />
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Link Book Section */}
+          <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+            <h2 className="text-2xl font-semibold mb-4 text-center">
+              Link Book
+            </h2>
+            <p className="text-gray-500 mb-4 text-center text-xs">
+              Press 1-9 to open links • 0 opens the 10th link
+            </p>
+
+            {/* Add Link Form */}
+            <div className="mb-4 space-y-2">
+              <input
+                type="text"
+                placeholder="URL (e.g., example.com)"
+                value={newLinkUrl}
+                onChange={(e) => setNewLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    addLink()
+                  }
+                }}
+                className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Title (optional)"
+                value={newLinkTitle}
+                onChange={(e) => setNewLinkTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    addLink()
+                  }
+                }}
+                className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+              <button
+                onClick={addLink}
+                disabled={!newLinkUrl.trim() || links.length >= 10}
+                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+              >
+                {links.length >= 10 ? 'Max 10 links' : 'Add Link'}
+              </button>
+            </div>
+
+            {/* Links List */}
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {links.length === 0 ? (
+                <p className="text-gray-500 text-center text-sm py-4">
+                  No links yet. Add your first link above!
+                </p>
+              ) : (
+                links.map((link, index) => {
+                  const shortcutKey = index === 9 ? '0' : (index + 1).toString()
+                  return (
+                    <div
+                      key={link.id}
+                      className="flex items-center gap-2 p-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
+                    >
+                      <span className="text-xs font-mono text-gray-400 w-6 text-center">
+                        {shortcutKey}
+                      </span>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-sm text-blue-400 hover:text-blue-300 truncate"
+                        title={link.url}
+                      >
+                        {link.title}
+                      </a>
+                      <button
+                        onClick={() => deleteLink(link.id)}
+                        className="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-sm px-2"
+                        aria-label="Delete link"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
         </div>
