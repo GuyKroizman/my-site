@@ -86,6 +86,24 @@ function App() {
                 Open Tools
               </Link>
             </div>
+
+            {/* Racing Game */}
+            <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">🏎️</div>
+                <h2 className="text-2xl font-semibold text-gray-800">Racing Game</h2>
+                <p className="text-gray-600 mt-2">3D Polygon Racing</p>
+              </div>
+              <p className="text-gray-700 mb-4 text-sm">
+                Race against AI opponents on a 3D track. Use arrow keys to control your car.
+              </p>
+              <Link
+                to="/racing-game"
+                className="block w-full text-center bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+              >
+                Play Game
+              </Link>
+            </div>
           </div>
         </div>
       </div>

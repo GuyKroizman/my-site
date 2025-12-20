@@ -1,0 +1,382 @@
+import * as THREE from 'three'
+import { Track } from './Track'
+
+export interface CarCharacteristics {
+  maxSpeed: number
+  acceleration: number
+  turnSpeed: number
+  aiAggressiveness: number // 0-1, affects how aggressively AI drives
+  aiLookAhead: number // How far ahead AI looks on track (0-1)
+}
+
+export class Car {
+  public mesh: THREE.Group
+  public position: THREE.Vector3
+  public rotation: number = 0 // Rotation in radians
+  public speed: number = 0
+  public maxSpeed: number = 8
+  public acceleration: number = 15
+  public turnSpeed: number = 0.05
+  public isPlayer: boolean
+  public name: string
+  public color: number
+  public lapProgress: number = 0 // Progress along the track (0-1)
+  public lapsCompleted: number = 0 // Number of laps completed
+  public finished: boolean = false
+  public finishPosition: number = 0
+
+  // AI characteristics
+  private aiAggressiveness: number = 0.7
+  private aiLookAhead: number = 0.1
+
+  private boundingBox: THREE.Box3
+  private keys: { [key: string]: boolean } = {}
+
+  constructor(
+    x: number, 
+    y: number, 
+    z: number, 
+    color: number, 
+    name: string, 
+    isPlayer: boolean,
+    characteristics?: CarCharacteristics
+  ) {
+    this.position = new THREE.Vector3(x, y, z)
+    this.color = color
+    this.name = name
+    this.isPlayer = isPlayer
+
+    // Apply characteristics if provided
+    if (characteristics) {
+      this.maxSpeed = characteristics.maxSpeed
+      this.acceleration = characteristics.acceleration
+      this.turnSpeed = characteristics.turnSpeed
+      this.aiAggressiveness = characteristics.aiAggressiveness
+      this.aiLookAhead = characteristics.aiLookAhead
+    }
+
+    // Create car mesh with polygon style
+    this.mesh = new THREE.Group()
+
+    // Car body (main box)
+    const bodyGeometry = new THREE.BoxGeometry(1.2, 0.6, 2)
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: color })
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial)
+    body.castShadow = true
+    body.receiveShadow = true
+    this.mesh.add(body)
+
+    // Car roof (smaller box on top)
+    const roofGeometry = new THREE.BoxGeometry(0.8, 0.4, 1.2)
+    const roofMaterial = new THREE.MeshStandardMaterial({ color: color * 0.8 })
+    const roof = new THREE.Mesh(roofGeometry, roofMaterial)
+    roof.position.y = 0.5
+    roof.castShadow = true
+    this.mesh.add(roof)
+
+    // Wheels (simple boxes)
+    const wheelGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3)
+    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 })
+    
+    const wheelPositions = [
+      { x: -0.5, y: -0.3, z: 0.7 },
+      { x: 0.5, y: -0.3, z: 0.7 },
+      { x: -0.5, y: -0.3, z: -0.7 },
+      { x: 0.5, y: -0.3, z: -0.7 }
+    ]
+
+    wheelPositions.forEach(pos => {
+      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial)
+      wheel.position.set(pos.x, pos.y, pos.z)
+      wheel.castShadow = true
+      this.mesh.add(wheel)
+    })
+
+    // Cars start facing east (positive x direction) since track goes from -15 to 15 at z: -10
+    // In Three.js, rotation.y = Math.PI/2 faces +x direction
+    this.rotation = Math.PI / 2
+    
+    this.mesh.position.copy(this.position)
+    this.mesh.rotation.y = this.rotation
+
+    // Setup bounding box
+    this.boundingBox = new THREE.Box3().setFromObject(this.mesh)
+
+    // Setup keyboard controls for player
+    if (isPlayer) {
+      this.setupControls()
+    }
+  }
+
+  private setupControls() {
+    window.addEventListener('keydown', (e) => {
+      this.keys[e.key] = true
+    })
+
+    window.addEventListener('keyup', (e) => {
+      this.keys[e.key] = false
+    })
+  }
+
+  public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false) {
+    // If race is complete or car is finished, stop all movement
+    if (this.finished || raceComplete) {
+      this.speed = 0
+      // Just update visual position to keep car visible
+      this.mesh.position.copy(this.position)
+      this.mesh.rotation.y = this.rotation
+      return
+    }
+
+    if (this.isPlayer) {
+      this.updatePlayer(deltaTime)
+    } else {
+      this.updateAI(deltaTime, track)
+    }
+
+    // Apply movement (speed can be negative for reverse)
+    const moveDistance = this.speed * deltaTime
+    const direction = new THREE.Vector3(
+      Math.sin(this.rotation),
+      0,
+      Math.cos(this.rotation)
+    )
+
+    // Check if car is in inner area (off-track) - slow down significantly
+    const isOffTrack = track.isInsideInnerArea(this.position)
+    if (isOffTrack) {
+      // Continuously reduce speed when off-track (grass) - apply friction
+      this.speed *= 0.85 // Continuous friction on grass
+      // Also limit max speed when off-track
+      const maxSpeedOnGrass = this.maxSpeed * 0.3
+      if (this.speed > maxSpeedOnGrass) {
+        this.speed = maxSpeedOnGrass
+      }
+    }
+
+    const newPosition = this.position.clone().add(direction.multiplyScalar(moveDistance))
+
+    // Check if position is outside outer border - block movement
+    if (track.isOutsideOuterBorder(newPosition)) {
+      // Block movement - don't allow car to go outside
+      this.speed *= 0.3 // Slow down significantly when hitting outer wall
+      // Push car back inside
+      const pushBack = direction.clone().multiplyScalar(-0.2)
+      this.position.add(pushBack)
+      return // Don't move forward
+    }
+
+    // Check collision with other cars and handle repulsion
+    const collisionResult = this.checkCollisionWithRepulsion(newPosition, allCars)
+    if (collisionResult.collided) {
+      // Apply repulsion to push cars apart
+      this.position.add(collisionResult.repulsion)
+      
+      // Still allow some movement in the original direction, but reduced
+      const reducedMovement = direction.clone().multiplyScalar(moveDistance * 0.3)
+      this.position.add(reducedMovement)
+      
+      // Reduce speed when colliding, but don't stop completely
+      this.speed *= 0.8
+      
+      // Add slight random rotation to help cars slide past each other
+      const rotationAmount = 0.015
+      if (Math.random() > 0.5) {
+        this.rotation += rotationAmount
+      } else {
+        this.rotation -= rotationAmount
+      }
+    } else {
+      this.position.copy(newPosition)
+    }
+
+    // Update mesh position and rotation
+    this.mesh.position.copy(this.position)
+    this.mesh.rotation.y = this.rotation
+
+    // Update bounding box
+    this.boundingBox.setFromObject(this.mesh)
+
+    // Update lap progress
+    this.updateLapProgress(track)
+  }
+
+  private updatePlayer(deltaTime: number) {
+    // Don't respond to input if finished
+    if (this.finished) {
+      this.speed = 0
+      return
+    }
+
+    // Forward movement
+    if (this.keys['ArrowUp'] || this.keys['w'] || this.keys['W']) {
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime, this.maxSpeed)
+    } else if (this.keys['ArrowDown'] || this.keys['s'] || this.keys['S']) {
+      // Reverse movement
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime, -this.maxSpeed * 0.5)
+    } else {
+      // Decelerate
+      if (this.speed > 0) {
+        this.speed = Math.max(this.speed - this.acceleration * deltaTime * 2, 0)
+      } else if (this.speed < 0) {
+        this.speed = Math.min(this.speed + this.acceleration * deltaTime * 2, 0)
+      }
+    }
+
+    // Turning - fixed direction (left should turn left, right should turn right)
+    // Reduced sensitivity by using a lower multiplier
+    const currentSpeed = Math.abs(this.speed)
+    if (currentSpeed > 0) {
+      const turnMultiplier = 0.7 // Reduce overall turn sensitivity
+      if (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A']) {
+        // Turn left (counter-clockwise when viewed from above)
+        this.rotation += this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+      }
+      if (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D']) {
+        // Turn right (clockwise when viewed from above)
+        this.rotation -= this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+      }
+    }
+  }
+
+  private updateAI(deltaTime: number, track: Track) {
+    // Simple AI: follow the track path
+    // Look ahead on the track - use car's specific lookahead value
+    const lookAheadProgress = (this.lapProgress + this.aiLookAhead) % 1
+    const targetPoint = track.getNextPoint(lookAheadProgress)
+    const direction = new THREE.Vector3()
+    direction.subVectors(targetPoint, this.position)
+    direction.y = 0
+    
+    const distanceToTarget = direction.length()
+    if (distanceToTarget < 0.1) {
+      // Very close to target, just maintain speed
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 0.5, this.maxSpeed * 0.6)
+      return
+    }
+    
+    direction.normalize()
+
+    // Calculate target rotation
+    const targetRotation = Math.atan2(direction.x, direction.z)
+    
+    // Smoothly rotate towards target
+    let angleDiff = targetRotation - this.rotation
+    // Normalize angle difference to [-PI, PI]
+    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI
+    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI
+
+    const maxTurn = this.turnSpeed * 3
+    if (Math.abs(angleDiff) > maxTurn) {
+      this.rotation += Math.sign(angleDiff) * maxTurn
+    } else {
+      this.rotation = targetRotation
+    }
+
+    // Accelerate based on aggressiveness and distance to target
+    const targetSpeedMultiplier = this.aiAggressiveness
+    const maxTargetSpeed = this.maxSpeed * targetSpeedMultiplier
+    
+    if (distanceToTarget > 3) {
+      // Far from target - accelerate more aggressively
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime, maxTargetSpeed)
+    } else if (distanceToTarget > 1) {
+      // Medium distance - maintain speed
+      const targetSpeed = maxTargetSpeed * 0.9
+      if (this.speed < targetSpeed) {
+        this.speed = Math.min(this.speed + this.acceleration * deltaTime * 0.7, targetSpeed)
+      } else {
+        this.speed = Math.max(this.speed - this.acceleration * deltaTime * 0.1, targetSpeed * 0.8)
+      }
+    } else {
+      // Close to target - slow down more
+      const minSpeed = maxTargetSpeed * (0.5 + this.aiAggressiveness * 0.2)
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 0.3, minSpeed)
+    }
+  }
+
+  private checkCollisionWithRepulsion(newPosition: THREE.Vector3, allCars: Car[]): { collided: boolean; repulsion: THREE.Vector3 } {
+    const testBox = new THREE.Box3()
+    const tempMesh = this.mesh.clone()
+    tempMesh.position.copy(newPosition)
+    testBox.setFromObject(tempMesh)
+
+    const repulsion = new THREE.Vector3(0, 0, 0)
+    let collided = false
+
+    for (const otherCar of allCars) {
+      if (otherCar === this || otherCar.finished) continue
+      
+      if (testBox.intersectsBox(otherCar.boundingBox)) {
+        collided = true
+        
+        // Calculate repulsion vector to push cars apart
+        const toOther = new THREE.Vector3()
+        toOther.subVectors(this.position, otherCar.position)
+        toOther.y = 0 // Keep on ground plane
+        
+        const distance = toOther.length()
+        if (distance > 0.01) { // Avoid division by zero
+          toOther.normalize()
+          // Push cars apart - stronger push when closer together
+          const pushStrength = Math.max(0.4, 1.0 - distance) * 0.5
+          toOther.multiplyScalar(pushStrength)
+          repulsion.add(toOther)
+        } else {
+          // If cars are exactly on top of each other, push in a random direction
+          const randomAngle = Math.random() * Math.PI * 2
+          repulsion.add(new THREE.Vector3(
+            Math.cos(randomAngle) * 0.5,
+            0,
+            Math.sin(randomAngle) * 0.5
+          ))
+        }
+      }
+    }
+
+    return { collided, repulsion }
+  }
+
+  private updateLapProgress(track: Track) {
+    // Calculate progress based on position along track
+    this.lapProgress = track.getProgress(this.position)
+  }
+
+  public startRace() {
+    this.finished = false
+    this.lapProgress = 0
+    this.lapsCompleted = 0
+    this.finishPosition = 0
+    // Give AI cars initial speed to start moving immediately
+    if (!this.isPlayer) {
+      this.speed = 3
+    }
+  }
+
+  public reset(x: number, z: number) {
+    this.position.set(x, 0.5, z)
+    // Cars start facing east (positive x direction) since track goes from -15 to 15 at z: -10
+    // In Three.js, rotation.y = Math.PI/2 faces +x direction
+    this.rotation = Math.PI / 2
+    this.speed = 0
+    this.lapProgress = 0
+    this.lapsCompleted = 0
+    this.finished = false
+    this.finishPosition = 0
+    this.mesh.position.copy(this.position)
+    this.mesh.rotation.y = this.rotation
+  }
+
+  public dispose() {
+    this.mesh.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose()
+        if (Array.isArray(child.material)) {
+          child.material.forEach(mat => mat.dispose())
+        } else {
+          child.material.dispose()
+        }
+      }
+    })
+  }
+}

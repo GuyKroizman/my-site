@@ -6,6 +6,7 @@ import SnakeBitter from './pages/SnakeBitter.tsx'
 import Rogue0 from './pages/Rogue0.tsx'
 import Hoot from './pages/Hoot.tsx'
 import WorkTools from './pages/WorkTools.tsx'
+import RacingGame from './pages/RacingGame.tsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -17,6 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/rogue0" element={<Rogue0 />} />
         <Route path="/hoot" element={<Hoot />} />
         <Route path="/work-tools" element={<WorkTools />} />
+        <Route path="/racing-game" element={<RacingGame />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,
