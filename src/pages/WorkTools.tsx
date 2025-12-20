@@ -495,95 +495,87 @@ export default function WorkTools() {
 
         {/* Dashboard Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
-          {/* Brown Noise Section */}
+          {/* Link Book Section */}
           <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
             <h2 className="text-2xl font-semibold mb-4 text-center">
-              Brown Noise
+              Link Book
             </h2>
-            <p className="text-gray-300 mb-2 text-center text-sm">
-              Mask outside noise and improve focus
-            </p>
             <p className="text-gray-500 mb-4 text-center text-xs">
-              Space: play/pause • ↑/↓: volume
+              Press 1-9 to open links • 0 opens the 10th link
             </p>
 
-            <div className="flex flex-col items-center space-y-6">
-              {/* Play/Pause Button */}
-              <button
-                onClick={toggleNoise}
-                className={`
-                  w-20 h-20 rounded-full text-3xl font-bold
-                  transition-all duration-200 transform hover:scale-105
-                  focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
-                  ${isPlaying
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                  }
-                `}
-                aria-label={isPlaying ? 'Stop brown noise' : 'Play brown noise'}
-              >
-                {isPlaying ? '⏸' : '▶'}
-              </button>
-
-              {/* Sound Controls */}
-              <div className="w-full space-y-4">
-                {/* Volume Control */}
-                <div className="w-full">
-                  <label htmlFor="volume" className="block text-sm text-gray-400 mb-2 text-center">
-                    Volume
-                  </label>
-                  <input
-                    id="volume"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={volume}
-                    onChange={handleVolumeChange}
-                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>0%</span>
-                    <span>{Math.round(volume * 100)}%</span>
-                    <span>100%</span>
-                  </div>
-                </div>
-
-                {/* Frequency Control */}
-                <div className="w-full">
-                  <label htmlFor="frequency" className="block text-sm text-gray-400 mb-2 text-center">
-                    Frequency Cutoff
-                  </label>
-                  <input
-                    id="frequency"
-                    type="range"
-                    min="200"
-                    max="5000"
-                    step="10"
-                    value={frequencyCutoff}
-                    onChange={handleFrequencyChange}
-                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>200 Hz</span>
-                    <span>{Math.round(frequencyCutoff)} Hz</span>
-                    <span>5000 Hz</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status Indicator and Timer */}
-              {isPlaying && (
-                <div className="flex flex-col items-center space-y-2">
-                  <div className="flex items-center space-x-2 text-green-400">
-                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-sm">Playing</span>
-                  </div>
-                  <div className="text-xl font-mono font-semibold text-gray-300">
-                    {formatTime(elapsedTime)}
-                  </div>
-                </div>
+            {/* Links List - At the top with bigger fonts */}
+            <div className="mb-6 space-y-3 max-h-96 overflow-y-auto">
+              {links.length === 0 ? (
+                <p className="text-gray-500 text-center text-lg py-4">
+                  No links yet. Add your first link below!
+                </p>
+              ) : (
+                links.map((link, index) => {
+                  const shortcutKey = index === 9 ? '0' : (index + 1).toString()
+                  return (
+                    <div
+                      key={link.id}
+                      className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
+                    >
+                      <span className="text-lg font-mono text-gray-400 w-8 text-center font-bold">
+                        {shortcutKey}
+                      </span>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-lg text-blue-400 hover:text-blue-300 truncate font-semibold"
+                        title={link.url}
+                      >
+                        {link.title}
+                      </a>
+                      <button
+                        onClick={() => deleteLink(link.id)}
+                        className="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-xl px-2 font-bold"
+                        aria-label="Delete link"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                })
               )}
+            </div>
+
+            {/* Add Link Form - Below the links */}
+            <div className="mt-6 pt-4 border-t border-gray-700 space-y-2">
+              <input
+                type="text"
+                placeholder="URL (e.g., example.com)"
+                value={newLinkUrl}
+                onChange={(e) => setNewLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    addLink()
+                  }
+                }}
+                className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Title (optional)"
+                value={newLinkTitle}
+                onChange={(e) => setNewLinkTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    addLink()
+                  }
+                }}
+                className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+              <button
+                onClick={addLink}
+                disabled={!newLinkUrl.trim() || links.length >= 10}
+                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+              >
+                {links.length >= 10 ? 'Max 10 links' : 'Add Link'}
+              </button>
             </div>
           </div>
 
@@ -752,86 +744,94 @@ export default function WorkTools() {
             </div>
           </div>
 
-          {/* Link Book Section */}
+          {/* Brown Noise Section */}
           <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
             <h2 className="text-2xl font-semibold mb-4 text-center">
-              Link Book
+              Brown Noise
             </h2>
+            <p className="text-gray-300 mb-2 text-center text-sm">
+              Mask outside noise and improve focus
+            </p>
             <p className="text-gray-500 mb-4 text-center text-xs">
-              Press 1-9 to open links • 0 opens the 10th link
+              Space: play/pause • ↑/↓: volume
             </p>
 
-            {/* Add Link Form */}
-            <div className="mb-4 space-y-2">
-              <input
-                type="text"
-                placeholder="URL (e.g., example.com)"
-                value={newLinkUrl}
-                onChange={(e) => setNewLinkUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    addLink()
-                  }
-                }}
-                className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
-              <input
-                type="text"
-                placeholder="Title (optional)"
-                value={newLinkTitle}
-                onChange={(e) => setNewLinkTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    addLink()
-                  }
-                }}
-                className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
+            <div className="flex flex-col items-center space-y-6">
+              {/* Play/Pause Button */}
               <button
-                onClick={addLink}
-                disabled={!newLinkUrl.trim() || links.length >= 10}
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+                onClick={toggleNoise}
+                className={`
+                  w-20 h-20 rounded-full text-3xl font-bold
+                  transition-all duration-200 transform hover:scale-105
+                  focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
+                  ${isPlaying
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                  }
+                `}
+                aria-label={isPlaying ? 'Stop brown noise' : 'Play brown noise'}
               >
-                {links.length >= 10 ? 'Max 10 links' : 'Add Link'}
+                {isPlaying ? '⏸' : '▶'}
               </button>
-            </div>
 
-            {/* Links List */}
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {links.length === 0 ? (
-                <p className="text-gray-500 text-center text-sm py-4">
-                  No links yet. Add your first link above!
-                </p>
-              ) : (
-                links.map((link, index) => {
-                  const shortcutKey = index === 9 ? '0' : (index + 1).toString()
-                  return (
-                    <div
-                      key={link.id}
-                      className="flex items-center gap-2 p-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
-                    >
-                      <span className="text-xs font-mono text-gray-400 w-6 text-center">
-                        {shortcutKey}
-                      </span>
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 text-sm text-blue-400 hover:text-blue-300 truncate"
-                        title={link.url}
-                      >
-                        {link.title}
-                      </a>
-                      <button
-                        onClick={() => deleteLink(link.id)}
-                        className="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity text-sm px-2"
-                        aria-label="Delete link"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                })
+              {/* Sound Controls */}
+              <div className="w-full space-y-4">
+                {/* Volume Control */}
+                <div className="w-full">
+                  <label htmlFor="volume" className="block text-sm text-gray-400 mb-2 text-center">
+                    Volume
+                  </label>
+                  <input
+                    id="volume"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={handleVolumeChange}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>0%</span>
+                    <span>{Math.round(volume * 100)}%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+
+                {/* Frequency Control */}
+                <div className="w-full">
+                  <label htmlFor="frequency" className="block text-sm text-gray-400 mb-2 text-center">
+                    Frequency Cutoff
+                  </label>
+                  <input
+                    id="frequency"
+                    type="range"
+                    min="200"
+                    max="5000"
+                    step="10"
+                    value={frequencyCutoff}
+                    onChange={handleFrequencyChange}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>200 Hz</span>
+                    <span>{Math.round(frequencyCutoff)} Hz</span>
+                    <span>5000 Hz</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Indicator and Timer */}
+              {isPlaying && (
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="flex items-center space-x-2 text-green-400">
+                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm">Playing</span>
+                  </div>
+                  <div className="text-xl font-mono font-semibold text-gray-300">
+                    {formatTime(elapsedTime)}
+                  </div>
+                </div>
               )}
             </div>
           </div>
