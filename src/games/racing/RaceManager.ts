@@ -59,7 +59,7 @@ export class RaceManager {
           this.finishedCars.push(car)
           
           // Position car at finish line (keep X position to maintain lane, move to finish line Z)
-          const finishLinePosition = track.getFinishLinePosition()
+          const finishLinePosition = _track.getFinishLinePosition()
           car.position.set(car.position.x, car.position.y, finishLinePosition.z)
           car.speed = 0
           car.mesh.position.copy(car.position)
