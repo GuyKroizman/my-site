@@ -1,6 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { RacingGameEngine } from '../games/racing/RacingGameEngine'
+import { VirtualDpad, DpadState } from '../games/racing/VirtualDpad'
+
+// Check if device supports touch
+const isTouchDevice = () => {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0
+}
 
 type GameState = 'menu' | 'playing' | 'gameOver'
 
@@ -63,9 +69,15 @@ export default function RacingGame() {
     setPlayerLaps(0)
   }
 
+  const handleDpadStateChange = (state: DpadState) => {
+    if (gameEngineRef.current) {
+      gameEngineRef.current.setTouchControls(state)
+    }
+  }
+
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
-      <div className="flex justify-between items-center p-4 bg-gray-800 text-white flex-shrink-0">
+      <div className="flex justify-between items-center p-4 bg-gray-800 text-white flex-shrink-0 z-30">
         <h1 className="text-2xl font-bold">Racing Game</h1>
         <Link to="/" className="text-xl text-blue-400 underline hover:text-blue-300">
           Back to Menu
@@ -107,18 +119,24 @@ export default function RacingGame() {
             </div>
           </div>
         )}
+
+        {/* Virtual D-pad - only show when playing and on touch devices */}
+        {gameState === 'playing' && isTouchDevice() && (
+          <VirtualDpad onStateChange={handleDpadStateChange} />
+        )}
       </div>
 
       {/* Menu screen - shown when gameState is 'menu' */}
       {gameState === 'menu' && (
-        <div className="flex-1 w-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 absolute inset-0 z-30">
+        <div className="flex-1 w-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 z-20">
           <div className="bg-gray-800 p-8 rounded-lg shadow-xl border border-gray-700">
             <h2 className="text-3xl font-bold text-white mb-6 text-center">Racing Game</h2>
             <p className="text-gray-300 text-center mb-6">
               Race against AI opponents! Complete 4 laps to win.
             </p>
             <p className="text-gray-400 text-sm text-center mb-6">
-              Controls: Arrow Keys (↑ Forward, ↓ Reverse, ← → Turn)
+              Controls: Arrow Keys (↑ Forward, ↓ Reverse, ← → Turn)<br />
+              Mobile: Use on-screen D-pad
             </p>
             <button
               onClick={handleStartGame}

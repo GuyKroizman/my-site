@@ -31,6 +31,12 @@ export class Car {
 
   private boundingBox: THREE.Box3
   private keys: { [key: string]: boolean } = {}
+  private touchControls: { up: boolean; down: boolean; left: boolean; right: boolean } = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+  }
 
   constructor(
     x: number, 
@@ -201,6 +207,10 @@ export class Car {
     this.updateLapProgress(track)
   }
 
+  public setTouchControls(controls: { up: boolean; down: boolean; left: boolean; right: boolean }) {
+    this.touchControls = controls
+  }
+
   private updatePlayer(deltaTime: number) {
     // Don't respond to input if finished
     if (this.finished) {
@@ -208,10 +218,13 @@ export class Car {
       return
     }
 
-    // Forward movement
-    if (this.keys['ArrowUp'] || this.keys['w'] || this.keys['W']) {
+    // Forward movement - check both keyboard and touch
+    const isAccelerating = this.keys['ArrowUp'] || this.keys['w'] || this.keys['W'] || this.touchControls.up
+    const isBraking = this.keys['ArrowDown'] || this.keys['s'] || this.keys['S'] || this.touchControls.down
+
+    if (isAccelerating) {
       this.speed = Math.min(this.speed + this.acceleration * deltaTime, this.maxSpeed)
-    } else if (this.keys['ArrowDown'] || this.keys['s'] || this.keys['S']) {
+    } else if (isBraking) {
       // Reverse movement
       this.speed = Math.max(this.speed - this.acceleration * deltaTime, -this.maxSpeed * 0.5)
     } else {
@@ -225,14 +238,18 @@ export class Car {
 
     // Turning - fixed direction (left should turn left, right should turn right)
     // Reduced sensitivity by using a lower multiplier
+    // Check both keyboard and touch controls
     const currentSpeed = Math.abs(this.speed)
     if (currentSpeed > 0) {
       const turnMultiplier = 0.7 // Reduce overall turn sensitivity
-      if (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A']) {
+      const isTurningLeft = this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A'] || this.touchControls.left
+      const isTurningRight = this.keys['ArrowRight'] || this.keys['d'] || this.keys['D'] || this.touchControls.right
+      
+      if (isTurningLeft) {
         // Turn left (counter-clockwise when viewed from above)
         this.rotation += this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
       }
-      if (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D']) {
+      if (isTurningRight) {
         // Turn right (clockwise when viewed from above)
         this.rotation -= this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
       }

@@ -223,6 +223,13 @@ export class RacingGameEngine {
     })
   }
 
+  public setTouchControls(controls: { up: boolean; down: boolean; left: boolean; right: boolean }) {
+    const playerCar = this.cars.find(car => car.isPlayer)
+    if (playerCar) {
+      playerCar.setTouchControls(controls)
+    }
+  }
+
   public dispose() {
     this.isDisposed = true
     
