@@ -24,6 +24,7 @@ export class Car {
   public lapsCompleted: number = 0 // Number of laps completed
   public finished: boolean = false
   public finishPosition: number = 0
+  public startX: number // Store starting X position to return to finish line
 
   // AI characteristics
   private aiAggressiveness: number = 0.7
@@ -48,6 +49,7 @@ export class Car {
     characteristics?: CarCharacteristics
   ) {
     this.position = new THREE.Vector3(x, y, z)
+    this.startX = x // Store starting X position
     this.color = color
     this.name = name
     this.isPlayer = isPlayer
@@ -372,6 +374,7 @@ export class Car {
 
   public reset(x: number, z: number) {
     this.position.set(x, 0.5, z)
+    this.startX = x // Update starting X position
     // Cars start facing east (positive x direction) since track goes from -15 to 15 at z: -10
     // In Three.js, rotation.y = Math.PI/2 faces +x direction
     this.rotation = Math.PI / 2

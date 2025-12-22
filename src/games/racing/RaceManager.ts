@@ -58,11 +58,20 @@ export class RaceManager {
           car.finishPosition = this.finishedCars.length + 1
           this.finishedCars.push(car)
           
-          // Position car at finish line (keep X position to maintain lane, move to finish line Z)
+          // Position car at finish line only if it's actually near the finish line
+          // Otherwise, let it continue until it reaches the finish line naturally
           const finishLinePosition = _track.getFinishLinePosition()
-          car.position.set(car.position.x, car.position.y, finishLinePosition.z)
-          car.speed = 0
-          car.mesh.position.copy(car.position)
+          const finishLineZ = finishLinePosition.z
+          const distanceToFinishLine = Math.abs(car.position.z - finishLineZ)
+          
+          // Only teleport if car is reasonably close to finish line (within 10 units)
+          // Otherwise, let it drive to the finish line
+          if (distanceToFinishLine <= 10.0) {
+            car.position.set(car.startX, car.position.y, finishLineZ)
+            car.speed = 0
+            car.mesh.position.copy(car.position)
+          }
+          // If car is far from finish line, it will continue moving and finish when it reaches it
           
           // Check if race is complete (all cars finished or 3 positions determined)
           if (this.finishedCars.length >= 3 || this.finishedCars.length === this.cars.length) {
