@@ -53,15 +53,29 @@ export class RacingGameEngine {
     container.style.overflow = 'hidden'
     container.appendChild(this.renderer.domElement)
 
-    // Handle window resize
+    // Handle window resize and orientation changes
     const handleResize = () => {
-      const newWidth = container.clientWidth
-      const newHeight = container.clientHeight
-      this.camera.aspect = newWidth / newHeight
-      this.camera.updateProjectionMatrix()
-      this.renderer.setSize(newWidth, newHeight, false) // false = don't update style
+      // Use requestAnimationFrame to ensure layout is complete
+      requestAnimationFrame(() => {
+        const newWidth = Math.max(container.clientWidth || window.innerWidth, 1)
+        const newHeight = Math.max(container.clientHeight || window.innerHeight, 1)
+        
+        if (newWidth > 0 && newHeight > 0) {
+          this.camera.aspect = newWidth / newHeight
+          this.camera.updateProjectionMatrix()
+          this.renderer.setSize(newWidth, newHeight, false) // false = don't update style
+        }
+      })
     }
+    
+    // Initial resize to ensure proper sizing
+    handleResize()
+    
     window.addEventListener('resize', handleResize)
+    window.addEventListener('orientationchange', () => {
+      // Delay to allow orientation change to complete
+      setTimeout(handleResize, 100)
+    })
 
     // Create ground plane
     const groundGeometry = new THREE.PlaneGeometry(100, 100)

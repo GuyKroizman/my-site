@@ -37,14 +37,14 @@ export default function Hoot() {
   }, [])
 
   return (
-    <div className="w-full h-screen flex flex-col">
-      <div className="flex justify-between items-center p-4 bg-gray-800 text-white">
+    <div className="w-full h-screen flex flex-col overflow-hidden">
+      <div className="flex justify-between items-center p-4 bg-gray-800 text-white flex-shrink-0">
         <h1 className="text-2xl font-bold">Hoot - Shooting Game</h1>
         <Link to="/" className="text-xl text-blue-400 underline hover:text-blue-300">
           Back to Menu
         </Link>
       </div>
-      <div id="phaser" className="flex-1 w-full h-full"></div>
+      <div id="phaser" className="flex-1 w-full h-full overflow-hidden"></div>
     </div>
   )
 }

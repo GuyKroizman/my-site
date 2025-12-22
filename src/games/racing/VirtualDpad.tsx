@@ -13,7 +13,8 @@ interface VirtualDpadProps {
 
 export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
   const [activeButtons, setActiveButtons] = useState<Set<string>>(new Set())
-  const containerRef = useRef<HTMLDivElement>(null)
+  const leftContainerRef = useRef<HTMLDivElement>(null)
+  const rightContainerRef = useRef<HTMLDivElement>(null)
 
   const handleTouchStart = (direction: string) => (e: React.TouchEvent) => {
     e.preventDefault()
@@ -47,21 +48,27 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
 
   // Prevent default touch behaviors (scrolling, zooming)
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
+    const leftContainer = leftContainerRef.current
+    const rightContainer = rightContainerRef.current
+    
     const preventDefault = (e: TouchEvent) => {
       e.preventDefault()
     }
 
-    container.addEventListener('touchstart', preventDefault, { passive: false })
-    container.addEventListener('touchmove', preventDefault, { passive: false })
-    container.addEventListener('touchend', preventDefault, { passive: false })
+    const containers = [leftContainer, rightContainer].filter(Boolean) as HTMLElement[]
+    
+    containers.forEach(container => {
+      container.addEventListener('touchstart', preventDefault, { passive: false })
+      container.addEventListener('touchmove', preventDefault, { passive: false })
+      container.addEventListener('touchend', preventDefault, { passive: false })
+    })
 
     return () => {
-      container.removeEventListener('touchstart', preventDefault)
-      container.removeEventListener('touchmove', preventDefault)
-      container.removeEventListener('touchend', preventDefault)
+      containers.forEach(container => {
+        container.removeEventListener('touchstart', preventDefault)
+        container.removeEventListener('touchmove', preventDefault)
+        container.removeEventListener('touchend', preventDefault)
+      })
     }
   }, [])
 
@@ -73,103 +80,77 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
     return `${baseClass} ${activeClass} transition-all duration-75`
   }
 
+  const buttonStyle = {
+    width: '60px',
+    height: '60px',
+    borderRadius: '8px',
+    minWidth: '60px',
+    minHeight: '60px'
+  }
+
   return (
-    <div 
-      ref={containerRef}
-      className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 pointer-events-auto"
-      style={{ touchAction: 'none' }}
-    >
-      <div className="relative">
-        {/* D-pad layout */}
-        <div className="grid grid-cols-3 gap-1">
-          {/* Empty top-left */}
-          <div></div>
-          
-          {/* Up button */}
-          <button
-            className={buttonClass('up')}
-            style={{ 
-              width: '60px', 
-              height: '60px',
-              borderRadius: '8px',
-              minWidth: '60px',
-              minHeight: '60px'
-            }}
-            onTouchStart={handleTouchStart('up')}
-            onTouchEnd={handleTouchEnd('up')}
-            onTouchCancel={handleTouchCancel}
-            aria-label="Accelerate"
-          >
-            ↑
-          </button>
-          
-          {/* Empty top-right */}
-          <div></div>
-          
-          {/* Left button */}
-          <button
-            className={buttonClass('left')}
-            style={{ 
-              width: '60px', 
-              height: '60px',
-              borderRadius: '8px',
-              minWidth: '60px',
-              minHeight: '60px'
-            }}
-            onTouchStart={handleTouchStart('left')}
-            onTouchEnd={handleTouchEnd('left')}
-            onTouchCancel={handleTouchCancel}
-            aria-label="Turn left"
-          >
-            ←
-          </button>
-          
-          {/* Center (empty) */}
-          <div></div>
-          
-          {/* Right button */}
-          <button
-            className={buttonClass('right')}
-            style={{ 
-              width: '60px', 
-              height: '60px',
-              borderRadius: '8px',
-              minWidth: '60px',
-              minHeight: '60px'
-            }}
-            onTouchStart={handleTouchStart('right')}
-            onTouchEnd={handleTouchEnd('right')}
-            onTouchCancel={handleTouchCancel}
-            aria-label="Turn right"
-          >
-            →
-          </button>
-          
-          {/* Empty bottom-left */}
-          <div></div>
-          
-          {/* Down button */}
-          <button
-            className={buttonClass('down')}
-            style={{ 
-              width: '60px', 
-              height: '60px',
-              borderRadius: '8px',
-              minWidth: '60px',
-              minHeight: '60px'
-            }}
-            onTouchStart={handleTouchStart('down')}
-            onTouchEnd={handleTouchEnd('down')}
-            onTouchCancel={handleTouchCancel}
-            aria-label="Brake/Reverse"
-          >
-            ↓
-          </button>
-          
-          {/* Empty bottom-right */}
-          <div></div>
-        </div>
+    <>
+      {/* Forward/Backward buttons - bottom left, stacked vertically */}
+      <div 
+        ref={leftContainerRef}
+        className="fixed bottom-4 left-4 z-50 pointer-events-auto flex flex-col gap-2"
+        style={{ touchAction: 'none' }}
+      >
+        {/* Forward button */}
+        <button
+          className={buttonClass('up')}
+          style={buttonStyle}
+          onTouchStart={handleTouchStart('up')}
+          onTouchEnd={handleTouchEnd('up')}
+          onTouchCancel={handleTouchCancel}
+          aria-label="Accelerate"
+        >
+          ↑
+        </button>
+        
+        {/* Backward button */}
+        <button
+          className={buttonClass('down')}
+          style={buttonStyle}
+          onTouchStart={handleTouchStart('down')}
+          onTouchEnd={handleTouchEnd('down')}
+          onTouchCancel={handleTouchCancel}
+          aria-label="Brake/Reverse"
+        >
+          ↓
+        </button>
       </div>
-    </div>
+
+      {/* Left/Right buttons - bottom right, side by side */}
+      <div 
+        ref={rightContainerRef}
+        className="fixed bottom-4 right-4 z-50 pointer-events-auto flex flex-row gap-2"
+        style={{ touchAction: 'none' }}
+      >
+        {/* Left button */}
+        <button
+          className={buttonClass('left')}
+          style={buttonStyle}
+          onTouchStart={handleTouchStart('left')}
+          onTouchEnd={handleTouchEnd('left')}
+          onTouchCancel={handleTouchCancel}
+          aria-label="Turn left"
+        >
+          ←
+        </button>
+        
+        {/* Right button */}
+        <button
+          className={buttonClass('right')}
+          style={buttonStyle}
+          onTouchStart={handleTouchStart('right')}
+          onTouchEnd={handleTouchEnd('right')}
+          onTouchCancel={handleTouchCancel}
+          aria-label="Turn right"
+        >
+          →
+        </button>
+      </div>
+    </>
   )
 }
