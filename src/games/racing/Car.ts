@@ -268,9 +268,11 @@ export class Car {
   }
 
   private updateAI(deltaTime: number, track: Track) {
-    // New waypoint-based AI: look ahead along the track path by a fixed distance
+    // New waypoint-based AI: look ahead along the track path by a configurable distance
     // This is more reliable than progress-based navigation
-    const lookAheadDistance = 15.0 // Look 15 units ahead along the track
+    // aiLookAhead is a multiplier (0-1), scale it to get actual distance
+    const baseLookAheadDistance = 15.0
+    const lookAheadDistance = baseLookAheadDistance * (0.5 + this.aiLookAhead * 0.5) // Scale 0-1 to 0.5-1.0 multiplier
     const targetPoint = track.getWaypointAhead(this.position, lookAheadDistance)
     
     // Calculate direction to target
