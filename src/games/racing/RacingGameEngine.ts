@@ -178,7 +178,7 @@ export class RacingGameEngine {
       )
       this.cars.push(car)
       this.scene.add(car.mesh)
-      this.raceManager.addCar(car)
+      this.raceManager.addCar(car, this.track)
       // Give AI cars initial speed so they're visible moving
       if (!car.isPlayer) {
         car.speed = 2
@@ -220,12 +220,12 @@ export class RacingGameEngine {
   }
 
   public startRace() {
-    this.raceManager.startRace()
+    this.raceManager.startRace(this.track)
     this.cars.forEach(car => car.startRace())
   }
 
   public reset() {
-    this.raceManager.reset()
+    this.raceManager.reset(this.track)
     this.cars.forEach((car, index) => {
       const startPositions = [
         { x: -1.5, z: -10 },

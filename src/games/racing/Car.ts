@@ -20,11 +20,13 @@ export class Car {
   public isPlayer: boolean
   public name: string
   public color: number
-  public lapProgress: number = 0 // Progress along the track (0-1)
+  public lapProgress: number = 0 // Progress along the track (0-1) - kept for backward compatibility
   public lapsCompleted: number = 0 // Number of laps completed
   public finished: boolean = false
   public finishPosition: number = 0
   public startX: number // Store starting X position to return to finish line
+  public lastCheckpoint: number = -1 // Last checkpoint passed (-1 means none)
+  public checkpointPassed: boolean[] = [] // Track which checkpoints passed this lap (dynamically sized)
 
   // AI characteristics
   private aiAggressiveness: number = 0.7
@@ -207,6 +209,7 @@ export class Car {
 
     // Update lap progress
     this.updateLapProgress(track)
+    this.updateCheckpoints(track)
   }
 
   public setTouchControls(controls: { up: boolean; down: boolean; left: boolean; right: boolean }) {
@@ -358,7 +361,34 @@ export class Car {
 
   private updateLapProgress(track: Track) {
     // Calculate progress based on position along track
-    this.lapProgress = track.getProgress(this.position)
+    // Pass previous progress to ensure directional movement
+    this.lapProgress = track.getProgress(this.position, this.lapProgress)
+  }
+
+  public updateCheckpoints(track: Track) {
+    // Check if car is in any checkpoint
+    const checkpointCount = track.getCheckpointCount()
+    
+    // Initialize checkpointPassed array if needed (supports dynamic checkpoint counts)
+    if (this.checkpointPassed.length !== checkpointCount) {
+      this.checkpointPassed = new Array(checkpointCount).fill(false)
+    }
+    
+    for (let i = 0; i < checkpointCount; i++) {
+      if (track.isInCheckpoint(this.position, i)) {
+        // Check if this is the next expected checkpoint
+        const expectedNext = (this.lastCheckpoint + 1) % checkpointCount
+        
+        if (i === expectedNext || (this.lastCheckpoint === -1 && i === 0)) {
+          // Car passed the next checkpoint in sequence
+          this.lastCheckpoint = i
+          this.checkpointPassed[i] = true
+          
+          // Note: Lap completion is handled by RaceManager
+          // It will check if checkpoint 0 was just passed and all others were already passed
+        }
+      }
+    }
   }
 
   public startRace() {
