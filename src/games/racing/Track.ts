@@ -37,14 +37,14 @@ export class Track {
   constructor(scene: THREE.Scene, checkpointConfigs?: CheckpointConfig[]) {
     this.trackMesh = new THREE.Group()
     this.createRectangularTrack()
-    
+
     // Create checkpoints - use provided configs or default rectangular track checkpoints
     if (checkpointConfigs && checkpointConfigs.length > 0) {
       this.createCheckpointsFromConfig(checkpointConfigs)
     } else {
       this.createCheckpoints()
     }
-    
+
     scene.add(this.trackMesh)
 
     // Calculate bounds for collision detection
@@ -235,13 +235,11 @@ export class Track {
       // Left side (minX) should be exactly at the start line position (x = -15)
       // Should span the width of the track (perpendicular to travel) and extend along track direction
       // Track direction at finish line is +X (cars move from left to right)
-      // Track width is 6, so road spans from -3 to +3 in X direction at the start line
-      // But we want to cover the full track width, so span from -trackWidth to +trackWidth
       {
         id: 0,
         bounds: {
-          minX: -length / 2, // Left side exactly at start line (x = -15)
-          maxX: -length / 2 + finishLineLength, // Extend forward 8 units (x = -15 to -7)
+          minX: (-length / 2) + 15, // Left side exactly at start line (x = -15)
+          maxX: (-length / 2) + 15 + finishLineLength, // Extend forward 8 units (x = -15 to -7)
           minZ: -width / 2 - trackWidth, // Bottom edge: -10 - 6 = -16
           maxZ: -width / 2 + trackWidth  // Top edge: -10 + 6 = -4
         }
@@ -353,7 +351,7 @@ export class Track {
     if (rotation !== 0) {
       mesh.rotation.y = rotation
     }
-    
+
     // Add wireframe outline for better visibility
     const edges = new THREE.EdgesGeometry(geometry)
     const lineMaterial = new THREE.LineBasicMaterial({
@@ -366,7 +364,7 @@ export class Track {
     if (rotation !== 0) {
       wireframe.rotation.y = rotation
     }
-    
+
     this.trackMesh.add(mesh)
     this.trackMesh.add(wireframe)
     this.checkpointMeshes.push(mesh, wireframe)
@@ -482,7 +480,7 @@ export class Track {
     // Find closest point on track, but only consider segments forward from previous progress
     // This ensures progress only increases (or wraps around at finish line)
     const totalSegments = this.path.length - 1
-    
+
     // Calculate which segment the previous progress corresponds to
     const previousSegmentIndex = Math.floor((previousProgress % 1.0) * totalSegments)
     const previousSegmentProgress = ((previousProgress % 1.0) * totalSegments) - previousSegmentIndex
@@ -586,7 +584,7 @@ export class Track {
         if (distance < maxSearchDistance) {
           const segmentProgress = (segmentIndex + t) / totalSegments
           const progressDiff = getProgressDiff(segmentProgress, previousProgress)
-          
+
           // If we wrapped around (large negative diff), accept it
           if (progressDiff < -0.5) {
             minDistance = distance
@@ -598,7 +596,7 @@ export class Track {
 
     // Final validation: ensure progress only moves forward (or wraps around)
     const finalDiff = getProgressDiff(bestProgress, previousProgress)
-    
+
     // If progress went backward significantly (not wrap-around), clamp to previous + small increment
     if (finalDiff < -0.05 && finalDiff > -0.5) {
       // Small backward movement - use previous progress with tiny increment
