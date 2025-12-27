@@ -31,7 +31,7 @@ export class Track {
   private outerBounds: { minX: number; maxX: number; minZ: number; maxZ: number }
   private innerBounds: { minX: number; maxX: number; minZ: number; maxZ: number }
   private checkpoints: Checkpoint[] = []
-  private checkpointMeshes: THREE.Mesh[] = []
+  private checkpointMeshes: THREE.Object3D[] = []
   private showCheckpoints: boolean = true // Debug flag to show/hide checkpoints
 
   constructor(scene: THREE.Scene, checkpointConfigs?: CheckpointConfig[]) {
@@ -292,13 +292,17 @@ export class Track {
   private createCheckpointsFromConfig(configs: CheckpointConfig[]) {
     // Clear existing checkpoints
     this.checkpoints = []
-    this.checkpointMeshes.forEach(mesh => {
-      this.trackMesh.remove(mesh)
-      mesh.geometry.dispose()
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach(mat => mat.dispose())
-      } else {
-        mesh.material.dispose()
+    this.checkpointMeshes.forEach(obj => {
+      this.trackMesh.remove(obj)
+      if (obj instanceof THREE.Mesh) {
+        if (obj.geometry) {
+          obj.geometry.dispose()
+        }
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach((mat: THREE.Material) => mat.dispose())
+        } else if (obj.material) {
+          obj.material.dispose()
+        }
       }
     })
     this.checkpointMeshes = []
@@ -396,6 +400,71 @@ export class Track {
     return this.checkpoints.length
   }
 
+  public getNextCheckpointCenter(checkpointId: number): THREE.Vector3 {
+    const checkpoint = this.checkpoints.find(cp => cp.id === checkpointId)
+    if (!checkpoint) {
+      // Fallback to first checkpoint
+      const first = this.checkpoints[0]
+      if (!first) return new THREE.Vector3(0, 0, 0)
+      return new THREE.Vector3(
+        (first.minX + first.maxX) / 2,
+        0,
+        (first.minZ + first.maxZ) / 2
+      )
+    }
+    return new THREE.Vector3(
+      (checkpoint.minX + checkpoint.maxX) / 2,
+      0,
+      (checkpoint.minZ + checkpoint.maxZ) / 2
+    )
+  }
+
+  public getNearestForwardCheckpoint(position: THREE.Vector3, forwardDirection: THREE.Vector3, lastCheckpoint: number): THREE.Vector3 | null {
+    // Find the checkpoint that is forward-facing from the car's position
+    let bestCheckpoint: THREE.Vector3 | null = null
+    let bestDot = -1
+    
+    // Try the next checkpoint first
+    const checkpointCount = this.checkpoints.length
+    const nextCheckpointId = (lastCheckpoint + 1) % checkpointCount
+    const nextCheckpoint = this.getNextCheckpointCenter(nextCheckpointId)
+    const nextDir = new THREE.Vector3()
+    nextDir.subVectors(nextCheckpoint, position)
+    nextDir.y = 0
+    const nextDist = nextDir.length()
+    if (nextDist > 0.1) {
+      nextDir.normalize()
+      const nextDot = forwardDirection.dot(nextDir)
+      if (nextDot > bestDot) {
+        bestDot = nextDot
+        bestCheckpoint = nextCheckpoint
+      }
+    }
+    
+    // Also try the checkpoint after that
+    const afterNextId = (lastCheckpoint + 2) % checkpointCount
+    const afterNextCheckpoint = this.getNextCheckpointCenter(afterNextId)
+    const afterNextDir = new THREE.Vector3()
+    afterNextDir.subVectors(afterNextCheckpoint, position)
+    afterNextDir.y = 0
+    const afterNextDist = afterNextDir.length()
+    if (afterNextDist > 0.1) {
+      afterNextDir.normalize()
+      const afterNextDot = forwardDirection.dot(afterNextDir)
+      if (afterNextDot > bestDot) {
+        bestDot = afterNextDot
+        bestCheckpoint = afterNextCheckpoint
+      }
+    }
+    
+    // Return the best forward checkpoint if it's reasonably forward (dot > 0.1)
+    if (bestDot > 0.1) {
+      return bestCheckpoint
+    }
+    
+    return null
+  }
+
   private addLaneDividers(length: number, width: number) {
     // Create dashed lane divider lines to separate track into two lanes
     const stripeMaterial = new THREE.MeshStandardMaterial({
@@ -474,6 +543,64 @@ export class Track {
     const end = this.path[(segmentIndex + 1) % totalSegments]
 
     return start.clone().lerp(end, segmentProgress)
+  }
+
+  public getWaypointAhead(position: THREE.Vector3, lookAheadDistance: number): THREE.Vector3 {
+    // Find the nearest point on the track path to the car's position
+    let nearestPoint = new THREE.Vector3()
+    let nearestDistance = Infinity
+    let nearestSegmentIndex = 0
+    let nearestT = 0
+
+    const totalSegments = this.path.length - 1
+    for (let i = 0; i < totalSegments; i++) {
+      const start = this.path[i]
+      const end = this.path[(i + 1) % totalSegments]
+      const segment = end.clone().sub(start)
+      const segmentLength = segment.length()
+      
+      // Project position onto this segment
+      const toStart = position.clone().sub(start)
+      const t = Math.max(0, Math.min(1, toStart.dot(segment) / (segmentLength * segmentLength)))
+      
+      const pointOnSegment = start.clone().lerp(end, t)
+      const distance = position.distanceTo(pointOnSegment)
+      
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearestPoint = pointOnSegment
+        nearestSegmentIndex = i
+        nearestT = t
+      }
+    }
+
+    // Now look ahead along the path by the specified distance
+    let remainingDistance = lookAheadDistance
+    let currentSegmentIndex = nearestSegmentIndex
+    let currentT = nearestT
+    let currentPoint = nearestPoint.clone()
+
+    while (remainingDistance > 0.1) {
+      const start = this.path[currentSegmentIndex]
+      const end = this.path[(currentSegmentIndex + 1) % totalSegments]
+      const segment = end.clone().sub(start)
+      const segmentLength = segment.length()
+      const remainingOnSegment = segmentLength * (1 - currentT)
+
+      if (remainingDistance <= remainingOnSegment) {
+        // Target is on current segment
+        const t = currentT + (remainingDistance / segmentLength)
+        return start.clone().lerp(end, t)
+      } else {
+        // Move to next segment
+        remainingDistance -= remainingOnSegment
+        currentSegmentIndex = (currentSegmentIndex + 1) % totalSegments
+        currentT = 0
+        currentPoint = this.path[currentSegmentIndex].clone()
+      }
+    }
+
+    return currentPoint
   }
 
   public getProgress(position: THREE.Vector3, previousProgress: number = 0): number {

@@ -144,8 +144,10 @@ export class Car {
       this.updateAI(deltaTime, track)
     }
 
-    // Apply movement (speed can be negative for reverse)
-    const moveDistance = this.speed * deltaTime
+    // Apply movement (speed can be negative for reverse, but not for AI)
+    // For AI cars, ensure speed is never negative to prevent backward movement
+    const effectiveSpeed = this.isPlayer ? this.speed : Math.max(0, this.speed)
+    const moveDistance = effectiveSpeed * deltaTime
     const direction = new THREE.Vector3(
       Math.sin(this.rotation),
       0,
@@ -161,6 +163,10 @@ export class Car {
       const maxSpeedOnGrass = this.maxSpeed * 0.3
       if (this.speed > maxSpeedOnGrass) {
         this.speed = maxSpeedOnGrass
+      }
+      // Ensure AI cars never go backwards
+      if (!this.isPlayer) {
+        this.speed = Math.max(0, this.speed)
       }
     }
 
@@ -262,18 +268,20 @@ export class Car {
   }
 
   private updateAI(deltaTime: number, track: Track) {
-    // Simple AI: follow the track path
-    // Look ahead on the track - use car's specific lookahead value
-    const lookAheadProgress = (this.lapProgress + this.aiLookAhead) % 1
-    const targetPoint = track.getNextPoint(lookAheadProgress)
+    // New waypoint-based AI: look ahead along the track path by a fixed distance
+    // This is more reliable than progress-based navigation
+    const lookAheadDistance = 15.0 // Look 15 units ahead along the track
+    const targetPoint = track.getWaypointAhead(this.position, lookAheadDistance)
+    
+    // Calculate direction to target
     const direction = new THREE.Vector3()
     direction.subVectors(targetPoint, this.position)
     direction.y = 0
     
     const distanceToTarget = direction.length()
-    if (distanceToTarget < 0.1) {
+    if (distanceToTarget < 0.5) {
       // Very close to target, just maintain speed
-      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 0.5, this.maxSpeed * 0.6)
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime * 0.5, this.maxSpeed * 0.8)
       return
     }
     
@@ -282,38 +290,41 @@ export class Car {
     // Calculate target rotation
     const targetRotation = Math.atan2(direction.x, direction.z)
     
-    // Smoothly rotate towards target
+    // Calculate angle difference
     let angleDiff = targetRotation - this.rotation
     // Normalize angle difference to [-PI, PI]
     while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI
     while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI
 
-    const maxTurn = this.turnSpeed * 3
-    if (Math.abs(angleDiff) > maxTurn) {
-      this.rotation += Math.sign(angleDiff) * maxTurn
-    } else {
-      this.rotation = targetRotation
-    }
+    // Turn towards target - use proportional control for smooth steering
+    // Turn rate: 4 radians per second
+    const turnRate = 4.0 * deltaTime
+    const turnAmount = Math.max(-turnRate, Math.min(turnRate, angleDiff))
+    this.rotation += turnAmount
+    
+    // Normalize rotation to [0, 2*PI]
+    while (this.rotation > Math.PI * 2) this.rotation -= Math.PI * 2
+    while (this.rotation < 0) this.rotation += Math.PI * 2
 
-    // Accelerate based on aggressiveness and distance to target
+    // Speed control based on turn angle
+    const absAngleDiff = Math.abs(angleDiff)
     const targetSpeedMultiplier = this.aiAggressiveness
     const maxTargetSpeed = this.maxSpeed * targetSpeedMultiplier
     
-    if (distanceToTarget > 3) {
-      // Far from target - accelerate more aggressively
-      this.speed = Math.min(this.speed + this.acceleration * deltaTime, maxTargetSpeed)
-    } else if (distanceToTarget > 1) {
-      // Medium distance - maintain speed
-      const targetSpeed = maxTargetSpeed * 0.9
-      if (this.speed < targetSpeed) {
-        this.speed = Math.min(this.speed + this.acceleration * deltaTime * 0.7, targetSpeed)
-      } else {
-        this.speed = Math.max(this.speed - this.acceleration * deltaTime * 0.1, targetSpeed * 0.8)
-      }
+    if (absAngleDiff > Math.PI / 4) {
+      // Sharp turn (>45°) - slow down
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 1.5, this.maxSpeed * 0.4 * targetSpeedMultiplier)
+    } else if (absAngleDiff > Math.PI / 8) {
+      // Moderate turn (>22.5°) - slow down slightly
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 0.3, this.maxSpeed * 0.7 * targetSpeedMultiplier)
     } else {
-      // Close to target - slow down more
-      const minSpeed = maxTargetSpeed * (0.5 + this.aiAggressiveness * 0.2)
-      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 0.3, minSpeed)
+      // Straight or gentle turn - accelerate towards max speed
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime, maxTargetSpeed)
+    }
+    
+    // Ensure AI cars never go backwards
+    if (!this.isPlayer) {
+      this.speed = Math.max(0, this.speed)
     }
   }
 

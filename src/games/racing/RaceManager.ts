@@ -9,9 +9,8 @@ export class RaceManager {
   private finishedCars: Car[] = []
   private callbacks: RacingGameCallbacks
   private lastLapProgress: Map<Car, number> = new Map()
-  private lastLoggedProgress: Map<Car, number> = new Map()
   private previousCheckpoint: Map<Car, number> = new Map()
-  private requiredLaps: number = 2
+  private requiredLaps: number = 4
 
   constructor(callbacks: RacingGameCallbacks) {
     this.callbacks = callbacks
@@ -35,7 +34,6 @@ export class RaceManager {
     const checkpointCount = track.getCheckpointCount()
     this.cars.forEach(car => {
       this.lastLapProgress.set(car, 0)
-      this.lastLoggedProgress.set(car, 0)
       this.previousCheckpoint.set(car, -1)
       car.lapsCompleted = 0
       car.lastCheckpoint = -1
@@ -75,14 +73,9 @@ export class RaceManager {
       }
       
       if (car.lastCheckpoint === finishLineCheckpointId && previousLastCheckpoint !== finishLineCheckpointId && allOtherCheckpointsPassed) {
-        // Log when finish line is crossed (for all cars, but concise)
+        // Log when finish line is crossed
         if (car.lapsCompleted === this.requiredLaps - 1) {
-          console.log(`[FINISH LINE CROSSED] ${car.name}:`, {
-            checkpoint: car.lastCheckpoint,
-            allOtherCheckpointsPassed: allOtherCheckpointsPassed,
-            totalCheckpoints: totalCheckpoints,
-            willFinish: car.lapsCompleted + 1 >= this.requiredLaps
-          })
+          // Log finish line crossing (removed - too verbose)
         }
 
         // Car completed a lap
@@ -108,17 +101,6 @@ export class RaceManager {
       // Store current checkpoint for next frame comparison
       this.previousCheckpoint.set(car, car.lastCheckpoint)
 
-      // Log checkpoint progress during final lap - only for first car
-      if (car.lapsCompleted === this.requiredLaps - 1 && car === this.cars[0]) {
-        const lastLogged = this.lastLoggedProgress.get(car) || -1
-        if (car.lastCheckpoint !== lastLogged && car.lastCheckpoint !== -1) {
-          console.log(`[FINAL LAP] ${car.name}:`, {
-            checkpoint: car.lastCheckpoint,
-            checkpointsPassed: car.checkpointPassed.map((p, i) => p ? i : null).filter(i => i !== null)
-          })
-          this.lastLoggedProgress.set(car, car.lastCheckpoint)
-        }
-      }
     })
   }
 
@@ -155,7 +137,6 @@ export class RaceManager {
     const checkpointCount = track.getCheckpointCount()
     this.cars.forEach(car => {
       this.lastLapProgress.set(car, 0)
-      this.lastLoggedProgress.set(car, 0)
       this.previousCheckpoint.set(car, -1)
       car.lapsCompleted = 0
       car.lastCheckpoint = -1
