@@ -241,7 +241,7 @@ export class Track {
       flatShading: true
     })
 
-    const borderThickness = 0.3
+    const borderThickness = 0.1
     const borderHeight = 0.5
 
     // Outer borders with rounded corners
@@ -283,78 +283,88 @@ export class Track {
 
     // Helper function to create a corner border piece
     // Creates a curved border strip that follows a quarter-circle arc
-    const createCornerBorder = (arcCenterX: number, arcCenterZ: number, innerRadius: number, outerRadius: number, startAngle: number, endAngle: number) => {
+    // arcCenterX, arcCenterZ: where to position the corner piece (the arc center in world coordinates)
+    // arcRadius: the radius of the track corner arc (where the border follows)
+    // borderThickness: how thick the border should be
+    const createCornerBorder = (arcCenterX: number, arcCenterZ: number, arcRadius: number, borderThickness: number, startAngle: number, endAngle: number) => {
       const cornerShape = new THREE.Shape()
-      
+
+      // The shape is created in local coordinates (centered at 0,0)
+      // Inner radius is the track corner radius
+      // Outer radius is inner radius + border thickness
+      const innerRadius = arcRadius
+      const outerRadius = arcRadius + borderThickness
+
       // Start at inner radius, start angle
       const innerStartX = innerRadius * Math.cos(startAngle)
       const innerStartZ = innerRadius * Math.sin(startAngle)
       cornerShape.moveTo(innerStartX, innerStartZ)
-      
-      // Follow inner arc from start to end
+
+      // Follow inner arc from start to end (quarter circle)
       cornerShape.absarc(0, 0, innerRadius, startAngle, endAngle, false)
-      
+
       // Line to outer radius at end angle
       const outerEndX = outerRadius * Math.cos(endAngle)
       const outerEndZ = outerRadius * Math.sin(endAngle)
       cornerShape.lineTo(outerEndX, outerEndZ)
-      
+
       // Follow outer arc back from end to start (reverse direction)
       cornerShape.absarc(0, 0, outerRadius, endAngle, startAngle, true)
-      
+
       // Close the shape
       cornerShape.lineTo(innerStartX, innerStartZ)
-      
+
       const extrudeSettings = { depth: borderHeight, bevelEnabled: false }
       const cornerGeometry = new THREE.ExtrudeGeometry(cornerShape, extrudeSettings)
       const cornerMesh = new THREE.Mesh(cornerGeometry, borderMaterial)
       cornerMesh.rotation.x = -Math.PI / 2
-      cornerMesh.position.set(arcCenterX, borderHeight / 2, arcCenterZ)
+      cornerMesh.position.set(arcCenterX, borderHeight / 2 - 0.2, arcCenterZ)
       return cornerMesh
     }
 
     // Outer corner pieces - positioned at track corner arc centers
+    // The border follows the outer edge of the track, so arcRadius = radius + trackWidth
     // Top-right corner
     const topRightCorner = createCornerBorder(
-      outerMaxX - radius, 
-      outerMinZ + radius, 
-      radius + this.trackWidth, 
-      radius + this.trackWidth + borderThickness, 
-      Math.PI * 1.5, 
-      0
+      outerMaxX - radius,
+      outerMinZ + radius,
+      radius,
+      borderThickness,
+      0,
+      Math.PI / 2
     )
     this.trackMesh.add(topRightCorner)
 
     // Bottom-right corner
     const bottomRightCorner = createCornerBorder(
-      outerMaxX - radius, 
-      outerMaxZ - radius, 
-      radius + this.trackWidth, 
-      radius + this.trackWidth + borderThickness, 
-      0, 
-      Math.PI / 2
+      outerMaxX - radius,
+      outerMaxZ - radius,
+      radius,
+      borderThickness,
+      Math.PI * 1.5,
+      0
     )
     this.trackMesh.add(bottomRightCorner)
 
     // Bottom-left corner
     const bottomLeftCorner = createCornerBorder(
-      outerMinX + radius, 
-      outerMaxZ - radius, 
-      radius + this.trackWidth, 
-      radius + this.trackWidth + borderThickness, 
-      Math.PI / 2, 
-      Math.PI
+      outerMinX + radius,
+      outerMaxZ - radius,
+      radius,
+      borderThickness,
+      Math.PI,
+      Math.PI * 1.5
     )
     this.trackMesh.add(bottomLeftCorner)
 
     // Top-left corner
     const topLeftCorner = createCornerBorder(
-      outerMinX + radius, 
-      outerMinZ + radius, 
-      radius + this.trackWidth, 
-      radius + this.trackWidth + borderThickness, 
-      Math.PI, 
-      Math.PI * 1.5
+      outerMinX + radius,
+      outerMinZ + radius,
+      radius,
+      borderThickness,
+      Math.PI / 2,
+      Math.PI
     )
     this.trackMesh.add(topLeftCorner)
 
@@ -396,46 +406,47 @@ export class Track {
     this.trackMesh.add(rightInnerBorder)
 
     // Inner corner pieces - positioned at track inner corner arc centers
+    // The border follows the inner edge of the track, so arcRadius = radius - trackWidth
     // Top-right inner corner
     const topRightInnerCorner = createCornerBorder(
-      innerMaxX - radius, 
-      innerMinZ + radius, 
-      radius - this.trackWidth - borderThickness, 
-      radius - this.trackWidth, 
-      Math.PI * 1.5, 
+      innerMaxX - radius,
+      innerMinZ + radius,
+      radius - this.trackWidth,
+      borderThickness,
+      Math.PI * 1.5,
       0
     )
     this.trackMesh.add(topRightInnerCorner)
 
     // Bottom-right inner corner
     const bottomRightInnerCorner = createCornerBorder(
-      innerMaxX - radius, 
-      innerMaxZ - radius, 
-      radius - this.trackWidth - borderThickness, 
-      radius - this.trackWidth, 
-      0, 
+      innerMaxX - radius,
+      innerMaxZ - radius,
+      radius - this.trackWidth,
+      borderThickness,
+      0,
       Math.PI / 2
     )
     this.trackMesh.add(bottomRightInnerCorner)
 
     // Bottom-left inner corner
     const bottomLeftInnerCorner = createCornerBorder(
-      innerMinX + radius, 
-      innerMaxZ - radius, 
-      radius - this.trackWidth - borderThickness, 
-      radius - this.trackWidth, 
-      Math.PI / 2, 
+      innerMinX + radius,
+      innerMaxZ - radius,
+      radius - this.trackWidth,
+      borderThickness,
+      Math.PI / 2,
       Math.PI
     )
     this.trackMesh.add(bottomLeftInnerCorner)
 
     // Top-left inner corner
     const topLeftInnerCorner = createCornerBorder(
-      innerMinX + radius, 
-      innerMinZ + radius, 
-      radius - this.trackWidth - borderThickness, 
-      radius - this.trackWidth, 
-      Math.PI, 
+      innerMinX + radius,
+      innerMinZ + radius,
+      radius - this.trackWidth,
+      borderThickness,
+      Math.PI,
       Math.PI * 1.5
     )
     this.trackMesh.add(topLeftInnerCorner)
