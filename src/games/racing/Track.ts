@@ -33,7 +33,7 @@ export class Track {
   private innerBounds: { minX: number; maxX: number; minZ: number; maxZ: number }
   private checkpoints: Checkpoint[] = []
   private checkpointMeshes: THREE.Object3D[] = []
-  private showCheckpoints: boolean = true // Debug flag to show/hide checkpoints
+  private showCheckpoints: boolean = false // Debug flag to show/hide checkpoints
 
   constructor(scene: THREE.Scene, checkpointConfigs?: CheckpointConfig[]) {
     this.trackMesh = new THREE.Group()
@@ -413,8 +413,8 @@ export class Track {
       innerMinZ + radius,
       radius - this.trackWidth,
       borderThickness,
-      Math.PI * 1.5,
-      0
+      Math.PI,
+      Math.PI * 1.5
     )
     this.trackMesh.add(topRightInnerCorner)
 
@@ -424,8 +424,8 @@ export class Track {
       innerMaxZ - radius,
       radius - this.trackWidth,
       borderThickness,
-      0,
-      Math.PI / 2
+      Math.PI / 2,
+      Math.PI
     )
     this.trackMesh.add(bottomRightInnerCorner)
 
@@ -435,8 +435,8 @@ export class Track {
       innerMaxZ - radius,
       radius - this.trackWidth,
       borderThickness,
-      Math.PI / 2,
-      Math.PI
+      0,
+      Math.PI / 2
     )
     this.trackMesh.add(bottomLeftInnerCorner)
 
@@ -446,8 +446,8 @@ export class Track {
       innerMinZ + radius,
       radius - this.trackWidth,
       borderThickness,
-      Math.PI,
-      Math.PI * 1.5
+      Math.PI * 1.5,
+      0
     )
     this.trackMesh.add(topLeftInnerCorner)
 
