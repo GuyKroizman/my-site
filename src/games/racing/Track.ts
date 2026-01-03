@@ -221,15 +221,23 @@ export class Track {
 
     trackShape.holes.push(hole)
 
-    // Create track geometry
-    const trackGeometry = new THREE.ShapeGeometry(trackShape)
+    // Create track geometry as 3D extruded shape with thickness
+    const extrudeSettings = {
+      depth: 0.1, // Track thickness (very thin, like a road surface)
+      bevelEnabled: false, // No beveled edges
+      curveSegments: 32 // Smooth curves for rounded corners
+    }
+    const trackGeometry = new THREE.ExtrudeGeometry(trackShape, extrudeSettings)
     const trackMaterial = new THREE.MeshStandardMaterial({
       color: 0x666666, // Lighter gray for better visibility
       flatShading: true // Polygon style
     })
     const trackSurface = new THREE.Mesh(trackGeometry, trackMaterial)
+    // Rotate to lay flat on the ground (ExtrudeGeometry creates vertical extrusion, so rotate to horizontal)
     trackSurface.rotation.x = -Math.PI / 2
+    trackSurface.position.y = 0.05 // Slightly above ground (half of thickness 0.1)
     trackSurface.receiveShadow = true
+    trackSurface.castShadow = true
     this.trackMesh.add(trackSurface)
 
     // Add lane divider stripes (center line)
@@ -452,8 +460,8 @@ export class Track {
     this.trackMesh.add(topLeftInnerCorner)
 
     // Create finish line - vertical, in the middle of the top lane
-    // Use a box geometry for better visibility from top-down view
-    const finishLineHeight = 0 // Height of the finish line
+    // Track surface top is at y: 0.1 (track center at 0.05 + half thickness 0.05)
+    const finishLineHeight = 0.8 // Height of the finish line (vertical, standing up)
     // Track width spans from -trackWidth to +trackWidth in X direction (total width = trackWidth * 2)
     // But we want it to span only the drivable track, not the outer borders
     // The actual drivable track width is trackWidth * 2 = 12 units
@@ -465,10 +473,9 @@ export class Track {
       flatShading: true
     })
     this.finishLine = new THREE.Mesh(finishLineGeometry, finishLineMaterial)
-    // No rotation needed - box is already oriented correctly
-    // Position at center of top lane (x: 0), at car height level (y: 0.6), top of track (z: -width/2)
-    // Cars are at y: 0.5, so finish line center at y: 0.6 (extends from 0 to 1.2) will be visible and cars pass through
-    this.finishLine.position.set(0, 0.6, -width / 2)
+    // Position at center of top lane (x: 0), standing on track surface (y: 0.1 + finishLineHeight/2), top of track (z: -width/2)
+    // Cars are at y: 0.5, so finish line extends from y: 0.1 to y: 0.9, cars pass through at y: 0.5
+    this.finishLine.position.set(0, 0.1 + finishLineHeight / 2, -width / 2)
     this.trackMesh.add(this.finishLine)
   }
 
@@ -723,20 +730,22 @@ export class Track {
       flatShading: true
     })
 
-    const stripeWidth = 0.2
+    const stripeWidth = 0.3
     const stripeLength = 2
     const gapLength = 2
     const stripeHeight = 0.05
+    // Track surface top is at y: 0.1, position stripes on top of track
+    const stripeY = 0.1 + stripeHeight / 2
 
     // Top horizontal section (from -length/2 to length/2 at z: -width/2)
     let currentX = -length / 2
-    while (currentX < length / 2) {
+    while (currentX < length / 2 - 3) {
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(stripeLength, stripeHeight, stripeWidth),
         stripeMaterial
       )
       stripe.rotation.x = -Math.PI / 2
-      stripe.position.set(currentX, stripeHeight / 2 + 0.01, -width / 2)
+      stripe.position.set(currentX + 3, stripeY, -width / 2)
       this.trackMesh.add(stripe)
       currentX += stripeLength + gapLength
     }
@@ -744,26 +753,26 @@ export class Track {
     // Right vertical section (from -width/2 to width/2 at x: length/2)
     // Vertical stripes should extend in Z direction, no rotation needed
     let currentZ = -width / 2
-    while (currentZ < width / 2) {
+    while (currentZ < width / 2 - 4) {
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(stripeWidth, stripeHeight, stripeLength),
         stripeMaterial
       )
       // No rotation - stripe is already vertical (extends in Z direction)
-      stripe.position.set(length / 2, stripeHeight / 2 + 0.01, currentZ)
+      stripe.position.set(length / 2, stripeY + 0.01, currentZ + 3.5)
       this.trackMesh.add(stripe)
       currentZ += stripeLength + gapLength
     }
 
     // Bottom horizontal section (from length/2 to -length/2 at z: width/2)
     currentX = length / 2
-    while (currentX > -length / 2) {
+    while (currentX > -length / 2 + 3) {
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(stripeLength, stripeHeight, stripeWidth),
         stripeMaterial
       )
       stripe.rotation.x = -Math.PI / 2
-      stripe.position.set(currentX, stripeHeight / 2 + 0.01, width / 2)
+      stripe.position.set(currentX - 3, stripeY, width / 2)
       this.trackMesh.add(stripe)
       currentX -= stripeLength + gapLength
     }
@@ -771,13 +780,13 @@ export class Track {
     // Left vertical section (from width/2 to -width/2 at x: -length/2)
     // Vertical stripes should extend in Z direction, no rotation needed
     currentZ = width / 2
-    while (currentZ > -width / 2) {
+    while (currentZ > -width / 2 + 4) {
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(stripeWidth, stripeHeight, stripeLength),
         stripeMaterial
       )
       // No rotation - stripe is already vertical (extends in Z direction)
-      stripe.position.set(-length / 2, stripeHeight / 2 + 0.01, currentZ)
+      stripe.position.set(-length / 2, stripeY + 0.01, currentZ - 3.5)
       this.trackMesh.add(stripe)
       currentZ -= stripeLength + gapLength
     }
