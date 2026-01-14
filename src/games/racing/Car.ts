@@ -1,12 +1,15 @@
 import * as THREE from 'three'
 import { Track } from './Track'
 
+export type AINavigationType = 'waypoint' | 'astar'
+
 export interface CarCharacteristics {
   maxSpeed: number
   acceleration: number
   turnSpeed: number
   aiAggressiveness: number // 0-1, affects how aggressively AI drives
   aiLookAhead: number // How far ahead AI looks on track (0-1)
+  aiNavigationType?: AINavigationType // Navigation strategy for AI cars
 }
 
 export class Car {
@@ -31,6 +34,13 @@ export class Car {
   // AI characteristics
   private aiAggressiveness: number = 0.7
   private aiLookAhead: number = 0.1
+  private aiNavigationType: AINavigationType = 'waypoint'
+
+  // A* navigation state
+  private astarPath: THREE.Vector3[] = []
+  private astarPathIndex: number = 0
+  private astarRecalculateTimer: number = 0
+  private astarRecalculateInterval: number = 0.5 // Recalculate path every 0.5 seconds
 
   private boundingBox: THREE.Box3
   private keys: { [key: string]: boolean } = {}
@@ -63,6 +73,7 @@ export class Car {
       this.turnSpeed = characteristics.turnSpeed
       this.aiAggressiveness = characteristics.aiAggressiveness
       this.aiLookAhead = characteristics.aiLookAhead
+      this.aiNavigationType = characteristics.aiNavigationType || 'waypoint'
     }
 
     // Create car mesh with polygon style
@@ -268,13 +279,90 @@ export class Car {
   }
 
   private updateAI(deltaTime: number, track: Track) {
-    // New waypoint-based AI: look ahead along the track path by a configurable distance
+    // Choose navigation strategy based on aiNavigationType
+    if (this.aiNavigationType === 'astar') {
+      this.updateAIAStar(deltaTime, track)
+    } else {
+      this.updateAIWaypoint(deltaTime, track)
+    }
+  }
+
+  private updateAIWaypoint(deltaTime: number, track: Track) {
+    // Waypoint-based AI: look ahead along the track path by a configurable distance
     // This is more reliable than progress-based navigation
     // aiLookAhead is a multiplier (0-1), scale it to get actual distance
     const baseLookAheadDistance = 15.0
     const lookAheadDistance = baseLookAheadDistance * (0.5 + this.aiLookAhead * 0.5) // Scale 0-1 to 0.5-1.0 multiplier
     const targetPoint = track.getWaypointAhead(this.position, lookAheadDistance)
     
+    this.steerTowardsTarget(deltaTime, targetPoint)
+  }
+
+  private updateAIAStar(deltaTime: number, track: Track) {
+    // A* pathfinding-based AI navigation
+    
+    // Update recalculation timer
+    this.astarRecalculateTimer += deltaTime
+    
+    // Recalculate path periodically or if we've reached the end
+    const needsRecalculation = 
+      this.astarRecalculateTimer >= this.astarRecalculateInterval ||
+      this.astarPath.length === 0 ||
+      this.astarPathIndex >= this.astarPath.length - 1
+    
+    if (needsRecalculation) {
+      this.astarRecalculateTimer = 0
+      this.recalculateAStarPath(track)
+    }
+    
+    // If we still don't have a path, fall back to waypoint navigation
+    if (this.astarPath.length === 0) {
+      this.updateAIWaypoint(deltaTime, track)
+      return
+    }
+    
+    // Advance path index if we're close to current waypoint
+    while (this.astarPathIndex < this.astarPath.length - 1) {
+      const currentWaypoint = this.astarPath[this.astarPathIndex]
+      const distToWaypoint = this.position.distanceTo(currentWaypoint)
+      
+      if (distToWaypoint < 2.0) {
+        // Move to next waypoint
+        this.astarPathIndex++
+      } else {
+        break
+      }
+    }
+    
+    // Get target point - look a few waypoints ahead for smoother steering
+    const lookAheadSteps = 3
+    const targetIndex = Math.min(this.astarPathIndex + lookAheadSteps, this.astarPath.length - 1)
+    const targetPoint = this.astarPath[targetIndex]
+    
+    this.steerTowardsTarget(deltaTime, targetPoint)
+  }
+
+  private recalculateAStarPath(track: Track) {
+    // Get next checkpoint as the goal
+    const checkpointCount = track.getCheckpointCount()
+    const nextCheckpointId = (this.lastCheckpoint + 1) % checkpointCount
+    const goalPoint = track.getNextCheckpointCenter(nextCheckpointId)
+    
+    // Find path using A*
+    const path = track.findPath(
+      this.position.x,
+      this.position.z,
+      goalPoint.x,
+      goalPoint.z
+    )
+    
+    if (path.length > 0) {
+      this.astarPath = path
+      this.astarPathIndex = 0
+    }
+  }
+
+  private steerTowardsTarget(deltaTime: number, targetPoint: THREE.Vector3) {
     // Calculate direction to target
     const direction = new THREE.Vector3()
     direction.subVectors(targetPoint, this.position)

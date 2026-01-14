@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import PF from 'pathfinding'
 
 export interface Checkpoint {
   id: number
@@ -34,6 +35,12 @@ export class Track {
   private checkpoints: Checkpoint[] = []
   private checkpointMeshes: THREE.Object3D[] = []
   private showCheckpoints: boolean = false // Debug flag to show/hide checkpoints
+
+  // Navigation grid for A* pathfinding
+  private navGrid: PF.Grid | null = null
+  private navGridCellSize: number = 1.0 // Size of each grid cell in world units
+  private navGridOffsetX: number = 0 // World X coordinate of grid origin
+  private navGridOffsetZ: number = 0 // World Z coordinate of grid origin
 
   constructor(scene: THREE.Scene, checkpointConfigs?: CheckpointConfig[]) {
     this.trackMesh = new THREE.Group()
@@ -1027,6 +1034,189 @@ export class Track {
       position.z > this.innerBounds.minZ &&
       position.z < this.innerBounds.maxZ
     )
+  }
+
+  // ==================== A* Navigation Grid Methods ====================
+
+  /**
+   * Creates a navigation grid for A* pathfinding.
+   * Call this once after track is created.
+   */
+  public createNavigationGrid(cellSize: number = 1.0): void {
+    this.navGridCellSize = cellSize
+
+    // Calculate grid dimensions based on outer bounds with some padding
+    const padding = 2
+    const minX = this.outerBounds.minX - padding
+    const maxX = this.outerBounds.maxX + padding
+    const minZ = this.outerBounds.minZ - padding
+    const maxZ = this.outerBounds.maxZ + padding
+
+    this.navGridOffsetX = minX
+    this.navGridOffsetZ = minZ
+
+    const gridWidth = Math.ceil((maxX - minX) / cellSize)
+    const gridHeight = Math.ceil((maxZ - minZ) / cellSize)
+
+    // Create the grid - all cells start as walkable (0)
+    this.navGrid = new PF.Grid(gridWidth, gridHeight)
+
+    // Mark cells as blocked (1) if they are off-track
+    for (let gx = 0; gx < gridWidth; gx++) {
+      for (let gz = 0; gz < gridHeight; gz++) {
+        const worldX = this.navGridOffsetX + gx * cellSize + cellSize / 2
+        const worldZ = this.navGridOffsetZ + gz * cellSize + cellSize / 2
+        const pos = new THREE.Vector3(worldX, 0, worldZ)
+
+        // Cell is blocked if it's outside outer bounds OR inside inner area (grass)
+        const isBlocked = this.isOutsideOuterBorder(pos) || this.isInsideInnerArea(pos)
+        
+        if (isBlocked) {
+          this.navGrid.setWalkableAt(gx, gz, false)
+        }
+      }
+    }
+
+    console.log(`Navigation grid created: ${gridWidth}x${gridHeight} cells (cell size: ${cellSize})`)
+  }
+
+  /**
+   * Converts world coordinates to grid coordinates.
+   */
+  public worldToGrid(worldX: number, worldZ: number): { gx: number; gz: number } {
+    const gx = Math.floor((worldX - this.navGridOffsetX) / this.navGridCellSize)
+    const gz = Math.floor((worldZ - this.navGridOffsetZ) / this.navGridCellSize)
+    return { gx, gz }
+  }
+
+  /**
+   * Converts grid coordinates to world coordinates (center of cell).
+   */
+  public gridToWorld(gx: number, gz: number): { worldX: number; worldZ: number } {
+    const worldX = this.navGridOffsetX + gx * this.navGridCellSize + this.navGridCellSize / 2
+    const worldZ = this.navGridOffsetZ + gz * this.navGridCellSize + this.navGridCellSize / 2
+    return { worldX, worldZ }
+  }
+
+  /**
+   * Finds a path from start to goal using A* pathfinding.
+   * Returns an array of world positions, or empty array if no path found.
+   */
+  public findPath(
+    startX: number, 
+    startZ: number, 
+    goalX: number, 
+    goalZ: number
+  ): THREE.Vector3[] {
+    if (!this.navGrid) {
+      console.warn('Navigation grid not created. Call createNavigationGrid() first.')
+      return []
+    }
+
+    // Convert world coords to grid coords
+    const start = this.worldToGrid(startX, startZ)
+    const goal = this.worldToGrid(goalX, goalZ)
+
+    // Clamp to grid bounds
+    const gridWidth = this.navGrid.width
+    const gridHeight = this.navGrid.height
+    start.gx = Math.max(0, Math.min(gridWidth - 1, start.gx))
+    start.gz = Math.max(0, Math.min(gridHeight - 1, start.gz))
+    goal.gx = Math.max(0, Math.min(gridWidth - 1, goal.gx))
+    goal.gz = Math.max(0, Math.min(gridHeight - 1, goal.gz))
+
+    // If start or goal is blocked, find nearest walkable cell
+    const adjustedStart = this.findNearestWalkable(start.gx, start.gz)
+    const adjustedGoal = this.findNearestWalkable(goal.gx, goal.gz)
+
+    if (!adjustedStart || !adjustedGoal) {
+      return []
+    }
+
+    // Clone the grid (pathfinding modifies it)
+    const gridClone = this.navGrid.clone()
+
+    // Use A* with diagonal movement allowed
+    const finder = new PF.AStarFinder({
+      allowDiagonal: true,
+      dontCrossCorners: true
+    })
+
+    const gridPath = finder.findPath(
+      adjustedStart.gx, 
+      adjustedStart.gz, 
+      adjustedGoal.gx, 
+      adjustedGoal.gz, 
+      gridClone
+    )
+
+    // Convert grid path to world positions
+    const worldPath: THREE.Vector3[] = []
+    for (const [gx, gz] of gridPath) {
+      const { worldX, worldZ } = this.gridToWorld(gx, gz)
+      worldPath.push(new THREE.Vector3(worldX, 0, worldZ))
+    }
+
+    return worldPath
+  }
+
+  /**
+   * Finds the nearest walkable cell to the given grid position.
+   */
+  private findNearestWalkable(gx: number, gz: number): { gx: number; gz: number } | null {
+    if (!this.navGrid) return null
+
+    const gridWidth = this.navGrid.width
+    const gridHeight = this.navGrid.height
+
+    // If already walkable, return it
+    if (gx >= 0 && gx < gridWidth && gz >= 0 && gz < gridHeight) {
+      if (this.navGrid.isWalkableAt(gx, gz)) {
+        return { gx, gz }
+      }
+    }
+
+    // Search in expanding squares around the position
+    for (let radius = 1; radius < 10; radius++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        for (let dz = -radius; dz <= radius; dz++) {
+          // Only check the perimeter of this radius
+          if (Math.abs(dx) !== radius && Math.abs(dz) !== radius) continue
+
+          const nx = gx + dx
+          const nz = gz + dz
+
+          if (nx >= 0 && nx < gridWidth && nz >= 0 && nz < gridHeight) {
+            if (this.navGrid.isWalkableAt(nx, nz)) {
+              return { gx: nx, gz: nz }
+            }
+          }
+        }
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Gets the navigation grid (for debugging/visualization).
+   */
+  public getNavigationGrid(): PF.Grid | null {
+    return this.navGrid
+  }
+
+  /**
+   * Gets the grid cell size.
+   */
+  public getNavGridCellSize(): number {
+    return this.navGridCellSize
+  }
+
+  /**
+   * Gets the grid offset (world position of grid origin).
+   */
+  public getNavGridOffset(): { x: number; z: number } {
+    return { x: this.navGridOffsetX, z: this.navGridOffsetZ }
   }
 
   public dispose() {

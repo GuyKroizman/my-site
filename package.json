@@ -23,6 +23,7 @@
     "three": "^0.182.0"
   },
   "devDependencies": {
+    "@types/pathfinding": "^0.1.0",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "@typescript-eslint/eslint-plugin": "^6.10.0",

@@ -92,6 +92,9 @@ export class RacingGameEngine {
     // Create track
     this.track = new Track(this.scene)
 
+    // Create navigation grid for A* pathfinding
+    this.track.createNavigationGrid(1.0)
+
     // Create race manager
     this.raceManager = new RaceManager(this.callbacks)
 
@@ -128,9 +131,10 @@ export class RacingGameEngine {
         z: -10, 
         color: 0xff0000, 
         name: 'Red Car',
-        // Fair AI characteristics: aggressive but shorter lookahead
+        // A* pathfinding navigation - finds optimal route dynamically
         aiAggressiveness: 0.85,
-        aiLookAhead: 0.08
+        aiLookAhead: 0.08,
+        aiNavigationType: 'astar' as const
       },
       { 
         x: 1.5, 
@@ -173,7 +177,8 @@ export class RacingGameEngine {
         {
           ...baseCharacteristics,
           aiAggressiveness: config.aiAggressiveness,
-          aiLookAhead: config.aiLookAhead
+          aiLookAhead: config.aiLookAhead,
+          aiNavigationType: 'aiNavigationType' in config ? config.aiNavigationType : 'waypoint'
         }
       )
       this.cars.push(car)
