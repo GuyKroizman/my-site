@@ -118,50 +118,59 @@ export class RacingGameEngine {
     // Track start/finish line is at z: -10 (width/2 = 20/2 = 10, so -10)
     // Start positions: Red and Blue in front, Player and Green behind
     
-    // All cars have equal speed and turning (fair characteristics)
-    const baseCharacteristics = {
-      maxSpeed: 8,
-      acceleration: 15,
-      turnSpeed: 0.025
-    }
-    
+    // Each car has unique characteristics for different racing personalities
     const carConfigs = [
       { 
         x: -1.5, 
         z: -10, 
         color: 0xff0000, 
-        name: 'Red Car',
-        // A* pathfinding navigation - finds optimal route dynamically
-        aiAggressiveness: 0.85,
-        aiLookAhead: 0.08,
-        aiNavigationType: 'astar' as const
+        name: 'Red Racer',
+        // Aggressive speedster - fast but less precise on corners
+        maxSpeed: 9,
+        acceleration: 18,
+        turnSpeed: 0.022,
+        aiAggressiveness: 0.9,
+        pathRecalculateInterval: 0.3, // Recalculates path more frequently
+        waypointLookAhead: 2 // Looks fewer waypoints ahead (more reactive)
       },
       { 
         x: 1.5, 
         z: -10, 
         color: 0x0000ff, 
-        name: 'Blue Car',
-        // Fair AI characteristics: balanced approach
-        aiAggressiveness: 0.75,
-        aiLookAhead: 0.1
+        name: 'Blue Cruiser',
+        // Balanced all-rounder - good at everything
+        maxSpeed: 8,
+        acceleration: 15,
+        turnSpeed: 0.025,
+        aiAggressiveness: 0.8,
+        pathRecalculateInterval: 0.5,
+        waypointLookAhead: 3
       },
       { 
         x: -1.5, 
         z: -13, 
         color: 0x000000, 
         name: 'Player',
-        // Player car - AI characteristics don't matter (player controlled)
+        // Player car characteristics
+        maxSpeed: 8,
+        acceleration: 15,
+        turnSpeed: 0.025,
         aiAggressiveness: 0.7,
-        aiLookAhead: 0.1
+        pathRecalculateInterval: 0.5,
+        waypointLookAhead: 3
       },
       { 
         x: 1.5, 
         z: -13, 
         color: 0x00ff00, 
-        name: 'Green Car',
-        // Fair AI characteristics: more careful, longer lookahead
-        aiAggressiveness: 0.65,
-        aiLookAhead: 0.15
+        name: 'Green Machine',
+        // Careful navigator - slower top speed but great cornering
+        maxSpeed: 7,
+        acceleration: 12,
+        turnSpeed: 0.03,
+        aiAggressiveness: 0.7,
+        pathRecalculateInterval: 0.8, // Plans further ahead
+        waypointLookAhead: 5 // Looks more waypoints ahead (smoother lines)
       }
     ]
 
@@ -175,10 +184,12 @@ export class RacingGameEngine {
         config.name, 
         isPlayer,
         {
-          ...baseCharacteristics,
+          maxSpeed: config.maxSpeed,
+          acceleration: config.acceleration,
+          turnSpeed: config.turnSpeed,
           aiAggressiveness: config.aiAggressiveness,
-          aiLookAhead: config.aiLookAhead,
-          aiNavigationType: 'aiNavigationType' in config ? config.aiNavigationType : 'waypoint'
+          pathRecalculateInterval: config.pathRecalculateInterval,
+          waypointLookAhead: config.waypointLookAhead
         }
       )
       this.cars.push(car)
