@@ -80,7 +80,7 @@ export default function RacingGame() {
       <div className="flex justify-between items-center p-4 bg-gray-800 text-white flex-shrink-0 z-30">
         <h1 className="text-2xl font-bold">Racing Game</h1>
         <Link to="/" className="text-xl text-blue-400 underline hover:text-blue-300">
-          Fine
+          Back to Menu
         </Link>
       </div>
 
@@ -114,7 +114,7 @@ export default function RacingGame() {
                 onClick={handleBackToMenu}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded transition-colors"
               >
-                Back to Menu
+                Fine
               </button>
             </div>
           </div>
