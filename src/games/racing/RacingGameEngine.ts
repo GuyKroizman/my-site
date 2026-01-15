@@ -119,20 +119,28 @@ export class RacingGameEngine {
   private updateCameraPosition(viewWidth: number, viewHeight: number) {
     const aspect = viewWidth / viewHeight
     
-    // Base camera position for landscape mode (aspect >= 1)
-    // Track is roughly 42 units wide (outer bounds: -21 to +21) and 32 units tall (-16 to +16)
+    // Track outer bounds: roughly 42 units wide (-21 to +21) and 32 units tall (-16 to +16)
+    // We want to ensure the full track width (plus margin) is always visible
+    const trackWidth = 50 // 42 units + some margin
+    const fovRad = (this.camera.fov * Math.PI) / 180
+    
+    // Base camera position for landscape mode
     const baseCameraY = 30
     const baseCameraZ = 30
     
     if (aspect < 1) {
-      // Portrait mode: need to zoom out to see the full track width
-      // The narrower the aspect ratio, the higher the camera needs to be
-      // Calculate scale factor based on how much narrower portrait is compared to landscape
-      const portraitScale = 1 / aspect
-      // Increase camera height proportionally, with a cap to avoid going too high
-      const adjustedY = baseCameraY * Math.min(portraitScale * 0.85, 2.0)
-      const adjustedZ = baseCameraZ * Math.min(portraitScale * 0.7, 1.8)
-      this.camera.position.set(0, adjustedY, adjustedZ)
+      // Portrait mode: calculate exact camera height to fit track width
+      // For a camera looking at origin from (0, Y, Z), the visible width at y=0
+      // depends on the camera's distance and angle.
+      // 
+      // Simplified: visible width ≈ 2 * cameraY * tan(fov/2) * aspect
+      // Solving for cameraY: cameraY = trackWidth / (2 * tan(fov/2) * aspect)
+      
+      const requiredY = trackWidth / (2 * Math.tan(fovRad / 2) * aspect)
+      // Keep Z proportional to Y to maintain similar viewing angle
+      const requiredZ = requiredY * (baseCameraZ / baseCameraY)
+      
+      this.camera.position.set(0, requiredY, requiredZ)
     } else {
       // Landscape mode: use base position
       this.camera.position.set(0, baseCameraY, baseCameraZ)
