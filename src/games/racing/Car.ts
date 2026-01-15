@@ -255,22 +255,36 @@ export class Car {
       }
     }
 
-    // Turning - fixed direction (left should turn left, right should turn right)
+    // Turning - direction depends on whether car is moving forward or reverse
+    // When in reverse, steering is reversed (left turns right, right turns left)
     // Reduced sensitivity by using a lower multiplier
     // Check both keyboard and touch controls
     const currentSpeed = Math.abs(this.speed)
+    const isReversing = this.speed < 0
     if (currentSpeed > 0) {
       const turnMultiplier = 0.7 // Reduce overall turn sensitivity
       const isTurningLeft = this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A'] || this.touchControls.left
       const isTurningRight = this.keys['ArrowRight'] || this.keys['d'] || this.keys['D'] || this.touchControls.right
       
-      if (isTurningLeft) {
-        // Turn left (counter-clockwise when viewed from above)
-        this.rotation += this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
-      }
-      if (isTurningRight) {
-        // Turn right (clockwise when viewed from above)
-        this.rotation -= this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+      // When reversing, swap left and right steering
+      if (isReversing) {
+        if (isTurningLeft) {
+          // In reverse, left input turns right (clockwise)
+          this.rotation -= this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+        }
+        if (isTurningRight) {
+          // In reverse, right input turns left (counter-clockwise)
+          this.rotation += this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+        }
+      } else {
+        if (isTurningLeft) {
+          // Turn left (counter-clockwise when viewed from above)
+          this.rotation += this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+        }
+        if (isTurningRight) {
+          // Turn right (clockwise when viewed from above)
+          this.rotation -= this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+        }
       }
     }
   }
