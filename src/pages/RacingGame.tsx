@@ -8,6 +8,11 @@ const isTouchDevice = () => {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0
 }
 
+// Check if mobile device in landscape mode
+const isMobileLandscape = () => {
+  return isTouchDevice() && window.innerWidth > window.innerHeight
+}
+
 type GameState = 'menu' | 'playing' | 'gameOver'
 
 export default function RacingGame() {
@@ -16,6 +21,22 @@ export default function RacingGame() {
   const [gameState, setGameState] = useState<GameState>('menu')
   const [raceResults, setRaceResults] = useState<{ winner: string; second: string; third: string } | null>(null)
   const [playerLaps, setPlayerLaps] = useState(0)
+  const [hideHeader, setHideHeader] = useState(isMobileLandscape())
+
+  // Track orientation changes to hide/show header
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      setHideHeader(isMobileLandscape())
+    }
+    
+    window.addEventListener('resize', handleOrientationChange)
+    window.addEventListener('orientationchange', handleOrientationChange)
+    
+    return () => {
+      window.removeEventListener('resize', handleOrientationChange)
+      window.removeEventListener('orientationchange', handleOrientationChange)
+    }
+  }, [])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -77,12 +98,14 @@ export default function RacingGame() {
 
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
-      <div className="flex justify-between items-center p-4 bg-gray-800 text-white flex-shrink-0 z-30">
-        <h1 className="text-2xl font-bold">Racing Game</h1>
-        <Link to="/" className="text-xl text-blue-400 underline hover:text-blue-300">
-          Back to Menu
-        </Link>
-      </div>
+      {!hideHeader && (
+        <div className="flex justify-between items-center p-4 bg-gray-800 text-white flex-shrink-0 z-30">
+          <h1 className="text-2xl font-bold">Racing Game</h1>
+          <Link to="/" className="text-xl text-blue-400 underline hover:text-blue-300">
+            Back to Menu
+          </Link>
+        </div>
+      )}
 
       {/* Game container - always exists, menu overlays it */}
       <div
