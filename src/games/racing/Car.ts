@@ -136,9 +136,18 @@ export class Car {
     })
   }
 
-  public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false) {
+  public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false, canStart: boolean = false) {
     // If race is complete or car is finished, stop all movement
     if (this.finished || raceComplete) {
+      this.speed = 0
+      // Just update visual position to keep car visible
+      this.mesh.position.copy(this.position)
+      this.mesh.rotation.y = this.rotation
+      return
+    }
+
+    // Don't allow movement until green light
+    if (!canStart) {
       this.speed = 0
       // Just update visual position to keep car visible
       this.mesh.position.copy(this.position)
@@ -487,10 +496,8 @@ export class Car {
     this.lapProgress = 0
     this.lapsCompleted = 0
     this.finishPosition = 0
-    // Give AI cars initial speed to start moving immediately
-    if (!this.isPlayer) {
-      this.speed = 3
-    }
+    // Don't give AI cars initial speed - they'll wait for green light
+    this.speed = 0
   }
 
   public reset(x: number, z: number) {

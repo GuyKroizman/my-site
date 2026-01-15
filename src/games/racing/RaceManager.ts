@@ -11,6 +11,7 @@ export class RaceManager {
   private lastLapProgress: Map<Car, number> = new Map()
   private previousCheckpoint: Map<Car, number> = new Map()
   private requiredLaps: number = 4
+  private finishTimes: Map<Car, number> = new Map()
 
   constructor(callbacks: RacingGameCallbacks) {
     this.callbacks = callbacks
@@ -46,7 +47,7 @@ export class RaceManager {
     })
   }
 
-  public update(_deltaTime: number, _track: Track) {
+  public update(_deltaTime: number, _track: Track, raceTime: number = 0) {
     if (!this.raceStarted || this.raceComplete) return
 
     // Check for lap completion and race finish
@@ -90,6 +91,9 @@ export class RaceManager {
           car.finished = true
           car.finishPosition = this.finishedCars.length + 1
           this.finishedCars.push(car)
+          
+          // Record finish time
+          this.finishTimes.set(car, raceTime)
 
           // Check if race is complete (all cars finished or 3 positions determined)
           if (this.finishedCars.length >= 3 || this.finishedCars.length === this.cars.length) {
@@ -121,10 +125,20 @@ export class RaceManager {
     const remaining = this.cars.filter(car => !car.finished)
     sorted.push(...remaining)
 
+    // Build times map
+    const times: { [name: string]: number } = {}
+    sorted.forEach(car => {
+      const time = this.finishTimes.get(car)
+      if (time !== undefined) {
+        times[car.name] = time
+      }
+    })
+
     const results = {
       winner: sorted[0]?.name || 'Unknown',
       second: sorted[1]?.name || 'Unknown',
-      third: sorted[2]?.name || 'Unknown'
+      third: sorted[2]?.name || 'Unknown',
+      times: times
     }
 
     this.callbacks.onRaceComplete(results)
@@ -134,6 +148,7 @@ export class RaceManager {
     this.raceStarted = false
     this.raceComplete = false
     this.finishedCars = []
+    this.finishTimes.clear()
     const checkpointCount = track.getCheckpointCount()
     this.cars.forEach(car => {
       this.lastLapProgress.set(car, 0)

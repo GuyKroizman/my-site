@@ -2,10 +2,12 @@ import * as THREE from 'three'
 import { Car } from './Car'
 import { Track } from './Track'
 import { RaceManager } from './RaceManager'
+import { StartLights } from './StartLights'
 
 export interface RacingGameCallbacks {
-  onRaceComplete: (results: { winner: string; second: string; third: string }) => void
+  onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
   onLapUpdate?: (laps: number) => void
+  onTimerUpdate?: (time: number) => void
 }
 
 export class RacingGameEngine {
@@ -15,9 +17,12 @@ export class RacingGameEngine {
   private cars: Car[] = []
   private track: Track
   private raceManager: RaceManager
+  private startLights: StartLights | null = null
   private animationId: number | null = null
   private callbacks: RacingGameCallbacks
   private isDisposed: boolean = false
+  private raceStartTime: number = 0
+  private timerActive: boolean = false
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks) {
     this.callbacks = callbacks
@@ -99,6 +104,13 @@ export class RacingGameEngine {
 
     // Create race manager
     this.raceManager = new RaceManager(this.callbacks)
+
+    // Create start lights
+    this.startLights = new StartLights(this.scene, () => {
+      // Start lights sequence complete - race can begin
+      this.timerActive = true
+      this.raceStartTime = performance.now() / 1000 // Convert to seconds
+    })
 
     // Setup lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
@@ -228,10 +240,7 @@ export class RacingGameEngine {
       this.cars.push(car)
       this.scene.add(car.mesh)
       this.raceManager.addCar(car, this.track)
-      // Give AI cars initial speed so they're visible moving
-      if (!car.isPlayer) {
-        car.speed = 2
-      }
+      // Don't give AI cars initial speed - they'll wait for green light
     })
   }
 
@@ -245,17 +254,32 @@ export class RacingGameEngine {
 
     const deltaTime = 0.016 // ~60fps
 
+    // Update start lights
+    if (this.startLights) {
+      this.startLights.update(deltaTime)
+    }
+
     // Check if race is complete
     const raceComplete = this.raceManager.isRaceComplete()
 
-    // Update cars
+    // Update timer and notify callback
+    if (this.timerActive && !raceComplete) {
+      const currentTime = performance.now() / 1000
+      const elapsedTime = currentTime - this.raceStartTime
+      if (this.callbacks.onTimerUpdate) {
+        this.callbacks.onTimerUpdate(elapsedTime)
+      }
+    }
+
+    // Update cars - pass start lights state
+    const canStart = this.startLights ? this.startLights.isGreen() : false
     this.cars.forEach(car => {
-      car.update(deltaTime, this.track, this.cars, raceComplete)
+      car.update(deltaTime, this.track, this.cars, raceComplete, canStart)
     })
 
     // Update race manager (only if race not complete)
     if (!raceComplete) {
-      this.raceManager.update(deltaTime, this.track)
+      this.raceManager.update(deltaTime, this.track, this.timerActive ? (performance.now() / 1000 - this.raceStartTime) : 0)
     }
 
     // Update lap counter for player
@@ -269,6 +293,17 @@ export class RacingGameEngine {
   }
 
   public startRace() {
+    // Reset timer
+    this.timerActive = false
+    this.raceStartTime = 0
+    
+    // Reset start lights
+    if (this.startLights) {
+      this.startLights.reset()
+    }
+    
+    // Start lights will begin sequence automatically
+    // Race manager will start when lights complete
     this.raceManager.startRace(this.track)
     this.cars.forEach(car => car.startRace())
   }
@@ -299,6 +334,11 @@ export class RacingGameEngine {
     if (this.animationId !== null) {
       cancelAnimationFrame(this.animationId)
       this.animationId = null
+    }
+    
+    if (this.startLights) {
+      this.startLights.dispose()
+      this.startLights = null
     }
     
     this.cars.forEach(car => car.dispose())

@@ -13,15 +13,23 @@ const isMobileLandscape = () => {
   return isTouchDevice() && window.innerWidth > window.innerHeight
 }
 
+// Format time as seconds.tenths
+const formatTime = (time: number): string => {
+  const seconds = Math.floor(time)
+  const tenths = Math.floor((time - seconds) * 10)
+  return `${seconds}.${tenths}`
+}
+
 type GameState = 'menu' | 'playing' | 'gameOver'
 
 export default function RacingGame() {
   const containerRef = useRef<HTMLDivElement>(null)
   const gameEngineRef = useRef<RacingGameEngine | null>(null)
   const [gameState, setGameState] = useState<GameState>('menu')
-  const [raceResults, setRaceResults] = useState<{ winner: string; second: string; third: string } | null>(null)
+  const [raceResults, setRaceResults] = useState<{ winner: string; second: string; third: string; times: { [name: string]: number } } | null>(null)
   const [playerLaps, setPlayerLaps] = useState(0)
   const [hideHeader, setHideHeader] = useState(isMobileLandscape())
+  const [raceTime, setRaceTime] = useState(0)
 
   // Track orientation changes to hide/show header
   useEffect(() => {
@@ -65,6 +73,9 @@ export default function RacingGame() {
           },
           onLapUpdate: (laps) => {
             setPlayerLaps(laps)
+          },
+          onTimerUpdate: (time) => {
+            setRaceTime(time)
           }
         })
         gameEngineRef.current = engine
@@ -88,6 +99,7 @@ export default function RacingGame() {
     setGameState('menu')
     setRaceResults(null)
     setPlayerLaps(0)
+    setRaceTime(0)
   }
 
   const handleDpadStateChange = (state: DpadState) => {
@@ -113,9 +125,18 @@ export default function RacingGame() {
         className="flex-1 w-full relative overflow-hidden"
       >
         {gameState === 'playing' && (
-          <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-white px-4 py-2 rounded z-20">
-            <div className="text-lg font-bold">Lap: {playerLaps} / 4</div>
-          </div>
+          <>
+            <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-white px-4 py-2 rounded z-20">
+              <div className="text-lg font-bold">Lap: {playerLaps} / 4</div>
+            </div>
+            {raceTime > 0 && (
+              <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-4 py-2 rounded z-20">
+                <div className="text-lg font-bold">
+                  Time: {formatTime(raceTime)}s
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {gameState === 'gameOver' && raceResults && (
@@ -125,12 +146,27 @@ export default function RacingGame() {
               <div className="space-y-4 mb-6">
                 <div className="text-xl text-yellow-400 font-semibold">
                   🥇 Winner: {raceResults.winner}
+                  {raceResults.times[raceResults.winner] !== undefined && (
+                    <span className="text-base text-yellow-300 ml-2">
+                      ({formatTime(raceResults.times[raceResults.winner])}s)
+                    </span>
+                  )}
                 </div>
                 <div className="text-lg text-gray-300 font-semibold">
                   🥈 2nd Place: {raceResults.second}
+                  {raceResults.times[raceResults.second] !== undefined && (
+                    <span className="text-sm text-gray-200 ml-2">
+                      ({formatTime(raceResults.times[raceResults.second])}s)
+                    </span>
+                  )}
                 </div>
                 <div className="text-lg text-gray-400 font-semibold">
                   🥉 3rd Place: {raceResults.third}
+                  {raceResults.times[raceResults.third] !== undefined && (
+                    <span className="text-sm text-gray-300 ml-2">
+                      ({formatTime(raceResults.times[raceResults.third])}s)
+                    </span>
+                  )}
                 </div>
               </div>
               <button
