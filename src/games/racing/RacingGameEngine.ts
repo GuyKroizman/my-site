@@ -37,8 +37,8 @@ export class RacingGameEngine {
     this.camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000)
     // Position camera to show the entire track centered
     // Track is 30x20, centered at (0, 0, 0), start line at z: -10
-    // Position camera above and slightly behind to see the track
-    this.camera.position.set(0, 30, 30)
+    // Adjust camera position based on aspect ratio for portrait mode
+    this.updateCameraPosition(width, height)
     this.camera.lookAt(0, 0, 0)
 
     // Renderer setup
@@ -62,6 +62,8 @@ export class RacingGameEngine {
         
         if (newWidth > 0 && newHeight > 0) {
           this.camera.aspect = newWidth / newHeight
+          this.updateCameraPosition(newWidth, newHeight)
+          this.camera.lookAt(0, 0, 0)
           this.camera.updateProjectionMatrix()
           this.renderer.setSize(newWidth, newHeight, false) // false = don't update style
         }
@@ -112,6 +114,29 @@ export class RacingGameEngine {
 
     // Start render loop
     this.animate()
+  }
+
+  private updateCameraPosition(viewWidth: number, viewHeight: number) {
+    const aspect = viewWidth / viewHeight
+    
+    // Base camera position for landscape mode (aspect >= 1)
+    // Track is roughly 42 units wide (outer bounds: -21 to +21) and 32 units tall (-16 to +16)
+    const baseCameraY = 30
+    const baseCameraZ = 30
+    
+    if (aspect < 1) {
+      // Portrait mode: need to zoom out to see the full track width
+      // The narrower the aspect ratio, the higher the camera needs to be
+      // Calculate scale factor based on how much narrower portrait is compared to landscape
+      const portraitScale = 1 / aspect
+      // Increase camera height proportionally, with a cap to avoid going too high
+      const adjustedY = baseCameraY * Math.min(portraitScale * 0.85, 2.0)
+      const adjustedZ = baseCameraZ * Math.min(portraitScale * 0.7, 1.8)
+      this.camera.position.set(0, adjustedY, adjustedZ)
+    } else {
+      // Landscape mode: use base position
+      this.camera.position.set(0, baseCameraY, baseCameraZ)
+    }
   }
 
   private createCars() {
