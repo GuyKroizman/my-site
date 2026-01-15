@@ -33,7 +33,7 @@ export default function RacingGame() {
       console.error('Container ref is not available')
       return
     }
-    
+
     // Create game engine when starting the race
     if (!gameEngineRef.current) {
       try {
@@ -52,7 +52,7 @@ export default function RacingGame() {
         return
       }
     }
-    
+
     // Start the race
     gameEngineRef.current.startRace()
     setGameState('playing')
@@ -80,13 +80,13 @@ export default function RacingGame() {
       <div className="flex justify-between items-center p-4 bg-gray-800 text-white flex-shrink-0 z-30">
         <h1 className="text-2xl font-bold">Racing Game</h1>
         <Link to="/" className="text-xl text-blue-400 underline hover:text-blue-300">
-          Back to Menu
+          Fine
         </Link>
       </div>
-      
+
       {/* Game container - always exists, menu overlays it */}
-      <div 
-        ref={containerRef} 
+      <div
+        ref={containerRef}
         className="flex-1 w-full relative overflow-hidden"
       >
         {gameState === 'playing' && (
