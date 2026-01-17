@@ -36,7 +36,6 @@ export class Scene0 extends Phaser.Scene {
   }
 
   create() {
-    console.log("create scene");
     this.context.scene = this;
 
     dungeon.initialize(this.context);

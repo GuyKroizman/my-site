@@ -1006,7 +1006,6 @@ export class Track {
       }
     }
 
-    console.log(`Navigation grid created: ${gridWidth}x${gridHeight} cells (cell size: ${cellSize})`)
   }
 
   /**

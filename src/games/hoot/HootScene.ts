@@ -1664,12 +1664,6 @@ export class HootGameScene extends Phaser.Scene {
       // Stage 4: check if enemy2 is destroyed
       stageComplete = !this.enemy2 || !this.enemy2.active;
 
-      // Debug logging for stage 4 completion
-      if (stageComplete) {
-        console.log('Stage 4 completion detected!');
-        console.log('enemy2:', this.enemy2);
-        console.log('enemy2.active:', this.enemy2?.active);
-      }
     } else {
       // Other stages: check if all enemies are destroyed (only count alive enemies)
       const aliveEnemies = this.enemies.filter(enemy =>
@@ -1679,7 +1673,6 @@ export class HootGameScene extends Phaser.Scene {
     }
 
     if (stageComplete) {
-      console.log(`Stage ${this.currentStage} completed!`);
 
       // Set transitioning flag to prevent multiple calls
       this.isTransitioning = true;
@@ -1695,7 +1688,6 @@ export class HootGameScene extends Phaser.Scene {
           // Stage 4 is the final stage - show congratulations and return to menu
           const stageTime = Math.round((this.time.now - this.stageStartTime) / 1000);
 
-          console.log('Showing congratulations for stage 4!');
           this.congratulationsText.setText('"Congratulation" you made it to the end :)');
           this.congratulationsText.setVisible(true);
 
@@ -1707,7 +1699,6 @@ export class HootGameScene extends Phaser.Scene {
 
           // Return to menu after 3 seconds
           this.time.delayedCall(3000, () => {
-            console.log('Returning to menu after stage 4 completion');
             this.showMenu();
           });
         } else {
