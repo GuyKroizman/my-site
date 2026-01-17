@@ -491,8 +491,8 @@ export class Track {
     const length = this.length
     const width = this.width
     const trackWidth = this.trackWidth
-    const cornerSize = 12 // Increased size of corner checkpoint rectangles (was 8)
-    const finishLineLength = 8 // Length of finish line checkpoint (accounts for car speed)
+    const cornerSize = 15
+    const finishLineLength = 6
 
     const configs: CheckpointConfig[] = [
       // Checkpoint 0: Finish line checkpoint
@@ -503,8 +503,8 @@ export class Track {
       {
         id: 0,
         bounds: {
-          minX: (-length / 2) + 15, // Left side exactly at start line (x = -15)
-          maxX: (-length / 2) + 15 + finishLineLength, // Extend forward 8 units (x = -15 to -7)
+          minX: 0,
+          maxX: finishLineLength, // Extend forward 8 units
           minZ: -width / 2 - trackWidth, // Bottom edge: -10 - 6 = -16
           maxZ: -width / 2 + trackWidth  // Top edge: -10 + 6 = -4
         }
@@ -612,7 +612,7 @@ export class Track {
 
     const mesh = new THREE.Mesh(geometry, material)
     // Position slightly above track surface (track is at y=0)
-    mesh.position.set(centerX, 0.05, centerZ)
+    mesh.position.set(centerX, 0.19, centerZ)
     // Rotate -90 degrees around X axis to lay flat on XZ plane (track surface)
     // PlaneGeometry is in XY plane by default, so rotate X to put it in XZ plane
     mesh.rotation.x = -Math.PI / 2
@@ -999,7 +999,7 @@ export class Track {
 
         // Cell is blocked if it's outside outer bounds OR inside inner area (grass)
         const isBlocked = this.isOutsideOuterBorder(pos) || this.isInsideInnerArea(pos)
-        
+
         if (isBlocked) {
           this.navGrid.setWalkableAt(gx, gz, false)
         }
@@ -1032,9 +1032,9 @@ export class Track {
    * Returns an array of world positions, or empty array if no path found.
    */
   public findPath(
-    startX: number, 
-    startZ: number, 
-    goalX: number, 
+    startX: number,
+    startZ: number,
+    goalX: number,
     goalZ: number
   ): THREE.Vector3[] {
     if (!this.navGrid) {
@@ -1072,10 +1072,10 @@ export class Track {
     })
 
     const gridPath = finder.findPath(
-      adjustedStart.gx, 
-      adjustedStart.gz, 
-      adjustedGoal.gx, 
-      adjustedGoal.gz, 
+      adjustedStart.gx,
+      adjustedStart.gz,
+      adjustedGoal.gx,
+      adjustedGoal.gz,
       gridClone
     )
 
