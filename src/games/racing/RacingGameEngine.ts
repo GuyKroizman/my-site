@@ -24,6 +24,9 @@ export class RacingGameEngine {
   private raceStartTime: number = 0
   private timerActive: boolean = false
   private lastFrameTime: number = 0
+  private targetFPS: number = 60
+  private frameInterval: number = 1000 / 60 // 16.67ms for 60 FPS
+  private lastRenderTime: number = 0
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks) {
     this.callbacks = callbacks
@@ -49,6 +52,8 @@ export class RacingGameEngine {
 
     // Renderer setup
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
+    // Limit pixel ratio to 1 for consistent performance (prevents high-DPI scaling issues)
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1))
     this.renderer.setSize(width, height, false) // false = don't update style
     this.renderer.shadowMap.enabled = true
     this.renderer.domElement.style.display = 'block'
@@ -115,6 +120,7 @@ export class RacingGameEngine {
 
     // Initialize frame time tracking
     this.lastFrameTime = performance.now() / 1000
+    this.lastRenderTime = performance.now()
     
     // Start render loop
     this.animate()
@@ -244,10 +250,21 @@ export class RacingGameEngine {
 
     this.animationId = requestAnimationFrame(this.animate)
 
+    // Frame rate limiting: only render if enough time has passed
+    const currentTime = performance.now()
+    const elapsed = currentTime - this.lastRenderTime
+    
+    if (elapsed < this.frameInterval) {
+      // Not enough time has passed, skip this frame
+      return
+    }
+    
+    this.lastRenderTime = currentTime - (elapsed % this.frameInterval)
+
     // Calculate actual delta time for smooth animation
-    const currentTime = performance.now() / 1000
-    let deltaTime = currentTime - this.lastFrameTime
-    this.lastFrameTime = currentTime
+    const currentTimeSeconds = currentTime / 1000
+    let deltaTime = currentTimeSeconds - this.lastFrameTime
+    this.lastFrameTime = currentTimeSeconds
     
     // Clamp deltaTime to prevent large jumps (e.g., when tab is inactive)
     if (deltaTime > 0.1) deltaTime = 0.016 // Cap at ~60fps equivalent
