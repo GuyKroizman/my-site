@@ -85,18 +85,6 @@ export class RacingGameEngine {
       setTimeout(handleResize, 100)
     })
 
-    // Create ground plane
-    const groundGeometry = new THREE.PlaneGeometry(100, 100)
-    const groundMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x90ee90, // Light green grass
-      flatShading: true
-    })
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial)
-    ground.rotation.x = -Math.PI / 2
-    ground.position.y = 0
-    ground.receiveShadow = true
-    this.scene.add(ground)
-
     // Create track
     this.track = new Track(this.scene)
 
