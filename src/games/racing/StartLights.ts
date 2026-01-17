@@ -141,13 +141,39 @@ export class StartLights {
     // Hide all lights
     this.lightsGroup.visible = false
     
-    // Create "Go!" text using a large, bright plane
-    // Using a simple approach: create a large plane with emissive material
+    // Create "Go!" text using canvas texture
+    const canvas = document.createElement('canvas')
+    canvas.width = 512
+    canvas.height = 256
+    const context = canvas.getContext('2d')
+    
+    if (context) {
+      // Fill with transparent background
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      
+      // Set text style
+      context.font = 'bold 120px Arial'
+      context.fillStyle = '#00ff00'
+      context.strokeStyle = '#000000'
+      context.lineWidth = 8
+      context.textAlign = 'center'
+      context.textBaseline = 'middle'
+      
+      // Draw text with outline for visibility
+      context.strokeText('Go!', canvas.width / 2, canvas.height / 2)
+      context.fillText('Go!', canvas.width / 2, canvas.height / 2)
+    }
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.needsUpdate = true
+    
+    // Create plane with text texture
     const goGeometry = new THREE.PlaneGeometry(6, 3)
     const goMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00ff00,
+      map: texture,
       emissive: 0x00ff00,
-      emissiveIntensity: 2,
+      emissiveIntensity: 1.5,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 1
@@ -170,7 +196,7 @@ export class StartLights {
       this.activateOrange()
     } else if (this.state === 'orange' && this.stateTimer >= 1.0) {
       this.activateGreen()
-    } else if (this.state === 'green' && this.stateTimer >= 1.0) {
+      // Show "Go!" immediately when green activates
       this.showGo()
     } else if (this.state === 'go') {
       // Animate "Go!" flying off screen
