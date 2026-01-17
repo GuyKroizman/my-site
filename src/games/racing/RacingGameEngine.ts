@@ -24,7 +24,6 @@ export class RacingGameEngine {
   private raceStartTime: number = 0
   private timerActive: boolean = false
   private lastFrameTime: number = 0
-  private targetFPS: number = 60
   private frameInterval: number = 1000 / 60 // 16.67ms for 60 FPS
   private lastRenderTime: number = 0
 
@@ -169,9 +168,9 @@ export class RacingGameEngine {
         color: 0xff0000, 
         name: 'Red Racer',
         // Aggressive speedster - fast but less precise on corners
-        maxSpeed: 9,
-        acceleration: 18,
-        turnSpeed: 0.022,
+        maxSpeed: 12,
+        acceleration: 24,
+        turnSpeed: 0.035,
         aiAggressiveness: 0.9,
         pathRecalculateInterval: 0.3, // Recalculates path more frequently
         waypointLookAhead: 2 // Looks fewer waypoints ahead (more reactive)
@@ -182,9 +181,9 @@ export class RacingGameEngine {
         color: 0x0000ff, 
         name: 'Blue Cruiser',
         // Balanced all-rounder - good at everything
-        maxSpeed: 8,
-        acceleration: 15,
-        turnSpeed: 0.025,
+        maxSpeed: 11,
+        acceleration: 20,
+        turnSpeed: 0.04,
         aiAggressiveness: 0.8,
         pathRecalculateInterval: 0.5,
         waypointLookAhead: 3
@@ -195,9 +194,9 @@ export class RacingGameEngine {
         color: 0x000000, 
         name: 'Player',
         // Player car characteristics
-        maxSpeed: 8,
-        acceleration: 15,
-        turnSpeed: 0.025,
+        maxSpeed: 11,
+        acceleration: 20,
+        turnSpeed: 0.04,
         aiAggressiveness: 0.7,
         pathRecalculateInterval: 0.5,
         waypointLookAhead: 3
@@ -208,9 +207,9 @@ export class RacingGameEngine {
         color: 0x00ff00, 
         name: 'Green Machine',
         // Careful navigator - slower top speed but great cornering
-        maxSpeed: 7,
-        acceleration: 12,
-        turnSpeed: 0.03,
+        maxSpeed: 10,
+        acceleration: 16,
+        turnSpeed: 0.045,
         aiAggressiveness: 0.7,
         pathRecalculateInterval: 0.8, // Plans further ahead
         waypointLookAhead: 5 // Looks more waypoints ahead (smoother lines)
