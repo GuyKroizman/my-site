@@ -19,22 +19,22 @@ export class StartLights {
     this.scene = scene
     this.onComplete = onComplete
     this.lightsGroup = new THREE.Group()
-    
+
     // Position lights to the right of the starting track
     // Track starts at z: -10, so position lights at z: -10 (same level) but to the right
     // Track outer bounds extend to x: 15 + trackWidth = 21, so position lights at x: 25
     const lightX = this.trackLength / 2 + 10 // 25 units to the right of track center
     const lightY = 2 // Elevated above ground
     const lightZ = -this.trackWidth / 2 // -10, aligned with start line
-    
+
     // Create three circular lights in a row
     const lightRadius = 0.8
     const lightSpacing = 2.5
     const lightHeight = 0.2
-    
+
     // Red light (left)
     const redGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
-    const redMaterial = new THREE.MeshStandardMaterial({ 
+    const redMaterial = new THREE.MeshStandardMaterial({
       color: 0x333333, // Dark when off
       emissive: 0x000000,
       emissiveIntensity: 0
@@ -43,10 +43,10 @@ export class StartLights {
     this.redLight.position.set(lightX - lightSpacing, lightY, lightZ)
     this.redLight.rotation.x = Math.PI / 2
     this.lightsGroup.add(this.redLight)
-    
+
     // Orange light (middle)
     const orangeGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
-    const orangeMaterial = new THREE.MeshStandardMaterial({ 
+    const orangeMaterial = new THREE.MeshStandardMaterial({
       color: 0x333333, // Dark when off
       emissive: 0x000000,
       emissiveIntensity: 0
@@ -55,10 +55,10 @@ export class StartLights {
     this.orangeLight.position.set(lightX, lightY, lightZ)
     this.orangeLight.rotation.x = Math.PI / 2
     this.lightsGroup.add(this.orangeLight)
-    
+
     // Green light (right)
     const greenGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
-    const greenMaterial = new THREE.MeshStandardMaterial({ 
+    const greenMaterial = new THREE.MeshStandardMaterial({
       color: 0x333333, // Dark when off
       emissive: 0x000000,
       emissiveIntensity: 0
@@ -67,10 +67,10 @@ export class StartLights {
     this.greenLight.position.set(lightX + lightSpacing, lightY, lightZ)
     this.greenLight.rotation.x = Math.PI / 2
     this.lightsGroup.add(this.greenLight)
-    
+
     // Add lights to scene
     this.scene.add(this.lightsGroup)
-    
+
     // Start with red light on
     this.activateRed()
   }
@@ -83,13 +83,13 @@ export class StartLights {
     redMaterial.color.setHex(0xff0000)
     redMaterial.emissive.setHex(0xff0000)
     redMaterial.emissiveIntensity = 1
-    
+
     // Turn off orange and green
     const orangeMaterial = this.orangeLight.material as THREE.MeshStandardMaterial
     orangeMaterial.color.setHex(0x333333)
     orangeMaterial.emissive.setHex(0x000000)
     orangeMaterial.emissiveIntensity = 0
-    
+
     const greenMaterial = this.greenLight.material as THREE.MeshStandardMaterial
     greenMaterial.color.setHex(0x333333)
     greenMaterial.emissive.setHex(0x000000)
@@ -104,13 +104,13 @@ export class StartLights {
     redMaterial.color.setHex(0x333333)
     redMaterial.emissive.setHex(0x000000)
     redMaterial.emissiveIntensity = 0
-    
+
     // Turn on orange
     const orangeMaterial = this.orangeLight.material as THREE.MeshStandardMaterial
     orangeMaterial.color.setHex(0xff8800)
     orangeMaterial.emissive.setHex(0xff8800)
     orangeMaterial.emissiveIntensity = 1
-    
+
     // Green still off
     const greenMaterial = this.greenLight.material as THREE.MeshStandardMaterial
     greenMaterial.color.setHex(0x333333)
@@ -126,7 +126,7 @@ export class StartLights {
     orangeMaterial.color.setHex(0x333333)
     orangeMaterial.emissive.setHex(0x000000)
     orangeMaterial.emissiveIntensity = 0
-    
+
     // Turn on green
     const greenMaterial = this.greenLight.material as THREE.MeshStandardMaterial
     greenMaterial.color.setHex(0x00ff00)
@@ -137,37 +137,37 @@ export class StartLights {
   private showGo() {
     this.state = 'go'
     this.stateTimer = 0
-    
+
     // Hide all lights
     this.lightsGroup.visible = false
-    
+
     // Create "Go!" text using canvas texture
     const canvas = document.createElement('canvas')
     canvas.width = 512
     canvas.height = 256
     const context = canvas.getContext('2d')
-    
+
     if (context) {
       // Fill with transparent background
       context.clearRect(0, 0, canvas.width, canvas.height)
-      
+
       // Set text style
-      context.font = 'bold 120px Arial'
+      context.font = 'bold 220px Arial'
       context.fillStyle = '#00ff00'
       context.strokeStyle = '#000000'
       context.lineWidth = 8
       context.textAlign = 'center'
       context.textBaseline = 'middle'
-      
+
       // Draw text with outline for visibility
       context.strokeText('Go!', canvas.width / 2, canvas.height / 2)
       context.fillText('Go!', canvas.width / 2, canvas.height / 2)
     }
-    
+
     // Create texture from canvas
     const texture = new THREE.CanvasTexture(canvas)
     texture.needsUpdate = true
-    
+
     // Create plane with text texture
     const goGeometry = new THREE.PlaneGeometry(6, 3)
     const goMaterial = new THREE.MeshStandardMaterial({
@@ -179,7 +179,7 @@ export class StartLights {
       opacity: 1
     })
     const goMesh = new THREE.Mesh(goGeometry, goMaterial)
-    
+
     // Position in front of camera, visible area - center of track
     goMesh.position.set(0, 4, -5)
     goMesh.rotation.x = -Math.PI / 4 // Angle towards camera
@@ -189,9 +189,9 @@ export class StartLights {
 
   public update(deltaTime: number) {
     if (this.state === 'complete') return
-    
+
     this.stateTimer += deltaTime
-    
+
     if (this.state === 'red' && this.stateTimer >= 2.0) {
       this.activateOrange()
     } else if (this.state === 'orange' && this.stateTimer >= 1.0) {
@@ -210,7 +210,7 @@ export class StartLights {
           material.transparent = true
         }
       }
-      
+
       if (this.stateTimer >= 1.0) {
         // Remove "Go!" text
         if (this.goText) {
@@ -225,7 +225,7 @@ export class StartLights {
           }
           this.goText = null
         }
-        
+
         this.state = 'complete'
         this.onComplete()
       }
@@ -240,7 +240,7 @@ export class StartLights {
     // Reset to initial state
     this.state = 'red'
     this.stateTimer = 0
-    
+
     // Remove "Go!" text if it exists
     if (this.goText) {
       this.scene.remove(this.goText)
@@ -254,10 +254,10 @@ export class StartLights {
       }
       this.goText = null
     }
-    
+
     // Show lights again
     this.lightsGroup.visible = true
-    
+
     // Start with red light on
     this.activateRed()
   }
@@ -274,7 +274,7 @@ export class StartLights {
         }
       }
     }
-    
+
     this.lightsGroup.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.geometry.dispose()
@@ -285,7 +285,7 @@ export class StartLights {
         }
       }
     })
-    
+
     this.scene.remove(this.lightsGroup)
   }
 }
