@@ -23,6 +23,7 @@ export class RacingGameEngine {
   private isDisposed: boolean = false
   private raceStartTime: number = 0
   private timerActive: boolean = false
+  private lastFrameTime: number = 0
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks) {
     this.callbacks = callbacks
@@ -124,6 +125,9 @@ export class RacingGameEngine {
     // Create cars
     this.createCars()
 
+    // Initialize frame time tracking
+    this.lastFrameTime = performance.now() / 1000
+    
     // Start render loop
     this.animate()
   }
@@ -252,7 +256,14 @@ export class RacingGameEngine {
 
     this.animationId = requestAnimationFrame(this.animate)
 
-    const deltaTime = 0.016 // ~60fps
+    // Calculate actual delta time for smooth animation
+    const currentTime = performance.now() / 1000
+    let deltaTime = currentTime - this.lastFrameTime
+    this.lastFrameTime = currentTime
+    
+    // Clamp deltaTime to prevent large jumps (e.g., when tab is inactive)
+    if (deltaTime > 0.1) deltaTime = 0.016 // Cap at ~60fps equivalent
+    if (deltaTime <= 0) deltaTime = 0.016 // Prevent negative or zero deltaTime
 
     // Update start lights
     if (this.startLights) {
