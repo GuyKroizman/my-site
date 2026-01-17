@@ -152,22 +152,26 @@ export default function RacingGame() {
                     </span>
                   )}
                 </div>
-                <div className="text-lg text-gray-300 font-semibold">
-                  🥈 2nd Place: {raceResults.second}
-                  {raceResults.times[raceResults.second] !== undefined && (
-                    <span className="text-sm text-gray-200 ml-2">
-                      ({formatTime(raceResults.times[raceResults.second])}s)
-                    </span>
-                  )}
-                </div>
-                <div className="text-lg text-gray-400 font-semibold">
-                  🥉 3rd Place: {raceResults.third}
-                  {raceResults.times[raceResults.third] !== undefined && (
-                    <span className="text-sm text-gray-300 ml-2">
-                      ({formatTime(raceResults.times[raceResults.third])}s)
-                    </span>
-                  )}
-                </div>
+                {raceResults.second !== 'Unknown' && (
+                  <div className="text-lg text-gray-300 font-semibold">
+                    🥈 2nd Place: {raceResults.second}
+                    {raceResults.times[raceResults.second] !== undefined && (
+                      <span className="text-sm text-gray-200 ml-2">
+                        ({formatTime(raceResults.times[raceResults.second])}s)
+                      </span>
+                    )}
+                  </div>
+                )}
+                {raceResults.third !== 'Unknown' && (
+                  <div className="text-lg text-gray-400 font-semibold">
+                    🥉 3rd Place: {raceResults.third}
+                    {raceResults.times[raceResults.third] !== undefined && (
+                      <span className="text-sm text-gray-300 ml-2">
+                        ({formatTime(raceResults.times[raceResults.third])}s)
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <button
                 onClick={handleBackToMenu}

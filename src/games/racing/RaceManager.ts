@@ -12,6 +12,8 @@ export class RaceManager {
   private previousCheckpoint: Map<Car, number> = new Map()
   private requiredLaps: number = 4
   private finishTimes: Map<Car, number> = new Map()
+  private firstFinishTime: number | null = null
+  private readonly COMPLETION_DELAY: number = 5 // 5 seconds after first car finishes
 
   constructor(callbacks: RacingGameCallbacks) {
     this.callbacks = callbacks
@@ -32,6 +34,7 @@ export class RaceManager {
     this.raceStarted = true
     this.raceComplete = false
     this.finishedCars = []
+    this.firstFinishTime = null
     const checkpointCount = track.getCheckpointCount()
     this.cars.forEach(car => {
       this.lastLapProgress.set(car, 0)
@@ -95,9 +98,9 @@ export class RaceManager {
           // Record finish time
           this.finishTimes.set(car, raceTime)
 
-          // Check if race is complete (all cars finished or 3 positions determined)
-          if (this.finishedCars.length >= 3 || this.finishedCars.length === this.cars.length) {
-            this.completeRace()
+          // Track when first car finishes
+          if (this.firstFinishTime === null) {
+            this.firstFinishTime = raceTime
           }
         }
       }
@@ -106,6 +109,14 @@ export class RaceManager {
       this.previousCheckpoint.set(car, car.lastCheckpoint)
 
     })
+
+    // Check if 5 seconds have passed since first car finished
+    if (this.firstFinishTime !== null && !this.raceComplete) {
+      const timeSinceFirstFinish = raceTime - this.firstFinishTime
+      if (timeSinceFirstFinish >= this.COMPLETION_DELAY) {
+        this.completeRace()
+      }
+    }
   }
 
   private completeRace() {
@@ -118,14 +129,10 @@ export class RaceManager {
       car.speed = 0
     })
 
-    // Sort finished cars by finish position
+    // Sort finished cars by finish position (only include cars that actually finished)
     const sorted = [...this.finishedCars].sort((a, b) => a.finishPosition - b.finishPosition)
 
-    // Get remaining cars that didn't finish and add them
-    const remaining = this.cars.filter(car => !car.finished)
-    sorted.push(...remaining)
-
-    // Build times map
+    // Build times map - only include cars that finished
     const times: { [name: string]: number } = {}
     sorted.forEach(car => {
       const time = this.finishTimes.get(car)
@@ -149,6 +156,7 @@ export class RaceManager {
     this.raceComplete = false
     this.finishedCars = []
     this.finishTimes.clear()
+    this.firstFinishTime = null
     const checkpointCount = track.getCheckpointCount()
     this.cars.forEach(car => {
       this.lastLapProgress.set(car, 0)
