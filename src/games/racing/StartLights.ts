@@ -8,7 +8,7 @@ export class StartLights {
   private redLight: THREE.Mesh
   private orangeLight: THREE.Mesh
   private greenLight: THREE.Mesh
-  private goText: THREE.Object3D | null = null
+  private goText: THREE.Mesh | null = null
   private state: StartLightState = 'red'
   private stateTimer: number = 0
   private onComplete: () => void
@@ -179,8 +179,10 @@ export class StartLights {
         this.goText.position.z -= deltaTime * 25 // Fly forward (away from camera)
         this.goText.scale.multiplyScalar(1 + deltaTime * 1.5) // Grow
         const material = this.goText.material as THREE.MeshStandardMaterial
-        material.opacity = Math.max(0, 1 - this.stateTimer * 1.5) // Fade out
-        material.transparent = true
+        if (material) {
+          material.opacity = Math.max(0, 1 - this.stateTimer * 1.5) // Fade out
+          material.transparent = true
+        }
       }
       
       if (this.stateTimer >= 1.0) {
