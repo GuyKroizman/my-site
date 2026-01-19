@@ -10,13 +10,14 @@ export class RaceManager {
   private callbacks: RacingGameCallbacks
   private lastLapProgress: Map<Car, number> = new Map()
   private previousCheckpoint: Map<Car, number> = new Map()
-  private requiredLaps: number = 4
+  private requiredLaps: number
   private finishTimes: Map<Car, number> = new Map()
   private firstFinishTime: number | null = null
   private readonly COMPLETION_DELAY: number = 5 // 5 seconds after first car finishes
 
-  constructor(callbacks: RacingGameCallbacks) {
+  constructor(callbacks: RacingGameCallbacks, requiredLaps: number = 4) {
     this.callbacks = callbacks
+    this.requiredLaps = requiredLaps
   }
 
   public addCar(car: Car, track: Track) {

@@ -3,6 +3,7 @@ import { Car } from './Car'
 import { Track } from './Track'
 import { RaceManager } from './RaceManager'
 import { StartLights } from './StartLights'
+import { LevelConfig, CarConfig } from './levels'
 
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
@@ -26,9 +27,11 @@ export class RacingGameEngine {
   private lastFrameTime: number = 0
   private frameInterval: number = 1000 / 60 // 16.67ms for 60 FPS
   private lastRenderTime: number = 0
+  private currentLevelConfig: LevelConfig
 
-  constructor(container: HTMLElement, callbacks: RacingGameCallbacks) {
+  constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig) {
     this.callbacks = callbacks
+    this.currentLevelConfig = levelConfig
 
     // Ensure container is properly sized
     if (container.clientWidth === 0 || container.clientHeight === 0) {
@@ -95,8 +98,8 @@ export class RacingGameEngine {
     // Create navigation grid for A* pathfinding
     this.track.createNavigationGrid(1.0)
 
-    // Create race manager
-    this.raceManager = new RaceManager(this.callbacks)
+    // Create race manager with level-specific required laps
+    this.raceManager = new RaceManager(this.callbacks, this.currentLevelConfig.requiredLaps)
 
     // Create start lights
     this.startLights = new StartLights(this.scene, () => {
@@ -157,82 +160,18 @@ export class RacingGameEngine {
   }
 
   private createCars() {
-    // Track start/finish line is at z: -10 (width/2 = 20/2 = 10, so -10)
-    // Start positions: Red and Blue in front, Player and Green behind
-    
-    // Each car has unique characteristics for different racing personalities
-    const carConfigs = [
-      { 
-        x: -1.5, 
-        z: -10, 
-        color: 0xff0000, 
-        name: 'Red Racer',
-        // Aggressive speedster - fast but less precise on corners
-        maxSpeed: 12,
-        acceleration: 24,
-        turnSpeed: 0.035,
-        aiAggressiveness: 0.9,
-        pathRecalculateInterval: 0.3, // Recalculates path more frequently
-        waypointLookAhead: 2 // Looks fewer waypoints ahead (more reactive)
-      },
-      { 
-        x: 1.5, 
-        z: -10, 
-        color: 0x0000ff, 
-        name: 'Blue Cruiser',
-        // Balanced all-rounder - good at everything
-        maxSpeed: 11,
-        acceleration: 20,
-        turnSpeed: 0.04,
-        aiAggressiveness: 0.8,
-        pathRecalculateInterval: 0.5,
-        waypointLookAhead: 3
-      },
-      { 
-        x: -1.5, 
-        z: -13, 
-        color: 0x000000, 
-        name: 'Player',
-        // Player car characteristics
-        maxSpeed: 11,
-        acceleration: 20,
-        turnSpeed: 0.04,
-        aiAggressiveness: 0.7,
-        pathRecalculateInterval: 0.5,
-        waypointLookAhead: 3
-      },
-      { 
-        x: 1.5, 
-        z: -13, 
-        color: 0x00ff00, 
-        name: 'Green Machine',
-        // Careful navigator - slower top speed but great cornering
-        maxSpeed: 10,
-        acceleration: 16,
-        turnSpeed: 0.045,
-        aiAggressiveness: 0.7,
-        pathRecalculateInterval: 0.8, // Plans further ahead
-        waypointLookAhead: 5 // Looks more waypoints ahead (smoother lines)
-      }
-    ]
+    // Use car configurations from the current level
+    const carConfigs = this.currentLevelConfig.cars
 
-    carConfigs.forEach((config, index) => {
-      const isPlayer = index === 2
+    carConfigs.forEach((config: CarConfig) => {
       const car = new Car(
         config.x, 
         0.5, 
         config.z, 
         config.color, 
         config.name, 
-        isPlayer,
-        {
-          maxSpeed: config.maxSpeed,
-          acceleration: config.acceleration,
-          turnSpeed: config.turnSpeed,
-          aiAggressiveness: config.aiAggressiveness,
-          pathRecalculateInterval: config.pathRecalculateInterval,
-          waypointLookAhead: config.waypointLookAhead
-        }
+        config.isPlayer,
+        config.characteristics
       )
       this.cars.push(car)
       this.scene.add(car.mesh)
@@ -325,14 +264,11 @@ export class RacingGameEngine {
 
   public reset() {
     this.raceManager.reset(this.track)
+    const carConfigs = this.currentLevelConfig.cars
     this.cars.forEach((car, index) => {
-      const startPositions = [
-        { x: -1.5, z: -10 },
-        { x: 1.5, z: -10 },
-        { x: -1.5, z: -13 },
-        { x: 1.5, z: -13 }
-      ]
-      car.reset(startPositions[index].x, startPositions[index].z)
+      if (index < carConfigs.length) {
+        car.reset(carConfigs[index].x, carConfigs[index].z)
+      }
     })
   }
 
