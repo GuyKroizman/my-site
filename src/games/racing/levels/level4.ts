@@ -4,7 +4,7 @@ export const level4: LevelConfig = {
   id: 4,
   name: "Elite Championship",
   description: 'Only the best survive! Maximum speed and precision required. Finish first to win.',
-  requiredLaps: 5,
+  requiredLaps: 4,
   winCondition: {
     maxPosition: 1 // Must finish first to win
   },

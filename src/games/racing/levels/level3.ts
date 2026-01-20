@@ -4,7 +4,7 @@ export const level3: LevelConfig = {
   id: 3,
   name: "Speed Demon's Track",
   description: 'The pace intensifies! Faster speeds and tighter competition. Finish in the top 2 to advance.',
-  requiredLaps: 5,
+  requiredLaps: 4,
   winCondition: {
     maxPosition: 2 // Finish top 2 to win
   },
