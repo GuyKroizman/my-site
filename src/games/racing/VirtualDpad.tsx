@@ -15,6 +15,8 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
   const [activeButtons, setActiveButtons] = useState<Set<string>>(new Set())
   const leftContainerRef = useRef<HTMLDivElement>(null)
   const rightContainerRef = useRef<HTMLDivElement>(null)
+  const forwardBackwardControlRef = useRef<HTMLDivElement>(null)
+  const activeForwardBackwardTouch = useRef<number | null>(null)
 
   const handleTouchStart = (direction: string) => (e: React.TouchEvent) => {
     e.preventDefault()
@@ -37,6 +39,93 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
     updateState(new Set())
   }
 
+  // Handle forward/backward control touch
+  const handleForwardBackwardTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault()
+    if (e.touches.length > 0) {
+      activeForwardBackwardTouch.current = e.touches[0].identifier
+      updateForwardBackwardState(e.touches[0])
+    }
+  }
+
+  const handleForwardBackwardTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault()
+    if (activeForwardBackwardTouch.current !== null) {
+      const touch = Array.from(e.touches).find(
+        t => t.identifier === activeForwardBackwardTouch.current
+      )
+      if (touch) {
+        updateForwardBackwardState(touch)
+      }
+    }
+  }
+
+  const handleForwardBackwardTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault()
+    // Check if the active touch ended
+    if (activeForwardBackwardTouch.current !== null) {
+      const touchEnded = Array.from(e.changedTouches).find(
+        t => t.identifier === activeForwardBackwardTouch.current
+      )
+      if (touchEnded) {
+        activeForwardBackwardTouch.current = null
+        const newActive = new Set(activeButtons)
+        newActive.delete('up')
+        newActive.delete('down')
+        setActiveButtons(newActive)
+        updateState(newActive)
+      }
+    }
+  }
+
+  const handleForwardBackwardTouchCancel = () => {
+    activeForwardBackwardTouch.current = null
+    const newActive = new Set(activeButtons)
+    newActive.delete('up')
+    newActive.delete('down')
+    setActiveButtons(newActive)
+    updateState(newActive)
+  }
+
+  const updateForwardBackwardState = (touch: Touch) => {
+    if (!forwardBackwardControlRef.current) return
+    
+    const rect = forwardBackwardControlRef.current.getBoundingClientRect()
+    const touchX = touch.clientX - rect.left
+    const touchY = touch.clientY - rect.top
+    
+    // Allow some tolerance outside bounds for better UX (10px margin)
+    const tolerance = 10
+    const isWithinBounds = 
+      touchX >= -tolerance && 
+      touchX <= rect.width + tolerance && 
+      touchY >= -tolerance && 
+      touchY <= rect.height + tolerance
+    
+    const newActive = new Set(activeButtons)
+    
+    if (isWithinBounds) {
+      const controlHeight = rect.height
+      const midpoint = controlHeight / 2
+      
+      // Top half = forward (up), bottom half = backward (down)
+      if (touchY < midpoint) {
+        newActive.add('up')
+        newActive.delete('down')
+      } else {
+        newActive.add('down')
+        newActive.delete('up')
+      }
+    } else {
+      // Touch moved outside control area - clear state
+      newActive.delete('up')
+      newActive.delete('down')
+    }
+    
+    setActiveButtons(newActive)
+    updateState(newActive)
+  }
+
   const updateState = (active: Set<string>) => {
     onStateChange({
       up: active.has('up'),
@@ -50,12 +139,13 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
   useEffect(() => {
     const leftContainer = leftContainerRef.current
     const rightContainer = rightContainerRef.current
+    const forwardBackwardControl = forwardBackwardControlRef.current
     
     const preventDefault = (e: TouchEvent) => {
       e.preventDefault()
     }
 
-    const containers = [leftContainer, rightContainer].filter(Boolean) as HTMLElement[]
+    const containers = [leftContainer, rightContainer, forwardBackwardControl].filter(Boolean) as HTMLElement[]
     
     containers.forEach(container => {
       container.addEventListener('touchstart', preventDefault, { passive: false })
@@ -90,35 +180,60 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
 
   return (
     <>
-      {/* Forward/Backward buttons - bottom left, stacked vertically */}
+      {/* Forward/Backward control - bottom left, single connected control */}
       <div 
         ref={leftContainerRef}
-        className="fixed bottom-4 left-4 z-50 pointer-events-auto flex flex-col gap-2"
+        className="fixed bottom-4 left-4 z-50 pointer-events-auto"
         style={{ touchAction: 'none' }}
       >
-        {/* Forward button */}
-        <button
-          className={buttonClass('up')}
-          style={buttonStyle}
-          onTouchStart={handleTouchStart('up')}
-          onTouchEnd={handleTouchEnd('up')}
-          onTouchCancel={handleTouchCancel}
-          aria-label="Accelerate"
+        <div
+          ref={forwardBackwardControlRef}
+          className="relative"
+          style={{
+            width: '60px',
+            height: '128px', // 60px + 8px gap + 60px = 128px (same as two buttons with gap-2)
+            borderRadius: '8px',
+            overflow: 'hidden',
+            touchAction: 'none'
+          }}
+          onTouchStart={handleForwardBackwardTouchStart}
+          onTouchMove={handleForwardBackwardTouchMove}
+          onTouchEnd={handleForwardBackwardTouchEnd}
+          onTouchCancel={handleForwardBackwardTouchCancel}
         >
-          ↑
-        </button>
-        
-        {/* Backward button */}
-        <button
-          className={buttonClass('down')}
-          style={buttonStyle}
-          onTouchStart={handleTouchStart('down')}
-          onTouchEnd={handleTouchEnd('down')}
-          onTouchCancel={handleTouchCancel}
-          aria-label="Brake/Reverse"
-        >
-          ↓
-        </button>
+          {/* Forward section (top half) */}
+          <div
+            className={`absolute top-0 left-0 right-0 flex items-center justify-center text-white font-bold text-2xl select-none transition-all duration-75 ${
+              activeButtons.has('up')
+                ? 'bg-blue-600'
+                : 'bg-blue-500'
+            }`}
+            style={{
+              height: '50%',
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+              borderBottom: '2px solid rgba(255, 255, 255, 0.3)'
+            }}
+          >
+            ↑
+          </div>
+          
+          {/* Backward section (bottom half) */}
+          <div
+            className={`absolute bottom-0 left-0 right-0 flex items-center justify-center text-white font-bold text-2xl select-none transition-all duration-75 ${
+              activeButtons.has('down')
+                ? 'bg-blue-600'
+                : 'bg-blue-500'
+            }`}
+            style={{
+              height: '50%',
+              borderBottomLeftRadius: '8px',
+              borderBottomRightRadius: '8px'
+            }}
+          >
+            ↓
+          </div>
+        </div>
       </div>
 
       {/* Left/Right buttons - bottom right, side by side */}
