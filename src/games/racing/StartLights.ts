@@ -134,12 +134,9 @@ export class StartLights {
     greenMaterial.emissiveIntensity = 1
   }
 
-  private showGo() {
-    this.state = 'go'
-    this.stateTimer = 0
-
-    // Hide all lights
-    this.lightsGroup.visible = false
+  private showGoText() {
+    // Show "Go!" text immediately when green activates, but keep lights visible
+    if (this.goText) return // Already showing
 
     // Create "Go!" text using canvas texture
     const canvas = document.createElement('canvas')
@@ -187,17 +184,28 @@ export class StartLights {
     this.scene.add(this.goText)
   }
 
+  private hideLightsAndGo() {
+    // Hide all lights (green light has lingered for 4 seconds)
+    this.lightsGroup.visible = false
+    // Transition to 'go' state for animation
+    this.state = 'go'
+    this.stateTimer = 0
+  }
+
   public update(deltaTime: number) {
     if (this.state === 'complete') return
 
     this.stateTimer += deltaTime
 
-    if (this.state === 'red' && this.stateTimer >= 2.0) {
+    if (this.state === 'red' && this.stateTimer >= 1.0) {
       this.activateOrange()
     } else if (this.state === 'orange' && this.stateTimer >= 1.0) {
       this.activateGreen()
       // Show "Go!" immediately when green activates
-      this.showGo()
+      this.showGoText()
+    } else if (this.state === 'green' && this.stateTimer >= 4.0) {
+      // Green light lingers for 4 seconds, then hide lights and transition to 'go' state
+      this.hideLightsAndGo()
     } else if (this.state === 'go') {
       // Animate "Go!" flying off screen
       if (this.goText) {

@@ -43,8 +43,9 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
   const handleForwardBackwardTouchStart = (e: React.TouchEvent) => {
     e.preventDefault()
     if (e.touches.length > 0) {
-      activeForwardBackwardTouch.current = e.touches[0].identifier
-      updateForwardBackwardState(e.touches[0])
+      const touch = e.touches[0]
+      activeForwardBackwardTouch.current = touch.identifier
+      updateForwardBackwardState(touch.clientX, touch.clientY)
     }
   }
 
@@ -55,7 +56,7 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
         t => t.identifier === activeForwardBackwardTouch.current
       )
       if (touch) {
-        updateForwardBackwardState(touch)
+        updateForwardBackwardState(touch.clientX, touch.clientY)
       }
     }
   }
@@ -87,12 +88,12 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
     updateState(newActive)
   }
 
-  const updateForwardBackwardState = (touch: Touch) => {
+  const updateForwardBackwardState = (clientX: number, clientY: number) => {
     if (!forwardBackwardControlRef.current) return
     
     const rect = forwardBackwardControlRef.current.getBoundingClientRect()
-    const touchX = touch.clientX - rect.left
-    const touchY = touch.clientY - rect.top
+    const touchX = clientX - rect.left
+    const touchY = clientY - rect.top
     
     // Allow some tolerance outside bounds for better UX (10px margin)
     const tolerance = 10
