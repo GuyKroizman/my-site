@@ -33,7 +33,7 @@ export const level5: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Master level all-rounder
-        maxSpeed: 19,
+        maxSpeed: 20,
         acceleration: 36,
         turnSpeed: 0.048,
         aiAggressiveness: 0.98,
@@ -49,7 +49,7 @@ export const level5: LevelConfig = {
       isPlayer: true,
       characteristics: {
         // Player car at master level
-        maxSpeed: 18,
+        maxSpeed: 20,
         acceleration: 34,
         turnSpeed: 0.07,
         aiAggressiveness: 0.7,
@@ -65,7 +65,7 @@ export const level5: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Master level cornering specialist
-        maxSpeed: 18.5,
+        maxSpeed: 20.5,
         acceleration: 32,
         turnSpeed: 0.055,
         aiAggressiveness: 0.95,

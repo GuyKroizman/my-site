@@ -33,8 +33,8 @@ export const level2: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Improved all-rounder
-        maxSpeed: 14,
-        acceleration: 26,
+        maxSpeed: 15,
+        acceleration: 30,
         turnSpeed: 0.042,
         aiAggressiveness: 0.85,
         pathRecalculateInterval: 0.4,
@@ -49,8 +49,8 @@ export const level2: LevelConfig = {
       isPlayer: true,
       characteristics: {
         // Player car with improved speed and better turning
-        maxSpeed: 13,
-        acceleration: 24,
+        maxSpeed: 15,
+        acceleration: 30,
         turnSpeed: 0.055,
         aiAggressiveness: 0.7,
         pathRecalculateInterval: 0.5,
@@ -65,8 +65,8 @@ export const level2: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Now faster but still good at corners
-        maxSpeed: 13.5,
-        acceleration: 22,
+        maxSpeed: 15,
+        acceleration: 30,
         turnSpeed: 0.048,
         aiAggressiveness: 0.8,
         pathRecalculateInterval: 0.6,

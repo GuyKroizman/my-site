@@ -33,7 +33,7 @@ export const level4: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Elite all-rounder
-        maxSpeed: 17,
+        maxSpeed: 18,
         acceleration: 32,
         turnSpeed: 0.046,
         aiAggressiveness: 0.95,
@@ -49,7 +49,7 @@ export const level4: LevelConfig = {
       isPlayer: true,
       characteristics: {
         // Player car at elite level
-        maxSpeed: 16,
+        maxSpeed: 18,
         acceleration: 30,
         turnSpeed: 0.065,
         aiAggressiveness: 0.7,
@@ -65,7 +65,7 @@ export const level4: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Elite cornering specialist
-        maxSpeed: 16.5,
+        maxSpeed: 18,
         acceleration: 28,
         turnSpeed: 0.052,
         aiAggressiveness: 0.9,

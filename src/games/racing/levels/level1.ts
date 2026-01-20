@@ -65,7 +65,7 @@ export const level1: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Careful navigator - slower top speed but great cornering
-        maxSpeed: 10,
+        maxSpeed: 13,
         acceleration: 16,
         turnSpeed: 0.045,
         aiAggressiveness: 0.7,

@@ -33,7 +33,7 @@ export const level3: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // High-performance all-rounder
-        maxSpeed: 15,
+        maxSpeed: 16,
         acceleration: 28,
         turnSpeed: 0.044,
         aiAggressiveness: 0.9,
@@ -49,7 +49,7 @@ export const level3: LevelConfig = {
       isPlayer: true,
       characteristics: {
         // Player car with enhanced capabilities
-        maxSpeed: 14,
+        maxSpeed: 16,
         acceleration: 26,
         turnSpeed: 0.06,
         aiAggressiveness: 0.7,
@@ -65,7 +65,7 @@ export const level3: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Fast cornering specialist
-        maxSpeed: 14.5,
+        maxSpeed: 17,
         acceleration: 24,
         turnSpeed: 0.05,
         aiAggressiveness: 0.85,
