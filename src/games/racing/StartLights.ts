@@ -20,17 +20,16 @@ export class StartLights {
     this.onComplete = onComplete
     this.lightsGroup = new THREE.Group()
 
-    // Position lights to the right of the starting track
-    // Track starts at z: -10, so position lights at z: -10 (same level) but to the right
-    // Track outer bounds extend to x: 15 + trackWidth = 21, so position lights at x: 25
-    const lightX = this.trackLength / 2 + 10 // 25 units to the right of track center
-    const lightY = 2 // Elevated above ground
-    const lightZ = -this.trackWidth / 2 // -10, aligned with start line
+    // Position lights at the top of the screen, below the level name
+    // Center horizontally, high on Y axis, close to camera
+    const lightX = 0 // Centered horizontally
+    const lightY = 8 // High on screen, below level name
+    const lightZ = -8 // Close to camera for visibility
 
-    // Create three circular lights in a row
-    const lightRadius = 0.8
-    const lightSpacing = 2.5
-    const lightHeight = 0.2
+    // Create three circular lights in a row - twice as big
+    const lightRadius = 1.6 // Doubled from 0.8
+    const lightSpacing = 5.0 // Doubled from 2.5
+    const lightHeight = 0.4 // Doubled from 0.2
 
     // Red light (left)
     const redGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
