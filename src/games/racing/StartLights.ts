@@ -12,8 +12,6 @@ export class StartLights {
   private state: StartLightState = 'red'
   private stateTimer: number = 0
   private onComplete: () => void
-  private trackWidth: number = 20
-  private trackLength: number = 30
 
   constructor(scene: THREE.Scene, onComplete: () => void) {
     this.scene = scene
