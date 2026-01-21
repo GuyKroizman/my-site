@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { SoundGenerator } from './SoundGenerator'
 
 export type StartLightState = 'red' | 'orange' | 'green' | 'go' | 'complete'
 
@@ -12,10 +13,12 @@ export class StartLights {
   private state: StartLightState = 'red'
   private stateTimer: number = 0
   private onComplete: () => void
+  private soundGenerator: SoundGenerator
 
   constructor(scene: THREE.Scene, onComplete: () => void) {
     this.scene = scene
     this.onComplete = onComplete
+    this.soundGenerator = new SoundGenerator()
     this.lightsGroup = new THREE.Group()
 
     // Position lights at the top of the screen, below the level name
@@ -91,6 +94,9 @@ export class StartLights {
     greenMaterial.color.setHex(0x333333)
     greenMaterial.emissive.setHex(0x000000)
     greenMaterial.emissiveIntensity = 0
+
+    // Play low beep for red light (subtle, optional)
+    this.soundGenerator.playBeep(250, 0.1, 0.3)
   }
 
   private activateOrange() {
@@ -113,6 +119,9 @@ export class StartLights {
     greenMaterial.color.setHex(0x333333)
     greenMaterial.emissive.setHex(0x000000)
     greenMaterial.emissiveIntensity = 0
+
+    // Play medium beep for orange light
+    this.soundGenerator.playBeep(450, 0.1, 0.5)
   }
 
   private activateGreen() {
@@ -129,11 +138,17 @@ export class StartLights {
     greenMaterial.color.setHex(0x00ff00)
     greenMaterial.emissive.setHex(0x00ff00)
     greenMaterial.emissiveIntensity = 1
+
+    // Play higher beep for green light (ready signal)
+    this.soundGenerator.playBeep(700, 0.15, 0.7)
   }
 
   private showGoText() {
     // Show "Go!" text immediately when green activates, but keep lights visible
     if (this.goText) return // Already showing
+
+    // Play ascending tone for "Go!" - emphatic and exciting
+    this.soundGenerator.playAscendingTone(800, 1200, 0.2, 1.0)
 
     // Create "Go!" text using canvas texture
     const canvas = document.createElement('canvas')
@@ -292,5 +307,8 @@ export class StartLights {
     })
 
     this.scene.remove(this.lightsGroup)
+    
+    // Clean up sound generator
+    this.soundGenerator.dispose()
   }
 }
