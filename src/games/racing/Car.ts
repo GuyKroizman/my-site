@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { Track } from './Track'
+import { SoundGenerator } from './SoundGenerator'
 
 export interface CarCharacteristics {
   maxSpeed: number
@@ -47,6 +48,9 @@ export class Car {
     left: false,
     right: false
   }
+  private soundGenerator: SoundGenerator
+  private lastCollisionTime: number = 0
+  private collisionCooldown: number = 0.2 // Minimum time between collision sounds (seconds)
 
   constructor(
     x: number, 
@@ -62,6 +66,7 @@ export class Car {
     this.color = color
     this.name = name
     this.isPlayer = isPlayer
+    this.soundGenerator = new SoundGenerator()
 
     // Apply characteristics if provided
     if (characteristics) {
@@ -202,6 +207,13 @@ export class Car {
     // Check collision with other cars and handle repulsion
     const collisionResult = this.checkCollisionWithRepulsion(newPosition, allCars)
     if (collisionResult.collided) {
+      // Play crash sound if enough time has passed since last collision
+      const currentTime = performance.now() / 1000
+      if (currentTime - this.lastCollisionTime >= this.collisionCooldown) {
+        this.soundGenerator.playCrashSound()
+        this.lastCollisionTime = currentTime
+      }
+      
       // Apply repulsion to push cars apart
       this.position.add(collisionResult.repulsion)
       
@@ -526,5 +538,6 @@ export class Car {
         }
       }
     })
+    this.soundGenerator.dispose()
   }
 }

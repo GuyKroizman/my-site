@@ -4,6 +4,9 @@
  */
 export class SoundGenerator {
   private audioContext: AudioContext | null = null
+  private crashBuffers: AudioBuffer[] = []
+  private activeCrashSounds: number = 0
+  private maxConcurrentCrashSounds: number = 3
 
   /**
    * Get or create the AudioContext
@@ -15,6 +18,8 @@ export class SoundGenerator {
       if (AudioContextClass) {
         try {
           this.audioContext = new AudioContextClass()
+          // Pre-generate crash sound buffers for efficiency
+          this.preGenerateCrashBuffers()
         } catch (error) {
           console.warn('Failed to create AudioContext:', error)
           return null
@@ -22,6 +27,30 @@ export class SoundGenerator {
       }
     }
     return this.audioContext
+  }
+
+  /**
+   * Pre-generate multiple crash sound buffers for variety and efficiency
+   * Creates 5 variations so crashes don't all sound identical
+   */
+  private preGenerateCrashBuffers(): void {
+    const ctx = this.audioContext
+    if (!ctx) return
+
+    const bufferSize = ctx.sampleRate * 0.5 // 0.5 seconds duration
+    const numVariations = 5
+
+    for (let v = 0; v < numVariations; v++) {
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+
+      // Fill buffer with random noise
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1
+      }
+
+      this.crashBuffers.push(buffer)
+    }
   }
 
   /**
@@ -79,7 +108,7 @@ export class SoundGenerator {
     }
 
     if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {})
+      ctx.resume().catch(() => { })
     }
 
     try {
@@ -105,6 +134,70 @@ export class SoundGenerator {
     }
   }
 
+  playCrashSound(): void {
+    const ctx = this.getAudioContext()
+    if (!ctx) {
+      return
+    }
+
+    // Limit concurrent sounds to prevent audio glitches
+    if (this.activeCrashSounds >= this.maxConcurrentCrashSounds) {
+      return
+    }
+
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => { })
+    }
+
+    try {
+      // Use pre-generated buffer (randomly select one for variety)
+      if (this.crashBuffers.length === 0) {
+        // Fallback: generate on the fly if buffers weren't pre-generated
+        const bufferSize = ctx.sampleRate * 0.5
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+        const data = buffer.getChannelData(0)
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1
+        }
+        this.crashBuffers.push(buffer)
+      }
+
+      const buffer = this.crashBuffers[Math.floor(Math.random() * this.crashBuffers.length)]
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+
+      // Filter the noise to make it less harsh (Lowpass)
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.value = 800
+
+      const gain = ctx.createGain()
+
+      noise.connect(filter)
+      filter.connect(gain)
+      gain.connect(ctx.destination)
+
+      // Percussive Envelope
+      gain.gain.setValueAtTime(1, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3)
+
+      // Track active sounds and clean up when done
+      this.activeCrashSounds++
+      noise.onended = () => {
+        this.activeCrashSounds--
+        // Disconnect nodes to allow garbage collection
+        noise.disconnect()
+        filter.disconnect()
+        gain.disconnect()
+      }
+
+      noise.start()
+    } catch (error) {
+      console.warn('Failed to play crash sound:', error)
+      this.activeCrashSounds--
+    }
+  }
+
   /**
    * Clean up audio context
    */
@@ -115,5 +208,7 @@ export class SoundGenerator {
       })
       this.audioContext = null
     }
+    this.crashBuffers = []
+    this.activeCrashSounds = 0
   }
 }
