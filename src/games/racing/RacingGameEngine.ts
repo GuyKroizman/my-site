@@ -28,6 +28,9 @@ export class RacingGameEngine {
   private frameInterval: number = 1000 / 60 // 16.67ms for 60 FPS
   private lastRenderTime: number = 0
   private currentLevelConfig: LevelConfig
+  private isPaused: boolean = false
+  private pauseStartTime: number = 0
+  private totalPauseTime: number = 0
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig) {
     this.callbacks = callbacks
@@ -188,6 +191,12 @@ export class RacingGameEngine {
 
     this.animationId = requestAnimationFrame(this.animate)
 
+    // If paused, only render the scene (no updates)
+    if (this.isPaused) {
+      this.renderer.render(this.scene, this.camera)
+      return
+    }
+
     // Frame rate limiting: only render if enough time has passed
     const currentTime = performance.now()
     const elapsed = currentTime - this.lastRenderTime
@@ -219,7 +228,7 @@ export class RacingGameEngine {
     // Update timer and notify callback
     if (this.timerActive && !raceComplete) {
       const currentTime = performance.now() / 1000
-      const elapsedTime = currentTime - this.raceStartTime
+      const elapsedTime = currentTime - this.raceStartTime - this.totalPauseTime
       if (this.callbacks.onTimerUpdate) {
         this.callbacks.onTimerUpdate(elapsedTime)
       }
@@ -233,7 +242,9 @@ export class RacingGameEngine {
 
     // Update race manager (only if race not complete)
     if (!raceComplete) {
-      this.raceManager.update(deltaTime, this.track, this.timerActive ? (performance.now() / 1000 - this.raceStartTime) : 0)
+      const currentTime = performance.now() / 1000
+      const elapsedRaceTime = this.timerActive ? (currentTime - this.raceStartTime - this.totalPauseTime) : 0
+      this.raceManager.update(deltaTime, this.track, elapsedRaceTime)
     }
 
     // Update lap counter for player
@@ -250,6 +261,8 @@ export class RacingGameEngine {
     // Reset timer
     this.timerActive = false
     this.raceStartTime = 0
+    this.totalPauseTime = 0
+    this.pauseStartTime = 0
     
     // Reset start lights
     if (this.startLights) {
@@ -277,6 +290,30 @@ export class RacingGameEngine {
     if (playerCar) {
       playerCar.setTouchControls(controls)
     }
+  }
+
+  public pause() {
+    if (!this.isPaused) {
+      this.isPaused = true
+      this.pauseStartTime = performance.now() / 1000
+    }
+  }
+
+  public resume() {
+    if (this.isPaused) {
+      // Calculate how long we were paused and add it to total pause time
+      const pauseEndTime = performance.now() / 1000
+      const pauseDuration = pauseEndTime - this.pauseStartTime
+      this.totalPauseTime += pauseDuration
+      
+      this.isPaused = false
+      // Reset frame time to prevent large deltaTime jump after resume
+      this.lastFrameTime = performance.now() / 1000
+    }
+  }
+
+  public isPausedState(): boolean {
+    return this.isPaused
   }
 
   public dispose() {

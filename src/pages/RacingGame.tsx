@@ -15,6 +15,16 @@ const isMobileLandscape = () => {
   return isTouchDevice() && window.innerWidth > window.innerHeight
 }
 
+// Check if device is in portrait mode
+const isPortrait = () => {
+  return window.innerHeight > window.innerWidth
+}
+
+// Check if device is in landscape mode
+const isLandscape = () => {
+  return window.innerWidth > window.innerHeight
+}
+
 // Format time as seconds.tenths
 const formatTime = (time: number): string => {
   const seconds = Math.floor(time)
@@ -22,7 +32,7 @@ const formatTime = (time: number): string => {
   return `${seconds}.${tenths}`
 }
 
-type UIState = 'menu' | 'playing' | 'raceComplete' | 'gameWon' | 'gameLost'
+type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'gameWon' | 'gameLost'
 
 export default function RacingGame() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -36,6 +46,7 @@ export default function RacingGame() {
   const [hideHeader, setHideHeader] = useState(isMobileLandscape())
   const [raceTime, setRaceTime] = useState(0)
   const [requiredLaps, setRequiredLaps] = useState(4)
+  const [isPortraitMode, setIsPortraitMode] = useState(isPortrait())
 
   // Initialize GameManager
   useEffect(() => {
@@ -62,10 +73,25 @@ export default function RacingGame() {
     }
   }, [])
 
-  // Track orientation changes to hide/show header
+  // Track orientation changes to hide/show header and handle game pause/resume
   useEffect(() => {
     const handleOrientationChange = () => {
+      const portrait = isPortrait()
+      const landscape = isLandscape()
+      setIsPortraitMode(portrait)
       setHideHeader(isMobileLandscape())
+      
+      // If game is playing and rotates to portrait, pause it
+      if (uiState === 'playing' && portrait && gameEngineRef.current && gameManagerRef.current) {
+        gameEngineRef.current.pause()
+        gameManagerRef.current.pause()
+      }
+      
+      // If game is paused and rotates to landscape, resume it
+      if (uiState === 'paused' && landscape && gameEngineRef.current && gameManagerRef.current) {
+        gameEngineRef.current.resume()
+        gameManagerRef.current.resume()
+      }
     }
     
     window.addEventListener('resize', handleOrientationChange)
@@ -75,7 +101,7 @@ export default function RacingGame() {
       window.removeEventListener('resize', handleOrientationChange)
       window.removeEventListener('orientationchange', handleOrientationChange)
     }
-  }, [])
+  }, [uiState])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -129,11 +155,23 @@ export default function RacingGame() {
   // Start race when level changes and we're in playing state
   useEffect(() => {
     if (uiState === 'playing' && currentLevel) {
+      // Only start race if in landscape mode
+      if (isPortrait()) {
+        // If in portrait, pause the game instead
+        if (gameManagerRef.current) {
+          gameManagerRef.current.pause()
+        }
+        return
+      }
       createAndStartRace(currentLevel)
     }
   }, [uiState, currentLevel, createAndStartRace])
 
   const handleStartGame = () => {
+    // Only allow starting game if in landscape mode
+    if (isPortrait()) {
+      return // Don't start if in portrait - rotate screen will be shown
+    }
     if (gameManagerRef.current) {
       gameManagerRef.current.startGame()
     }
@@ -314,6 +352,27 @@ export default function RacingGame() {
           </div>
         )}
 
+        {/* Paused Dialog - shown when game is paused due to portrait orientation */}
+        {uiState === 'paused' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-80 z-30">
+            <div className="bg-gray-800 p-8 rounded-lg shadow-xl min-w-[300px] max-w-md mx-4">
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">📱</div>
+                <h2 className="text-3xl font-bold text-white mb-4">Game Paused</h2>
+                <p className="text-gray-300 text-lg mb-2">
+                  Please rotate your device to landscape mode
+                </p>
+                <p className="text-gray-400 text-sm">
+                  The game will automatically resume when you rotate back to landscape
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <div className="animate-spin text-4xl">🔄</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Virtual D-pad - only show when playing and on touch devices */}
         {uiState === 'playing' && isTouchDevice() && (
           <VirtualDpad onStateChange={handleDpadStateChange} />
@@ -323,22 +382,42 @@ export default function RacingGame() {
       {/* Menu screen - shown when uiState is 'menu' */}
       {uiState === 'menu' && (
         <div className="flex-1 w-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 z-20">
-          <div className="bg-gray-800 p-8 rounded-lg shadow-xl border border-gray-700">
-            <h2 className="text-3xl font-bold text-white mb-6 text-center">Racing Game</h2>
-            <p className="text-gray-300 text-center mb-6">
-              Race against AI opponents across {totalLevels} tracks!
-            </p>
-            <p className="text-gray-400 text-sm text-center mb-6">
-              Controls: Arrow Keys (↑ Forward, ↓ Reverse, ← → Turn)<br />
-              Mobile: Use on-screen D-pad
-            </p>
-            <button
-              onClick={handleStartGame}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded transition-colors text-xl"
-            >
-              Start Race
-            </button>
-          </div>
+          {isPortraitMode ? (
+            // Portrait mode - show rotate screen
+            <div className="bg-gray-800 p-8 rounded-lg shadow-xl border border-gray-700 max-w-md mx-4">
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">📱</div>
+                <h2 className="text-3xl font-bold text-white mb-4">Rotate Your Device</h2>
+                <p className="text-gray-300 text-lg mb-2">
+                  This game is designed for landscape mode
+                </p>
+                <p className="text-gray-400 text-sm">
+                  Please rotate your device to landscape orientation to play
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <div className="animate-spin text-4xl">🔄</div>
+              </div>
+            </div>
+          ) : (
+            // Landscape mode - show normal menu
+            <div className="bg-gray-800 p-8 rounded-lg shadow-xl border border-gray-700">
+              <h2 className="text-3xl font-bold text-white mb-6 text-center">Racing Game</h2>
+              <p className="text-gray-300 text-center mb-6">
+                Race against AI opponents across {totalLevels} tracks!
+              </p>
+              <p className="text-gray-400 text-sm text-center mb-6">
+                Controls: Arrow Keys (↑ Forward, ↓ Reverse, ← → Turn)<br />
+                Mobile: Use on-screen D-pad
+              </p>
+              <button
+                onClick={handleStartGame}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded transition-colors text-xl"
+              >
+                Start Race
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

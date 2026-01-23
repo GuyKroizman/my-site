@@ -1,6 +1,6 @@
 import { levels, getTotalLevels, LevelConfig } from './levels'
 
-export type GameState = 'menu' | 'playing' | 'raceComplete' | 'gameWon' | 'gameLost'
+export type GameState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'gameWon' | 'gameLost'
 
 export interface RaceResult {
   winner: string
@@ -119,6 +119,20 @@ export class GameManager {
     this.state = 'menu'
     this.lastRaceResult = null
     this.callbacks.onStateChange(this.state)
+  }
+
+  public pause(): void {
+    if (this.state === 'playing') {
+      this.state = 'paused'
+      this.callbacks.onStateChange(this.state)
+    }
+  }
+
+  public resume(): void {
+    if (this.state === 'paused') {
+      this.state = 'playing'
+      this.callbacks.onStateChange(this.state)
+    }
   }
 
   public isLastLevel(): boolean {
