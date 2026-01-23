@@ -75,7 +75,7 @@ export class RacingGameEngine {
       requestAnimationFrame(() => {
         const newWidth = Math.max(container.clientWidth || window.innerWidth, 1)
         const newHeight = Math.max(container.clientHeight || window.innerHeight, 1)
-        
+
         if (newWidth > 0 && newHeight > 0) {
           this.camera.aspect = newWidth / newHeight
           this.updateCameraPosition(newWidth, newHeight)
@@ -85,10 +85,10 @@ export class RacingGameEngine {
         }
       })
     }
-    
+
     // Initial resize to ensure proper sizing
     handleResize()
-    
+
     window.addEventListener('resize', handleResize)
     window.addEventListener('orientationchange', () => {
       // Delay to allow orientation change to complete
@@ -126,23 +126,23 @@ export class RacingGameEngine {
     // Initialize frame time tracking
     this.lastFrameTime = performance.now() / 1000
     this.lastRenderTime = performance.now()
-    
+
     // Start render loop
     this.animate()
   }
 
   private updateCameraPosition(viewWidth: number, viewHeight: number) {
     const aspect = viewWidth / viewHeight
-    
+
     // Track outer bounds: roughly 42 units wide (-21 to +21) and 32 units tall (-16 to +16)
     // We want to ensure the full track width (plus margin) is always visible
     const trackWidth = 50 // 42 units + some margin
     const fovRad = (this.camera.fov * Math.PI) / 180
-    
+
     // Base camera position for landscape mode
-    const baseCameraY = 30
-    const baseCameraZ = 30
-    
+    const baseCameraY = 25
+    const baseCameraZ = 26
+
     if (aspect < 1) {
       // Portrait mode: calculate exact camera height to fit track width
       // For a camera looking at origin from (0, Y, Z), the visible width at y=0
@@ -150,11 +150,11 @@ export class RacingGameEngine {
       // 
       // Simplified: visible width ≈ 2 * cameraY * tan(fov/2) * aspect
       // Solving for cameraY: cameraY = trackWidth / (2 * tan(fov/2) * aspect)
-      
+
       const requiredY = trackWidth / (2 * Math.tan(fovRad / 2) * aspect)
       // Keep Z proportional to Y to maintain similar viewing angle
       const requiredZ = requiredY * (baseCameraZ / baseCameraY)
-      
+
       this.camera.position.set(0, requiredY, requiredZ)
     } else {
       // Landscape mode: use base position
@@ -168,11 +168,11 @@ export class RacingGameEngine {
 
     carConfigs.forEach((config: CarConfig) => {
       const car = new Car(
-        config.x, 
-        0.5, 
-        config.z, 
-        config.color, 
-        config.name, 
+        config.x,
+        0.5,
+        config.z,
+        config.color,
+        config.name,
         config.isPlayer,
         config.characteristics
       )
@@ -200,19 +200,19 @@ export class RacingGameEngine {
     // Frame rate limiting: only render if enough time has passed
     const currentTime = performance.now()
     const elapsed = currentTime - this.lastRenderTime
-    
+
     if (elapsed < this.frameInterval) {
       // Not enough time has passed, skip this frame
       return
     }
-    
+
     this.lastRenderTime = currentTime - (elapsed % this.frameInterval)
 
     // Calculate actual delta time for smooth animation
     const currentTimeSeconds = currentTime / 1000
     let deltaTime = currentTimeSeconds - this.lastFrameTime
     this.lastFrameTime = currentTimeSeconds
-    
+
     // Clamp deltaTime to prevent large jumps (e.g., when tab is inactive)
     if (deltaTime > 0.1) deltaTime = 0.016 // Cap at ~60fps equivalent
     if (deltaTime <= 0) deltaTime = 0.016 // Prevent negative or zero deltaTime
@@ -263,12 +263,12 @@ export class RacingGameEngine {
     this.raceStartTime = 0
     this.totalPauseTime = 0
     this.pauseStartTime = 0
-    
+
     // Reset start lights
     if (this.startLights) {
       this.startLights.reset()
     }
-    
+
     // Start lights will begin sequence automatically
     // Race manager will start when lights complete
     this.raceManager.startRace(this.track)
@@ -305,7 +305,7 @@ export class RacingGameEngine {
       const pauseEndTime = performance.now() / 1000
       const pauseDuration = pauseEndTime - this.pauseStartTime
       this.totalPauseTime += pauseDuration
-      
+
       this.isPaused = false
       // Reset frame time to prevent large deltaTime jump after resume
       this.lastFrameTime = performance.now() / 1000
@@ -318,25 +318,25 @@ export class RacingGameEngine {
 
   public dispose() {
     this.isDisposed = true
-    
+
     if (this.animationId !== null) {
       cancelAnimationFrame(this.animationId)
       this.animationId = null
     }
-    
+
     if (this.startLights) {
       this.startLights.dispose()
       this.startLights = null
     }
-    
+
     this.cars.forEach(car => car.dispose())
     this.cars = []
     this.track.dispose()
-    
+
     if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentNode) {
       this.renderer.domElement.parentNode.removeChild(this.renderer.domElement)
     }
-    
+
     if (this.renderer) {
       this.renderer.dispose()
     }
