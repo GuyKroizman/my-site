@@ -31,14 +31,14 @@ export class SoundGenerator {
 
   /**
    * Pre-generate multiple crash sound buffers for variety and efficiency
-   * Creates 5 variations so crashes don't all sound identical
+   * Creates 10 variations so crashes have more variety in the noise content
    */
   private preGenerateCrashBuffers(): void {
     const ctx = this.audioContext
     if (!ctx) return
 
     const bufferSize = ctx.sampleRate * 0.5 // 0.5 seconds duration
-    const numVariations = 5
+    const numVariations = 10
 
     for (let v = 0; v < numVariations; v++) {
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
@@ -166,20 +166,45 @@ export class SoundGenerator {
       const noise = ctx.createBufferSource()
       noise.buffer = buffer
 
-      // Filter the noise to make it less harsh (Lowpass)
+      // Car crash sounds are harsh and metallic - use bandpass to emphasize mid/high frequencies
+      // Randomize center frequency for variety (800-2500 Hz) - metallic crash range
+      const centerFreq = 800 + Math.random() * 1700
+      
+      // Low Q to avoid ringing/echo - car crashes are sharp, not resonant
+      const filterQ = 0.5 + Math.random() * 0.5 // 0.5-1.0 range (much lower than before)
+
+      // Bandpass filter to emphasize metallic crash frequencies
       const filter = ctx.createBiquadFilter()
-      filter.type = 'lowpass'
-      filter.frequency.value = 800
+      filter.type = 'bandpass'
+      filter.frequency.value = centerFreq
+      filter.Q.value = filterQ
+
+      // Highpass filter to remove low rumble and make it more metallic
+      const highpass = ctx.createBiquadFilter()
+      highpass.type = 'highpass'
+      highpass.frequency.value = 300 + Math.random() * 200 // 300-500 Hz
+      highpass.Q.value = 1
 
       const gain = ctx.createGain()
 
-      noise.connect(filter)
+      // Chain: noise -> highpass -> bandpass -> gain
+      noise.connect(highpass)
+      highpass.connect(filter)
       filter.connect(gain)
       gain.connect(ctx.destination)
 
-      // Percussive Envelope
-      gain.gain.setValueAtTime(1, ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3)
+      // Randomize volume for variety (0.49-0.7, which is 70% of original 0.7-1.0 range)
+      const initialVolume = (0.7 + Math.random() * 0.3) * 0.7
+      
+      // Much shorter, sharper decay for car crash (0.08-0.2 seconds)
+      // Car crashes are abrupt, not sustained
+      const decayTime = 0.08 + Math.random() * 0.12
+
+      // Sharp, abrupt envelope - no smooth exponential ramp (that causes echo)
+      // Use linear ramp for more abrupt cutoff
+      const now = ctx.currentTime
+      gain.gain.setValueAtTime(initialVolume, now)
+      gain.gain.linearRampToValueAtTime(0, now + decayTime) // Linear = sharper, less echo
 
       // Track active sounds and clean up when done
       this.activeCrashSounds++
@@ -187,6 +212,7 @@ export class SoundGenerator {
         this.activeCrashSounds--
         // Disconnect nodes to allow garbage collection
         noise.disconnect()
+        highpass.disconnect()
         filter.disconnect()
         gain.disconnect()
       }
