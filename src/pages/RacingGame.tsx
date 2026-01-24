@@ -85,23 +85,23 @@ export default function RacingGame() {
       const landscape = isLandscape()
       setIsPortraitMode(portrait)
       setHideHeader(isMobileLandscape())
-      
+
       // If game is playing and rotates to portrait, pause it
       if (uiState === 'playing' && portrait && gameEngineRef.current && gameManagerRef.current) {
         gameEngineRef.current.pause()
         gameManagerRef.current.pause()
       }
-      
+
       // If game is paused and rotates to landscape, resume it
       if (uiState === 'paused' && landscape && gameEngineRef.current && gameManagerRef.current) {
         gameEngineRef.current.resume()
         gameManagerRef.current.resume()
       }
     }
-    
+
     window.addEventListener('resize', handleOrientationChange)
     window.addEventListener('orientationchange', handleOrientationChange)
-    
+
     return () => {
       window.removeEventListener('resize', handleOrientationChange)
       window.removeEventListener('orientationchange', handleOrientationChange)
@@ -220,7 +220,7 @@ export default function RacingGame() {
       {/* Game container - always exists, menu overlays it */}
       <div
         ref={containerRef}
-        className="flex-1 w-full relative overflow-hidden"
+        className={`${uiState !== 'menu' ? 'flex-1' : ''} w-full relative overflow-hidden`}
       >
         <MuteButton isMuted={isMuted} onToggle={handleToggleMute} />
 
