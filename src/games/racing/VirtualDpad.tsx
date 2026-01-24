@@ -166,8 +166,8 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
   const buttonClass = (direction: string) => {
     const baseClass = 'flex items-center justify-center text-white font-bold text-2xl select-none touch-none'
     const activeClass = activeButtons.has(direction) 
-      ? 'bg-blue-600 scale-95' 
-      : 'bg-blue-500 active:bg-blue-600'
+      ? 'bg-blue-600 bg-opacity-70 scale-95' 
+      : 'bg-blue-500 bg-opacity-70 active:bg-blue-600'
     return `${baseClass} ${activeClass} transition-all duration-75`
   }
 
@@ -206,8 +206,8 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
           <div
             className={`absolute top-0 left-0 right-0 flex items-center justify-center text-white font-bold text-2xl select-none transition-all duration-75 ${
               activeButtons.has('up')
-                ? 'bg-blue-600'
-                : 'bg-blue-500'
+                ? 'bg-blue-600 bg-opacity-70'
+                : 'bg-blue-500 bg-opacity-70'
             }`}
             style={{
               height: '50%',
@@ -223,8 +223,8 @@ export function VirtualDpad({ onStateChange }: VirtualDpadProps) {
           <div
             className={`absolute bottom-0 left-0 right-0 flex items-center justify-center text-white font-bold text-2xl select-none transition-all duration-75 ${
               activeButtons.has('down')
-                ? 'bg-blue-600'
-                : 'bg-blue-500'
+                ? 'bg-blue-600 bg-opacity-70'
+                : 'bg-blue-500 bg-opacity-70'
             }`}
             style={{
               height: '50%',

@@ -24,7 +24,7 @@ export class StartLights {
     // Position lights at the top of the screen, below the level name
     // Center horizontally, high on Y axis, close to camera
     const lightX = 0 // Centered horizontally
-    const lightY = 8 // High on screen, below level name
+    const lightY = 5.5 // Lowered to be visible below level label on mobile
     const lightZ = -8 // Close to camera for visibility
 
     // Create three circular lights in a row - twice as big
