@@ -3,10 +3,33 @@
  * No sound files needed - all sounds are generated programmatically
  */
 export class SoundGenerator {
+  private static isMuted: boolean = false
   private audioContext: AudioContext | null = null
   private crashBuffers: AudioBuffer[] = []
   private activeCrashSounds: number = 0
   private maxConcurrentCrashSounds: number = 3
+
+  /**
+   * Toggle mute state for all SoundGenerator instances
+   */
+  static toggleMute(): boolean {
+    this.isMuted = !this.isMuted
+    return this.isMuted
+  }
+
+  /**
+   * Set mute state
+   */
+  static setMuted(muted: boolean): void {
+    this.isMuted = muted
+  }
+
+  /**
+   * Get current mute state
+   */
+  static getMuted(): boolean {
+    return this.isMuted
+  }
 
   /**
    * Get or create the AudioContext
@@ -60,6 +83,9 @@ export class SoundGenerator {
    * @param volume - Volume from 0.0 to 1.0 (default: 0.3)
    */
   playBeep(frequency: number, duration: number, volume: number = 0.3): void {
+    if (SoundGenerator.isMuted) {
+      return
+    }
     const ctx = this.getAudioContext()
     if (!ctx) {
       // Silently fail if audio is not supported
@@ -102,6 +128,9 @@ export class SoundGenerator {
    * Useful for "Go!" sound
    */
   playAscendingTone(startFreq: number, endFreq: number, duration: number, volume: number = 0.8): void {
+    if (SoundGenerator.isMuted) {
+      return
+    }
     const ctx = this.getAudioContext()
     if (!ctx) {
       return
@@ -134,7 +163,10 @@ export class SoundGenerator {
     }
   }
 
-  playCrashSound(): void {
+  playCrashSound(volume?: number): void {
+    if (SoundGenerator.isMuted) {
+      return
+    }
     const ctx = this.getAudioContext()
     if (!ctx) {
       return
@@ -193,8 +225,8 @@ export class SoundGenerator {
       filter.connect(gain)
       gain.connect(ctx.destination)
 
-      // Randomize volume for variety (0.49-0.7, which is 70% of original 0.7-1.0 range)
-      const initialVolume = (0.7 + Math.random() * 0.3) * 0.7
+      // Use provided volume, or randomize for variety (0.49-0.7, which is 70% of original 0.7-1.0 range)
+      const initialVolume = volume !== undefined ? volume : (0.7 + Math.random() * 0.3) * 0.7
       
       // Much shorter, sharper decay for car crash (0.08-0.2 seconds)
       // Car crashes are abrupt, not sustained

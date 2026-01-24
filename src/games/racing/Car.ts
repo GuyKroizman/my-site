@@ -210,7 +210,9 @@ export class Car {
       // Play crash sound if enough time has passed since last collision
       const currentTime = performance.now() / 1000
       if (currentTime - this.lastCollisionTime >= this.collisionCooldown) {
-        this.soundGenerator.playCrashSound()
+        // AI-AI collisions use constant low volume (0.3), player collisions use randomized volume
+        const volume = collisionResult.isAiCollision ? 0.3 : undefined
+        this.soundGenerator.playCrashSound(volume)
         this.lastCollisionTime = currentTime
       }
       
@@ -429,7 +431,7 @@ export class Car {
     }
   }
 
-  private checkCollisionWithRepulsion(newPosition: THREE.Vector3, allCars: Car[]): { collided: boolean; repulsion: THREE.Vector3 } {
+  private checkCollisionWithRepulsion(newPosition: THREE.Vector3, allCars: Car[]): { collided: boolean; repulsion: THREE.Vector3; isAiCollision: boolean } {
     const testBox = new THREE.Box3()
     const tempMesh = this.mesh.clone()
     tempMesh.position.copy(newPosition)
@@ -437,12 +439,15 @@ export class Car {
 
     const repulsion = new THREE.Vector3(0, 0, 0)
     let collided = false
+    let isAiCollision = false
 
     for (const otherCar of allCars) {
       if (otherCar === this || otherCar.finished) continue
       
       if (testBox.intersectsBox(otherCar.boundingBox)) {
         collided = true
+        // Check if both cars are AI (neither is player)
+        isAiCollision = !this.isPlayer && !otherCar.isPlayer
         
         // Calculate repulsion vector to push cars apart
         const toOther = new THREE.Vector3()
@@ -468,7 +473,7 @@ export class Car {
       }
     }
 
-    return { collided, repulsion }
+    return { collided, repulsion, isAiCollision }
   }
 
   private updateLapProgress(track: Track) {
