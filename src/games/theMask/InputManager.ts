@@ -21,6 +21,7 @@ export class InputManager {
     KeyS: 'down',
     KeyA: 'left',
     KeyD: 'right',
+    Space: 'shoot',
     ' ': 'shoot',
   }
 

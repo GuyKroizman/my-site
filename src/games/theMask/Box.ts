@@ -18,7 +18,7 @@ export class Box {
   mesh: THREE.Mesh
 
   constructor(world: CANNON.World, scene: THREE.Scene, options: BoxOptions) {
-    const { width, height, depth, x, y, z, color = 0x8d6e63, mass = 10 } = options
+    const { width, height, depth, x, y, z, color = 0x8d6e63, mass = 4 } = options
     const halfExtents = new CANNON.Vec3(width / 2, height / 2, depth / 2)
     this.body = new CANNON.Body({
       mass,
@@ -26,6 +26,8 @@ export class Box {
       shape: new CANNON.Box(halfExtents),
       linearDamping: 0.1,
       angularDamping: 0.2,
+      collisionFilterGroup: 1,
+      collisionFilterMask: 1 | 2, // 1 = default (player, bullets), 2 = bullets
     })
     world.addBody(this.body)
 
@@ -86,7 +88,7 @@ export function createBoxPiles(
           y,
           z: pz + (Math.random() - 0.5),
           color: colors[i % colors.length],
-          mass: 8,
+          mass: 4,
         })
       )
     }

@@ -108,7 +108,12 @@ export class TheMaskEngine {
   private setupFloor() {
     const size = 60
     const floorShape = new CANNON.Plane()
-    const floorBody = new CANNON.Body({ mass: 0, shape: floorShape })
+    const floorBody = new CANNON.Body({
+      mass: 0,
+      shape: floorShape,
+      collisionFilterGroup: 1,
+      collisionFilterMask: 1 | 2, // so bullets hit the floor
+    })
     floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0)
     floorBody.position.set(0, FLOOR_Y, 0)
     this.world.addBody(floorBody)
@@ -140,6 +145,8 @@ export class TheMaskEngine {
         mass: 0,
         shape: new CANNON.Box(halfExtents[i]),
         position: new CANNON.Vec3(...pos),
+        collisionFilterGroup: 1,
+        collisionFilterMask: 1 | 2, // so bullets hit the walls
       })
       this.world.addBody(body)
     })

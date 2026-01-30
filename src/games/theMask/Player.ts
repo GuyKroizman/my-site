@@ -9,8 +9,8 @@ const PLAYER_MASS = 80
 const MOVE_FORCE = 120
 const MAX_SPEED = 6
 const BULLET_RADIUS = 0.15
-const BULLET_SPEED = 25
-const BULLET_MASS = 0.5
+const BULLET_SPEED = 32
+const BULLET_MASS = 3
 const SHOOT_COOLDOWN = 0.2
 
 export interface BulletSpawn {
@@ -100,8 +100,8 @@ export class Player {
       shape: new CANNON.Sphere(BULLET_RADIUS),
       velocity: new CANNON.Vec3(dx * BULLET_SPEED, 0, dz * BULLET_SPEED),
       linearDamping: 0,
-      collisionFilterGroup: 2,
-      collisionFilterMask: 1 | 4,
+      collisionFilterGroup: 2, // bullet group
+      collisionFilterMask: 1 | 2, // collide with default (1) and other bullets (2)
     })
     world.addBody(bulletBody)
     const bulletMesh = new THREE.Mesh(

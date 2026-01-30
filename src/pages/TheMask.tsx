@@ -92,7 +92,7 @@ export default function TheMask() {
       </div>
 
       {uiState === 'menu' && (
-        <div className="flex-1 w-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 z-20">
+        <div className="flex-1 min-h-0 w-full flex flex-col bg-gradient-to-br from-gray-800 to-gray-900 z-20">
           <MenuScreen isPortraitMode={isPortraitMode} onStartGame={startGame} />
         </div>
       )}
