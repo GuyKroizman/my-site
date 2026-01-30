@@ -6,8 +6,8 @@ import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y } from './types'
 const PLAYER_RADIUS = 0.4
 export const PLAYER_HEIGHT = 1.2
 const PLAYER_MASS = 80
-const MOVE_FORCE = 32
-const MAX_SPEED = 6
+const MOVE_FORCE = 22
+const MAX_SPEED = 4
 const MOVE_SPEED_THRESHOLD = 0.3
 const BULLET_RADIUS = 0.15
 const BULLET_SPEED = 32
@@ -60,7 +60,7 @@ export class Player {
       position: new CANNON.Vec3(position.x, position.y + PLAYER_HEIGHT / 2, position.z),
       shape,
       fixedRotation: true,
-      linearDamping: 0.3,
+      linearDamping: 2.8,
     })
     world.addBody(this.body)
 
