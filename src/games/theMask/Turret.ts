@@ -123,14 +123,14 @@ export class Turret {
     })
   }
 
-  /** Point cannon at target (x, z in world). */
+  /** Point cannon at target (x, z in world). Rotate around Z so the barrel stays horizontal. */
   aimAt(targetX: number, targetZ: number) {
     if (!this.cannonTop) return
     const p = this.body.position
     const dx = targetX - p.x
     const dz = targetZ - p.z
     const angle = Math.atan2(dx, dz)
-    this.cannonTop.rotation.y = -angle
+    this.cannonTop.rotation.z = -angle
   }
 
   /** Update: aim at player and shoot on interval. */
