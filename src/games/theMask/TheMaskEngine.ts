@@ -25,8 +25,17 @@ const SOUND_BOX_HIT = '/theMask/sound/bang_box.wav'
 const SOUND_BOX_HIT_START_OFFSET = 0.20
 const SOUND_PLAYER_HIT = '/theMask/sound/ouch.mp3'
 const SOUND_LEVEL_VICTORY = '/theMask/sound/victory.wav'
-const SOUND_URLS = [SOUND_SHOT, SOUND_BOX_HIT, SOUND_PLAYER_HIT, SOUND_LEVEL_VICTORY] as const
+const SOUND_EXPLOSION = '/theMask/sound/explosion.wav'
+const SOUND_URLS = [SOUND_SHOT, SOUND_BOX_HIT, SOUND_PLAYER_HIT, SOUND_LEVEL_VICTORY, SOUND_EXPLOSION] as const
 const COLLIDE_EVENT = 'collide'
+
+const EXPLOSION_DURATION = 1.2
+const EXPLOSION_PARTICLE_COUNT = 28
+const EXPLOSION_SPREAD = 2.2
+const EXPLOSION_PARTICLE_SIZE_MIN = 0.2
+const EXPLOSION_PARTICLE_SIZE_MAX = 0.5
+const EXPLOSION_FLASH_DURATION = 0.35
+const EXPLOSION_FLASH_MAX_SCALE = 2.5
 
 export interface TheMaskEngineOptions {
   mobile?: boolean
@@ -52,6 +61,14 @@ export class TheMaskEngine {
   private cameraDist: number
   /** Preloaded audio elements so first play is not truncated. */
   private soundCache: Record<string, HTMLAudioElement> = {}
+  /** Active turret explosions; level transition waits until this is empty. */
+  private explosions: {
+    group: THREE.Group
+    particles: { mesh: THREE.Mesh; vx: number; vy: number; vz: number; sizeMul: number }[]
+    elapsed: number
+    sharedGeo: THREE.BufferGeometry
+    flashMesh: THREE.Mesh | null
+  }[] = []
 
   constructor(container: HTMLElement, options?: TheMaskEngineOptions) {
     this.container = container
@@ -192,6 +209,106 @@ export class TheMaskEngine {
     const a = this.getCachedSound(SOUND_LEVEL_VICTORY)
     a.currentTime = 0
     a.play().catch(() => { })
+  }
+
+  private playExplosionSound() {
+    const a = this.getCachedSound(SOUND_EXPLOSION)
+    a.currentTime = 0
+    a.volume = 0.6
+    a.play().catch(() => { })
+  }
+
+  /** Spawn a low-poly explosion at (x, y, z); runs for EXPLOSION_DURATION. */
+  private spawnExplosion(x: number, y: number, z: number) {
+    const group = new THREE.Group()
+    group.position.set(x, y, z)
+
+    // Central flash: bright sphere that expands and fades quickly
+    const flashGeo = new THREE.SphereGeometry(0.5, 8, 6)
+    const flashMat = new THREE.MeshBasicMaterial({
+      color: 0xffaa00,
+      transparent: true,
+      opacity: 0.95,
+    })
+    const flashMesh = new THREE.Mesh(flashGeo, flashMat)
+    flashMesh.scale.setScalar(0.1)
+    group.add(flashMesh)
+
+    const particles: { mesh: THREE.Mesh; vx: number; vy: number; vz: number; sizeMul: number }[] = []
+    const sharedGeo = new THREE.BoxGeometry(1, 1, 1)
+    for (let i = 0; i < EXPLOSION_PARTICLE_COUNT; i++) {
+      const sizeMul =
+        EXPLOSION_PARTICLE_SIZE_MIN +
+        Math.random() * (EXPLOSION_PARTICLE_SIZE_MAX - EXPLOSION_PARTICLE_SIZE_MIN)
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xff6600,
+        emissive: 0xff2200,
+        emissiveIntensity: 1.2,
+      })
+      const mesh = new THREE.Mesh(sharedGeo, mat)
+      mesh.castShadow = true
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
+      const speed = 0.8 + Math.random() * EXPLOSION_SPREAD
+      const vx = Math.sin(phi) * Math.cos(theta) * speed
+      const vy = Math.sin(phi) * Math.sin(theta) * speed + 1
+      const vz = Math.cos(phi) * speed
+      mesh.position.set(0, 0, 0)
+      mesh.scale.setScalar(sizeMul)
+      group.add(mesh)
+      particles.push({ mesh, vx, vy, vz, sizeMul })
+    }
+    this.scene.add(group)
+    this.explosions.push({ group, particles, elapsed: 0, sharedGeo, flashMesh })
+    this.playExplosionSound()
+  }
+
+  private updateExplosions(dt: number) {
+    for (let i = this.explosions.length - 1; i >= 0; i--) {
+      const ex = this.explosions[i]
+      ex.elapsed += dt
+      const t = ex.elapsed / EXPLOSION_DURATION
+      const fade = Math.max(0, 1 - t * 1.1)
+
+      // Central flash: expand then fade in first EXPLOSION_FLASH_DURATION
+      if (ex.flashMesh) {
+        const flashT = ex.elapsed / EXPLOSION_FLASH_DURATION
+        if (flashT >= 1) {
+          ex.group.remove(ex.flashMesh)
+          ;(ex.flashMesh.geometry as THREE.BufferGeometry).dispose()
+          ;(ex.flashMesh.material as THREE.Material).dispose()
+          ex.flashMesh = null
+        } else {
+          const flashScale = flashT * EXPLOSION_FLASH_MAX_SCALE
+          ex.flashMesh.scale.setScalar(flashScale)
+          ;(ex.flashMesh.material as THREE.MeshBasicMaterial).opacity = 0.95 * (1 - flashT)
+        }
+      }
+
+      ex.particles.forEach((p) => {
+        p.mesh.position.x += p.vx * dt
+        p.mesh.position.y += p.vy * dt
+        p.mesh.position.z += p.vz * dt
+        p.mesh.scale.setScalar(p.sizeMul * fade)
+        const m = p.mesh.material as THREE.MeshStandardMaterial
+        if (m.emissive) m.emissive.multiplyScalar(0.96)
+        m.opacity = fade
+        m.transparent = true
+      })
+      if (ex.elapsed >= EXPLOSION_DURATION) {
+        this.scene.remove(ex.group)
+        ex.particles.forEach((p) => {
+          const m = p.mesh.material as THREE.Material
+          m.dispose()
+        })
+        if (ex.flashMesh) {
+          ex.flashMesh.geometry.dispose()
+          ;(ex.flashMesh.material as THREE.Material).dispose()
+        }
+        ex.sharedGeo.dispose()
+        this.explosions.splice(i, 1)
+      }
+    }
   }
 
   /** True if segment A->B intersects sphere at C with radius r (catches fast bullets that tunnel). */
@@ -453,6 +570,7 @@ export class TheMaskEngine {
     const playerPos = { x: this.player.body.position.x, z: this.player.body.position.z }
     this.turrets.forEach((t) => t.update(PHYSICS_DT, playerPos))
     this.bullets.forEach(syncBulletMesh)
+    this.updateExplosions(animDt)
     this.updateCameraFollow()
 
     this.bulletsToRemove.forEach((spawn) => {
@@ -475,9 +593,17 @@ export class TheMaskEngine {
     })
 
     const deadTurrets = this.turrets.filter((t) => !t.isAlive())
-    deadTurrets.forEach((t) => t.dispose(this.scene, this.world))
+    deadTurrets.forEach((t) => {
+      const p = t.body.position
+      this.spawnExplosion(p.x, p.y, p.z)
+      t.dispose(this.scene, this.world)
+    })
     this.turrets = this.turrets.filter((t) => t.isAlive())
-    if (this.turrets.length === 0 && LEVELS[this.currentLevelIndex].turrets.length > 0) {
+    if (
+      this.turrets.length === 0 &&
+      this.explosions.length === 0 &&
+      LEVELS[this.currentLevelIndex].turrets.length > 0
+    ) {
       this.playLevelVictorySound()
       this.currentLevelIndex = Math.min(this.currentLevelIndex + 1, LEVELS.length - 1)
       this.loadLevel(this.currentLevelIndex)
@@ -502,6 +628,19 @@ export class TheMaskEngine {
     this.boxes = []
     this.turrets.forEach((t) => t.dispose(this.scene, this.world))
     this.turrets = []
+    this.explosions.forEach((ex) => {
+      this.scene.remove(ex.group)
+      ex.particles.forEach((p) => {
+        const m = p.mesh.material as THREE.Material
+        m.dispose()
+      })
+      if (ex.flashMesh) {
+        ex.flashMesh.geometry.dispose()
+        ;(ex.flashMesh.material as THREE.Material).dispose()
+      }
+      ex.sharedGeo.dispose()
+    })
+    this.explosions = []
     this.bullets.forEach((s) => disposeBullet(s, this.scene, this.world))
     this.bullets = []
     this.scene.clear()
