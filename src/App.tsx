@@ -104,6 +104,24 @@ function App() {
                 Play Game
               </Link>
             </div>
+
+            {/* The Mask */}
+            <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">🎭</div>
+                <h2 className="text-2xl font-semibold text-gray-800">The Mask</h2>
+                <p className="text-gray-600 mt-2">3D Top-Down Shooter</p>
+              </div>
+              <p className="text-gray-700 mb-4 text-sm">
+                3D arena with physics. Move with arrows/WASD, shoot with Space. Boxes react to hits.
+              </p>
+              <Link
+                to="/the-mask"
+                className="block w-full text-center bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+              >
+                Play Game
+              </Link>
+            </div>
           </div>
         </div>
       </div>

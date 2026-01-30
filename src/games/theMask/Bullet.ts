@@ -1,0 +1,33 @@
+import * as THREE from 'three'
+import * as CANNON from 'cannon-es'
+import type { BulletSpawn } from './Player'
+import { ARENA_HALF_X, ARENA_HALF_Z } from './types'
+
+const BULLET_LIFETIME = 2
+
+export function isBulletOutOfBounds(body: CANNON.Body, createdAt: number): boolean {
+  const now = performance.now()
+  if ((now - createdAt) / 1000 > BULLET_LIFETIME) return true
+  const p = body.position
+  const margin = 2
+  if (p.x < -ARENA_HALF_X - margin || p.x > ARENA_HALF_X + margin) return true
+  if (p.z < -ARENA_HALF_Z - margin || p.z > ARENA_HALF_Z + margin) return true
+  if (p.y < -1) return true
+  return false
+}
+
+export function syncBulletMesh(spawn: BulletSpawn) {
+  const { body, mesh } = spawn
+  mesh.position.set(body.position.x, body.position.y, body.position.z)
+}
+
+export function disposeBullet(
+  spawn: BulletSpawn,
+  scene: THREE.Scene,
+  world: CANNON.World
+) {
+  scene.remove(spawn.mesh)
+  spawn.mesh.geometry.dispose()
+  ;(spawn.mesh.material as THREE.Material).dispose()
+  world.removeBody(spawn.body)
+}

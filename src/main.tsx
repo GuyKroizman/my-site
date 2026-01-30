@@ -10,6 +10,7 @@ const Rogue0 = React.lazy(() => import('./pages/Rogue0.tsx'))
 const Hoot = React.lazy(() => import('./pages/Hoot.tsx'))
 const WorkTools = React.lazy(() => import('./pages/WorkTools.tsx'))
 const RacingGame = React.lazy(() => import('./pages/RacingGame.tsx'))
+const TheMask = React.lazy(() => import('./pages/TheMask.tsx'))
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -32,6 +33,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/hoot" element={<Hoot />} />
           <Route path="/work-tools" element={<WorkTools />} />
           <Route path="/racing-game" element={<RacingGame />} />
+          <Route path="/the-mask" element={<TheMask />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
