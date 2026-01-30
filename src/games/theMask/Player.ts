@@ -67,7 +67,7 @@ export class Player {
       fixedRotation: true,
       linearDamping: 0.85,
       collisionFilterGroup: 1,
-      collisionFilterMask: 1 | 2, // default (1) and bullets (2) so enemy bullets hit player
+      collisionFilterMask: 1 | 2 | 4, // default (1), bullets (2), turrets (4) so player cannot pass through turrets
     })
     world.addBody(this.body)
 

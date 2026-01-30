@@ -7,7 +7,7 @@ const TURRET_BODY_RADIUS = 0.9
 const TURRET_BODY_HEIGHT = 1.2
 const TURRET_SHOOT_INTERVAL = 3
 /** Only shoot when player is within this distance (units). */
-const TURRET_SHOOT_RANGE = 10
+const TURRET_SHOOT_RANGE = 15
 /** Radians per second: how fast the cannon rotates toward the player. */
 const TURRET_ROTATION_SPEED = 0.3
 const TURRET_BULLET_RADIUS = 0.15
@@ -18,6 +18,8 @@ const HEALTH_BAR_WIDTH = 1.2
 const HEALTH_BAR_HEIGHT = 0.12
 const HEALTH_BAR_Y_OFFSET = 1.8
 const CANNON_TOP_NAME = 'Turret_Cannon_Top'
+/** Lower turret so it sits on the ground (model may have been authored floating). */
+const TURRET_Y_OFFSET = -0.4
 
 export interface TurretOptions {
   onShoot?: (spawn: BulletSpawn) => void
@@ -43,6 +45,8 @@ export class Turret {
   /** Temp vectors for world direction calculation. */
   private readonly _worldDir = new THREE.Vector3()
   private readonly _worldQuat = new THREE.Quaternion()
+  /** Base Y position (FLOOR_Y + TURRET_Y_OFFSET) for visuals. */
+  private readonly baseY: number
 
   constructor(
     world: CANNON.World,
@@ -57,12 +61,13 @@ export class Turret {
     const px = position.x
     const pz = position.z
     const halfH = TURRET_BODY_HEIGHT / 2
+    this.baseY = FLOOR_Y + TURRET_Y_OFFSET
     this.body = new CANNON.Body({
       mass: 0,
-      position: new CANNON.Vec3(px, FLOOR_Y + halfH, pz),
+      position: new CANNON.Vec3(px, this.baseY + halfH, pz),
       shape: new CANNON.Cylinder(TURRET_BODY_RADIUS, TURRET_BODY_RADIUS, TURRET_BODY_HEIGHT, 12),
       collisionFilterGroup: 4,
-      collisionFilterMask: 2,
+      collisionFilterMask: 1 | 2, // 1 = player (solid), 2 = bullets
     })
     ;(this.body as unknown as { turretRef?: Turret }).turretRef = this
     world.addBody(this.body)
@@ -75,12 +80,12 @@ export class Turret {
     mesh.castShadow = true
     mesh.receiveShadow = true
     placeholder.add(mesh)
-    placeholder.position.set(px, FLOOR_Y, pz)
+    placeholder.position.set(px, this.baseY, pz)
     this.mesh = placeholder
     scene.add(this.mesh)
 
     this.healthBarContainer = new THREE.Group()
-    this.healthBarContainer.position.set(px, FLOOR_Y + HEALTH_BAR_Y_OFFSET, pz)
+    this.healthBarContainer.position.set(px, this.baseY + HEALTH_BAR_Y_OFFSET, pz)
     this.healthBarContainer.rotation.x = -Math.PI / 2
     const bgGeo = new THREE.PlaneGeometry(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT)
     this.healthBarBg = new THREE.Mesh(bgGeo, new THREE.MeshBasicMaterial({ color: 0x333333 }))
@@ -112,7 +117,7 @@ export class Turret {
           model.position.sub(center)
           const scale = TURRET_BODY_HEIGHT / Math.max(size.y, 0.001)
           model.scale.setScalar(scale)
-          model.position.set(px, FLOOR_Y + TURRET_BODY_HEIGHT / 2, pz)
+          model.position.set(px, this.baseY + TURRET_BODY_HEIGHT / 2, pz)
           model.traverse((child) => {
             if (child instanceof THREE.Mesh) {
               child.castShadow = true
@@ -180,12 +185,6 @@ export class Turret {
     if (distToPlayer <= TURRET_SHOOT_RANGE && this.lastShootTime >= TURRET_SHOOT_INTERVAL && this.onShoot) {
       this.lastShootTime = 0
       // Use the direction from BEFORE the rotation update
-      const toPlayerNorm = { x: toPlayerX / distToPlayer, z: toPlayerZ / distToPlayer }
-      console.log(
-        `Turret shoot: aimDir=(${aimBeforeUpdate.dx.toFixed(3)}, ${aimBeforeUpdate.dz.toFixed(3)}) ` +
-        `toPlayer=(${toPlayerNorm.x.toFixed(3)}, ${toPlayerNorm.z.toFixed(3)}) ` +
-        `angle=${this.cannonAimAngle.toFixed(3)}`
-      )
       this.spawnBulletInDirection(aimBeforeUpdate.dx, aimBeforeUpdate.dz)
     }
     this.updateHealthBar()
