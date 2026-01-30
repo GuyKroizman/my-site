@@ -46,7 +46,7 @@ export default function TheMask() {
       gameEngineRef.current = null
     }
     try {
-      const engine = new TheMaskEngine(containerRef.current)
+      const engine = new TheMaskEngine(containerRef.current, { mobile: isTouchDevice() })
       gameEngineRef.current = engine
       setUiState('playing')
     } catch (e) {

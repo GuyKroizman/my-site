@@ -12,7 +12,7 @@ const MOVE_SPEED_THRESHOLD = 0.3
 const BULLET_RADIUS = 0.15
 const BULLET_SPEED = 32
 const BULLET_MASS = 3
-const SHOOT_COOLDOWN = 0.2
+const DEFAULT_SHOOT_COOLDOWN = 0.2
 
 export interface BulletSpawn {
   body: CANNON.Body
@@ -37,6 +37,7 @@ export class Player {
   /** Facing angle in radians (around Y). 0 = +Z, π/2 = +X. */
   facingAngle: number = 0
   private lastShootTime: number = 0
+  private shootCooldown: number = DEFAULT_SHOOT_COOLDOWN
   private onShoot?: (spawn: BulletSpawn) => void
   private scene: THREE.Scene
   private isCapsulePlaceholder = false
@@ -45,8 +46,14 @@ export class Player {
   private runAction: THREE.AnimationAction | null = null
   private currentAction: 'idle' | 'run' = 'idle'
 
-  constructor(world: CANNON.World, scene: THREE.Scene, position: { x: number; y: number; z: number }) {
+  constructor(
+    world: CANNON.World,
+    scene: THREE.Scene,
+    position: { x: number; y: number; z: number },
+    options?: { shootCooldown?: number }
+  ) {
     this.scene = scene
+    if (options?.shootCooldown != null) this.shootCooldown = options.shootCooldown
     const shape = new CANNON.Cylinder(PLAYER_RADIUS, PLAYER_RADIUS, PLAYER_HEIGHT - 2 * PLAYER_RADIUS, 12)
     this.body = new CANNON.Body({
       mass: PLAYER_MASS,
@@ -196,7 +203,7 @@ export class Player {
   shootInDirection(worldX: number, worldZ: number) {
     if (!this.onShoot) return
     const now = performance.now() / 1000
-    if (now - this.lastShootTime < SHOOT_COOLDOWN) return
+    if (now - this.lastShootTime < this.shootCooldown) return
     this.lastShootTime = now
     this.spawnBulletInDirection(worldX, worldZ)
   }
@@ -204,7 +211,7 @@ export class Player {
   private tryShoot(wantShoot: boolean) {
     if (!wantShoot || !this.onShoot) return
     const now = performance.now() / 1000
-    if (now - this.lastShootTime >= SHOOT_COOLDOWN) {
+    if (now - this.lastShootTime >= this.shootCooldown) {
       this.lastShootTime = now
       this.spawnBullet()
     }

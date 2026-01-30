@@ -11,13 +11,14 @@ import type { TouchInputState } from './types'
 const PHYSICS_DT = 1 / 60
 const WALL_THICKNESS = 1
 const WALL_HEIGHT = 4
-/** Isometric camera: distance and vertical angle (rad). Offset from player. */
-const CAMERA_DIST = 16
 const CAMERA_ANGLE = Math.PI / 4
-const CAMERA_OFFSET_Y = CAMERA_DIST * Math.sin(CAMERA_ANGLE)
-const CAMERA_OFFSET_H = CAMERA_DIST * Math.cos(CAMERA_ANGLE)
-const CAMERA_OFFSET_X = CAMERA_OFFSET_H * 0.7
-const CAMERA_OFFSET_Z = CAMERA_OFFSET_H * 0.7
+const CAMERA_DIST_DESKTOP = 16
+const CAMERA_DIST_MOBILE = 10
+const MOBILE_SHOOT_COOLDOWN = 0.45
+
+export interface TheMaskEngineOptions {
+  mobile?: boolean
+}
 
 export class TheMaskEngine {
   private scene: THREE.Scene
@@ -33,8 +34,9 @@ export class TheMaskEngine {
   private isDisposed = false
   private container: HTMLElement
   private lastAnimationTime: number = 0
+  private cameraDist: number
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, options?: TheMaskEngineOptions) {
     this.container = container
     const width = Math.max(container.clientWidth || window.innerWidth, 1)
     const height = Math.max(container.clientHeight || window.innerHeight, 1)
@@ -64,7 +66,9 @@ export class TheMaskEngine {
     this.setupWalls()
     this.setupBoundaryVisual()
     this.input = new InputManager()
-    this.player = new Player(this.world, this.scene, { x: 0, y: FLOOR_Y, z: 0 })
+    this.cameraDist = options?.mobile ? CAMERA_DIST_MOBILE : CAMERA_DIST_DESKTOP
+    const playerOptions = options?.mobile ? { shootCooldown: MOBILE_SHOOT_COOLDOWN } : undefined
+    this.player = new Player(this.world, this.scene, { x: 0, y: FLOOR_Y, z: 0 }, playerOptions)
     this.player.setOnShoot((spawn) => {
       this.bullets.push(spawn)
       this.scene.add(spawn.mesh)
@@ -115,11 +119,12 @@ export class TheMaskEngine {
   /** Update camera to follow player with fixed isometric offset (margins). */
   private updateCameraFollow() {
     const p = this.player.body.position
-    this.camera.position.set(
-      p.x + CAMERA_OFFSET_X,
-      p.y + CAMERA_OFFSET_Y,
-      p.z + CAMERA_OFFSET_Z
-    )
+    const dist = this.cameraDist
+    const offsetY = dist * Math.sin(CAMERA_ANGLE)
+    const offsetH = dist * Math.cos(CAMERA_ANGLE)
+    const offsetX = offsetH * 0.7
+    const offsetZ = offsetH * 0.7
+    this.camera.position.set(p.x + offsetX, p.y + offsetY, p.z + offsetZ)
     this.camera.lookAt(p.x, p.y, p.z)
   }
 
@@ -249,8 +254,9 @@ export class TheMaskEngine {
     const aim = this.touchState.aim
     const joyLen = Math.sqrt(joy.x * joy.x + joy.y * joy.y)
     const aimLen = Math.sqrt(aim.x * aim.x + aim.y * aim.y)
-    const fwdX = CAMERA_OFFSET_X
-    const fwdZ = CAMERA_OFFSET_Z
+    const offsetH = this.cameraDist * Math.cos(CAMERA_ANGLE)
+    const fwdX = offsetH * 0.7
+    const fwdZ = offsetH * 0.7
     const fwdLen = Math.sqrt(fwdX * fwdX + fwdZ * fwdZ) || 1
     const forwardX = fwdX / fwdLen
     const forwardZ = fwdZ / fwdLen
