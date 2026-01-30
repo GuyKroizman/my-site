@@ -24,7 +24,7 @@ const SOUND_BOX_HIT = '/theMask/sound/bang_box.wav'
 /** Skip this many seconds at the start of bang_box (trim leading silence in the file). */
 const SOUND_BOX_HIT_START_OFFSET = 0.20
 const SOUND_PLAYER_HIT = '/theMask/sound/ouch.mp3'
-const SOUND_LEVEL_VICTORY = '/hoot-sounds/Enemy%20die.wav'
+const SOUND_LEVEL_VICTORY = '/theMask/sound/victory.wav'
 const SOUND_URLS = [SOUND_SHOT, SOUND_BOX_HIT, SOUND_PLAYER_HIT, SOUND_LEVEL_VICTORY] as const
 const COLLIDE_EVENT = 'collide'
 
