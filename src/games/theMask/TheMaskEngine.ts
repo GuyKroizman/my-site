@@ -59,6 +59,7 @@ export class TheMaskEngine {
     this.setupLights()
     this.setupFloor()
     this.setupWalls()
+    this.setupBoundaryVisual()
     this.input = new InputManager()
     this.player = new Player(this.world, this.scene, { x: 0, y: FLOOR_Y, z: 0 })
     this.player.setOnShoot((spawn) => {
@@ -157,6 +158,54 @@ export class TheMaskEngine {
       })
       this.world.addBody(body)
     })
+  }
+
+  /** Visible low walls at the play area edges so the user sees the level boundary. */
+  private setupBoundaryVisual() {
+    const curbHeight = 0.5
+    const curbThickness = 0.4
+    const color = 0xb71c1c // dark red / boundary color
+    const material = new THREE.MeshStandardMaterial({ color })
+
+    // Left (x = -ARENA_HALF_X)
+    const leftCurb = new THREE.Mesh(
+      new THREE.BoxGeometry(curbThickness, curbHeight, 2 * ARENA_HALF_Z),
+      material
+    )
+    leftCurb.position.set(-ARENA_HALF_X + curbThickness / 2, FLOOR_Y + curbHeight / 2, 0)
+    leftCurb.receiveShadow = true
+    leftCurb.castShadow = true
+    this.scene.add(leftCurb)
+
+    // Right (x = +ARENA_HALF_X)
+    const rightCurb = new THREE.Mesh(
+      new THREE.BoxGeometry(curbThickness, curbHeight, 2 * ARENA_HALF_Z),
+      material
+    )
+    rightCurb.position.set(ARENA_HALF_X - curbThickness / 2, FLOOR_Y + curbHeight / 2, 0)
+    rightCurb.receiveShadow = true
+    rightCurb.castShadow = true
+    this.scene.add(rightCurb)
+
+    // Back (z = -ARENA_HALF_Z)
+    const backCurb = new THREE.Mesh(
+      new THREE.BoxGeometry(2 * ARENA_HALF_X, curbHeight, curbThickness),
+      material
+    )
+    backCurb.position.set(0, FLOOR_Y + curbHeight / 2, -ARENA_HALF_Z + curbThickness / 2)
+    backCurb.receiveShadow = true
+    backCurb.castShadow = true
+    this.scene.add(backCurb)
+
+    // Front (z = +ARENA_HALF_Z)
+    const frontCurb = new THREE.Mesh(
+      new THREE.BoxGeometry(2 * ARENA_HALF_X, curbHeight, curbThickness),
+      material
+    )
+    frontCurb.position.set(0, FLOOR_Y + curbHeight / 2, ARENA_HALF_Z - curbThickness / 2)
+    frontCurb.receiveShadow = true
+    frontCurb.castShadow = true
+    this.scene.add(frontCurb)
   }
 
   private animate = () => {
