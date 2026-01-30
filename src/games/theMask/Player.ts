@@ -56,8 +56,8 @@ export class Player {
     const vz = this.body.velocity.z
     const speed = Math.sqrt(vx * vx + vz * vz)
 
-    if (state.left) this.facingAngle += 4 * dt
-    if (state.right) this.facingAngle -= 4 * dt
+    if (state.left) this.facingAngle += 2 * dt
+    if (state.right) this.facingAngle -= 2 * dt
 
     const dx = Math.sin(this.facingAngle)
     const dz = Math.cos(this.facingAngle)
