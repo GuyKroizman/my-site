@@ -10,6 +10,13 @@ import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y } from './types'
 const PHYSICS_DT = 1 / 60
 const WALL_THICKNESS = 1
 const WALL_HEIGHT = 4
+/** Isometric camera: distance and vertical angle (rad). Offset from player. */
+const CAMERA_DIST = 28
+const CAMERA_ANGLE = Math.PI / 4
+const CAMERA_OFFSET_Y = CAMERA_DIST * Math.sin(CAMERA_ANGLE)
+const CAMERA_OFFSET_H = CAMERA_DIST * Math.cos(CAMERA_ANGLE)
+const CAMERA_OFFSET_X = CAMERA_OFFSET_H * 0.7
+const CAMERA_OFFSET_Z = CAMERA_OFFSET_H * 0.7
 
 export class TheMaskEngine {
   private scene: THREE.Scene
@@ -33,8 +40,6 @@ export class TheMaskEngine {
     this.scene.background = new THREE.Color(0x7a7a7e)
 
     this.camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 500)
-    this.setCameraIsometric()
-    this.camera.lookAt(0, 0, 0)
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
@@ -77,13 +82,15 @@ export class TheMaskEngine {
     this.animate()
   }
 
-  private setCameraIsometric() {
-    const dist = 28
-    const angle = Math.PI / 4
-    const y = dist * Math.sin(angle)
-    const h = dist * Math.cos(angle)
-    this.camera.position.set(h * 0.7, y, h * 0.7)
-    this.camera.lookAt(0, 0, 0)
+  /** Update camera to follow player with fixed isometric offset (margins). */
+  private updateCameraFollow() {
+    const p = this.player.body.position
+    this.camera.position.set(
+      p.x + CAMERA_OFFSET_X,
+      p.y + CAMERA_OFFSET_Y,
+      p.z + CAMERA_OFFSET_Z
+    )
+    this.camera.lookAt(p.x, p.y, p.z)
   }
 
   private setupLights() {
@@ -97,16 +104,16 @@ export class TheMaskEngine {
     dir.shadow.mapSize.height = 2048
     dir.shadow.camera.near = 0.5
     dir.shadow.camera.far = 50
-    dir.shadow.camera.left = -20
-    dir.shadow.camera.right = 20
-    dir.shadow.camera.top = 20
-    dir.shadow.camera.bottom = -20
+    dir.shadow.camera.left = -55
+    dir.shadow.camera.right = 55
+    dir.shadow.camera.top = 55
+    dir.shadow.camera.bottom = -55
     dir.shadow.bias = -0.0001
     this.scene.add(dir)
   }
 
   private setupFloor() {
-    const size = 60
+    const size = 120
     const floorShape = new CANNON.Plane()
     const floorBody = new CANNON.Body({
       mass: 0,
@@ -162,6 +169,7 @@ export class TheMaskEngine {
     this.player.syncMesh()
     this.boxes.forEach((b) => b.syncMesh())
     this.bullets.forEach(syncBulletMesh)
+    this.updateCameraFollow()
 
     const toRemove: number[] = []
     this.bullets.forEach((spawn, i) => {

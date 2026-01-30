@@ -15,7 +15,7 @@ export const DEFAULT_INPUT_STATE: InputState = {
   shoot: false,
 }
 
-/** Arena bounds (half-extents from center). Physics walls at ±x, ±z. */
-export const ARENA_HALF_X = 12
-export const ARENA_HALF_Z = 10
+/** Arena bounds (half-extents from center). Physics walls at ±x, ±z. 4x area = 2x linear. */
+export const ARENA_HALF_X = 24
+export const ARENA_HALF_Z = 20
 export const FLOOR_Y = 0

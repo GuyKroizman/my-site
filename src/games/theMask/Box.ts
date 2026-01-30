@@ -66,11 +66,14 @@ export function createBoxPiles(
   const boxes: Box[] = []
   const colors = [0x8d6e63, 0x795548, 0xa1887f, 0x6d4c41]
   const pilePositions: [number, number][] = [
-    [-5, -4],
-    [5, -3],
-    [-3, 4],
-    [4, 5],
+    [-10, -8],
+    [10, -6],
+    [-6, 8],
+    [8, 10],
     [0, 0],
+    [-15, 0],
+    [14, -12],
+    [-12, 14],
   ]
   pilePositions.forEach(([px, pz], i) => {
     const count = 2 + (i % 3)
