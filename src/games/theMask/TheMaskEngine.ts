@@ -1,7 +1,8 @@
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import * as CANNON from 'cannon-es'
 import { InputManager } from './InputManager'
-import { Player } from './Player'
+import { Player, PLAYER_HEIGHT } from './Player'
 import { Box, createBoxPiles } from './Box'
 import type { BulletSpawn } from './Player'
 import { isBulletOutOfBounds, syncBulletMesh, disposeBullet } from './Bullet'
@@ -68,6 +69,7 @@ export class TheMaskEngine {
       this.bullets.push(spawn)
       this.scene.add(spawn.mesh)
     })
+    this.loadPlayerModel()
     this.boxes = createBoxPiles(this.world, this.scene)
 
     const handleResize = () => {
@@ -83,6 +85,28 @@ export class TheMaskEngine {
     window.addEventListener('orientationchange', () => setTimeout(handleResize, 100))
 
     this.animate()
+  }
+
+  private loadPlayerModel() {
+    const loader = new GLTFLoader()
+    loader.load(
+      '/theMask/models/Astronaut.glb',
+      (gltf) => {
+        const model = gltf.scene
+        const box = new THREE.Box3().setFromObject(model)
+        const size = new THREE.Vector3()
+        box.getSize(size)
+        const center = new THREE.Vector3()
+        box.getCenter(center)
+        model.position.sub(center)
+        const scale = PLAYER_HEIGHT / Math.max(size.y, 0.001)
+        model.scale.setScalar(scale)
+        model.position.y = PLAYER_HEIGHT / 2
+        this.player.replaceVisual(model)
+      },
+      undefined,
+      (err) => console.warn('Failed to load Astronaut.glb', err)
+    )
   }
 
   /** Update camera to follow player with fixed isometric offset (margins). */

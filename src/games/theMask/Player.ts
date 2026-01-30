@@ -4,7 +4,7 @@ import type { InputState } from './types'
 import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y } from './types'
 
 const PLAYER_RADIUS = 0.4
-const PLAYER_HEIGHT = 1.2
+export const PLAYER_HEIGHT = 1.2
 const PLAYER_MASS = 80
 const MOVE_FORCE = 120
 const MAX_SPEED = 6
@@ -19,15 +19,29 @@ export interface BulletSpawn {
   createdAt: number
 }
 
+function disposeObject3D(obj: THREE.Object3D) {
+  obj.traverse((child) => {
+    if (child instanceof THREE.Mesh && child.geometry) {
+      child.geometry.dispose()
+      if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose())
+      else if (child.material) child.material.dispose()
+    }
+  })
+}
+
 export class Player {
   body: CANNON.Body
-  mesh: THREE.Mesh
+  /** Visual representation (Mesh or Group from GLB). */
+  mesh: THREE.Object3D
   /** Facing angle in radians (around Y). 0 = +Z, π/2 = +X. */
   facingAngle: number = 0
   private lastShootTime: number = 0
   private onShoot?: (spawn: BulletSpawn) => void
+  private scene: THREE.Scene
+  private isCapsulePlaceholder = false
 
   constructor(world: CANNON.World, scene: THREE.Scene, position: { x: number; y: number; z: number }) {
+    this.scene = scene
     const shape = new CANNON.Cylinder(PLAYER_RADIUS, PLAYER_RADIUS, PLAYER_HEIGHT - 2 * PLAYER_RADIUS, 12)
     this.body = new CANNON.Body({
       mass: PLAYER_MASS,
@@ -40,11 +54,33 @@ export class Player {
 
     const geometry = new THREE.CapsuleGeometry(PLAYER_RADIUS, PLAYER_HEIGHT - 2 * PLAYER_RADIUS, 4, 8)
     const material = new THREE.MeshStandardMaterial({ color: 0x2196f3 })
-    this.mesh = new THREE.Mesh(geometry, material)
-    this.mesh.castShadow = true
-    this.mesh.receiveShadow = true
-    this.mesh.position.copy(new THREE.Vector3(position.x, position.y + PLAYER_HEIGHT / 2, position.z))
+    const placeholder = new THREE.Mesh(geometry, material)
+    placeholder.castShadow = true
+    placeholder.receiveShadow = true
+    placeholder.position.copy(new THREE.Vector3(position.x, position.y + PLAYER_HEIGHT / 2, position.z))
+    this.mesh = placeholder
+    this.isCapsulePlaceholder = true
     scene.add(this.mesh)
+  }
+
+  /** Replace the current visual with a loaded model (e.g. GLB). Call after load. */
+  replaceVisual(model: THREE.Object3D) {
+    this.scene.remove(this.mesh)
+    if (this.isCapsulePlaceholder && this.mesh instanceof THREE.Mesh) {
+      this.mesh.geometry.dispose()
+      ;(this.mesh.material as THREE.Material).dispose()
+    } else {
+      disposeObject3D(this.mesh)
+    }
+    this.mesh = model
+    this.isCapsulePlaceholder = false
+    model.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+    this.scene.add(this.mesh)
   }
 
   setOnShoot(callback: (spawn: BulletSpawn) => void) {
@@ -92,9 +128,12 @@ export class Player {
     dt: number
   ) {
     const len = Math.sqrt(worldMoveX * worldMoveX + worldMoveZ * worldMoveZ)
+    const aimLen = Math.sqrt(aimWorldX * aimWorldX + aimWorldZ * aimWorldZ)
+    if (aimLen > 0.01) this.facingAngle = Math.atan2(aimWorldX, aimWorldZ)
     if (len > 0.01) {
       const nx = worldMoveX / len
       const nz = worldMoveZ / len
+      if (aimLen <= 0.01) this.facingAngle = Math.atan2(nx, nz)
       this.body.velocity.x += nx * MOVE_FORCE * dt
       this.body.velocity.z += nz * MOVE_FORCE * dt
     }
@@ -166,7 +205,7 @@ export class Player {
     this.onShoot({ body: bulletBody, mesh: bulletMesh, createdAt: performance.now() })
   }
 
-  /** Sync mesh from physics (call every frame). */
+  /** Sync visual from physics (call every frame). */
   syncMesh() {
     this.mesh.position.set(this.body.position.x, this.body.position.y, this.body.position.z)
     this.mesh.rotation.y = this.facingAngle
@@ -185,8 +224,12 @@ export class Player {
 
   dispose(scene: THREE.Scene, world: CANNON.World) {
     scene.remove(this.mesh)
-    this.mesh.geometry.dispose()
-    ;(this.mesh.material as THREE.Material).dispose()
+    if (this.isCapsulePlaceholder && this.mesh instanceof THREE.Mesh) {
+      this.mesh.geometry.dispose()
+      ;(this.mesh.material as THREE.Material).dispose()
+    } else {
+      disposeObject3D(this.mesh)
+    }
     world.removeBody(this.body)
   }
 }
