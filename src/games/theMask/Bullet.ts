@@ -21,11 +21,16 @@ export function syncBulletMesh(spawn: BulletSpawn) {
   mesh.position.set(body.position.x, body.position.y, body.position.z)
 }
 
+const COLLIDE_EVENT = 'collide'
+
 export function disposeBullet(
   spawn: BulletSpawn,
   scene: THREE.Scene,
   world: CANNON.World
 ) {
+  if (spawn.collisionHandler) {
+    spawn.body.removeEventListener(COLLIDE_EVENT, spawn.collisionHandler as (e: unknown) => void)
+  }
   scene.remove(spawn.mesh)
   spawn.mesh.geometry.dispose()
   ;(spawn.mesh.material as THREE.Material).dispose()

@@ -18,6 +18,8 @@ export interface BulletSpawn {
   body: CANNON.Body
   mesh: THREE.Mesh
   createdAt: number
+  /** Optional collision handler; remove in dispose to avoid leaks. */
+  collisionHandler?: (e: { body: CANNON.Body }) => void
 }
 
 function disposeObject3D(obj: THREE.Object3D) {

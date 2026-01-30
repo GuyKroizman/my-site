@@ -15,6 +15,9 @@ const CAMERA_ANGLE = Math.PI / 4
 const CAMERA_DIST_DESKTOP = 16
 const CAMERA_DIST_MOBILE = 10
 const MOBILE_SHOOT_COOLDOWN = 0.45
+const SOUND_SHOT = '/hoot-sounds/Shoot.wav'
+const SOUND_BOX_HIT = '/hoot-sounds/Shot%20Hit%20Ball.wav'
+const COLLIDE_EVENT = 'collide'
 
 export interface TheMaskEngineOptions {
   mobile?: boolean
@@ -72,6 +75,13 @@ export class TheMaskEngine {
     this.player.setOnShoot((spawn) => {
       this.bullets.push(spawn)
       this.scene.add(spawn.mesh)
+      this.playShotSound()
+      const handler = (e: { body: CANNON.Body }) => {
+        const hitBox = this.boxes.some((b) => b.body === e.body)
+        if (hitBox) this.playBoxHitSound()
+      }
+      spawn.collisionHandler = handler
+      spawn.body.addEventListener(COLLIDE_EVENT, handler as (e: unknown) => void)
     })
     this.loadPlayerModel()
     this.boxes = createBoxPiles(this.world, this.scene)
@@ -114,6 +124,18 @@ export class TheMaskEngine {
       undefined,
       (err) => console.warn('Failed to load Astronaut.glb', err)
     )
+  }
+
+  private playShotSound() {
+    const a = new Audio(SOUND_SHOT)
+    a.volume = 0.5
+    a.play().catch(() => {})
+  }
+
+  private playBoxHitSound() {
+    const a = new Audio(SOUND_BOX_HIT)
+    a.volume = 0.5
+    a.play().catch(() => {})
   }
 
   /** Update camera to follow player with fixed isometric offset (margins). */
