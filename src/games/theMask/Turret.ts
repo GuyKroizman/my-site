@@ -149,9 +149,9 @@ export class Turret {
     const step = Math.max(-maxStep, Math.min(maxStep, diff))
     this.cannonAimAngle += step
 
-    // Apply to cannon visual if loaded (rotation matches bullet direction)
+    // Apply to cannon visual if loaded
     if (this.cannonTop) {
-      this.cannonTop.rotation.z = this.cannonAimAngle + Math.PI
+      this.cannonTop.rotation.z = this.cannonAimAngle
     }
   }
 
@@ -204,6 +204,7 @@ export class Turret {
     const p = this.body.position
     const bulletBody = new CANNON.Body({
       mass: TURRET_BULLET_MASS,
+      // Spawn bullet at barrel tip (offset in aim direction)
       position: new CANNON.Vec3(p.x + dx * 0.6, p.y, p.z + dz * 0.6),
       shape: new CANNON.Sphere(TURRET_BULLET_RADIUS),
       velocity: new CANNON.Vec3(dx * TURRET_BULLET_SPEED, 0, dz * TURRET_BULLET_SPEED),
