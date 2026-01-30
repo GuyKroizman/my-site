@@ -235,8 +235,8 @@ export class TheMaskEngine {
     const shoot = keyboardState.shoot || shootFromAim
 
     if (joyLen > 0.05) {
-      const worldX = -joy.y * forwardX + joy.x * rightX
-      const worldZ = -joy.y * forwardZ + joy.x * rightZ
+      const worldX = -joy.y * forwardX - joy.x * rightX
+      const worldZ = -joy.y * forwardZ - joy.x * rightZ
       this.player.updateInputFromTouch(worldX, worldZ, aimWorldX, aimWorldZ, shoot, PHYSICS_DT)
     } else {
       this.player.updateInput({ ...keyboardState, shoot }, PHYSICS_DT)
