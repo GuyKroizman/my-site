@@ -5,7 +5,8 @@ import { Player } from './Player'
 import { Box, createBoxPiles } from './Box'
 import type { BulletSpawn } from './Player'
 import { isBulletOutOfBounds, syncBulletMesh, disposeBullet } from './Bullet'
-import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y } from './types'
+import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y, DEFAULT_TOUCH_INPUT_STATE } from './types'
+import type { TouchInputState } from './types'
 
 const PHYSICS_DT = 1 / 60
 const WALL_THICKNESS = 1
@@ -27,6 +28,7 @@ export class TheMaskEngine {
   private player: Player
   private boxes: Box[] = []
   private bullets: BulletSpawn[] = []
+  private touchState: TouchInputState = DEFAULT_TOUCH_INPUT_STATE
   private animationId: number | null = null
   private isDisposed = false
   private container: HTMLElement
@@ -215,7 +217,24 @@ export class TheMaskEngine {
     if (this.isDisposed) return
     this.animationId = requestAnimationFrame(this.animate)
 
-    this.player.updateInput(this.input.getState(), PHYSICS_DT)
+    const keyboardState = this.input.getState()
+    const shoot = keyboardState.shoot || this.touchState.shoot
+    const joy = this.touchState.joystick
+    const joyLen = Math.sqrt(joy.x * joy.x + joy.y * joy.y)
+    if (joyLen > 0.05) {
+      const fwdX = CAMERA_OFFSET_X
+      const fwdZ = CAMERA_OFFSET_Z
+      const len = Math.sqrt(fwdX * fwdX + fwdZ * fwdZ) || 1
+      const forwardX = fwdX / len
+      const forwardZ = fwdZ / len
+      const rightX = -forwardZ
+      const rightZ = forwardX
+      const worldX = joy.y * forwardX + joy.x * rightX
+      const worldZ = joy.y * forwardZ + joy.x * rightZ
+      this.player.updateInputFromTouch(worldX, worldZ, shoot, PHYSICS_DT)
+    } else {
+      this.player.updateInput({ ...keyboardState, shoot }, PHYSICS_DT)
+    }
     this.world.step(PHYSICS_DT)
     this.player.clampToArena()
     this.player.syncMesh()
@@ -238,8 +257,8 @@ export class TheMaskEngine {
     this.renderer.render(this.scene, this.camera)
   }
 
-  setTouchControls(state: { up: boolean; down: boolean; left: boolean; right: boolean; shoot?: boolean }) {
-    this.input.setState(state)
+  setTouchControls(state: TouchInputState) {
+    this.touchState = state
   }
 
   dispose() {

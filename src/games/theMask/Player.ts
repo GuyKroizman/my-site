@@ -76,12 +76,38 @@ export class Player {
       this.body.velocity.z *= scale
     }
 
-    if (state.shoot && this.onShoot) {
-      const now = performance.now() / 1000
-      if (now - this.lastShootTime >= SHOOT_COOLDOWN) {
-        this.lastShootTime = now
-        this.spawnBullet()
-      }
+    this.tryShoot(state.shoot)
+  }
+
+  /**
+   * Camera-relative movement from joystick: worldMoveX/Z is normalized direction in world XZ.
+   * Strafe left/right and forward/back relative to camera; facing angle unchanged.
+   */
+  updateInputFromTouch(worldMoveX: number, worldMoveZ: number, shoot: boolean, dt: number) {
+    const len = Math.sqrt(worldMoveX * worldMoveX + worldMoveZ * worldMoveZ)
+    if (len > 0.01) {
+      const nx = worldMoveX / len
+      const nz = worldMoveZ / len
+      this.body.velocity.x += nx * MOVE_FORCE * dt
+      this.body.velocity.z += nz * MOVE_FORCE * dt
+    }
+    const vx = this.body.velocity.x
+    const vz = this.body.velocity.z
+    const speed = Math.sqrt(vx * vx + vz * vz)
+    if (speed > MAX_SPEED) {
+      const scale = MAX_SPEED / speed
+      this.body.velocity.x *= scale
+      this.body.velocity.z *= scale
+    }
+    this.tryShoot(shoot)
+  }
+
+  private tryShoot(wantShoot: boolean) {
+    if (!wantShoot || !this.onShoot) return
+    const now = performance.now() / 1000
+    if (now - this.lastShootTime >= SHOOT_COOLDOWN) {
+      this.lastShootTime = now
+      this.spawnBullet()
     }
   }
 

@@ -1,233 +1,153 @@
-import { useEffect, useRef, useState } from 'react'
-import type { InputState } from '../types'
+import { useRef, useState, useCallback } from 'react'
+import type { TouchInputState } from '../types'
+
+const JOYSTICK_BASE_SIZE = 120
+const JOYSTICK_KNOB_SIZE = 48
+const JOYSTICK_STICK_RADIUS = (JOYSTICK_BASE_SIZE - JOYSTICK_KNOB_SIZE) / 2
+const SHOOT_BUTTON_SIZE = 88
 
 interface VirtualControlsProps {
-  onStateChange: (state: InputState) => void
+  onTouchInputChange: (state: TouchInputState) => void
 }
 
-export function VirtualControls({ onStateChange }: VirtualControlsProps) {
-  const [activeButtons, setActiveButtons] = useState<Set<string>>(new Set())
-  const leftContainerRef = useRef<HTMLDivElement>(null)
-  const rightContainerRef = useRef<HTMLDivElement>(null)
-  const forwardBackwardControlRef = useRef<HTMLDivElement>(null)
-  const activeForwardBackwardTouch = useRef<number | null>(null)
+export function VirtualControls({ onTouchInputChange }: VirtualControlsProps) {
+  const [knobOffset, setKnobOffset] = useState({ x: 0, y: 0 })
+  const [shootPressed, setShootPressed] = useState(false)
+  const joystickPointerId = useRef<number | null>(null)
+  const joystickBaseRef = useRef<HTMLDivElement>(null)
 
-  const updateState = (active: Set<string>) => {
-    onStateChange({
-      up: active.has('up'),
-      down: active.has('down'),
-      left: active.has('left'),
-      right: active.has('right'),
-      shoot: active.has('shoot'),
-    })
-  }
-
-  const handleTouchStart = (direction: string) => (e: React.TouchEvent) => {
-    e.preventDefault()
-    const newActive = new Set(activeButtons)
-    newActive.add(direction)
-    setActiveButtons(newActive)
-    updateState(newActive)
-  }
-
-  const handleTouchEnd = (direction: string) => (e: React.TouchEvent) => {
-    e.preventDefault()
-    const newActive = new Set(activeButtons)
-    newActive.delete(direction)
-    setActiveButtons(newActive)
-    updateState(newActive)
-  }
-
-  const handleTouchCancel = () => {
-    setActiveButtons(new Set())
-    updateState(new Set())
-  }
-
-  const handleForwardBackwardTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault()
-    if (e.touches.length > 0) {
-      const touch = e.touches[0]
-      activeForwardBackwardTouch.current = touch.identifier
-      updateForwardBackwardState(touch.clientX, touch.clientY)
-    }
-  }
-
-  const handleForwardBackwardTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault()
-    if (activeForwardBackwardTouch.current !== null) {
-      const touch = Array.from(e.touches).find(
-        (t) => t.identifier === activeForwardBackwardTouch.current
-      )
-      if (touch) updateForwardBackwardState(touch.clientX, touch.clientY)
-    }
-  }
-
-  const handleForwardBackwardTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault()
-    if (activeForwardBackwardTouch.current !== null) {
-      const touchEnded = Array.from(e.changedTouches).find(
-        (t) => t.identifier === activeForwardBackwardTouch.current
-      )
-      if (touchEnded) {
-        activeForwardBackwardTouch.current = null
-        const newActive = new Set(activeButtons)
-        newActive.delete('up')
-        newActive.delete('down')
-        setActiveButtons(newActive)
-        updateState(newActive)
+  const clampKnob = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = joystickBaseRef.current
+      if (!el) return { x: 0, y: 0 }
+      const rect = el.getBoundingClientRect()
+      const centerX = rect.left + rect.width / 2
+      const centerY = rect.top + rect.height / 2
+      let dx = clientX - centerX
+      let dy = clientY - centerY
+      const len = Math.sqrt(dx * dx + dy * dy)
+      if (len > JOYSTICK_STICK_RADIUS) {
+        const scale = JOYSTICK_STICK_RADIUS / len
+        dx *= scale
+        dy *= scale
       }
-    }
-  }
+      return { x: dx, y: dy }
+    },
+    []
+  )
 
-  const updateForwardBackwardState = (_clientX: number, clientY: number) => {
-    if (!forwardBackwardControlRef.current) return
-    const rect = forwardBackwardControlRef.current.getBoundingClientRect()
-    const touchY = clientY - rect.top
-    const tolerance = 10
-    const isWithinBounds =
-      touchY >= -tolerance && touchY <= rect.height + tolerance
-    const newActive = new Set(activeButtons)
-    if (isWithinBounds) {
-      const midpoint = rect.height / 2
-      if (touchY < midpoint) {
-        newActive.add('up')
-        newActive.delete('down')
-      } else {
-        newActive.add('down')
-        newActive.delete('up')
-      }
-    } else {
-      newActive.delete('up')
-      newActive.delete('down')
+  const offsetToNormalized = useCallback((offset: { x: number; y: number }) => {
+    if (JOYSTICK_STICK_RADIUS <= 0) return { x: 0, y: 0 }
+    let x = offset.x / JOYSTICK_STICK_RADIUS
+    let y = -offset.y / JOYSTICK_STICK_RADIUS
+    const len = Math.sqrt(x * x + y * y)
+    if (len > 1) {
+      x /= len
+      y /= len
     }
-    setActiveButtons(newActive)
-    updateState(newActive)
-  }
-
-  useEffect(() => {
-    const leftContainer = leftContainerRef.current
-    const rightContainer = rightContainerRef.current
-    const forwardBackwardControl = forwardBackwardControlRef.current
-    const preventDefault = (e: TouchEvent) => e.preventDefault()
-    const containers = [leftContainer, rightContainer, forwardBackwardControl].filter(
-      Boolean
-    ) as HTMLElement[]
-    containers.forEach((el) => {
-      el.addEventListener('touchstart', preventDefault, { passive: false })
-      el.addEventListener('touchmove', preventDefault, { passive: false })
-      el.addEventListener('touchend', preventDefault, { passive: false })
-    })
-    return () => {
-      containers.forEach((el) => {
-        el.removeEventListener('touchstart', preventDefault)
-        el.removeEventListener('touchmove', preventDefault)
-        el.removeEventListener('touchend', preventDefault)
-      })
-    }
+    return { x, y }
   }, [])
 
-  const buttonClass = (direction: string) => {
-    const base =
-      'flex items-center justify-center text-white font-bold text-2xl select-none touch-none'
-    const active = activeButtons.has(direction)
-      ? 'bg-blue-600 bg-opacity-70 scale-95'
-      : 'bg-blue-500 bg-opacity-70 active:bg-blue-600'
-    return `${base} ${active} transition-all duration-75`
+  const notify = useCallback(
+    (joy: { x: number; y: number }, shoot: boolean) => {
+      onTouchInputChange({ joystick: joy, shoot })
+    },
+    [onTouchInputChange]
+  )
+
+  const handleJoystickPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault()
+    if (joystickPointerId.current !== null) return
+    joystickPointerId.current = e.pointerId
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    const { x, y } = clampKnob(e.clientX, e.clientY)
+    setKnobOffset({ x, y })
+    notify(offsetToNormalized({ x, y }), shootPressed)
   }
 
-  const btnStyle = {
-    width: '60px',
-    height: '60px',
-    borderRadius: '8px',
-    minWidth: '60px',
-    minHeight: '60px',
+  const handleJoystickPointerMove = (e: React.PointerEvent) => {
+    if (joystickPointerId.current !== e.pointerId) return
+    e.preventDefault()
+    const { x, y } = clampKnob(e.clientX, e.clientY)
+    setKnobOffset({ x, y })
+    notify(offsetToNormalized({ x, y }), shootPressed)
+  }
+
+  const handleJoystickPointerUp = (e: React.PointerEvent) => {
+    if (joystickPointerId.current !== e.pointerId) return
+    e.preventDefault()
+    joystickPointerId.current = null
+    setKnobOffset({ x: 0, y: 0 })
+    notify({ x: 0, y: 0 }, shootPressed)
+  }
+
+  const handleShootPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault()
+    setShootPressed(true)
+    notify(offsetToNormalized(knobOffset), true)
+  }
+
+  const handleShootPointerUp = (e: React.PointerEvent) => {
+    e.preventDefault()
+    setShootPressed(false)
+    notify(offsetToNormalized(knobOffset), false)
   }
 
   return (
     <>
+      {/* Left: Floating Joystick */}
       <div
-        ref={leftContainerRef}
-        className="fixed bottom-4 left-4 z-50 pointer-events-auto"
-        style={{ touchAction: 'none' }}
+        ref={joystickBaseRef}
+        className="fixed bottom-8 left-8 z-50 select-none"
+        style={{
+          width: JOYSTICK_BASE_SIZE,
+          height: JOYSTICK_BASE_SIZE,
+          touchAction: 'none',
+        }}
+        onPointerDown={handleJoystickPointerDown}
+        onPointerMove={handleJoystickPointerMove}
+        onPointerUp={handleJoystickPointerUp}
+        onPointerCancel={handleJoystickPointerUp}
       >
         <div
-          ref={forwardBackwardControlRef}
-          className="relative"
+          className="absolute rounded-full bg-white/30 border-2 border-white/50"
           style={{
-            width: '60px',
-            height: '128px',
-            borderRadius: '8px',
-            overflow: 'hidden',
-            touchAction: 'none',
+            width: JOYSTICK_BASE_SIZE,
+            height: JOYSTICK_BASE_SIZE,
+            left: 0,
+            top: 0,
           }}
-          onTouchStart={handleForwardBackwardTouchStart}
-          onTouchMove={handleForwardBackwardTouchMove}
-          onTouchEnd={handleForwardBackwardTouchEnd}
-          onTouchCancel={handleTouchCancel}
-        >
-          <div
-            className={`absolute top-0 left-0 right-0 flex items-center justify-center text-white font-bold text-2xl select-none transition-all duration-75 ${
-              activeButtons.has('up') ? 'bg-blue-600 bg-opacity-70' : 'bg-blue-500 bg-opacity-70'
-            }`}
-            style={{
-              height: '50%',
-              borderTopLeftRadius: '8px',
-              borderTopRightRadius: '8px',
-              borderBottom: '2px solid rgba(255, 255, 255, 0.3)',
-            }}
-          >
-            ↑
-          </div>
-          <div
-            className={`absolute bottom-0 left-0 right-0 flex items-center justify-center text-white font-bold text-2xl select-none transition-all duration-75 ${
-              activeButtons.has('down') ? 'bg-blue-600 bg-opacity-70' : 'bg-blue-500 bg-opacity-70'
-            }`}
-            style={{
-              height: '50%',
-              borderBottomLeftRadius: '8px',
-              borderBottomRightRadius: '8px',
-            }}
-          >
-            ↓
-          </div>
-        </div>
+        />
+        <div
+          className="absolute rounded-full bg-white/70 border-2 border-white shadow-lg pointer-events-none"
+          style={{
+            width: JOYSTICK_KNOB_SIZE,
+            height: JOYSTICK_KNOB_SIZE,
+            left: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.x,
+            top: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.y,
+          }}
+        />
       </div>
 
+      {/* Right: Shoot button */}
       <div
-        ref={rightContainerRef}
-        className="fixed bottom-4 right-4 z-50 pointer-events-auto flex flex-row gap-2 items-end"
-        style={{ touchAction: 'none' }}
+        className="fixed bottom-8 right-8 z-50 select-none"
+        style={{
+          width: SHOOT_BUTTON_SIZE,
+          height: SHOOT_BUTTON_SIZE,
+          touchAction: 'none',
+        }}
+        onPointerDown={handleShootPointerDown}
+        onPointerUp={handleShootPointerUp}
+        onPointerCancel={handleShootPointerUp}
       >
-        <button
-          className={buttonClass('left')}
-          style={btnStyle}
-          onTouchStart={handleTouchStart('left')}
-          onTouchEnd={handleTouchEnd('left')}
-          onTouchCancel={handleTouchCancel}
-          aria-label="Turn left"
-        >
-          ←
-        </button>
-        <button
-          className={buttonClass('right')}
-          style={btnStyle}
-          onTouchStart={handleTouchStart('right')}
-          onTouchEnd={handleTouchEnd('right')}
-          onTouchCancel={handleTouchCancel}
-          aria-label="Turn right"
-        >
-          →
-        </button>
-        <button
-          className={`${buttonClass('shoot')} bg-red-500 active:bg-red-600`}
-          style={{ ...btnStyle, height: '80px' }}
-          onTouchStart={handleTouchStart('shoot')}
-          onTouchEnd={handleTouchEnd('shoot')}
-          onTouchCancel={handleTouchCancel}
-          aria-label="Shoot"
+        <div
+          className={`w-full h-full rounded-full border-2 border-white/70 shadow-lg flex items-center justify-center text-2xl transition-transform ${
+            shootPressed ? 'bg-red-600 scale-95' : 'bg-red-500'
+          }`}
         >
           🔫
-        </button>
+        </div>
       </div>
     </>
   )

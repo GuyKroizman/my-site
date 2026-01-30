@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { TheMaskEngine } from '../games/theMask/TheMaskEngine'
 import { MenuScreen, VirtualControls } from '../games/theMask/components'
-import type { InputState } from '../games/theMask/types'
+import type { TouchInputState } from '../games/theMask/types'
 
 const isTouchDevice = () => {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0
@@ -62,7 +62,7 @@ export default function TheMask() {
     setUiState('menu')
   }
 
-  const handleControlsChange = (state: InputState) => {
+  const handleTouchInputChange = (state: TouchInputState) => {
     if (gameEngineRef.current) {
       gameEngineRef.current.setTouchControls(state)
     }
@@ -87,7 +87,7 @@ export default function TheMask() {
         className={`${uiState === 'playing' ? 'flex-1' : ''} w-full relative overflow-hidden`}
       >
         {uiState === 'playing' && isTouchDevice() && (
-          <VirtualControls onStateChange={handleControlsChange} />
+          <VirtualControls onTouchInputChange={handleTouchInputChange} />
         )}
       </div>
 
