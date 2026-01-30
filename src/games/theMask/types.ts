@@ -30,3 +30,22 @@ export const DEFAULT_TOUCH_INPUT_STATE: TouchInputState = {
 export const ARENA_HALF_X = 24
 export const ARENA_HALF_Z = 20
 export const FLOOR_Y = 0
+
+/** Single pile: x,z = position, n = number of boxes stacked. */
+export interface BoxPileConfig {
+  x: number
+  z: number
+  n: number
+}
+
+/** Turret spawn position. */
+export interface TurretConfig {
+  x: number
+  z: number
+}
+
+/** Level definition: boxes and turrets. */
+export interface LevelConfig {
+  boxes: BoxPileConfig[]
+  turrets: TurretConfig[]
+}

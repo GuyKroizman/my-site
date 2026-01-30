@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 import { FLOOR_Y } from './types'
+import type { BoxPileConfig } from './types'
 
 export interface BoxOptions {
   width: number
@@ -53,31 +54,21 @@ export class Box {
   dispose(scene: THREE.Scene, world: CANNON.World) {
     scene.remove(this.mesh)
     this.mesh.geometry.dispose()
-    ;(this.mesh.material as THREE.Material).dispose()
+      ; (this.mesh.material as THREE.Material).dispose()
     world.removeBody(this.body)
   }
 }
 
-/** Create a pile of boxes for the arena. */
+/** Create box piles from config: each entry is { x, z, n } with n boxes stacked. */
 export function createBoxPiles(
   world: CANNON.World,
-  scene: THREE.Scene
+  scene: THREE.Scene,
+  pileConfigs: BoxPileConfig[]
 ): Box[] {
   const boxes: Box[] = []
   const colors = [0x8d6e63, 0x795548, 0xa1887f, 0x6d4c41]
-  const pilePositions: [number, number][] = [
-    [-10, -8],
-    [10, -6],
-    [-6, 8],
-    [8, 10],
-    [0, 0],
-    [-15, 0],
-    [14, -12],
-    [-12, 14],
-  ]
-  pilePositions.forEach(([px, pz], i) => {
-    const count = 2 + (i % 3)
-    for (let j = 0; j < count; j++) {
+  pileConfigs.forEach(({ x: px, z: pz, n }, i) => {
+    for (let j = 0; j < n; j++) {
       const w = 0.8 + Math.random() * 0.4
       const h = 0.6 + Math.random() * 0.3
       const d = 0.8 + Math.random() * 0.4

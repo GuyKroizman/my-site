@@ -3,6 +3,8 @@ import * as CANNON from 'cannon-es'
 import { InputManager } from './InputManager'
 import { Player, PLAYER_HEIGHT } from './Player'
 import { Box, createBoxPiles } from './Box'
+import { Turret } from './Turret'
+import { LEVELS } from './levels'
 import type { BulletSpawn } from './Player'
 import { isBulletOutOfBounds, syncBulletMesh, disposeBullet } from './Bullet'
 import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y, DEFAULT_TOUCH_INPUT_STATE } from './types'
@@ -31,8 +33,11 @@ export class TheMaskEngine {
   private input: InputManager
   private player: Player
   private boxes: Box[] = []
+  private turrets: Turret[] = []
   private bullets: BulletSpawn[] = []
   private touchState: TouchInputState = DEFAULT_TOUCH_INPUT_STATE
+  private currentLevelIndex = 0
+  private bulletsToRemove: BulletSpawn[] = []
   private animationId: number | null = null
   private isDisposed = false
   private container: HTMLElement
@@ -79,12 +84,18 @@ export class TheMaskEngine {
       const handler = (e: { body: CANNON.Body }) => {
         const hitBox = this.boxes.some((b) => b.body === e.body)
         if (hitBox) this.playBoxHitSound()
+        const other = e.body
+        const turretRef = (other as unknown as { turretRef?: Turret }).turretRef
+        if (spawn.fromPlayer && turretRef) {
+          turretRef.takeDamage(1)
+          this.bulletsToRemove.push(spawn)
+        }
       }
       spawn.collisionHandler = handler
       spawn.body.addEventListener(COLLIDE_EVENT, handler as (e: unknown) => void)
     })
     this.loadPlayerModel()
-    this.boxes = createBoxPiles(this.world, this.scene)
+    this.loadLevel(0)
 
     const handleResize = () => {
       requestAnimationFrame(() => {
@@ -136,6 +147,27 @@ export class TheMaskEngine {
     const a = new Audio(SOUND_BOX_HIT)
     a.volume = 0.5
     a.play().catch(() => { })
+  }
+
+  /** Load level by index: clear boxes/turrets, spawn from LEVELS[index], reset player. */
+  private loadLevel(index: number) {
+    this.boxes.forEach((b) => b.dispose(this.scene, this.world))
+    this.boxes = []
+    this.turrets.forEach((t) => t.dispose(this.scene, this.world))
+    this.turrets = []
+    const level = LEVELS[Math.min(index, LEVELS.length - 1)]
+    this.boxes = createBoxPiles(this.world, this.scene, level.boxes)
+    level.turrets.forEach(({ x, z }) => {
+      const turret = new Turret(this.world, this.scene, { x, z }, {
+        onShoot: (spawn) => {
+          this.bullets.push(spawn)
+          this.scene.add(spawn.mesh)
+        },
+      })
+      this.turrets.push(turret)
+    })
+    this.player.body.position.set(21, FLOOR_Y + PLAYER_HEIGHT / 2, 18)
+    this.player.body.velocity.set(0, 0, 0)
   }
 
   /** Update camera to follow player with fixed isometric offset (margins). */
@@ -310,8 +342,17 @@ export class TheMaskEngine {
     this.lastAnimationTime = now
     this.player.updateAnimation(animDt)
     this.boxes.forEach((b) => b.syncMesh())
+    const playerPos = { x: this.player.body.position.x, z: this.player.body.position.z }
+    this.turrets.forEach((t) => t.update(PHYSICS_DT, playerPos))
     this.bullets.forEach(syncBulletMesh)
     this.updateCameraFollow()
+
+    this.bulletsToRemove.forEach((spawn) => {
+      disposeBullet(spawn, this.scene, this.world)
+      const i = this.bullets.indexOf(spawn)
+      if (i !== -1) this.bullets.splice(i, 1)
+    })
+    this.bulletsToRemove = []
 
     const toRemove: number[] = []
     this.bullets.forEach((spawn, i) => {
@@ -324,6 +365,14 @@ export class TheMaskEngine {
       disposeBullet(spawn, this.scene, this.world)
       this.bullets.splice(i, 1)
     })
+
+    const deadTurrets = this.turrets.filter((t) => !t.isAlive())
+    deadTurrets.forEach((t) => t.dispose(this.scene, this.world))
+    this.turrets = this.turrets.filter((t) => t.isAlive())
+    if (this.turrets.length === 0 && LEVELS[this.currentLevelIndex].turrets.length > 0) {
+      this.currentLevelIndex = Math.min(this.currentLevelIndex + 1, LEVELS.length - 1)
+      this.loadLevel(this.currentLevelIndex)
+    }
 
     this.renderer.render(this.scene, this.camera)
   }
@@ -342,6 +391,8 @@ export class TheMaskEngine {
     this.player.dispose(this.scene, this.world)
     this.boxes.forEach((b) => b.dispose(this.scene, this.world))
     this.boxes = []
+    this.turrets.forEach((t) => t.dispose(this.scene, this.world))
+    this.turrets = []
     this.bullets.forEach((s) => disposeBullet(s, this.scene, this.world))
     this.bullets = []
     this.scene.clear()

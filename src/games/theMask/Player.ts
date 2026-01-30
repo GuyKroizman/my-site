@@ -18,6 +18,8 @@ export interface BulletSpawn {
   body: CANNON.Body
   mesh: THREE.Mesh
   createdAt: number
+  /** true = player bullet (damages turrets), false = enemy bullet */
+  fromPlayer?: boolean
   /** Optional collision handler; remove in dispose to avoid leaks. */
   collisionHandler?: (e: { body: CANNON.Body }) => void
 }
@@ -239,7 +241,7 @@ export class Player {
       velocity: new CANNON.Vec3(dx * BULLET_SPEED, 0, dz * BULLET_SPEED),
       linearDamping: 0,
       collisionFilterGroup: 2, // bullet group
-      collisionFilterMask: 1 | 2, // collide with default (1) and other bullets (2)
+      collisionFilterMask: 1 | 2 | 4, // default (1), bullets (2), turrets (4)
     })
     world.addBody(bulletBody)
     const bulletMesh = new THREE.Mesh(
@@ -248,7 +250,7 @@ export class Player {
     )
     bulletMesh.castShadow = true
     bulletMesh.position.set(bulletBody.position.x, bulletBody.position.y, bulletBody.position.z)
-    this.onShoot({ body: bulletBody, mesh: bulletMesh, createdAt: performance.now() })
+    this.onShoot({ body: bulletBody, mesh: bulletMesh, createdAt: performance.now(), fromPlayer: true })
   }
 
   /** Sync visual from physics (call every frame). */
