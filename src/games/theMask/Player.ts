@@ -9,7 +9,6 @@ const PLAYER_MASS = 80
 const MOVE_FORCE = 32
 const MAX_SPEED = 6
 const MOVE_SPEED_THRESHOLD = 0.3
-const ANIM_CROSSFADE = 0.2
 const BULLET_RADIUS = 0.15
 const BULLET_SPEED = 32
 const BULLET_MASS = 3
