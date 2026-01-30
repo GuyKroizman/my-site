@@ -229,8 +229,8 @@ export class TheMaskEngine {
     const forwardZ = fwdZ / fwdLen
     const rightX = -forwardZ
     const rightZ = forwardX
-    const aimWorldX = aimLen > 0.05 ? aim.y * forwardX + aim.x * rightX : 0
-    const aimWorldZ = aimLen > 0.05 ? aim.y * forwardZ + aim.x * rightZ : 0
+    const aimWorldX = aimLen > 0.05 ? -aim.y * forwardX - aim.x * rightX : 0
+    const aimWorldZ = aimLen > 0.05 ? -aim.y * forwardZ - aim.x * rightZ : 0
     const shootFromAim = aimLen > 0.05
     const shoot = keyboardState.shoot || shootFromAim
 
