@@ -37,7 +37,7 @@ export class TheMaskEngine {
     const height = Math.max(container.clientHeight || window.innerHeight, 1)
 
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x7a7a7e)
+    this.scene.background = new THREE.Color(0xb8c4d0)
 
     this.camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 500)
 
@@ -95,11 +95,14 @@ export class TheMaskEngine {
   }
 
   private setupLights() {
-    const ambient = new THREE.AmbientLight(0x404060, 0.5)
+    const ambient = new THREE.AmbientLight(0xffffff, 0.65)
     this.scene.add(ambient)
 
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9)
-    dir.position.set(10, 20, 10)
+    const hemisphere = new THREE.HemisphereLight(0xc8d4e0, 0x8a9ba8, 0.4)
+    this.scene.add(hemisphere)
+
+    const dir = new THREE.DirectionalLight(0xffffff, 1.2)
+    dir.position.set(15, 25, 15)
     dir.castShadow = true
     dir.shadow.mapSize.width = 2048
     dir.shadow.mapSize.height = 2048
@@ -127,7 +130,7 @@ export class TheMaskEngine {
     this.world.addBody(floorBody)
 
     const floorGeo = new THREE.PlaneGeometry(size, size)
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x6d6d64 })
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x9a9f92 })
     const floorMesh = new THREE.Mesh(floorGeo, floorMat)
     floorMesh.rotation.x = -Math.PI / 2
     floorMesh.receiveShadow = true
