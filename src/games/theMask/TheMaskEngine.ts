@@ -20,8 +20,12 @@ const CAMERA_DIST_DESKTOP = 16
 const CAMERA_DIST_MOBILE = 10
 const MOBILE_SHOOT_COOLDOWN = 0.45
 const SOUND_SHOT = '/hoot-sounds/Shoot.wav'
-const SOUND_BOX_HIT = '/hoot-sounds/Shot%20Hit%20Ball.wav'
-const SOUND_PLAYER_HIT = '/hoot-sounds/Shot%20Hit%20Enemy.wav'
+const SOUND_BOX_HIT = '/theMask/sound/bang_box.wav'
+/** Skip this many seconds at the start of bang_box (trim leading silence in the file). */
+const SOUND_BOX_HIT_START_OFFSET = 0.20
+const SOUND_PLAYER_HIT = '/theMask/sound/ouch.mp3'
+const SOUND_LEVEL_VICTORY = '/hoot-sounds/Enemy%20die.wav'
+const SOUND_URLS = [SOUND_SHOT, SOUND_BOX_HIT, SOUND_PLAYER_HIT, SOUND_LEVEL_VICTORY] as const
 const COLLIDE_EVENT = 'collide'
 
 export interface TheMaskEngineOptions {
@@ -46,6 +50,8 @@ export class TheMaskEngine {
   private container: HTMLElement
   private lastAnimationTime: number = 0
   private cameraDist: number
+  /** Preloaded audio elements so first play is not truncated. */
+  private soundCache: Record<string, HTMLAudioElement> = {}
 
   constructor(container: HTMLElement, options?: TheMaskEngineOptions) {
     this.container = container
@@ -76,6 +82,7 @@ export class TheMaskEngine {
     this.setupFloor()
     this.setupWalls()
     this.setupBoundaryVisual()
+    this.preloadSounds()
     this.input = new InputManager()
     this.cameraDist = options?.mobile ? CAMERA_DIST_MOBILE : CAMERA_DIST_DESKTOP
     const playerOptions = options?.mobile ? { shootCooldown: MOBILE_SHOOT_COOLDOWN } : undefined
@@ -140,21 +147,50 @@ export class TheMaskEngine {
     )
   }
 
+  private preloadSounds() {
+    SOUND_URLS.forEach((url) => {
+      const a = new Audio(url)
+      a.preload = 'auto'
+      a.load()
+      this.soundCache[url] = a
+    })
+  }
+
+  private getCachedSound(url: string): HTMLAudioElement {
+    let a = this.soundCache[url]
+    if (!a) {
+      a = new Audio(url)
+      a.preload = 'auto'
+      a.load()
+      this.soundCache[url] = a
+    }
+    return a
+  }
+
   private playShotSound() {
-    const a = new Audio(SOUND_SHOT)
+    const a = this.getCachedSound(SOUND_SHOT)
     a.volume = 0.5
+    a.currentTime = 0
     a.play().catch(() => { })
   }
 
   private playBoxHitSound() {
-    const a = new Audio(SOUND_BOX_HIT)
+    const a = this.getCachedSound(SOUND_BOX_HIT)
     a.volume = 0.5
+    a.currentTime = SOUND_BOX_HIT_START_OFFSET
     a.play().catch(() => { })
   }
 
   private playPlayerHitSound() {
-    const a = new Audio(SOUND_PLAYER_HIT)
+    const a = this.getCachedSound(SOUND_PLAYER_HIT)
     a.volume = 0.5
+    a.currentTime = 0
+    a.play().catch(() => { })
+  }
+
+  private playLevelVictorySound() {
+    const a = this.getCachedSound(SOUND_LEVEL_VICTORY)
+    a.currentTime = 0
     a.play().catch(() => { })
   }
 
@@ -442,6 +478,7 @@ export class TheMaskEngine {
     deadTurrets.forEach((t) => t.dispose(this.scene, this.world))
     this.turrets = this.turrets.filter((t) => t.isAlive())
     if (this.turrets.length === 0 && LEVELS[this.currentLevelIndex].turrets.length > 0) {
+      this.playLevelVictorySound()
       this.currentLevelIndex = Math.min(this.currentLevelIndex + 1, LEVELS.length - 1)
       this.loadLevel(this.currentLevelIndex)
     }
