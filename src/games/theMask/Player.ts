@@ -6,8 +6,10 @@ import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y } from './types'
 const PLAYER_RADIUS = 0.4
 export const PLAYER_HEIGHT = 1.2
 const PLAYER_MASS = 80
-const MOVE_FORCE = 120
+const MOVE_FORCE = 32
 const MAX_SPEED = 6
+const MOVE_SPEED_THRESHOLD = 0.3
+const ANIM_CROSSFADE = 0.2
 const BULLET_RADIUS = 0.15
 const BULLET_SPEED = 32
 const BULLET_MASS = 3
@@ -39,6 +41,10 @@ export class Player {
   private onShoot?: (spawn: BulletSpawn) => void
   private scene: THREE.Scene
   private isCapsulePlaceholder = false
+  private mixer: THREE.AnimationMixer | null = null
+  private idleAction: THREE.AnimationAction | null = null
+  private runAction: THREE.AnimationAction | null = null
+  private currentAction: 'idle' | 'run' = 'idle'
 
   constructor(world: CANNON.World, scene: THREE.Scene, position: { x: number; y: number; z: number }) {
     this.scene = scene
@@ -63,8 +69,8 @@ export class Player {
     scene.add(this.mesh)
   }
 
-  /** Replace the current visual with a loaded model (e.g. GLB). Call after load. */
-  replaceVisual(model: THREE.Object3D) {
+  /** Replace the current visual with a loaded model (e.g. GLB). Optionally pass animations for idle/run. */
+  replaceVisual(model: THREE.Object3D, animations?: THREE.AnimationClip[]) {
     this.scene.remove(this.mesh)
     if (this.isCapsulePlaceholder && this.mesh instanceof THREE.Mesh) {
       this.mesh.geometry.dispose()
@@ -72,6 +78,10 @@ export class Player {
     } else {
       disposeObject3D(this.mesh)
     }
+    this.mixer = null
+    this.idleAction = null
+    this.runAction = null
+
     this.mesh = model
     this.isCapsulePlaceholder = false
     model.traverse((child) => {
@@ -81,6 +91,34 @@ export class Player {
       }
     })
     this.scene.add(this.mesh)
+
+    if (animations && animations.length > 0) {
+      const mixerRoot =
+        (model.getObjectByName('CharacterArmature') as THREE.Object3D) || model
+      this.mixer = new THREE.AnimationMixer(mixerRoot)
+      const idleClip = animations.find(
+        (c) =>
+          c.name === 'Idle' ||
+          c.name.endsWith('|Idle') ||
+          (c.name.toLowerCase().includes('idle') && !c.name.toLowerCase().includes('idle_gun'))
+      ) ?? animations.find((c) => c.name.toLowerCase().includes('idle'))
+      const runClip =
+        animations.find((c) => c.name.includes('Run_Gun') || c.name.endsWith('|Run_Gun')) ??
+        animations.find((c) => c.name.toLowerCase().includes('run'))
+      if (idleClip) {
+        this.idleAction = this.mixer.clipAction(idleClip)
+        this.idleAction.setLoop(THREE.LoopRepeat, Infinity)
+        this.idleAction.play()
+        this.idleAction.setEffectiveWeight(1)
+      }
+      if (runClip) {
+        this.runAction = this.mixer.clipAction(runClip)
+        this.runAction.setLoop(THREE.LoopRepeat, Infinity)
+        this.runAction.play()
+        this.runAction.setEffectiveWeight(0)
+      }
+      this.currentAction = 'idle'
+    }
   }
 
   setOnShoot(callback: (spawn: BulletSpawn) => void) {
@@ -211,6 +249,31 @@ export class Player {
     this.mesh.rotation.y = this.facingAngle
   }
 
+  /** Update animation mixer and switch idle/run based on velocity. Call every frame. */
+  updateAnimation(dt: number) {
+    if (!this.mixer) return
+    this.mixer.update(dt)
+
+    const vx = this.body.velocity.x
+    const vz = this.body.velocity.z
+    const speed = Math.sqrt(vx * vx + vz * vz)
+    const wantRun = speed > MOVE_SPEED_THRESHOLD
+
+    if (wantRun && this.currentAction === 'idle' && this.runAction && this.idleAction) {
+      this.idleAction.stop()
+      this.idleAction.setEffectiveWeight(0)
+      this.runAction.reset().play()
+      this.runAction.setEffectiveWeight(1)
+      this.currentAction = 'run'
+    } else if (!wantRun && this.currentAction === 'run' && this.runAction && this.idleAction) {
+      this.runAction.stop()
+      this.runAction.setEffectiveWeight(0)
+      this.idleAction.reset().play()
+      this.idleAction.setEffectiveWeight(1)
+      this.currentAction = 'idle'
+    }
+  }
+
   /** Clamp position to arena (called after physics step). */
   clampToArena() {
     const p = this.body.position
@@ -230,6 +293,9 @@ export class Player {
     } else {
       disposeObject3D(this.mesh)
     }
+    this.mixer = null
+    this.idleAction = null
+    this.runAction = null
     world.removeBody(this.body)
   }
 }

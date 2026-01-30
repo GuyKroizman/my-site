@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import * as CANNON from 'cannon-es'
 import { InputManager } from './InputManager'
 import { Player, PLAYER_HEIGHT } from './Player'
@@ -13,7 +12,7 @@ const PHYSICS_DT = 1 / 60
 const WALL_THICKNESS = 1
 const WALL_HEIGHT = 4
 /** Isometric camera: distance and vertical angle (rad). Offset from player. */
-const CAMERA_DIST = 28
+const CAMERA_DIST = 16
 const CAMERA_ANGLE = Math.PI / 4
 const CAMERA_OFFSET_Y = CAMERA_DIST * Math.sin(CAMERA_ANGLE)
 const CAMERA_OFFSET_H = CAMERA_DIST * Math.cos(CAMERA_ANGLE)
@@ -33,6 +32,7 @@ export class TheMaskEngine {
   private animationId: number | null = null
   private isDisposed = false
   private container: HTMLElement
+  private lastAnimationTime: number = 0
 
   constructor(container: HTMLElement) {
     this.container = container
@@ -87,7 +87,8 @@ export class TheMaskEngine {
     this.animate()
   }
 
-  private loadPlayerModel() {
+  private async loadPlayerModel() {
+    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
     const loader = new GLTFLoader()
     loader.load(
       '/theMask/models/Astronaut.glb',
@@ -102,7 +103,9 @@ export class TheMaskEngine {
         const scale = PLAYER_HEIGHT / Math.max(size.y, 0.001)
         model.scale.setScalar(scale)
         model.position.y = PLAYER_HEIGHT / 2
-        this.player.replaceVisual(model)
+        const names = gltf.animations?.map((a) => a.name) ?? []
+        console.log('Astronaut animations available:', names)
+        this.player.replaceVisual(model, gltf.animations)
       },
       undefined,
       (err) => console.warn('Failed to load Astronaut.glb', err)
@@ -274,6 +277,10 @@ export class TheMaskEngine {
     this.world.step(PHYSICS_DT)
     this.player.clampToArena()
     this.player.syncMesh()
+    const now = performance.now() / 1000
+    const animDt = this.lastAnimationTime > 0 ? now - this.lastAnimationTime : PHYSICS_DT
+    this.lastAnimationTime = now
+    this.player.updateAnimation(animDt)
     this.boxes.forEach((b) => b.syncMesh())
     this.bullets.forEach(syncBulletMesh)
     this.updateCameraFollow()
