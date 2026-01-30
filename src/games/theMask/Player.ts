@@ -60,7 +60,7 @@ export class Player {
       position: new CANNON.Vec3(position.x, position.y + PLAYER_HEIGHT / 2, position.z),
       shape,
       fixedRotation: true,
-      linearDamping: 2.8,
+      linearDamping: 0.85,
     })
     world.addBody(this.body)
 
