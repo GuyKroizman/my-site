@@ -6,18 +6,18 @@ interface MenuScreenProps {
 export function MenuScreen({ isPortraitMode, onStartGame }: MenuScreenProps) {
   if (isPortraitMode) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center px-4 py-6">
+      <div className="w-full h-full flex flex-col items-center justify-center px-3 py-4">
         <div className="max-w-md w-full text-center">
-          <div className="text-6xl sm:text-8xl mb-6">📱</div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Rotate Your Device</h2>
-          <p className="text-gray-300 text-base sm:text-lg mb-2">
+          <div className="text-4xl sm:text-5xl mb-3">📱</div>
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-2">Rotate Your Device</h2>
+          <p className="text-gray-300 text-xs sm:text-sm mb-1">
             This game is designed for landscape mode
           </p>
-          <p className="text-gray-400 text-sm sm:text-base">
+          <p className="text-gray-400 text-xs mb-2">
             Please rotate your device to landscape orientation to play
           </p>
-          <div className="flex justify-center mt-6">
-            <div className="animate-spin text-4xl">🔄</div>
+          <div className="flex justify-center mt-3">
+            <div className="animate-spin text-2xl">🔄</div>
           </div>
         </div>
       </div>
@@ -26,25 +26,25 @@ export function MenuScreen({ isPortraitMode, onStartGame }: MenuScreenProps) {
 
   return (
     <div className="w-full h-full min-h-0 flex flex-col overflow-y-auto overflow-x-hidden">
-      <div className="flex flex-col items-center justify-center px-4 py-4 flex-1 min-h-0">
+      <div className="flex flex-col items-center justify-center px-3 py-2 flex-1 min-h-0">
         <div className="max-w-lg w-full my-auto">
-          <div className="text-center mb-4 sm:mb-6">
-            <div className="text-5xl sm:text-6xl mb-3 sm:mb-4">🎭</div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 sm:mb-4">The Mask</h2>
-            <p className="text-gray-300 text-base sm:text-lg mb-3 sm:mb-6">
+          <div className="text-center mb-2 sm:mb-3">
+            <div className="text-3xl sm:text-4xl mb-1 sm:mb-2">🎭</div>
+            <h2 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2">The Mask</h2>
+            <p className="text-gray-300 text-xs sm:text-sm mb-2 sm:mb-3">
               3D top-down shooter. Push boxes, shoot, survive.
             </p>
-            <div className="bg-gray-800 bg-opacity-50 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
-              <p className="text-gray-300 text-xs sm:text-sm text-left">
+            <div className="bg-gray-800 bg-opacity-50 rounded-lg p-2 sm:p-3 mb-2 sm:mb-3">
+              <p className="text-gray-300 text-[10px] sm:text-xs text-left leading-tight">
                 <span className="font-semibold">Controls:</span><br />
                 <span className="text-gray-400">• Desktop: Arrow keys (or WASD) to move, Space to shoot</span><br />
-                <span className="text-gray-400">• Mobile: Use on-screen D-pad and shoot button (landscape only)</span>
+                <span className="text-gray-400">• Mobile: Left joystick = move, right joystick = aim & shoot</span>
               </p>
             </div>
           </div>
           <button
             onClick={onStartGame}
-            className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 sm:py-4 px-6 rounded-lg transition-colors text-base sm:text-xl"
+            className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-2 sm:py-2.5 px-4 rounded-lg transition-colors text-sm"
           >
             Play
           </button>
