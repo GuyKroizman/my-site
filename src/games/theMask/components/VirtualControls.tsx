@@ -4,21 +4,42 @@ import type { TouchInputState } from '../types'
 const JOYSTICK_BASE_SIZE = 120
 const JOYSTICK_KNOB_SIZE = 48
 const JOYSTICK_STICK_RADIUS = (JOYSTICK_BASE_SIZE - JOYSTICK_KNOB_SIZE) / 2
-const SHOOT_BUTTON_SIZE = 88
 
 interface VirtualControlsProps {
   onTouchInputChange: (state: TouchInputState) => void
 }
 
+/** Screen Y increases downward; joystick "up" (finger toward top) => positive y. */
+function offsetToNormalized(offset: { x: number; y: number }) {
+  if (JOYSTICK_STICK_RADIUS <= 0) return { x: 0, y: 0 }
+  let x = offset.x / JOYSTICK_STICK_RADIUS
+  let y = -offset.y / JOYSTICK_STICK_RADIUS
+  const len = Math.sqrt(x * x + y * y)
+  if (len > 1) {
+    x /= len
+    y /= len
+  }
+  return { x, y }
+}
+
 export function VirtualControls({ onTouchInputChange }: VirtualControlsProps) {
-  const [knobOffset, setKnobOffset] = useState({ x: 0, y: 0 })
-  const [shootPressed, setShootPressed] = useState(false)
-  const joystickPointerId = useRef<number | null>(null)
-  const joystickBaseRef = useRef<HTMLDivElement>(null)
+  const [moveKnob, setMoveKnob] = useState({ x: 0, y: 0 })
+  const [aimKnob, setAimKnob] = useState({ x: 0, y: 0 })
+  const movePointerId = useRef<number | null>(null)
+  const aimPointerId = useRef<number | null>(null)
+  const leftBaseRef = useRef<HTMLDivElement>(null)
+  const rightBaseRef = useRef<HTMLDivElement>(null)
+
+  const notify = useCallback(
+    (joystick: { x: number; y: number }, aim: { x: number; y: number }) => {
+      onTouchInputChange({ joystick, aim })
+    },
+    [onTouchInputChange]
+  )
 
   const clampKnob = useCallback(
-    (clientX: number, clientY: number) => {
-      const el = joystickBaseRef.current
+    (clientX: number, clientY: number, baseRef: React.RefObject<HTMLDivElement | null>) => {
+      const el = baseRef.current
       if (!el) return { x: 0, y: 0 }
       const rect = el.getBoundingClientRect()
       const centerX = rect.left + rect.width / 2
@@ -36,78 +57,73 @@ export function VirtualControls({ onTouchInputChange }: VirtualControlsProps) {
     []
   )
 
-  const offsetToNormalized = useCallback((offset: { x: number; y: number }) => {
-    if (JOYSTICK_STICK_RADIUS <= 0) return { x: 0, y: 0 }
-    let x = offset.x / JOYSTICK_STICK_RADIUS
-    let y = -offset.y / JOYSTICK_STICK_RADIUS
-    const len = Math.sqrt(x * x + y * y)
-    if (len > 1) {
-      x /= len
-      y /= len
-    }
-    return { x, y }
-  }, [])
-
-  const notify = useCallback(
-    (joy: { x: number; y: number }, shoot: boolean) => {
-      onTouchInputChange({ joystick: joy, shoot })
-    },
-    [onTouchInputChange]
-  )
-
-  const handleJoystickPointerDown = (e: React.PointerEvent) => {
+  const handleMoveDown = (e: React.PointerEvent) => {
     e.preventDefault()
-    if (joystickPointerId.current !== null) return
-    joystickPointerId.current = e.pointerId
+    if (movePointerId.current !== null) return
+    movePointerId.current = e.pointerId
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    const { x, y } = clampKnob(e.clientX, e.clientY)
-    setKnobOffset({ x, y })
-    notify(offsetToNormalized({ x, y }), shootPressed)
+    const offset = clampKnob(e.clientX, e.clientY, leftBaseRef)
+    setMoveKnob(offset)
+    notify(offsetToNormalized(offset), offsetToNormalized(aimKnob))
   }
 
-  const handleJoystickPointerMove = (e: React.PointerEvent) => {
-    if (joystickPointerId.current !== e.pointerId) return
+  const handleMoveMove = (e: React.PointerEvent) => {
+    if (movePointerId.current !== e.pointerId) return
     e.preventDefault()
-    const { x, y } = clampKnob(e.clientX, e.clientY)
-    setKnobOffset({ x, y })
-    notify(offsetToNormalized({ x, y }), shootPressed)
+    const offset = clampKnob(e.clientX, e.clientY, leftBaseRef)
+    setMoveKnob(offset)
+    notify(offsetToNormalized(offset), offsetToNormalized(aimKnob))
   }
 
-  const handleJoystickPointerUp = (e: React.PointerEvent) => {
-    if (joystickPointerId.current !== e.pointerId) return
+  const handleMoveUp = (e: React.PointerEvent) => {
+    if (movePointerId.current !== e.pointerId) return
     e.preventDefault()
-    joystickPointerId.current = null
-    setKnobOffset({ x: 0, y: 0 })
-    notify({ x: 0, y: 0 }, shootPressed)
+    movePointerId.current = null
+    setMoveKnob({ x: 0, y: 0 })
+    notify({ x: 0, y: 0 }, offsetToNormalized(aimKnob))
   }
 
-  const handleShootPointerDown = (e: React.PointerEvent) => {
+  const handleAimDown = (e: React.PointerEvent) => {
     e.preventDefault()
-    setShootPressed(true)
-    notify(offsetToNormalized(knobOffset), true)
+    if (aimPointerId.current !== null) return
+    aimPointerId.current = e.pointerId
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    const offset = clampKnob(e.clientX, e.clientY, rightBaseRef)
+    setAimKnob(offset)
+    notify(offsetToNormalized(moveKnob), offsetToNormalized(offset))
   }
 
-  const handleShootPointerUp = (e: React.PointerEvent) => {
+  const handleAimMove = (e: React.PointerEvent) => {
+    if (aimPointerId.current !== e.pointerId) return
     e.preventDefault()
-    setShootPressed(false)
-    notify(offsetToNormalized(knobOffset), false)
+    const offset = clampKnob(e.clientX, e.clientY, rightBaseRef)
+    setAimKnob(offset)
+    notify(offsetToNormalized(moveKnob), offsetToNormalized(offset))
+  }
+
+  const handleAimUp = (e: React.PointerEvent) => {
+    if (aimPointerId.current !== e.pointerId) return
+    e.preventDefault()
+    aimPointerId.current = null
+    setAimKnob({ x: 0, y: 0 })
+    notify(offsetToNormalized(moveKnob), { x: 0, y: 0 })
   }
 
   return (
     <>
-      {/* Left: Floating Joystick */}
+      {/* Left: Movement joystick */}
       <div
-        ref={joystickBaseRef}
+        ref={leftBaseRef}
         className="fixed bottom-8 left-8 z-50 select-none"
         style={{
           width: JOYSTICK_BASE_SIZE,
           height: JOYSTICK_BASE_SIZE,
           touchAction: 'none',
         }}
-        onPointerDown={handleJoystickPointerDown}
-        onPointerMove={handleJoystickPointerMove}
-        onPointerUp={handleJoystickPointerUp}
-        onPointerCancel={handleJoystickPointerUp}
+        onPointerDown={handleMoveDown}
+        onPointerMove={handleMoveMove}
+        onPointerUp={handleMoveUp}
+        onPointerCancel={handleMoveUp}
       >
         <div
           className="absolute rounded-full bg-white/30 border-2 border-white/50"
@@ -123,31 +139,44 @@ export function VirtualControls({ onTouchInputChange }: VirtualControlsProps) {
           style={{
             width: JOYSTICK_KNOB_SIZE,
             height: JOYSTICK_KNOB_SIZE,
-            left: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.x,
-            top: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.y,
+            left: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + moveKnob.x,
+            top: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + moveKnob.y,
           }}
         />
       </div>
 
-      {/* Right: Shoot button */}
+      {/* Right: Aim joystick (hold direction to shoot) */}
       <div
+        ref={rightBaseRef}
         className="fixed bottom-8 right-8 z-50 select-none"
         style={{
-          width: SHOOT_BUTTON_SIZE,
-          height: SHOOT_BUTTON_SIZE,
+          width: JOYSTICK_BASE_SIZE,
+          height: JOYSTICK_BASE_SIZE,
           touchAction: 'none',
         }}
-        onPointerDown={handleShootPointerDown}
-        onPointerUp={handleShootPointerUp}
-        onPointerCancel={handleShootPointerUp}
+        onPointerDown={handleAimDown}
+        onPointerMove={handleAimMove}
+        onPointerUp={handleAimUp}
+        onPointerCancel={handleAimUp}
       >
         <div
-          className={`w-full h-full rounded-full border-2 border-white/70 shadow-lg flex items-center justify-center text-2xl transition-transform ${
-            shootPressed ? 'bg-red-600 scale-95' : 'bg-red-500'
-          }`}
-        >
-          🔫
-        </div>
+          className="absolute rounded-full bg-red-500/30 border-2 border-red-400/50"
+          style={{
+            width: JOYSTICK_BASE_SIZE,
+            height: JOYSTICK_BASE_SIZE,
+            left: 0,
+            top: 0,
+          }}
+        />
+        <div
+          className="absolute rounded-full bg-red-500/80 border-2 border-white shadow-lg pointer-events-none"
+          style={{
+            width: JOYSTICK_KNOB_SIZE,
+            height: JOYSTICK_KNOB_SIZE,
+            left: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + aimKnob.x,
+            top: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + aimKnob.y,
+          }}
+        />
       </div>
     </>
   )

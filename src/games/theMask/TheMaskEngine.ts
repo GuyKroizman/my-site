@@ -218,22 +218,34 @@ export class TheMaskEngine {
     this.animationId = requestAnimationFrame(this.animate)
 
     const keyboardState = this.input.getState()
-    const shoot = keyboardState.shoot || this.touchState.shoot
     const joy = this.touchState.joystick
+    const aim = this.touchState.aim
     const joyLen = Math.sqrt(joy.x * joy.x + joy.y * joy.y)
+    const aimLen = Math.sqrt(aim.x * aim.x + aim.y * aim.y)
+    const fwdX = CAMERA_OFFSET_X
+    const fwdZ = CAMERA_OFFSET_Z
+    const fwdLen = Math.sqrt(fwdX * fwdX + fwdZ * fwdZ) || 1
+    const forwardX = fwdX / fwdLen
+    const forwardZ = fwdZ / fwdLen
+    const rightX = -forwardZ
+    const rightZ = forwardX
+    const aimWorldX = aimLen > 0.05 ? aim.y * forwardX + aim.x * rightX : 0
+    const aimWorldZ = aimLen > 0.05 ? aim.y * forwardZ + aim.x * rightZ : 0
+    const shootFromAim = aimLen > 0.05
+    const shoot = keyboardState.shoot || shootFromAim
+
     if (joyLen > 0.05) {
-      const fwdX = CAMERA_OFFSET_X
-      const fwdZ = CAMERA_OFFSET_Z
-      const len = Math.sqrt(fwdX * fwdX + fwdZ * fwdZ) || 1
-      const forwardX = fwdX / len
-      const forwardZ = fwdZ / len
-      const rightX = -forwardZ
-      const rightZ = forwardX
-      const worldX = joy.y * forwardX + joy.x * rightX
-      const worldZ = joy.y * forwardZ + joy.x * rightZ
-      this.player.updateInputFromTouch(worldX, worldZ, shoot, PHYSICS_DT)
+      const worldX = -joy.y * forwardX + joy.x * rightX
+      const worldZ = -joy.y * forwardZ + joy.x * rightZ
+      this.player.updateInputFromTouch(worldX, worldZ, aimWorldX, aimWorldZ, shoot, PHYSICS_DT)
     } else {
       this.player.updateInput({ ...keyboardState, shoot }, PHYSICS_DT)
+      if (shootFromAim && (aimWorldX !== 0 || aimWorldZ !== 0)) {
+        const aimLen = Math.sqrt(aimWorldX * aimWorldX + aimWorldZ * aimWorldZ)
+        if (aimLen > 0.01) {
+          this.player.shootInDirection(aimWorldX / aimLen, aimWorldZ / aimLen)
+        }
+      }
     }
     this.world.step(PHYSICS_DT)
     this.player.clampToArena()

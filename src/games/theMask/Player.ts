@@ -80,10 +80,17 @@ export class Player {
   }
 
   /**
-   * Camera-relative movement from joystick: worldMoveX/Z is normalized direction in world XZ.
-   * Strafe left/right and forward/back relative to camera; facing angle unchanged.
+   * Camera-relative movement from joystick; aim joystick = shoot direction (world XZ).
+   * When shoot is true and aimWorld is non-zero, shoot in that direction.
    */
-  updateInputFromTouch(worldMoveX: number, worldMoveZ: number, shoot: boolean, dt: number) {
+  updateInputFromTouch(
+    worldMoveX: number,
+    worldMoveZ: number,
+    aimWorldX: number,
+    aimWorldZ: number,
+    shoot: boolean,
+    dt: number
+  ) {
     const len = Math.sqrt(worldMoveX * worldMoveX + worldMoveZ * worldMoveZ)
     if (len > 0.01) {
       const nx = worldMoveX / len
@@ -99,7 +106,23 @@ export class Player {
       this.body.velocity.x *= scale
       this.body.velocity.z *= scale
     }
-    this.tryShoot(shoot)
+    if (shoot) {
+      const aimLen = Math.sqrt(aimWorldX * aimWorldX + aimWorldZ * aimWorldZ)
+      if (aimLen > 0.01) {
+        this.shootInDirection(aimWorldX / aimLen, aimWorldZ / aimLen)
+      } else {
+        this.tryShoot(true)
+      }
+    }
+  }
+
+  /** Shoot a bullet in the given world XZ direction (normalized). */
+  shootInDirection(worldX: number, worldZ: number) {
+    if (!this.onShoot) return
+    const now = performance.now() / 1000
+    if (now - this.lastShootTime < SHOOT_COOLDOWN) return
+    this.lastShootTime = now
+    this.spawnBulletInDirection(worldX, worldZ)
   }
 
   private tryShoot(wantShoot: boolean) {
@@ -112,14 +135,18 @@ export class Player {
   }
 
   private spawnBullet() {
+    const dx = Math.sin(this.facingAngle)
+    const dz = Math.cos(this.facingAngle)
+    this.spawnBulletInDirection(dx, dz)
+  }
+
+  private spawnBulletInDirection(dx: number, dz: number) {
     if (!this.onShoot) return
     const world = this.body.world
     if (!world) return
     const px = this.body.position.x
     const py = this.body.position.y
     const pz = this.body.position.z
-    const dx = Math.sin(this.facingAngle)
-    const dz = Math.cos(this.facingAngle)
     const bulletBody = new CANNON.Body({
       mass: BULLET_MASS,
       position: new CANNON.Vec3(px + dx * 0.6, py, pz + dz * 0.6),

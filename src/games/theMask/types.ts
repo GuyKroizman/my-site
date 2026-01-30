@@ -15,15 +15,15 @@ export const DEFAULT_INPUT_STATE: InputState = {
   shoot: false,
 }
 
-/** Mobile touch input: joystick = normalized Vector2 (-1..1), shoot = button pressed */
+/** Mobile touch input: joystick = move, aim = shoot direction (when held, shoot in that direction) */
 export interface TouchInputState {
   joystick: { x: number; y: number }
-  shoot: boolean
+  aim: { x: number; y: number }
 }
 
 export const DEFAULT_TOUCH_INPUT_STATE: TouchInputState = {
   joystick: { x: 0, y: 0 },
-  shoot: false,
+  aim: { x: 0, y: 0 },
 }
 
 /** Arena bounds (half-extents from center). Physics walls at ±x, ±z. 4x area = 2x linear. */
