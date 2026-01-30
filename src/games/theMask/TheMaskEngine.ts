@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 import { InputManager } from './InputManager'
-import { Player, PLAYER_HEIGHT } from './Player'
+import { Player, PLAYER_HEIGHT, PLAYER_RADIUS } from './Player'
 import { Box, createBoxPiles } from './Box'
 import { Turret } from './Turret'
 import { LEVELS } from './levels'
@@ -11,6 +11,8 @@ import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y, DEFAULT_TOUCH_INPUT_STATE } from '
 import type { TouchInputState } from './types'
 
 const PHYSICS_DT = 1 / 60
+const PHYSICS_SUBSTEPS = 3
+const BULLET_RADIUS_SWEEP = 0.15
 const WALL_THICKNESS = 1
 const WALL_HEIGHT = 4
 const CAMERA_ANGLE = Math.PI / 4
@@ -19,6 +21,7 @@ const CAMERA_DIST_MOBILE = 10
 const MOBILE_SHOOT_COOLDOWN = 0.45
 const SOUND_SHOT = '/hoot-sounds/Shoot.wav'
 const SOUND_BOX_HIT = '/hoot-sounds/Shot%20Hit%20Ball.wav'
+const SOUND_PLAYER_HIT = '/hoot-sounds/Shot%20Hit%20Enemy.wav'
 const COLLIDE_EVENT = 'collide'
 
 export interface TheMaskEngineOptions {
@@ -37,7 +40,7 @@ export class TheMaskEngine {
   private bullets: BulletSpawn[] = []
   private touchState: TouchInputState = DEFAULT_TOUCH_INPUT_STATE
   private currentLevelIndex = 0
-  private bulletsToRemove: BulletSpawn[] = []
+  private bulletsToRemove = new Set<BulletSpawn>()
   private animationId: number | null = null
   private isDisposed = false
   private container: HTMLElement
@@ -88,7 +91,7 @@ export class TheMaskEngine {
         const turretRef = (other as unknown as { turretRef?: Turret }).turretRef
         if (spawn.fromPlayer && turretRef) {
           turretRef.takeDamage(1)
-          this.bulletsToRemove.push(spawn)
+          this.bulletsToRemove.add(spawn)
         }
       }
       spawn.collisionHandler = handler
@@ -149,6 +152,36 @@ export class TheMaskEngine {
     a.play().catch(() => { })
   }
 
+  private playPlayerHitSound() {
+    const a = new Audio(SOUND_PLAYER_HIT)
+    a.volume = 0.5
+    a.play().catch(() => { })
+  }
+
+  /** True if segment A->B intersects sphere at C with radius r (catches fast bullets that tunnel). */
+  private segmentIntersectsSphere(
+    ax: number, ay: number, az: number,
+    bx: number, by: number, bz: number,
+    cx: number, cy: number, cz: number,
+    r: number
+  ): boolean {
+    const dx = bx - ax
+    const dy = by - ay
+    const dz = bz - az
+    const lenSq = dx * dx + dy * dy + dz * dz
+    if (lenSq < 1e-10) {
+      const d = Math.sqrt((cx - ax) ** 2 + (cy - ay) ** 2 + (cz - az) ** 2)
+      return d <= r
+    }
+    let t = ((cx - ax) * dx + (cy - ay) * dy + (cz - az) * dz) / lenSq
+    t = Math.max(0, Math.min(1, t))
+    const px = ax + t * dx
+    const py = ay + t * dy
+    const pz = az + t * dz
+    const distSq = (cx - px) ** 2 + (cy - py) ** 2 + (cz - pz) ** 2
+    return distSq <= r * r
+  }
+
   /** Load level by index: clear boxes/turrets, spawn from LEVELS[index], reset player. */
   private loadLevel(index: number) {
     this.boxes.forEach((b) => b.dispose(this.scene, this.world))
@@ -162,6 +195,15 @@ export class TheMaskEngine {
         onShoot: (spawn) => {
           this.bullets.push(spawn)
           this.scene.add(spawn.mesh)
+          const handler = (e: { body: CANNON.Body }) => {
+            if (e.body === this.player.body) {
+              this.player.playHitReact()
+              this.playPlayerHitSound()
+              this.bulletsToRemove.add(spawn)
+            }
+          }
+          spawn.collisionHandler = handler
+          spawn.body.addEventListener(COLLIDE_EVENT, handler as (e: unknown) => void)
         },
       })
       this.turrets.push(turret)
@@ -334,7 +376,37 @@ export class TheMaskEngine {
         }
       }
     }
-    this.world.step(PHYSICS_DT)
+    const enemyBulletPrevPos = new Map<BulletSpawn, { x: number; y: number; z: number }>()
+    this.bullets.forEach((spawn) => {
+      if (!spawn.fromPlayer) {
+        const p = spawn.body.position
+        enemyBulletPrevPos.set(spawn, { x: p.x, y: p.y, z: p.z })
+      }
+    })
+    const subDt = PHYSICS_DT / PHYSICS_SUBSTEPS
+    for (let i = 0; i < PHYSICS_SUBSTEPS; i++) {
+      this.world.step(subDt)
+    }
+    const playerBodyPos = this.player.body.position
+    const playerSphereR = PLAYER_RADIUS + BULLET_RADIUS_SWEEP
+    this.bullets.forEach((spawn) => {
+      if (!spawn.fromPlayer) {
+        const prev = enemyBulletPrevPos.get(spawn)
+        if (prev) {
+          const curr = spawn.body.position
+          if (this.segmentIntersectsSphere(
+            prev.x, prev.y, prev.z,
+            curr.x, curr.y, curr.z,
+            playerBodyPos.x, playerBodyPos.y, playerBodyPos.z,
+            playerSphereR
+          )) {
+            this.player.playHitReact()
+            this.playPlayerHitSound()
+            this.bulletsToRemove.add(spawn)
+          }
+        }
+      }
+    })
     this.player.clampToArena()
     this.player.syncMesh()
     const now = performance.now() / 1000
@@ -352,7 +424,7 @@ export class TheMaskEngine {
       const i = this.bullets.indexOf(spawn)
       if (i !== -1) this.bullets.splice(i, 1)
     })
-    this.bulletsToRemove = []
+    this.bulletsToRemove.clear()
 
     const toRemove: number[] = []
     this.bullets.forEach((spawn, i) => {

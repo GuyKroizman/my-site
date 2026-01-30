@@ -3,7 +3,7 @@ import * as CANNON from 'cannon-es'
 import type { InputState } from './types'
 import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y } from './types'
 
-const PLAYER_RADIUS = 0.4
+export const PLAYER_RADIUS = 0.4
 export const PLAYER_HEIGHT = 1.2
 const PLAYER_MASS = 80
 const MOVE_FORCE = 22
@@ -48,7 +48,8 @@ export class Player {
   private mixer: THREE.AnimationMixer | null = null
   private idleAction: THREE.AnimationAction | null = null
   private runAction: THREE.AnimationAction | null = null
-  private currentAction: 'idle' | 'run' = 'idle'
+  private hitAction: THREE.AnimationAction | null = null
+  private currentAction: 'idle' | 'run' | 'hit' = 'idle'
 
   constructor(
     world: CANNON.World,
@@ -65,6 +66,8 @@ export class Player {
       shape,
       fixedRotation: true,
       linearDamping: 0.85,
+      collisionFilterGroup: 1,
+      collisionFilterMask: 1 | 2, // default (1) and bullets (2) so enemy bullets hit player
     })
     world.addBody(this.body)
 
@@ -91,6 +94,7 @@ export class Player {
     this.mixer = null
     this.idleAction = null
     this.runAction = null
+    this.hitAction = null
 
     this.mesh = model
     this.isCapsulePlaceholder = false
@@ -127,8 +131,40 @@ export class Player {
         this.runAction.play()
         this.runAction.setEffectiveWeight(0)
       }
+      const hitClip =
+        animations.find((c) => c.name === 'HitReact' || c.name.endsWith('|HitReact')) ??
+        animations.find((c) => c.name.toLowerCase().includes('hit'))
+      if (hitClip) {
+        this.hitAction = this.mixer.clipAction(hitClip)
+        this.hitAction.setLoop(THREE.LoopOnce, 1)
+        this.hitAction.clampWhenFinished = true
+        this.hitAction.setEffectiveWeight(0)
+        this.mixer.addEventListener('finished', this.onHitFinished)
+      }
       this.currentAction = 'idle'
     }
+  }
+
+  private onHitFinished = (e: { action: THREE.AnimationAction }) => {
+    if (e.action !== this.hitAction) return
+    this.hitAction?.setEffectiveWeight(0)
+    this.currentAction = 'idle'
+    if (this.idleAction) {
+      this.idleAction.reset().play()
+      this.idleAction.setEffectiveWeight(1)
+    }
+    if (this.runAction) this.runAction.setEffectiveWeight(0)
+  }
+
+  /** Play hit reaction animation (e.g. when hit by turret bullet). */
+  playHitReact() {
+    if (!this.mixer || !this.hitAction) return
+    if (this.currentAction === 'hit') return
+    this.currentAction = 'hit'
+    if (this.idleAction) this.idleAction.setEffectiveWeight(0)
+    if (this.runAction) this.runAction.setEffectiveWeight(0)
+    this.hitAction.reset().play()
+    this.hitAction.setEffectiveWeight(1)
   }
 
   setOnShoot(callback: (spawn: BulletSpawn) => void) {
@@ -263,6 +299,7 @@ export class Player {
   updateAnimation(dt: number) {
     if (!this.mixer) return
     this.mixer.update(dt)
+    if (this.currentAction === 'hit') return
 
     const vx = this.body.velocity.x
     const vz = this.body.velocity.z
@@ -303,9 +340,13 @@ export class Player {
     } else {
       disposeObject3D(this.mesh)
     }
+    if (this.mixer && this.hitAction) {
+      this.mixer.removeEventListener('finished', this.onHitFinished)
+    }
     this.mixer = null
     this.idleAction = null
     this.runAction = null
+    this.hitAction = null
     world.removeBody(this.body)
   }
 }
