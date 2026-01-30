@@ -71,7 +71,7 @@ export class TheMaskEngine {
     this.input = new InputManager()
     this.cameraDist = options?.mobile ? CAMERA_DIST_MOBILE : CAMERA_DIST_DESKTOP
     const playerOptions = options?.mobile ? { shootCooldown: MOBILE_SHOOT_COOLDOWN } : undefined
-    this.player = new Player(this.world, this.scene, { x: 0, y: FLOOR_Y, z: 0 }, playerOptions)
+    this.player = new Player(this.world, this.scene, { x: 21, y: FLOOR_Y, z: 19 }, playerOptions)
     this.player.setOnShoot((spawn) => {
       this.bullets.push(spawn)
       this.scene.add(spawn.mesh)
@@ -129,13 +129,13 @@ export class TheMaskEngine {
   private playShotSound() {
     const a = new Audio(SOUND_SHOT)
     a.volume = 0.5
-    a.play().catch(() => {})
+    a.play().catch(() => { })
   }
 
   private playBoxHitSound() {
     const a = new Audio(SOUND_BOX_HIT)
     a.volume = 0.5
-    a.play().catch(() => {})
+    a.play().catch(() => { })
   }
 
   /** Update camera to follow player with fixed isometric offset (margins). */

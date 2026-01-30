@@ -36,8 +36,8 @@ export class Player {
   body: CANNON.Body
   /** Visual representation (Mesh or Group from GLB). */
   mesh: THREE.Object3D
-  /** Facing angle in radians (around Y). 0 = +Z, π/2 = +X. */
-  facingAngle: number = 0
+  /** Facing angle in radians (around Y). 0 = +Z, π = -Z (start facing opposite). */
+  facingAngle: number = Math.PI
   private lastShootTime: number = 0
   private shootCooldown: number = DEFAULT_SHOOT_COOLDOWN
   private onShoot?: (spawn: BulletSpawn) => void
