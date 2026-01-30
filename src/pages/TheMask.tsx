@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { TheMaskEngine } from '../games/theMask/TheMaskEngine'
 import { MenuScreen, VirtualControls } from '../games/theMask/components'
 import type { TouchInputState } from '../games/theMask/types'
@@ -70,17 +71,21 @@ export default function TheMask() {
 
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
-      {uiState === 'playing' && (
-        <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white">
-          <h1 className="text-lg font-semibold">The Mask</h1>
+      <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white z-30">
+        <h1 className="text-lg font-semibold">The Mask</h1>
+        {uiState === 'playing' ? (
           <button
             onClick={handleBackToMenu}
             className="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 text-sm"
           >
             Menu
           </button>
-        </header>
-      )}
+        ) : (
+          <Link to="/" className="text-base text-blue-400 underline hover:text-blue-300">
+            Back to Menu
+          </Link>
+        )}
+      </header>
 
       <div
         ref={containerRef}
