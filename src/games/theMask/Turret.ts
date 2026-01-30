@@ -6,6 +6,10 @@ import type { BulletSpawn } from './Player'
 const TURRET_BODY_RADIUS = 0.9
 const TURRET_BODY_HEIGHT = 1.2
 const TURRET_SHOOT_INTERVAL = 3
+/** Only shoot when player is within this distance (units). */
+const TURRET_SHOOT_RANGE = 10
+/** Radians per second: how fast the cannon rotates toward the player. */
+const TURRET_ROTATION_SPEED = 0.3
 const TURRET_BULLET_RADIUS = 0.15
 const TURRET_BULLET_SPEED = 24
 const TURRET_BULLET_MASS = 3
@@ -34,6 +38,11 @@ export class Turret {
   private healthBarBg: THREE.Mesh
   private healthBarFill: THREE.Mesh
   private healthBarContainer: THREE.Group
+  /** Stores the cannon's current aim angle for bullet direction. */
+  private cannonAimAngle = 0
+  /** Temp vectors for world direction calculation. */
+  private readonly _worldDir = new THREE.Vector3()
+  private readonly _worldQuat = new THREE.Quaternion()
 
   constructor(
     world: CANNON.World,
@@ -123,27 +132,61 @@ export class Turret {
     })
   }
 
-  /** Point cannon at target (x, z in world). Rotate around Z so the barrel stays horizontal. */
-  aimAt(targetX: number, targetZ: number) {
-    if (!this.cannonTop) return
+  /** Gradually rotate cannon toward target (x, z in world) at limited speed. */
+  aimAt(targetX: number, targetZ: number, dt: number) {
     const p = this.body.position
     const dx = targetX - p.x
     const dz = targetZ - p.z
-    const angle = Math.atan2(dx, dz)
-    this.cannonTop.rotation.z = -angle
+    const targetAngle = Math.atan2(dx, dz)
+
+    // Compute shortest angular difference
+    let diff = targetAngle - this.cannonAimAngle
+    while (diff > Math.PI) diff -= 2 * Math.PI
+    while (diff < -Math.PI) diff += 2 * Math.PI
+
+    // Clamp rotation step to max speed
+    const maxStep = TURRET_ROTATION_SPEED * dt
+    const step = Math.max(-maxStep, Math.min(maxStep, diff))
+    this.cannonAimAngle += step
+
+    // Apply to cannon visual if loaded (rotation matches bullet direction)
+    if (this.cannonTop) {
+      this.cannonTop.rotation.z = this.cannonAimAngle + Math.PI
+    }
   }
 
-  /** Update: aim at player and shoot on interval. */
+  /** Get the direction the cannon is currently pointing based on tracked angle. */
+  private getCannonAimDirection(): { dx: number; dz: number } {
+    // Bullet goes toward where cannon points
+    const dx = Math.sin(this.cannonAimAngle)
+    const dz = Math.cos(this.cannonAimAngle)
+    return { dx, dz }
+  }
+
+  /** Update: aim at player; shoot in cannon direction when player is within range. */
   update(dt: number, playerPosition: { x: number; z: number }) {
-    this.aimAt(playerPosition.x, playerPosition.z)
+    // Get current aim direction BEFORE rotating toward player
+    const aimBeforeUpdate = this.getCannonAimDirection()
+
+    // Now rotate cannon toward player
+    this.aimAt(playerPosition.x, playerPosition.z, dt)
     this.lastShootTime += dt
-    if (this.lastShootTime >= TURRET_SHOOT_INTERVAL && this.onShoot) {
+
+    const p = this.body.position
+    const toPlayerX = playerPosition.x - p.x
+    const toPlayerZ = playerPosition.z - p.z
+    const distToPlayer = Math.sqrt(toPlayerX * toPlayerX + toPlayerZ * toPlayerZ)
+
+    if (distToPlayer <= TURRET_SHOOT_RANGE && this.lastShootTime >= TURRET_SHOOT_INTERVAL && this.onShoot) {
       this.lastShootTime = 0
-      const p = this.body.position
-      const dx = playerPosition.x - p.x
-      const dz = playerPosition.z - p.z
-      const len = Math.sqrt(dx * dx + dz * dz) || 1
-      this.spawnBulletInDirection(dx / len, dz / len)
+      // Use the direction from BEFORE the rotation update
+      const toPlayerNorm = { x: toPlayerX / distToPlayer, z: toPlayerZ / distToPlayer }
+      console.log(
+        `Turret shoot: aimDir=(${aimBeforeUpdate.dx.toFixed(3)}, ${aimBeforeUpdate.dz.toFixed(3)}) ` +
+        `toPlayer=(${toPlayerNorm.x.toFixed(3)}, ${toPlayerNorm.z.toFixed(3)}) ` +
+        `angle=${this.cannonAimAngle.toFixed(3)}`
+      )
+      this.spawnBulletInDirection(aimBeforeUpdate.dx, aimBeforeUpdate.dz)
     }
     this.updateHealthBar()
   }
