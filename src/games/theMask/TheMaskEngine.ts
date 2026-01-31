@@ -411,7 +411,6 @@ export class TheMaskEngine {
 
   /** Play a generated mechanical, dirty explosion (turret/rolie destroyed). */
   private playExplosionSound() {
-    this.duckMusic(1000)
     try {
       const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const now = ctx.currentTime
@@ -892,7 +891,6 @@ export class TheMaskEngine {
 
   /** Play a generated "powerup" sound when picking up health. */
   private playHealthPickupSound() {
-    this.duckMusic(1000)
     try {
       const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const now = ctx.currentTime
@@ -1014,7 +1012,6 @@ export class TheMaskEngine {
 
   /** Play a generated "powerup" sound when picking up bullet upgrade. */
   private playBulletPickupSound() {
-    this.duckMusic(1000)
     try {
       const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const now = ctx.currentTime
