@@ -1086,7 +1086,9 @@ export class TheMaskEngine {
 
     const level = LEVELS[this.currentLevelIndex]
     const levelHasEnemies = (level.turrets?.length ?? 0) > 0 || (level.rolies?.length ?? 0) > 0
+    const playerAlive = !this.player.isDead() && !this.player.isPlayingDeath()
     if (
+      playerAlive &&
       this.turrets.length === 0 &&
       this.rolies.length === 0 &&
       this.explosions.length === 0 &&
