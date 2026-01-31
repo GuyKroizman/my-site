@@ -22,6 +22,7 @@ const CAMERA_DIST_MOBILE = 10
 const MOBILE_SHOOT_COOLDOWN = 0.45
 const SOUND_SHOT = '/hoot-sounds/Shoot.wav'
 const SOUND_BOX_HIT = '/theMask/sound/bang_box.wav'
+const SOUND_MUSIC = '/theMask/sound/game_music.mp3'
 /** Skip this many seconds at the start of bang_box (trim leading silence in the file). */
 const SOUND_BOX_HIT_START_OFFSET = 0.20
 const SOUND_PLAYER_HIT = '/theMask/sound/ouch.mp3'
@@ -131,6 +132,9 @@ export class TheMaskEngine {
   private onHealthChange: ((health: number, maxHealth: number) => void) | undefined
   private gameOverTimer: ReturnType<typeof setTimeout> | null = null
 
+  /** Background music */
+  private musicAudio: HTMLAudioElement | null = null
+
   /** Generated siren when any Rolie is chasing the player. */
   private rolieSirenCtx: AudioContext | null = null
   private rolieSirenOsc: OscillatorNode | null = null
@@ -176,6 +180,7 @@ export class TheMaskEngine {
     this.setupLights()
     // Floor and walls are created in loadLevel() from the level's halfX, halfZ
     this.preloadSounds()
+    this.startMusic()
     this.onGameOver = options?.onGameOver
     this.onVictory = options?.onVictory
     this.onHealthChange = options?.onHealthChange
@@ -259,6 +264,21 @@ export class TheMaskEngine {
       a.load()
       this.soundCache[url] = a
     })
+  }
+
+  private startMusic() {
+    if (this.musicAudio) return
+    this.musicAudio = new Audio(SOUND_MUSIC)
+    this.musicAudio.loop = true
+    this.musicAudio.volume = 0.3
+    this.musicAudio.play().catch(() => {})
+  }
+
+  private stopMusic() {
+    if (!this.musicAudio) return
+    this.musicAudio.pause()
+    this.musicAudio.currentTime = 0
+    this.musicAudio = null
   }
 
   private async loadHealthPickupModel() {
@@ -1504,6 +1524,7 @@ export class TheMaskEngine {
   dispose() {
     this.isDisposed = true
     this.stopRolieSiren()
+    this.stopMusic()
     if (this.gameOverTimer) {
       clearTimeout(this.gameOverTimer)
       this.gameOverTimer = null
