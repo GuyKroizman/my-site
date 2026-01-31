@@ -881,11 +881,12 @@ export class TheMaskEngine {
     const playerPos = { x: this.player.body.position.x, z: this.player.body.position.z }
     this.turrets.forEach((t) => t.update(PHYSICS_DT, playerPos))
     this.rolies.forEach((r) => r.update(PHYSICS_DT, playerPos, this.currentArenaHalfX, this.currentArenaHalfZ))
-    // Sync rolie mesh position from Rolie.position
+    // Sync rolie mesh position and rotation from Rolie
     this.rolieMeshes.forEach((mesh, i) => {
       const r = this.rolies[i]
       if (r) {
         mesh.position.set(r.position.x, r.position.y, r.position.z)
+        mesh.rotation.y = r.facingAngle
       }
     })
     // Manual bullet-rolie collision (no physics body on rolie)

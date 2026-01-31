@@ -28,6 +28,8 @@ const ROLIE_ARM_DELAY = 2
 export class Rolie {
   /** Position in world space (no physics body - manual updates). */
   position: { x: number; y: number; z: number }
+  /** Facing angle in radians (Y-axis rotation). */
+  facingAngle = 0
   health = ROLIE_MAX_HEALTH
   readonly maxHealth = ROLIE_MAX_HEALTH
   private wanderDir = { x: 1, z: 0 }
@@ -106,6 +108,9 @@ export class Rolie {
       dirZ = this.wanderDir.z
       speed = ROLIE_WANDER_SPEED
     }
+    // Update facing angle to match movement direction
+    this.facingAngle = Math.atan2(dirX, dirZ)
+
     // Move position manually (no physics)
     this.position.x += dirX * speed * dt
     this.position.z += dirZ * speed * dt
