@@ -65,6 +65,7 @@ const HEALTH_PICKUP_ROTATION_SPEED = 2 // radians per second
 export interface TheMaskEngineOptions {
   mobile?: boolean
   onGameOver?: () => void
+  onVictory?: () => void
   onHealthChange?: (health: number, maxHealth: number) => void
 }
 
@@ -118,6 +119,7 @@ export class TheMaskEngine {
   private wallBodies: CANNON.Body[] = []
   private curbMeshes: THREE.Mesh[] = []
   private onGameOver: (() => void) | undefined
+  private onVictory: (() => void) | undefined
   private onHealthChange: ((health: number, maxHealth: number) => void) | undefined
 
   /** Generated siren when any Rolie is chasing the player. */
@@ -160,6 +162,7 @@ export class TheMaskEngine {
     // Walls and boundary are created in loadLevel() from the level's halfX, halfZ
     this.preloadSounds()
     this.onGameOver = options?.onGameOver
+    this.onVictory = options?.onVictory
     this.onHealthChange = options?.onHealthChange
     this.input = new InputManager()
     this.cameraDist = options?.mobile ? CAMERA_DIST_MOBILE : CAMERA_DIST_DESKTOP
@@ -1260,9 +1263,15 @@ export class TheMaskEngine {
       this.explosions.length === 0 &&
       levelHasEnemies
     ) {
-      this.playLevelVictorySound()
-      this.currentLevelIndex = Math.min(this.currentLevelIndex + 1, LEVELS.length - 1)
-      this.loadLevel(this.currentLevelIndex)
+      // Check if this was the last level
+      if (this.currentLevelIndex >= LEVELS.length - 1) {
+        this.playLevelVictorySound()
+        this.onVictory?.()
+      } else {
+        this.playLevelVictorySound()
+        this.currentLevelIndex++
+        this.loadLevel(this.currentLevelIndex)
+      }
     }
 
     this.renderer.render(this.scene, this.camera)

@@ -14,7 +14,9 @@ const isPortrait = () => window.innerHeight > window.innerWidth
 const isLandscape = () => window.innerWidth > window.innerHeight
 const isMobileLandscape = () => isTouchDevice() && isLandscape()
 
-type UIState = 'menu' | 'playing' | 'paused' | 'gameOver'
+type UIState = 'menu' | 'playing' | 'paused' | 'gameOver' | 'victory'
+
+const SOUND_VICTORY = '/theMask/sound/victory.wav'
 
 function GameOverOverlay({ onBackToMenu }: { onBackToMenu: () => void }) {
   useEffect(() => {
@@ -29,6 +31,26 @@ function GameOverOverlay({ onBackToMenu }: { onBackToMenu: () => void }) {
       <button
         onClick={onBackToMenu}
         className="px-6 py-2.5 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold rounded-lg transition-colors"
+      >
+        Return to Menu
+      </button>
+    </div>
+  )
+}
+
+function VictoryOverlay({ onBackToMenu }: { onBackToMenu: () => void }) {
+  useEffect(() => {
+    const audio = new Audio(SOUND_VICTORY)
+    audio.volume = 0.7
+    audio.play().catch((err) => console.warn('Victory sound failed:', err))
+  }, [])
+  return (
+    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-gradient-to-b from-yellow-900/80 to-black/80">
+      <div className="text-yellow-400 text-4xl font-bold mb-4 animate-pulse">Victory!</div>
+      <p className="text-yellow-100 text-lg mb-6">You completed all levels!</p>
+      <button
+        onClick={onBackToMenu}
+        className="px-8 py-3 bg-yellow-600 hover:bg-yellow-500 active:bg-yellow-700 text-white font-bold rounded-lg transition-colors text-lg"
       >
         Return to Menu
       </button>
@@ -87,6 +109,7 @@ export default function TheMask() {
       const engine = new TheMaskEngine(containerRef.current, {
         mobile: isTouchDevice(),
         onGameOver: () => setUiState('gameOver'),
+        onVictory: () => setUiState('victory'),
       })
       gameEngineRef.current = engine
       setUiState('playing')
@@ -114,7 +137,7 @@ export default function TheMask() {
       {!hideHeader && (
         <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white z-30">
           <h1 className="text-lg font-semibold">The Mask</h1>
-          {uiState === 'playing' || uiState === 'paused' || uiState === 'gameOver' ? (
+          {uiState === 'playing' || uiState === 'paused' || uiState === 'gameOver' || uiState === 'victory' ? (
             <button
               onClick={handleBackToMenu}
               className="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 text-sm"
@@ -131,11 +154,14 @@ export default function TheMask() {
 
       <div
         ref={containerRef}
-        className={`${uiState === 'playing' || uiState === 'paused' || uiState === 'gameOver' ? 'flex-1' : ''} w-full relative overflow-hidden min-h-0`}
+        className={`${uiState === 'playing' || uiState === 'paused' || uiState === 'gameOver' || uiState === 'victory' ? 'flex-1' : ''} w-full relative overflow-hidden min-h-0`}
       >
         {uiState === 'paused' && <PausedDialog />}
         {uiState === 'gameOver' && (
           <GameOverOverlay onBackToMenu={handleBackToMenu} />
+        )}
+        {uiState === 'victory' && (
+          <VictoryOverlay onBackToMenu={handleBackToMenu} />
         )}
         {(uiState === 'playing' || uiState === 'paused') && isTouchDevice() && (
           <VirtualControls onTouchInputChange={handleTouchInputChange} />
