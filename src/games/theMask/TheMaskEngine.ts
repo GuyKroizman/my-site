@@ -259,11 +259,66 @@ export class TheMaskEngine {
     a.play().catch(() => { })
   }
 
+  /** Play a generated mechanical, dirty explosion (turret/rolie destroyed). */
   private playExplosionSound() {
-    const a = this.getCachedSound(SOUND_EXPLOSION)
-    a.currentTime = 0
-    a.volume = 0.6
-    a.play().catch(() => { })
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      const now = ctx.currentTime
+      const duration = 0.5
+
+      // Low rumble (mechanical thud)
+      const rumble = ctx.createOscillator()
+      const rumbleGain = ctx.createGain()
+      rumble.type = 'sawtooth'
+      rumble.frequency.setValueAtTime(80, now)
+      rumble.frequency.exponentialRampToValueAtTime(25, now + duration)
+      rumbleGain.gain.setValueAtTime(0.25, now)
+      rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+      rumble.connect(rumbleGain)
+      rumbleGain.connect(ctx.destination)
+      rumble.start(now)
+      rumble.stop(now + duration)
+
+      // Noise layer (dirty/gritty)
+      const bufferSize = ctx.sampleRate * duration
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 1.5)
+      }
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+      const noiseGain = ctx.createGain()
+      noiseGain.gain.setValueAtTime(0.2, now)
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(400, now)
+      filter.frequency.exponentialRampToValueAtTime(80, now + duration)
+      noise.connect(filter)
+      filter.connect(noiseGain)
+      noiseGain.connect(ctx.destination)
+      noise.start(now)
+
+      // Metallic ring (mechanical)
+      const ring = ctx.createOscillator()
+      const ringGain = ctx.createGain()
+      ring.type = 'square'
+      ring.frequency.setValueAtTime(320, now)
+      ring.frequency.exponentialRampToValueAtTime(90, now + duration * 0.6)
+      ringGain.gain.setValueAtTime(0.08, now)
+      ringGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.6)
+      ring.connect(ringGain)
+      ringGain.connect(ctx.destination)
+      ring.start(now)
+      ring.stop(now + duration * 0.6)
+    } catch {
+      // Fallback to file if AudioContext not available
+      const a = this.getCachedSound(SOUND_EXPLOSION)
+      a.currentTime = 0
+      a.volume = 0.6
+      a.play().catch(() => { })
+    }
   }
 
   /** Dispose geometry and materials from an Object3D (works for Mesh or Group). */
@@ -939,6 +994,7 @@ export class TheMaskEngine {
     deadTurrets.forEach((t) => {
       const p = t.body.position
       this.spawnExplosion(p.x, p.y, p.z)
+      this.playExplosionSound()
       t.dispose(this.scene, this.world)
     })
     this.turrets = this.turrets.filter((t) => t.isAlive())

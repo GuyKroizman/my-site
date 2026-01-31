@@ -34,7 +34,7 @@ export const LEVELS: LevelConfig[] = [
       { x: -18, z: -12, n: 2 },
     ],
     turrets: [{ x: 10, z: 8 }, { x: -10, z: -8 }],
-    rolies: [{ x: 16, z: 14 }, { x: -14, z: -12 }],
+    rolies: [{ x: 5, z: 5 }, { x: -12, z: -10 }], // Far from player spawn (21, 18) so they wander first
   },
   {
     halfX: 28,
