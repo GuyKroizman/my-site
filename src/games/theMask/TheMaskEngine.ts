@@ -126,6 +126,7 @@ export class TheMaskEngine {
   private onGameOver: (() => void) | undefined
   private onVictory: (() => void) | undefined
   private onHealthChange: ((health: number, maxHealth: number) => void) | undefined
+  private gameOverTimer: ReturnType<typeof setTimeout> | null = null
 
   /** Generated siren when any Rolie is chasing the player. */
   private rolieSirenCtx: AudioContext | null = null
@@ -352,6 +353,14 @@ export class TheMaskEngine {
     a.play().catch(() => { })
   }
 
+  /** Trigger game over after a delay so player can see death animation */
+  private triggerDelayedGameOver() {
+    if (this.gameOverTimer) return // Already scheduled
+    this.gameOverTimer = setTimeout(() => {
+      this.onGameOver?.()
+    }, 2000)
+  }
+
   private playLevelVictorySound() {
     const a = this.getCachedSound(SOUND_LEVEL_VICTORY)
     a.currentTime = 0
@@ -534,8 +543,8 @@ export class TheMaskEngine {
       const health = this.player.takeDamage(Math.round(damage))
       this.onHealthChange?.(health, this.player.getMaxHealth())
       if (this.player.isDead()) {
-        this.onGameOver?.()
         this.player.playDeath(() => {})
+        this.triggerDelayedGameOver()
       } else {
         this.player.playHitReact()
         this.playPlayerHitSound()
@@ -728,8 +737,8 @@ export class TheMaskEngine {
               const health = this.player.takeDamage(PLAYER_DAMAGE_PER_HIT)
               this.onHealthChange?.(health, this.player.getMaxHealth())
               if (this.player.isDead()) {
-                this.onGameOver?.()
                 this.player.playDeath(() => {})
+                this.triggerDelayedGameOver()
               } else {
                 this.player.playHitReact()
                 this.playPlayerHitSound()
@@ -1313,8 +1322,8 @@ export class TheMaskEngine {
             const health = this.player.takeDamage(PLAYER_DAMAGE_PER_HIT)
             this.onHealthChange?.(health, this.player.getMaxHealth())
             if (this.player.isDead()) {
-              this.onGameOver?.()
               this.player.playDeath(() => {})
+              this.triggerDelayedGameOver()
             } else {
               this.player.playHitReact()
               this.playPlayerHitSound()
@@ -1465,6 +1474,10 @@ export class TheMaskEngine {
   dispose() {
     this.isDisposed = true
     this.stopRolieSiren()
+    if (this.gameOverTimer) {
+      clearTimeout(this.gameOverTimer)
+      this.gameOverTimer = null
+    }
     if (this.animationId != null) {
       cancelAnimationFrame(this.animationId)
       this.animationId = null

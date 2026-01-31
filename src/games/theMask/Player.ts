@@ -265,7 +265,7 @@ export class Player {
 
   private onDeathFinished = (e: { action: THREE.AnimationAction }) => {
     if (e.action !== this.deathAction) return
-    this.deathAction?.setEffectiveWeight(0)
+    // Keep weight at 1 so death pose stays visible (clampWhenFinished keeps final frame)
     const cb = this._deathOnComplete
     this._deathOnComplete = null
     cb?.()
