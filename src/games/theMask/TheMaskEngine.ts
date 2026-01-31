@@ -123,6 +123,8 @@ export class TheMaskEngine {
   private currentArenaHalfZ = 0
   private wallBodies: CANNON.Body[] = []
   private curbMeshes: THREE.Mesh[] = []
+  private floorMesh: THREE.Mesh | null = null
+  private floorBody: CANNON.Body | null = null
   private onGameOver: (() => void) | undefined
   private onVictory: (() => void) | undefined
   private onHealthChange: ((health: number, maxHealth: number) => void) | undefined
@@ -171,8 +173,7 @@ export class TheMaskEngine {
     })
 
     this.setupLights()
-    this.setupFloor()
-    // Walls and boundary are created in loadLevel() from the level's halfX, halfZ
+    // Floor and walls are created in loadLevel() from the level's halfX, halfZ
     this.preloadSounds()
     this.onGameOver = options?.onGameOver
     this.onVictory = options?.onVictory
@@ -720,6 +721,7 @@ export class TheMaskEngine {
       this.removeArenaWallsAndCurbs()
       this.currentArenaHalfX = halfX
       this.currentArenaHalfZ = halfZ
+      this.setupFloor(halfX, halfZ)
       this.setupWalls(halfX, halfZ)
       this.setupBoundaryVisual(halfX, halfZ)
     }
@@ -1132,25 +1134,38 @@ export class TheMaskEngine {
     this.scene.add(dir)
   }
 
-  private setupFloor() {
-    const size = 120
+  private setupFloor(halfX: number, halfZ: number) {
+    // Clean up old floor
+    if (this.floorMesh) {
+      this.scene.remove(this.floorMesh)
+      this.floorMesh.geometry.dispose()
+      ;(this.floorMesh.material as THREE.Material).dispose()
+      this.floorMesh = null
+    }
+    if (this.floorBody) {
+      this.world.removeBody(this.floorBody)
+      this.floorBody = null
+    }
+
+    // Physics floor (infinite plane)
     const floorShape = new CANNON.Plane()
-    const floorBody = new CANNON.Body({
+    this.floorBody = new CANNON.Body({
       mass: 0,
       shape: floorShape,
       collisionFilterGroup: 1,
       collisionFilterMask: 1 | 2, // so bullets hit the floor
     })
-    floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0)
-    floorBody.position.set(0, FLOOR_Y, 0)
-    this.world.addBody(floorBody)
+    this.floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0)
+    this.floorBody.position.set(0, FLOOR_Y, 0)
+    this.world.addBody(this.floorBody)
 
-    const floorGeo = new THREE.PlaneGeometry(size, size)
+    // Visual floor sized to arena
+    const floorGeo = new THREE.PlaneGeometry(halfX * 2, halfZ * 2)
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x9a9f92 })
-    const floorMesh = new THREE.Mesh(floorGeo, floorMat)
-    floorMesh.rotation.x = -Math.PI / 2
-    floorMesh.receiveShadow = true
-    this.scene.add(floorMesh)
+    this.floorMesh = new THREE.Mesh(floorGeo, floorMat)
+    this.floorMesh.rotation.x = -Math.PI / 2
+    this.floorMesh.receiveShadow = true
+    this.scene.add(this.floorMesh)
   }
 
   private setupWalls(halfX: number, halfZ: number) {
@@ -1512,6 +1527,16 @@ export class TheMaskEngine {
     if (this.bulletPickupTemplate) {
       this.disposeObject3D(this.bulletPickupTemplate)
       this.bulletPickupTemplate = null
+    }
+    if (this.floorMesh) {
+      this.scene.remove(this.floorMesh)
+      this.floorMesh.geometry.dispose()
+      ;(this.floorMesh.material as THREE.Material).dispose()
+      this.floorMesh = null
+    }
+    if (this.floorBody) {
+      this.world.removeBody(this.floorBody)
+      this.floorBody = null
     }
     this.explosions.forEach((ex) => {
       this.scene.remove(ex.group)
