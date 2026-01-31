@@ -4,7 +4,7 @@ import { InputManager } from './InputManager'
 import { Player, PLAYER_HEIGHT, PLAYER_RADIUS, PLAYER_DAMAGE_PER_HIT } from './Player'
 import { Box, createBoxPiles } from './Box'
 import { Turret } from './Turret'
-import { Rolie } from './Rolie'
+import { Rolie, ROLIE_BODY_RADIUS } from './Rolie'
 import { LEVELS, START_LEVEL } from './levels'
 import type { BulletSpawn } from './Player'
 import { isBulletOutOfBounds, syncBulletMesh, disposeBullet } from './Bullet'
@@ -46,6 +46,9 @@ const ROLIE_EXPLOSION_MAX_DAMAGE = 40
 const ROLIE_EXPLOSION_MIN_DAMAGE = 5
 /** If Rolie is this close to player (XZ distance), it detonates. */
 const ROLIE_EXPLODE_ON_PLAYER_DIST = 1.8
+/** Rolie GLB is scaled to this height; offset mesh so feet sit on floor (body center is 0.6). */
+const ROLIE_MESH_HEIGHT = 1.5
+const ROLIE_MESH_Y_OFFSET = (ROLIE_MESH_HEIGHT - 1.2) / 2
 
 const INTRO_CLOSEUP_DURATION = 1.5
 const INTRO_SWOOP_DURATION = 1.5
@@ -996,16 +999,17 @@ export class TheMaskEngine {
     if (anyRolieCharging && !this.rolieSirenPlaying) this.startRolieSiren()
     if (this.rolieSirenPlaying) this.updateRolieSiren(now)
     if (!anyRolieCharging && this.rolieSirenPlaying) this.stopRolieSiren()
+    this.rolies.forEach((r) => r.syncFromBody())
     // Sync rolie mesh position and rotation from Rolie
     this.rolieMeshes.forEach((mesh, i) => {
       const r = this.rolies[i]
       if (r) {
-        mesh.position.set(r.position.x, r.position.y, r.position.z)
+        mesh.position.set(r.position.x, r.position.y + ROLIE_MESH_Y_OFFSET, r.position.z)
         mesh.rotation.y = r.facingAngle
       }
     })
-    // Manual bullet-rolie collision (no physics body on rolie)
-    const rolieHitRadius = 1.0
+    // Manual bullet-rolie collision (sphere vs rolie body)
+    const rolieHitRadius = ROLIE_BODY_RADIUS + BULLET_RADIUS_SWEEP
     this.bullets.forEach((spawn) => {
       if (!spawn.fromPlayer) return
       if (this.bulletsToRemove.has(spawn)) return

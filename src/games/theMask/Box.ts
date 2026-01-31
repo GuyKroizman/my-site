@@ -28,7 +28,7 @@ export class Box {
       linearDamping: 0.1,
       angularDamping: 0.2,
       collisionFilterGroup: 1,
-      collisionFilterMask: 1 | 2, // 1 = default (player, bullets), 2 = bullets
+      collisionFilterMask: 1 | 2 | 8, // 1 = default, 2 = bullets, 8 = rolies
     })
     world.addBody(this.body)
 

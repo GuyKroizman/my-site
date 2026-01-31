@@ -64,7 +64,7 @@ export class Turret {
       position: new CANNON.Vec3(px, this.baseY + halfH, pz),
       shape: new CANNON.Cylinder(TURRET_BODY_RADIUS, TURRET_BODY_RADIUS, TURRET_BODY_HEIGHT, 12),
       collisionFilterGroup: 4,
-      collisionFilterMask: 1 | 2, // 1 = player (solid), 2 = bullets
+      collisionFilterMask: 1 | 2 | 8, // 1 = player, 2 = bullets, 8 = rolies
     })
     ;(this.body as unknown as { turretRef?: Turret }).turretRef = this
     world.addBody(this.body)

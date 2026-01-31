@@ -4,10 +4,12 @@ import { FLOOR_Y } from './types'
 
 /** Collision group for Rolie so player and bullets can hit it. */
 export const ROLIE_COLLISION_GROUP = 8
+/** Collision mask: default (1) = floor, walls, player, boxes; 4 = turrets. */
+const ROLIE_COLLISION_MASK = 1 | 4
 
-// const ROLIE_BODY_RADIUS = 0.8  // Not used - no physics body
-const ROLIE_BODY_HEIGHT = 1.2  // Used for position.y calculation
-// const ROLIE_MASS = 15  // Not used - no physics body
+export const ROLIE_BODY_RADIUS = 0.7
+const ROLIE_BODY_HEIGHT = 1.2
+const ROLIE_MASS = 15
 /** Distance (XZ) below which Rolie charges at the player to explode. */
 export const ROLIE_CHARGE_TRIGGER_DISTANCE = 10
 /** Speed when wandering (units per second). */
@@ -20,14 +22,12 @@ const ROLIE_MAX_HEALTH = 3
 const HEALTH_BAR_WIDTH = 0.8
 const HEALTH_BAR_HEIGHT = 0.08
 const HEALTH_BAR_Y_OFFSET = 1.2
-// const ROLIE_Y_OFFSET = -0.2  // Not used - no physics body
-
 /** Seconds after spawn before proximity to player can trigger explosion (so player can see the Rolie). */
 const ROLIE_ARM_DELAY = 2
 
 export class Rolie {
-  /** Position in world space (no physics body - manual updates). */
-  position: { x: number; y: number; z: number }
+  /** Physics body; position is body.position. */
+  body: CANNON.Body
   /** Facing angle in radians (Y-axis rotation). */
   facingAngle = 0
   health = ROLIE_MAX_HEALTH
@@ -40,13 +40,29 @@ export class Rolie {
   private healthBarFill: THREE.Mesh
   private healthBarContainer: THREE.Group
 
+  /** Position in world space (reads from body). */
+  get position() {
+    return this.body.position
+  }
+
   constructor(
-    _world: CANNON.World,
+    world: CANNON.World,
     scene: THREE.Scene,
     pos: { x: number; z: number }
   ) {
     const halfH = ROLIE_BODY_HEIGHT / 2
-    this.position = { x: pos.x, y: FLOOR_Y + halfH, z: pos.z }
+    const y = FLOOR_Y + halfH
+    this.body = new CANNON.Body({
+      mass: ROLIE_MASS,
+      position: new CANNON.Vec3(pos.x, y, pos.z),
+      shape: new CANNON.Cylinder(ROLIE_BODY_RADIUS, ROLIE_BODY_RADIUS, ROLIE_BODY_HEIGHT, 12),
+      collisionFilterGroup: ROLIE_COLLISION_GROUP,
+      collisionFilterMask: ROLIE_COLLISION_MASK,
+      linearDamping: 0.5,
+      angularDamping: 0.5,
+    })
+    ;(this.body as unknown as { rolieRef?: Rolie }).rolieRef = this
+    world.addBody(this.body)
 
     // Visual is created and owned by the engine
 
@@ -95,6 +111,13 @@ export class Rolie {
     halfZ: number
   ) {
     this.timeAlive += dt
+    // Keep Rolie on the floor (gravity would otherwise pull it down)
+    const halfH = ROLIE_BODY_HEIGHT / 2
+    const targetY = FLOOR_Y + halfH
+    if (this.body.position.y < targetY) {
+      this.body.position.y = targetY
+      this.body.velocity.y = 0
+    }
     const dx = playerPosition.x - this.position.x
     const dz = playerPosition.z - this.position.z
     const distToPlayer = Math.sqrt(dx * dx + dz * dz)
@@ -123,21 +146,29 @@ export class Rolie {
     this.position.x += dirX * speed * dt
     this.position.z += dirZ * speed * dt
 
-    // Clamp to arena bounds and pick new direction if hitting wall
+    // Clamp to arena bounds (physics will resolve; nudge position if out of bounds to avoid getting stuck)
     const margin = 1.0
     const minX = -halfX + margin
     const maxX = halfX - margin
     const minZ = -halfZ + margin
     const maxZ = halfZ - margin
     let hitWall = false
-    if (this.position.x < minX) { this.position.x = minX; hitWall = true }
-    if (this.position.x > maxX) { this.position.x = maxX; hitWall = true }
-    if (this.position.z < minZ) { this.position.z = minZ; hitWall = true }
-    if (this.position.z > maxZ) { this.position.z = maxZ; hitWall = true }
+    if (this.position.x < minX) { this.body.position.x = minX; hitWall = true }
+    if (this.position.x > maxX) { this.body.position.x = maxX; hitWall = true }
+    if (this.position.z < minZ) { this.body.position.z = minZ; hitWall = true }
+    if (this.position.z > maxZ) { this.body.position.z = maxZ; hitWall = true }
     if (hitWall) this.pickNewWanderDirection()
 
-    this.healthBarContainer.position.set(this.position.x, this.position.y + HEALTH_BAR_Y_OFFSET, this.position.z)
+    this.body.velocity.x = dirX * speed
+    this.body.velocity.z = dirZ * speed
+    this.body.velocity.y = 0
     this.updateHealthBar()
+  }
+
+  /** Call after physics step to sync health bar position from body. */
+  syncFromBody() {
+    const p = this.body.position
+    this.healthBarContainer.position.set(p.x, p.y + HEALTH_BAR_Y_OFFSET, p.z)
   }
 
   private updateHealthBar() {
@@ -157,7 +188,8 @@ export class Rolie {
     return this.health > 0
   }
 
-  dispose(scene: THREE.Scene, _world: CANNON.World) {
+  dispose(scene: THREE.Scene, world: CANNON.World) {
+    world.removeBody(this.body)
     scene.remove(this.healthBarContainer)
     this.healthBarBg.geometry.dispose()
       ; (this.healthBarBg.material as THREE.Material).dispose()
