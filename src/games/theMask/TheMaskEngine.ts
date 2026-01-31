@@ -1346,7 +1346,7 @@ export class TheMaskEngine {
     })
     // Manual bullet-rolie collision (sphere vs rolie body)
     // Use larger hit radius than physics body for easier targeting
-    const rolieHitRadius = ROLIE_BODY_RADIUS * 1.5 + BULLET_RADIUS_SWEEP
+    const rolieHitRadius = ROLIE_BODY_RADIUS * 2.0 + BULLET_RADIUS_SWEEP
     this.bullets.forEach((spawn) => {
       if (!spawn.fromPlayer) return
       if (this.bulletsToRemove.has(spawn)) return
