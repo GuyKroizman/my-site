@@ -124,6 +124,7 @@ export class TheMaskEngine {
   private wallBodies: CANNON.Body[] = []
   private curbMeshes: THREE.Mesh[] = []
   private floorMesh: THREE.Mesh | null = null
+  private floorGrid: THREE.GridHelper | null = null
   private floorBody: CANNON.Body | null = null
   private onGameOver: (() => void) | undefined
   private onVictory: (() => void) | undefined
@@ -1142,6 +1143,11 @@ export class TheMaskEngine {
       ;(this.floorMesh.material as THREE.Material).dispose()
       this.floorMesh = null
     }
+    if (this.floorGrid) {
+      this.scene.remove(this.floorGrid)
+      this.floorGrid.dispose()
+      this.floorGrid = null
+    }
     if (this.floorBody) {
       this.world.removeBody(this.floorBody)
       this.floorBody = null
@@ -1159,13 +1165,22 @@ export class TheMaskEngine {
     this.floorBody.position.set(0, FLOOR_Y, 0)
     this.world.addBody(this.floorBody)
 
-    // Visual floor sized to arena
-    const floorGeo = new THREE.PlaneGeometry(halfX * 2, halfZ * 2)
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x9a9f92 })
+    // Dark floor background
+    const sizeX = halfX * 2
+    const sizeZ = halfZ * 2
+    const floorGeo = new THREE.PlaneGeometry(sizeX, sizeZ)
+    const floorMat = new THREE.MeshBasicMaterial({ color: 0x111111 })
     this.floorMesh = new THREE.Mesh(floorGeo, floorMat)
     this.floorMesh.rotation.x = -Math.PI / 2
-    this.floorMesh.receiveShadow = true
+    this.floorMesh.position.y = FLOOR_Y
     this.scene.add(this.floorMesh)
+
+    // Bright grid on top
+    const gridSize = Math.max(sizeX, sizeZ)
+    const divisions = Math.floor(gridSize) // 1 division per unit
+    this.floorGrid = new THREE.GridHelper(gridSize, divisions, 0x00ffff, 0x333333)
+    this.floorGrid.position.y = FLOOR_Y + 0.01 // Lift slightly to avoid z-fighting
+    this.scene.add(this.floorGrid)
   }
 
   private setupWalls(halfX: number, halfZ: number) {
@@ -1533,6 +1548,11 @@ export class TheMaskEngine {
       this.floorMesh.geometry.dispose()
       ;(this.floorMesh.material as THREE.Material).dispose()
       this.floorMesh = null
+    }
+    if (this.floorGrid) {
+      this.scene.remove(this.floorGrid)
+      this.floorGrid.dispose()
+      this.floorGrid = null
     }
     if (this.floorBody) {
       this.world.removeBody(this.floorBody)
