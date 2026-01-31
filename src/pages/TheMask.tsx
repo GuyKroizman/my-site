@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { TheMaskEngine } from '../games/theMask/TheMaskEngine'
-import { MenuScreen, VirtualControls } from '../games/theMask/components'
+import { MenuScreen, VirtualControls, PausedDialog } from '../games/theMask/components'
 import type { TouchInputState } from '../games/theMask/types'
 
 const isTouchDevice = () => {
@@ -9,18 +9,33 @@ const isTouchDevice = () => {
 }
 
 const isPortrait = () => window.innerHeight > window.innerWidth
+const isLandscape = () => window.innerWidth > window.innerHeight
+const isMobileLandscape = () => isTouchDevice() && isLandscape()
 
-type UIState = 'menu' | 'playing'
+type UIState = 'menu' | 'playing' | 'paused'
 
 export default function TheMask() {
   const containerRef = useRef<HTMLDivElement>(null)
   const gameEngineRef = useRef<TheMaskEngine | null>(null)
   const [uiState, setUiState] = useState<UIState>('menu')
   const [isPortraitMode, setIsPortraitMode] = useState(isPortrait())
+  const [hideHeader, setHideHeader] = useState(isMobileLandscape())
 
   useEffect(() => {
     const handleOrientationChange = () => {
-      setIsPortraitMode(isPortrait())
+      const portrait = isPortrait()
+      const landscape = isLandscape()
+      setIsPortraitMode(portrait)
+      setHideHeader(isMobileLandscape())
+
+      if (uiState === 'playing' && portrait && gameEngineRef.current) {
+        gameEngineRef.current.pause()
+        setUiState('paused')
+      }
+      if (uiState === 'paused' && landscape && gameEngineRef.current) {
+        gameEngineRef.current.resume()
+        setUiState('playing')
+      }
     }
     window.addEventListener('resize', handleOrientationChange)
     window.addEventListener('orientationchange', handleOrientationChange)
@@ -28,7 +43,7 @@ export default function TheMask() {
       window.removeEventListener('resize', handleOrientationChange)
       window.removeEventListener('orientationchange', handleOrientationChange)
     }
-  }, [])
+  }, [uiState])
 
   useEffect(() => {
     return () => {
@@ -71,27 +86,30 @@ export default function TheMask() {
 
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
-      <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white z-30">
-        <h1 className="text-lg font-semibold">The Mask</h1>
-        {uiState === 'playing' ? (
-          <button
-            onClick={handleBackToMenu}
-            className="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 text-sm"
-          >
-            Menu
-          </button>
-        ) : (
-          <Link to="/" className="text-base text-blue-400 underline hover:text-blue-300">
-            Back to Menu
-          </Link>
-        )}
-      </header>
+      {!hideHeader && (
+        <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white z-30">
+          <h1 className="text-lg font-semibold">The Mask</h1>
+          {uiState === 'playing' || uiState === 'paused' ? (
+            <button
+              onClick={handleBackToMenu}
+              className="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 text-sm"
+            >
+              Menu
+            </button>
+          ) : (
+            <Link to="/" className="text-base text-blue-400 underline hover:text-blue-300">
+              Back to Menu
+            </Link>
+          )}
+        </header>
+      )}
 
       <div
         ref={containerRef}
-        className={`${uiState === 'playing' ? 'flex-1' : ''} w-full relative overflow-hidden`}
+        className={`${uiState === 'playing' || uiState === 'paused' ? 'flex-1' : ''} w-full relative overflow-hidden min-h-0`}
       >
-        {uiState === 'playing' && isTouchDevice() && (
+        {uiState === 'paused' && <PausedDialog />}
+        {(uiState === 'playing' || uiState === 'paused') && isTouchDevice() && (
           <VirtualControls onTouchInputChange={handleTouchInputChange} />
         )}
       </div>

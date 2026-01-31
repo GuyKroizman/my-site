@@ -56,6 +56,7 @@ export class TheMaskEngine {
   private bulletsToRemove = new Set<BulletSpawn>()
   private animationId: number | null = null
   private isDisposed = false
+  private isPaused = false
   private container: HTMLElement
   private lastAnimationTime: number = 0
   private cameraDist: number
@@ -497,6 +498,10 @@ export class TheMaskEngine {
   private animate = () => {
     if (this.isDisposed) return
     this.animationId = requestAnimationFrame(this.animate)
+    if (this.isPaused) {
+      this.renderer.render(this.scene, this.camera)
+      return
+    }
 
     const keyboardState = this.input.getState()
     const joy = this.touchState.joystick
@@ -614,6 +619,14 @@ export class TheMaskEngine {
 
   setTouchControls(state: TouchInputState) {
     this.touchState = state
+  }
+
+  pause() {
+    this.isPaused = true
+  }
+
+  resume() {
+    this.isPaused = false
   }
 
   dispose() {
