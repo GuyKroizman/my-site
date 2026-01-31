@@ -266,19 +266,38 @@ export class TheMaskEngine {
     })
   }
 
+  private static readonly MUSIC_VOLUME = 0.3
+  private static readonly MUSIC_DUCK_VOLUME = 0.15
+  private musicDuckTimer: ReturnType<typeof setTimeout> | null = null
+
   private startMusic() {
     if (this.musicAudio) return
     this.musicAudio = new Audio(SOUND_MUSIC)
     this.musicAudio.loop = true
-    this.musicAudio.volume = 0.3
+    this.musicAudio.volume = TheMaskEngine.MUSIC_VOLUME
     this.musicAudio.play().catch(() => {})
   }
 
   private stopMusic() {
+    if (this.musicDuckTimer) {
+      clearTimeout(this.musicDuckTimer)
+      this.musicDuckTimer = null
+    }
     if (!this.musicAudio) return
     this.musicAudio.pause()
     this.musicAudio.currentTime = 0
     this.musicAudio = null
+  }
+
+  /** Temporarily lower music volume for important sounds */
+  private duckMusic(durationMs = 2000) {
+    if (!this.musicAudio) return
+    this.musicAudio.volume = TheMaskEngine.MUSIC_DUCK_VOLUME
+    if (this.musicDuckTimer) clearTimeout(this.musicDuckTimer)
+    this.musicDuckTimer = setTimeout(() => {
+      if (this.musicAudio) this.musicAudio.volume = TheMaskEngine.MUSIC_VOLUME
+      this.musicDuckTimer = null
+    }, durationMs)
   }
 
   private async loadHealthPickupModel() {
@@ -384,6 +403,7 @@ export class TheMaskEngine {
   }
 
   private playLevelVictorySound() {
+    this.duckMusic(2000)
     const a = this.getCachedSound(SOUND_LEVEL_VICTORY)
     a.currentTime = 0
     a.play().catch(() => { })
@@ -391,6 +411,7 @@ export class TheMaskEngine {
 
   /** Play a generated mechanical, dirty explosion (turret/rolie destroyed). */
   private playExplosionSound() {
+    this.duckMusic(1000)
     try {
       const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const now = ctx.currentTime
@@ -871,6 +892,7 @@ export class TheMaskEngine {
 
   /** Play a generated "powerup" sound when picking up health. */
   private playHealthPickupSound() {
+    this.duckMusic(1000)
     try {
       const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const now = ctx.currentTime
@@ -992,6 +1014,7 @@ export class TheMaskEngine {
 
   /** Play a generated "powerup" sound when picking up bullet upgrade. */
   private playBulletPickupSound() {
+    this.duckMusic(1000)
     try {
       const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const now = ctx.currentTime
