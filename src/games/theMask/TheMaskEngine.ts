@@ -342,20 +342,24 @@ export class TheMaskEngine {
         this.playPlayerHitSound()
       }
     }
-    const boxesToRemove: Box[] = []
+    // Push boxes away from explosion instead of destroying them
+    const explosionForce = 15
     this.boxes.forEach((box) => {
       const bx = box.body.position.x - px
       const by = box.body.position.y - py
       const bz = box.body.position.z - pz
       const d = Math.sqrt(bx * bx + by * by + bz * bz)
-      if (d <= ROLIE_EXPLOSION_RADIUS) {
-        box.dispose(this.scene, this.world)
-        boxesToRemove.push(box)
+      if (d <= ROLIE_EXPLOSION_RADIUS && d > 0.01) {
+        // Normalize direction and apply force inversely proportional to distance
+        const strength = explosionForce * (1 - d / ROLIE_EXPLOSION_RADIUS)
+        const nx = bx / d
+        const ny = (by / d) + 0.5  // Add upward component
+        const nz = bz / d
+        box.body.applyImpulse(
+          new CANNON.Vec3(nx * strength, ny * strength, nz * strength),
+          box.body.position
+        )
       }
-    })
-    boxesToRemove.forEach((b) => {
-      const i = this.boxes.indexOf(b)
-      if (i !== -1) this.boxes.splice(i, 1)
     })
   }
 
