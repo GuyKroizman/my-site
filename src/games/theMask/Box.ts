@@ -68,19 +68,21 @@ export function createBoxPiles(
   const boxes: Box[] = []
   const colors = [0x8d6e63, 0x795548, 0xa1887f, 0x6d4c41]
   pileConfigs.forEach(({ x: px, z: pz, n }, i) => {
+    let stackY = FLOOR_Y  // Track cumulative height for stacking
     for (let j = 0; j < n; j++) {
       const w = 0.8 + Math.random() * 0.4
       const h = 0.6 + Math.random() * 0.3
       const d = 0.8 + Math.random() * 0.4
-      const y = FLOOR_Y + j * h
+      const y = stackY + h / 2  // Place box center at stackY + half its height
+      stackY += h  // Next box starts on top of this one
       boxes.push(
         new Box(world, scene, {
           width: w,
           height: h,
           depth: d,
-          x: px + (Math.random() - 0.5),
+          x: px + (Math.random() - 0.5) * 0.3,  // Smaller random offset for stability
           y,
-          z: pz + (Math.random() - 0.5),
+          z: pz + (Math.random() - 0.5) * 0.3,
           color: colors[i % colors.length],
           mass: 4,
         })
