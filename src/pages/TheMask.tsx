@@ -4,6 +4,8 @@ import { TheMaskEngine } from '../games/theMask/TheMaskEngine'
 import { MenuScreen, VirtualControls, PausedDialog } from '../games/theMask/components'
 import type { TouchInputState } from '../games/theMask/types'
 
+const SOUND_GAME_OVER = '/theMask/sound/dramatic-moment.mp3'
+
 const isTouchDevice = () => {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0
 }
@@ -13,6 +15,26 @@ const isLandscape = () => window.innerWidth > window.innerHeight
 const isMobileLandscape = () => isTouchDevice() && isLandscape()
 
 type UIState = 'menu' | 'playing' | 'paused' | 'gameOver'
+
+function GameOverOverlay({ onBackToMenu }: { onBackToMenu: () => void }) {
+  useEffect(() => {
+    const audio = new Audio(SOUND_GAME_OVER)
+    audio.volume = 0.7
+    audio.play().catch((err) => console.warn('Game over sound failed:', err))
+  }, [])
+  return (
+    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70">
+      <div className="text-white text-2xl font-bold mb-2">Game Over</div>
+      <p className="text-gray-300 text-sm mb-4">You ran out of health.</p>
+      <button
+        onClick={onBackToMenu}
+        className="px-6 py-2.5 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold rounded-lg transition-colors"
+      >
+        Return to Menu
+      </button>
+    </div>
+  )
+}
 
 export default function TheMask() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -113,16 +135,7 @@ export default function TheMask() {
       >
         {uiState === 'paused' && <PausedDialog />}
         {uiState === 'gameOver' && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70">
-            <div className="text-white text-2xl font-bold mb-2">Game Over</div>
-            <p className="text-gray-300 text-sm mb-4">You ran out of health.</p>
-            <button
-              onClick={handleBackToMenu}
-              className="px-6 py-2.5 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold rounded-lg transition-colors"
-            >
-              Return to Menu
-            </button>
-          </div>
+          <GameOverOverlay onBackToMenu={handleBackToMenu} />
         )}
         {(uiState === 'playing' || uiState === 'paused') && isTouchDevice() && (
           <VirtualControls onTouchInputChange={handleTouchInputChange} />

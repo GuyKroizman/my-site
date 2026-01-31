@@ -389,9 +389,8 @@ export class TheMaskEngine {
       const health = this.player.takeDamage(Math.round(damage))
       this.onHealthChange?.(health, this.player.getMaxHealth())
       if (this.player.isDead()) {
-        this.player.playDeath(() => {
-          this.onGameOver?.()
-        })
+        this.onGameOver?.()
+        this.player.playDeath(() => {})
       } else {
         this.player.playHitReact()
         this.playPlayerHitSound()
@@ -571,9 +570,8 @@ export class TheMaskEngine {
               const health = this.player.takeDamage(PLAYER_DAMAGE_PER_HIT)
               this.onHealthChange?.(health, this.player.getMaxHealth())
               if (this.player.isDead()) {
-                this.player.playDeath(() => {
-                  this.onGameOver?.()
-                })
+                this.onGameOver?.()
+                this.player.playDeath(() => {})
               } else {
                 this.player.playHitReact()
                 this.playPlayerHitSound()
@@ -920,9 +918,8 @@ export class TheMaskEngine {
             const health = this.player.takeDamage(PLAYER_DAMAGE_PER_HIT)
             this.onHealthChange?.(health, this.player.getMaxHealth())
             if (this.player.isDead()) {
-              this.player.playDeath(() => {
-                this.onGameOver?.()
-              })
+              this.onGameOver?.()
+              this.player.playDeath(() => {})
             } else {
               this.player.playHitReact()
               this.playPlayerHitSound()
