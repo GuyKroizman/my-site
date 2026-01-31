@@ -177,7 +177,7 @@ export class TheMaskEngine {
       spawn.body.addEventListener(COLLIDE_EVENT, handler as (e: unknown) => void)
     })
     this.loadPlayerModel()
-    this.loadLevel(this.currentLevelIndex)
+    this.loadLevel(this.currentLevelIndex, true)
 
     const handleResize = () => {
       requestAnimationFrame(() => {
@@ -590,7 +590,8 @@ export class TheMaskEngine {
   }
 
   /** Load level by index: clear boxes/turrets, spawn from LEVELS[index], reset player. */
-  private loadLevel(index: number) {
+  /** Load level by index. @param resetHealth If true, reset player health to max (used on game start). */
+  private loadLevel(index: number, resetHealth = false) {
     this.boxes.forEach((b) => b.dispose(this.scene, this.world))
     this.boxes = []
     this.turrets.forEach((t) => t.dispose(this.scene, this.world))
@@ -663,7 +664,9 @@ export class TheMaskEngine {
     const startZ = level.playerStart?.z ?? (halfZ - 2)
     this.player.body.position.set(startX, FLOOR_Y + PLAYER_HEIGHT / 2, startZ)
     this.player.body.velocity.set(0, 0, 0)
-    this.player.resetHealth()
+    if (resetHealth) {
+      this.player.resetHealth()
+    }
     this.onHealthChange?.(this.player.getHealth(), this.player.getMaxHealth())
 
     this.startLevelIntro()
