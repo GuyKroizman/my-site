@@ -11,7 +11,7 @@ export const ROLIE_BODY_RADIUS = 0.7
 const ROLIE_BODY_HEIGHT = 1.2
 const ROLIE_MASS = 15
 /** Distance (XZ) below which Rolie charges at the player to explode. */
-export const ROLIE_CHARGE_TRIGGER_DISTANCE = 10
+export const ROLIE_CHARGE_TRIGGER_DISTANCE = 8
 /** Speed when wandering (units per second). */
 const ROLIE_WANDER_SPEED = 1.8
 /** Speed when charging at player. */
@@ -61,7 +61,7 @@ export class Rolie {
       linearDamping: 0.5,
       angularDamping: 0.5,
     })
-    ;(this.body as unknown as { rolieRef?: Rolie }).rolieRef = this
+      ; (this.body as unknown as { rolieRef?: Rolie }).rolieRef = this
     world.addBody(this.body)
 
     // Visual is created and owned by the engine

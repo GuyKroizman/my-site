@@ -25,6 +25,13 @@ const BULLET_SPEED = 32
 const BULLET_MASS = 3
 const DEFAULT_SHOOT_COOLDOWN = 0.2
 
+/** Powered-up bullet stats */
+const POWERED_BULLET_RADIUS = 0.3
+const POWERED_BULLET_MASS = 8
+/** Damage player bullets deal to enemies (turrets, rolies). */
+const BULLET_ENEMY_DAMAGE = 1
+const POWERED_BULLET_ENEMY_DAMAGE = 2
+
 export interface BulletSpawn {
   body: CANNON.Body
   mesh: THREE.Mesh
@@ -64,6 +71,7 @@ export class Player {
   private currentAction: 'idle' | 'run' | 'hit' | 'wave' | 'death' = 'idle'
   private _health = PLAYER_MAX_HEALTH
   private _maxHealth = PLAYER_MAX_HEALTH
+  private _bulletsPoweredUp = false
   private healthBarContainer: THREE.Group
   private healthBarBg: THREE.Mesh
   private healthBarFill: THREE.Mesh
@@ -212,6 +220,21 @@ export class Player {
   heal(amount: number): number {
     this._health = Math.min(this._maxHealth, this._health + amount)
     return this._health
+  }
+
+  /** Enable powered-up bullets (bigger, heavier, more damage). */
+  powerUpBullets() {
+    this._bulletsPoweredUp = true
+  }
+
+  /** Check if bullets are powered up. */
+  hasPoweredUpBullets(): boolean {
+    return this._bulletsPoweredUp
+  }
+
+  /** Get the damage player bullets deal to enemies (turrets, rolies). */
+  getBulletDamage(): number {
+    return this._bulletsPoweredUp ? POWERED_BULLET_ENEMY_DAMAGE : BULLET_ENEMY_DAMAGE
   }
 
   isDead(): boolean {
@@ -400,10 +423,13 @@ export class Player {
     const px = this.body.position.x
     const py = this.body.position.y
     const pz = this.body.position.z
+    const radius = this._bulletsPoweredUp ? POWERED_BULLET_RADIUS : BULLET_RADIUS
+    const mass = this._bulletsPoweredUp ? POWERED_BULLET_MASS : BULLET_MASS
+    const color = this._bulletsPoweredUp ? 0xff5722 : 0xffeb3b // Orange for powered, yellow for normal
     const bulletBody = new CANNON.Body({
-      mass: BULLET_MASS,
+      mass,
       position: new CANNON.Vec3(px + dx * 0.6, py, pz + dz * 0.6),
-      shape: new CANNON.Sphere(BULLET_RADIUS),
+      shape: new CANNON.Sphere(radius),
       velocity: new CANNON.Vec3(dx * BULLET_SPEED, 0, dz * BULLET_SPEED),
       linearDamping: 0,
       collisionFilterGroup: 2, // bullet group
@@ -411,8 +437,8 @@ export class Player {
     })
     world.addBody(bulletBody)
     const bulletMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(BULLET_RADIUS, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0xffeb3b })
+      new THREE.SphereGeometry(radius, 8, 8),
+      new THREE.MeshStandardMaterial({ color })
     )
     bulletMesh.castShadow = true
     bulletMesh.position.set(bulletBody.position.x, bulletBody.position.y, bulletBody.position.z)
