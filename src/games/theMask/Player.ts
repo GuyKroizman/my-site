@@ -5,6 +5,8 @@ import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y } from './types'
 
 export const PLAYER_RADIUS = 0.4
 export const PLAYER_HEIGHT = 1.2
+/** Lower GLB model by this much so feet sit on floor (tune if model floats or sinks). */
+const PLAYER_GLB_FLOOR_OFFSET = 0.52
 const PLAYER_MASS = 80
 /** Single source of truth for player max health; use this constant anywhere max health is needed. */
 export const PLAYER_MAX_HEALTH = 100
@@ -53,7 +55,6 @@ export class Player {
   private shootCooldown: number = DEFAULT_SHOOT_COOLDOWN
   private onShoot?: (spawn: BulletSpawn) => void
   private scene: THREE.Scene
-  private isCapsulePlaceholder = false
   private mixer: THREE.AnimationMixer | null = null
   private idleAction: THREE.AnimationAction | null = null
   private runAction: THREE.AnimationAction | null = null
@@ -87,14 +88,8 @@ export class Player {
     })
     world.addBody(this.body)
 
-    const geometry = new THREE.CapsuleGeometry(PLAYER_RADIUS, PLAYER_HEIGHT - 2 * PLAYER_RADIUS, 4, 8)
-    const material = new THREE.MeshStandardMaterial({ color: 0x2196f3 })
-    const placeholder = new THREE.Mesh(geometry, material)
-    placeholder.castShadow = true
-    placeholder.receiveShadow = true
-    placeholder.position.copy(new THREE.Vector3(position.x, position.y + PLAYER_HEIGHT / 2, position.z))
-    this.mesh = placeholder
-    this.isCapsulePlaceholder = true
+    this.mesh = new THREE.Group()
+    this.mesh.position.set(position.x, position.y + PLAYER_HEIGHT / 2, position.z)
     scene.add(this.mesh)
 
     this.healthBarContainer = new THREE.Group()
@@ -115,12 +110,7 @@ export class Player {
   /** Replace the current visual with a loaded model (e.g. GLB). Optionally pass animations for idle/run. */
   replaceVisual(model: THREE.Object3D, animations?: THREE.AnimationClip[]) {
     this.scene.remove(this.mesh)
-    if (this.isCapsulePlaceholder && this.mesh instanceof THREE.Mesh) {
-      this.mesh.geometry.dispose()
-        ; (this.mesh.material as THREE.Material).dispose()
-    } else {
-      disposeObject3D(this.mesh)
-    }
+    disposeObject3D(this.mesh)
     this.mixer = null
     this.idleAction = null
     this.runAction = null
@@ -129,7 +119,6 @@ export class Player {
     this.deathAction = null
 
     this.mesh = model
-    this.isCapsulePlaceholder = false
     model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = true
@@ -427,9 +416,9 @@ export class Player {
   /** Sync visual from physics (call every frame). */
   syncMesh() {
     this.mesh.position.set(this.body.position.x, this.body.position.y, this.body.position.z)
-    // GLB origin is at character center; loader set model.position.y = PLAYER_HEIGHT/2, so lower mesh so feet touch ground
-    if (!this.isCapsulePlaceholder) {
-      this.mesh.position.y = this.body.position.y - PLAYER_HEIGHT / 2
+    // GLB origin is at character center; lower so feet sit on floor (not floating).
+    if (this.mesh.children.length > 0) {
+      this.mesh.position.y = this.body.position.y - PLAYER_GLB_FLOOR_OFFSET
     }
     this.mesh.rotation.y = this.facingAngle
 
@@ -494,12 +483,7 @@ export class Player {
     this.healthBarFill.geometry.dispose()
       ; (this.healthBarFill.material as THREE.Material).dispose()
     scene.remove(this.mesh)
-    if (this.isCapsulePlaceholder && this.mesh instanceof THREE.Mesh) {
-      this.mesh.geometry.dispose()
-        ; (this.mesh.material as THREE.Material).dispose()
-    } else {
-      disposeObject3D(this.mesh)
-    }
+    disposeObject3D(this.mesh)
     if (this.mixer) {
       this.mixer.removeEventListener('finished', this.onHitFinished)
       this.mixer.removeEventListener('finished', this.onWaveFinished)
