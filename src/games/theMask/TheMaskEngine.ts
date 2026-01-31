@@ -888,6 +888,25 @@ export class TheMaskEngine {
         mesh.position.set(r.position.x, r.position.y, r.position.z)
       }
     })
+    // Manual bullet-rolie collision (no physics body on rolie)
+    const rolieHitRadius = 1.0
+    this.bullets.forEach((spawn) => {
+      if (!spawn.fromPlayer) return
+      if (this.bulletsToRemove.has(spawn)) return
+      const bp = spawn.body.position
+      for (const r of this.rolies) {
+        if (!r.isAlive()) continue
+        const dx = bp.x - r.position.x
+        const dy = bp.y - r.position.y
+        const dz = bp.z - r.position.z
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+        if (dist < rolieHitRadius) {
+          r.takeDamage(1)
+          this.bulletsToRemove.add(spawn)
+          break
+        }
+      }
+    })
     this.bullets.forEach(syncBulletMesh)
     this.updateExplosions(animDt)
     if (!this.levelIntro) this.updateCameraFollow()
