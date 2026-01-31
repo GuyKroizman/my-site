@@ -1,4 +1,3 @@
-import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 import { FLOOR_Y } from './types'
 
@@ -19,9 +18,6 @@ const ROLIE_CHARGE_SPEED = 5
 /** How often to pick a new wander direction (seconds). */
 const ROLIE_WANDER_CHANGE_INTERVAL = 2
 const ROLIE_MAX_HEALTH = 2
-const HEALTH_BAR_WIDTH = 0.8
-const HEALTH_BAR_HEIGHT = 0.08
-const HEALTH_BAR_Y_OFFSET = 1.2
 /** Seconds after spawn before proximity to player can trigger explosion (so player can see the Rolie). */
 const ROLIE_ARM_DELAY = 2
 
@@ -36,9 +32,6 @@ export class Rolie {
   private wanderTimeLeft = ROLIE_WANDER_CHANGE_INTERVAL
   private timeAlive = 0
   private _charging = false
-  private healthBarBg: THREE.Mesh
-  private healthBarFill: THREE.Mesh
-  private healthBarContainer: THREE.Group
 
   /** Position in world space (reads from body). */
   get position() {
@@ -47,7 +40,6 @@ export class Rolie {
 
   constructor(
     world: CANNON.World,
-    scene: THREE.Scene,
     pos: { x: number; z: number }
   ) {
     const halfH = ROLIE_BODY_HEIGHT / 2
@@ -63,22 +55,6 @@ export class Rolie {
     })
       ; (this.body as unknown as { rolieRef?: Rolie }).rolieRef = this
     world.addBody(this.body)
-
-    // Visual is created and owned by the engine
-
-    this.healthBarContainer = new THREE.Group()
-    this.healthBarContainer.position.set(this.position.x, this.position.y + HEALTH_BAR_Y_OFFSET, this.position.z)
-    this.healthBarContainer.rotation.x = -Math.PI / 2
-    const bgGeo = new THREE.PlaneGeometry(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT)
-    this.healthBarBg = new THREE.Mesh(bgGeo, new THREE.MeshBasicMaterial({ color: 0x333333 }))
-    this.healthBarBg.position.z = 0.01
-    this.healthBarContainer.add(this.healthBarBg)
-    const fillGeo = new THREE.PlaneGeometry(HEALTH_BAR_WIDTH - 0.04, HEALTH_BAR_HEIGHT - 0.04)
-    this.healthBarFill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({ color: 0x4caf50 }))
-    this.healthBarFill.position.z = 0.02
-    this.healthBarFill.scale.x = 1
-    this.healthBarContainer.add(this.healthBarFill)
-    scene.add(this.healthBarContainer)
 
     this.pickNewWanderDirection()
   }
@@ -162,22 +138,6 @@ export class Rolie {
     this.body.velocity.x = dirX * speed
     this.body.velocity.z = dirZ * speed
     this.body.velocity.y = 0
-    this.updateHealthBar()
-  }
-
-  /** Call after physics step to sync health bar position from body. */
-  syncFromBody() {
-    const p = this.body.position
-    this.healthBarContainer.position.set(p.x, p.y + HEALTH_BAR_Y_OFFSET, p.z)
-  }
-
-  private updateHealthBar() {
-    const ratio = Math.max(0, this.health / this.maxHealth)
-    this.healthBarFill.scale.x = ratio
-    this.healthBarFill.position.x = -(1 - ratio) * (HEALTH_BAR_WIDTH - 0.04) / 2
-      ; (this.healthBarFill.material as THREE.MeshBasicMaterial).color.setHex(
-        ratio > 0.5 ? 0x4caf50 : ratio > 0.25 ? 0xff9800 : 0xf44336
-      )
   }
 
   takeDamage(amount: number) {
@@ -188,12 +148,7 @@ export class Rolie {
     return this.health > 0
   }
 
-  dispose(scene: THREE.Scene, world: CANNON.World) {
+  dispose(world: CANNON.World) {
     world.removeBody(this.body)
-    scene.remove(this.healthBarContainer)
-    this.healthBarBg.geometry.dispose()
-      ; (this.healthBarBg.material as THREE.Material).dispose()
-    this.healthBarFill.geometry.dispose()
-      ; (this.healthBarFill.material as THREE.Material).dispose()
   }
 }

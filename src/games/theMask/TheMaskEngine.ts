@@ -686,7 +686,7 @@ export class TheMaskEngine {
     this.boxes = []
     this.turrets.forEach((t) => t.dispose(this.scene, this.world))
     this.turrets = []
-    this.rolies.forEach((r) => r.dispose(this.scene, this.world))
+    this.rolies.forEach((r) => r.dispose(this.world))
     this.rolies = []
     this.rolieMeshes.forEach((m) => {
       this.scene.remove(m)
@@ -745,7 +745,7 @@ export class TheMaskEngine {
     const rolieConfigs = level.rolies ?? []
     rolieConfigs.forEach(({ x, z }, idx) => {
       try {
-        const rolie = new Rolie(this.world, this.scene, { x, z })
+        const rolie = new Rolie(this.world, { x, z })
         this.rolies.push(rolie)
         // Placeholder box while GLB loads
         const size = 1.5
@@ -1336,7 +1336,6 @@ export class TheMaskEngine {
     if (anyRolieCharging && !this.rolieSirenPlaying) this.startRolieSiren()
     if (this.rolieSirenPlaying) this.updateRolieSiren(now)
     if (!anyRolieCharging && this.rolieSirenPlaying) this.stopRolieSiren()
-    this.rolies.forEach((r) => r.syncFromBody())
     // Sync rolie mesh position and rotation from Rolie
     this.rolieMeshes.forEach((mesh, i) => {
       const r = this.rolies[i]
@@ -1415,7 +1414,7 @@ export class TheMaskEngine {
     roliesToRemove.forEach((r) => {
       const p = r.position
       this.applyRolieExplosion(p.x, p.y, p.z)
-      r.dispose(this.scene, this.world)
+      r.dispose(this.world)
     })
     rolieIndicesToRemove.forEach((idx) => {
       if (idx >= 0 && idx < this.rolieMeshes.length) {
@@ -1476,7 +1475,7 @@ export class TheMaskEngine {
     this.boxes = []
     this.turrets.forEach((t) => t.dispose(this.scene, this.world))
     this.turrets = []
-    this.rolies.forEach((r) => r.dispose(this.scene, this.world))
+    this.rolies.forEach((r) => r.dispose(this.world))
     this.rolies = []
     this.rolieMeshes.forEach((m) => {
       this.scene.remove(m)
