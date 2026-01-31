@@ -5,7 +5,7 @@ import { Player, PLAYER_HEIGHT, PLAYER_RADIUS, PLAYER_DAMAGE_PER_HIT } from './P
 import { Box, createBoxPiles } from './Box'
 import { Turret } from './Turret'
 import { Rolie } from './Rolie'
-import { LEVELS } from './levels'
+import { LEVELS, START_LEVEL } from './levels'
 import type { BulletSpawn } from './Player'
 import { isBulletOutOfBounds, syncBulletMesh, disposeBullet } from './Bullet'
 import { FLOOR_Y, DEFAULT_TOUCH_INPUT_STATE } from './types'
@@ -72,7 +72,7 @@ export class TheMaskEngine {
   private rolieMeshes: THREE.Object3D[] = []
   private bullets: BulletSpawn[] = []
   private touchState: TouchInputState = DEFAULT_TOUCH_INPUT_STATE
-  private currentLevelIndex = 0
+  private currentLevelIndex = Math.min(Math.max(0, START_LEVEL), LEVELS.length - 1)
   private bulletsToRemove = new Set<BulletSpawn>()
   /** Bullets that already applied damage this frame (avoid double damage from collision + sweep). */
   private bulletsHitPlayerThisFrame = new Set<BulletSpawn>()
@@ -168,7 +168,7 @@ export class TheMaskEngine {
       spawn.body.addEventListener(COLLIDE_EVENT, handler as (e: unknown) => void)
     })
     this.loadPlayerModel()
-    this.loadLevel(0)
+    this.loadLevel(this.currentLevelIndex)
 
     const handleResize = () => {
       requestAnimationFrame(() => {

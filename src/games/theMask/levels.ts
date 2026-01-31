@@ -1,5 +1,11 @@
 import type { LevelConfig } from './types'
 
+/**
+ * Start at this level when the game runs (0-based).
+ * Change this to test a specific level, e.g. 2 for level 3.
+ */
+export const START_LEVEL = 0
+
 /** Seven levels. Each level has its own arena dimensions (halfX, halfZ). */
 export const LEVELS: LevelConfig[] = [
   {
@@ -34,7 +40,7 @@ export const LEVELS: LevelConfig[] = [
       { x: -18, z: -12, n: 2 },
     ],
     turrets: [{ x: 10, z: 8 }, { x: -10, z: -8 }],
-    rolies: [{ x: 5, z: 5 }, { x: -12, z: -10 }], // Far from player spawn (21, 18) so they wander first
+    rolies: [{ x: -5, z: 5 }, { x: -12, z: -10 }], // Far from player spawn (21, 18) so they wander first
   },
   {
     halfX: 28,
