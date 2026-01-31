@@ -42,9 +42,6 @@ export class Turret {
   private healthBarContainer: THREE.Group
   /** Stores the cannon's current aim angle for bullet direction. */
   private cannonAimAngle = 0
-  /** Temp vectors for world direction calculation. */
-  private readonly _worldDir = new THREE.Vector3()
-  private readonly _worldQuat = new THREE.Quaternion()
   /** Base Y position (FLOOR_Y + TURRET_Y_OFFSET) for visuals. */
   private readonly baseY: number
 

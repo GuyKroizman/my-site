@@ -37,6 +37,11 @@ const EXPLOSION_PARTICLE_SIZE_MAX = 0.5
 const EXPLOSION_FLASH_DURATION = 0.35
 const EXPLOSION_FLASH_MAX_SCALE = 2.5
 
+const INTRO_CLOSEUP_DURATION = 3
+const INTRO_SWOOP_DURATION = 1.5
+const INTRO_CLOSEUP_DIST = 2.5
+const INTRO_CLOSEUP_HEIGHT = 0.5
+
 export interface TheMaskEngineOptions {
   mobile?: boolean
 }
@@ -62,6 +67,15 @@ export class TheMaskEngine {
   private cameraDist: number
   /** Preloaded audio elements so first play is not truncated. */
   private soundCache: Record<string, HTMLAudioElement> = {}
+  /** Level intro: close-up camera, Wave animation, then swoop to normal. */
+  private levelIntro: {
+    phase: 'closeup' | 'swoop' | 'done'
+    closeupEndTime: number
+    swoopEndTime: number
+    startPos: { x: number; y: number; z: number }
+    startLookAt: { x: number; y: number; z: number }
+  } | null = null
+
   /** Active turret explosions; level transition waits until this is empty. */
   private explosions: {
     group: THREE.Group
@@ -159,6 +173,8 @@ export class TheMaskEngine {
         const names = gltf.animations?.map((a) => a.name) ?? []
         console.log('Astronaut animations available:', names)
         this.player.replaceVisual(model, gltf.animations)
+        // If level intro is active (e.g. model loaded after first frame), start wave so it plays
+        if (this.levelIntro?.phase === 'closeup') this.player.playWave()
       },
       undefined,
       (err) => console.warn('Failed to load Astronaut.glb', err)
@@ -364,6 +380,88 @@ export class TheMaskEngine {
     })
     this.player.body.position.set(21, FLOOR_Y + PLAYER_HEIGHT / 2, 18)
     this.player.body.velocity.set(0, 0, 0)
+
+    this.startLevelIntro()
+  }
+
+  private startLevelIntro() {
+    const p = this.player.body.position
+    const now = performance.now() / 1000
+    this.levelIntro = {
+      phase: 'closeup',
+      closeupEndTime: now + INTRO_CLOSEUP_DURATION,
+      swoopEndTime: 0,
+      startPos: { x: 0, y: 0, z: 0 },
+      startLookAt: { x: p.x, y: p.y, z: p.z },
+    }
+    this.player.playWave()
+    this.setCameraCloseup()
+  }
+
+  private setCameraCloseup() {
+    const p = this.player.body.position
+    const dx = Math.sin(this.player.facingAngle)
+    const dz = Math.cos(this.player.facingAngle)
+    const dist = INTRO_CLOSEUP_DIST
+    // Camera in front of player (same direction they face)
+    this.camera.position.set(
+      p.x + dx * dist,
+      p.y + INTRO_CLOSEUP_HEIGHT,
+      p.z + dz * dist
+    )
+    this.camera.lookAt(p.x, p.y, p.z)
+  }
+
+  private getNormalCameraPosition(): { pos: { x: number; y: number; z: number }; lookAt: { x: number; y: number; z: number } } {
+    const p = this.player.body.position
+    const dist = this.cameraDist
+    const offsetY = dist * Math.sin(CAMERA_ANGLE)
+    const offsetH = dist * Math.cos(CAMERA_ANGLE)
+    const offsetX = offsetH * 0.7
+    const offsetZ = offsetH * 0.7
+    return {
+      pos: { x: p.x + offsetX, y: p.y + offsetY, z: p.z + offsetZ },
+      lookAt: { x: p.x, y: p.y, z: p.z },
+    }
+  }
+
+  private updateLevelIntroCamera(now: number) {
+    if (!this.levelIntro) return
+    const intro = this.levelIntro
+    const p = this.player.body.position
+
+    if (intro.phase === 'closeup') {
+      this.setCameraCloseup()
+      if (now >= intro.closeupEndTime) {
+        intro.startPos = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }
+        intro.startLookAt = { x: p.x, y: p.y, z: p.z }
+        intro.phase = 'swoop'
+        intro.swoopEndTime = now + INTRO_SWOOP_DURATION
+      }
+      return
+    }
+
+    if (intro.phase === 'swoop') {
+      const swoopStart = intro.swoopEndTime - INTRO_SWOOP_DURATION
+      let t = (now - swoopStart) / INTRO_SWOOP_DURATION
+      t = Math.min(1, Math.max(0, t))
+      const s = t * t * (3 - 2 * t)
+      const target = this.getNormalCameraPosition()
+      this.camera.position.set(
+        intro.startPos.x + s * (target.pos.x - intro.startPos.x),
+        intro.startPos.y + s * (target.pos.y - intro.startPos.y),
+        intro.startPos.z + s * (target.pos.z - intro.startPos.z)
+      )
+      this.camera.lookAt(
+        intro.startLookAt.x + s * (target.lookAt.x - intro.startLookAt.x),
+        intro.startLookAt.y + s * (target.lookAt.y - intro.startLookAt.y),
+        intro.startLookAt.z + s * (target.lookAt.z - intro.startLookAt.z)
+      )
+      if (t >= 1) {
+        this.player.stopWave()
+        this.levelIntro = null
+      }
+    }
   }
 
   /** Update camera to follow player with fixed isometric offset (margins). */
@@ -503,34 +601,40 @@ export class TheMaskEngine {
       return
     }
 
-    const keyboardState = this.input.getState()
-    const joy = this.touchState.joystick
-    const aim = this.touchState.aim
-    const joyLen = Math.sqrt(joy.x * joy.x + joy.y * joy.y)
-    const aimLen = Math.sqrt(aim.x * aim.x + aim.y * aim.y)
-    const offsetH = this.cameraDist * Math.cos(CAMERA_ANGLE)
-    const fwdX = offsetH * 0.7
-    const fwdZ = offsetH * 0.7
-    const fwdLen = Math.sqrt(fwdX * fwdX + fwdZ * fwdZ) || 1
-    const forwardX = fwdX / fwdLen
-    const forwardZ = fwdZ / fwdLen
-    const rightX = -forwardZ
-    const rightZ = forwardX
-    const aimWorldX = aimLen > 0.05 ? -aim.y * forwardX - aim.x * rightX : 0
-    const aimWorldZ = aimLen > 0.05 ? -aim.y * forwardZ - aim.x * rightZ : 0
-    const shootFromAim = aimLen > 0.05
-    const shoot = keyboardState.shoot || shootFromAim
+    const now = performance.now() / 1000
+    this.updateLevelIntroCamera(now)
 
-    if (joyLen > 0.05) {
-      const worldX = -joy.y * forwardX - joy.x * rightX
-      const worldZ = -joy.y * forwardZ - joy.x * rightZ
-      this.player.updateInputFromTouch(worldX, worldZ, aimWorldX, aimWorldZ, shoot, PHYSICS_DT)
-    } else {
-      this.player.updateInput({ ...keyboardState, shoot }, PHYSICS_DT)
-      if (shootFromAim && (aimWorldX !== 0 || aimWorldZ !== 0)) {
-        const aimLen = Math.sqrt(aimWorldX * aimWorldX + aimWorldZ * aimWorldZ)
-        if (aimLen > 0.01) {
-          this.player.shootInDirection(aimWorldX / aimLen, aimWorldZ / aimLen)
+    const inIntro = !!this.levelIntro
+    if (!inIntro) {
+      const keyboardState = this.input.getState()
+      const joy = this.touchState.joystick
+      const aim = this.touchState.aim
+      const joyLen = Math.sqrt(joy.x * joy.x + joy.y * joy.y)
+      const aimLen = Math.sqrt(aim.x * aim.x + aim.y * aim.y)
+      const offsetH = this.cameraDist * Math.cos(CAMERA_ANGLE)
+      const fwdX = offsetH * 0.7
+      const fwdZ = offsetH * 0.7
+      const fwdLen = Math.sqrt(fwdX * fwdX + fwdZ * fwdZ) || 1
+      const forwardX = fwdX / fwdLen
+      const forwardZ = fwdZ / fwdLen
+      const rightX = -forwardZ
+      const rightZ = forwardX
+      const aimWorldX = aimLen > 0.05 ? -aim.y * forwardX - aim.x * rightX : 0
+      const aimWorldZ = aimLen > 0.05 ? -aim.y * forwardZ - aim.x * rightZ : 0
+      const shootFromAim = aimLen > 0.05
+      const shoot = keyboardState.shoot || shootFromAim
+
+      if (joyLen > 0.05) {
+        const worldX = -joy.y * forwardX - joy.x * rightX
+        const worldZ = -joy.y * forwardZ - joy.x * rightZ
+        this.player.updateInputFromTouch(worldX, worldZ, aimWorldX, aimWorldZ, shoot, PHYSICS_DT)
+      } else {
+        this.player.updateInput({ ...keyboardState, shoot }, PHYSICS_DT)
+        if (shootFromAim && (aimWorldX !== 0 || aimWorldZ !== 0)) {
+          const aimLen = Math.sqrt(aimWorldX * aimWorldX + aimWorldZ * aimWorldZ)
+          if (aimLen > 0.01) {
+            this.player.shootInDirection(aimWorldX / aimLen, aimWorldZ / aimLen)
+          }
         }
       }
     }
@@ -567,7 +671,6 @@ export class TheMaskEngine {
     })
     this.player.clampToArena()
     this.player.syncMesh()
-    const now = performance.now() / 1000
     const animDt = this.lastAnimationTime > 0 ? now - this.lastAnimationTime : PHYSICS_DT
     this.lastAnimationTime = now
     this.player.updateAnimation(animDt)
@@ -576,7 +679,7 @@ export class TheMaskEngine {
     this.turrets.forEach((t) => t.update(PHYSICS_DT, playerPos))
     this.bullets.forEach(syncBulletMesh)
     this.updateExplosions(animDt)
-    this.updateCameraFollow()
+    if (!this.levelIntro) this.updateCameraFollow()
 
     this.bulletsToRemove.forEach((spawn) => {
       disposeBullet(spawn, this.scene, this.world)

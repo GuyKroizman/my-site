@@ -49,7 +49,8 @@ export class Player {
   private idleAction: THREE.AnimationAction | null = null
   private runAction: THREE.AnimationAction | null = null
   private hitAction: THREE.AnimationAction | null = null
-  private currentAction: 'idle' | 'run' | 'hit' = 'idle'
+  private waveAction: THREE.AnimationAction | null = null
+  private currentAction: 'idle' | 'run' | 'hit' | 'wave' = 'idle'
 
   constructor(
     world: CANNON.World,
@@ -95,6 +96,7 @@ export class Player {
     this.idleAction = null
     this.runAction = null
     this.hitAction = null
+    this.waveAction = null
 
     this.mesh = model
     this.isCapsulePlaceholder = false
@@ -141,8 +143,40 @@ export class Player {
         this.hitAction.setEffectiveWeight(0)
         this.mixer.addEventListener('finished', this.onHitFinished)
       }
+      const waveClip =
+        animations.find((c) => c.name === 'CharacterArmature|Wave' || c.name === 'Wave' || c.name.endsWith('|Wave')) ??
+        animations.find((c) => c.name.toLowerCase().includes('wave'))
+      if (waveClip) {
+        this.waveAction = this.mixer.clipAction(waveClip)
+        this.waveAction.setLoop(THREE.LoopOnce, 1)
+        this.waveAction.clampWhenFinished = true
+        this.waveAction.setEffectiveWeight(0)
+        this.mixer.addEventListener('finished', this.onWaveFinished)
+      }
       this.currentAction = 'idle'
     }
+  }
+
+  /** Play Wave animation (e.g. level intro). */
+  playWave() {
+    if (!this.mixer || !this.waveAction) return
+    this.currentAction = 'wave'
+    if (this.idleAction) this.idleAction.setEffectiveWeight(0)
+    if (this.runAction) this.runAction.setEffectiveWeight(0)
+    this.waveAction.reset().play()
+    this.waveAction.setEffectiveWeight(1)
+  }
+
+  /** Stop Wave and return to idle (call when level intro camera ends). */
+  stopWave() {
+    if (!this.waveAction) return
+    this.waveAction.setEffectiveWeight(0)
+    this.currentAction = 'idle'
+    if (this.idleAction) {
+      this.idleAction.reset().play()
+      this.idleAction.setEffectiveWeight(1)
+    }
+    if (this.runAction) this.runAction.setEffectiveWeight(0)
   }
 
   private onHitFinished = (e: { action: THREE.AnimationAction }) => {
@@ -154,6 +188,11 @@ export class Player {
       this.idleAction.setEffectiveWeight(1)
     }
     if (this.runAction) this.runAction.setEffectiveWeight(0)
+  }
+
+  private onWaveFinished = (e: { action: THREE.AnimationAction }) => {
+    if (e.action !== this.waveAction) return
+    this.stopWave()
   }
 
   /** Play hit reaction animation (e.g. when hit by turret bullet). */
@@ -292,6 +331,10 @@ export class Player {
   /** Sync visual from physics (call every frame). */
   syncMesh() {
     this.mesh.position.set(this.body.position.x, this.body.position.y, this.body.position.z)
+    // GLB origin is at character center; loader set model.position.y = PLAYER_HEIGHT/2, so lower mesh so feet touch ground
+    if (!this.isCapsulePlaceholder) {
+      this.mesh.position.y = this.body.position.y - PLAYER_HEIGHT / 2
+    }
     this.mesh.rotation.y = this.facingAngle
   }
 
@@ -299,7 +342,7 @@ export class Player {
   updateAnimation(dt: number) {
     if (!this.mixer) return
     this.mixer.update(dt)
-    if (this.currentAction === 'hit') return
+    if (this.currentAction === 'hit' || this.currentAction === 'wave') return
 
     const vx = this.body.velocity.x
     const vz = this.body.velocity.z
@@ -340,13 +383,15 @@ export class Player {
     } else {
       disposeObject3D(this.mesh)
     }
-    if (this.mixer && this.hitAction) {
+    if (this.mixer) {
       this.mixer.removeEventListener('finished', this.onHitFinished)
+      this.mixer.removeEventListener('finished', this.onWaveFinished)
     }
     this.mixer = null
     this.idleAction = null
     this.runAction = null
     this.hitAction = null
+    this.waveAction = null
     world.removeBody(this.body)
   }
 }
