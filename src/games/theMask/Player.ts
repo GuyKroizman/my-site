@@ -13,6 +13,8 @@ const PLAYER_HEALTH_BAR_WIDTH = 0.5
 const PLAYER_HEALTH_BAR_HEIGHT = 0.1
 /** Offset above player center (body.position.y). */
 const PLAYER_HEALTH_BAR_Y_OFFSET = 0.9
+/** Fixed rotation around Y (radians) so the bar is visible from the camera; 0 = along X, π/4 = diagonal. */
+const PLAYER_HEALTH_BAR_Y_ROTATION = Math.PI / 4
 const MOVE_FORCE = 22
 const MAX_SPEED = 4
 const MOVE_SPEED_THRESHOLD = 0.3
@@ -96,7 +98,8 @@ export class Player {
     scene.add(this.mesh)
 
     this.healthBarContainer = new THREE.Group()
-    this.healthBarContainer.rotation.x = -Math.PI / 2
+    this.healthBarContainer.rotation.x = -Math.PI / 4
+    this.healthBarContainer.rotation.y = PLAYER_HEALTH_BAR_Y_ROTATION
     const bgGeo = new THREE.PlaneGeometry(PLAYER_HEALTH_BAR_WIDTH, PLAYER_HEALTH_BAR_HEIGHT)
     this.healthBarBg = new THREE.Mesh(bgGeo, new THREE.MeshBasicMaterial({ color: 0x333333 }))
     this.healthBarBg.position.z = 0.01
