@@ -1,4 +1,5 @@
 import type { LevelConfig } from './types'
+import { parseGridLevel } from './types'
 
 /**
  * Start at this level when the game runs (0-based).
@@ -6,75 +7,70 @@ import type { LevelConfig } from './types'
  */
 export const START_LEVEL = 0
 
-/** Seven levels. Each level has its own arena dimensions (halfX, halfZ). */
+/**
+ * Grid-based level definitions.
+ *
+ * Characters:
+ *   1-9 = box pile (number = stack height)
+ *   t/T = turret
+ *   r/R = rolie
+ *   p/P = player spawn
+ *   .   = empty
+ *
+ * Grid layout:
+ *   - First row = back of arena (far -Z)
+ *   - Last row = front of arena (near +Z)
+ *   - Left column = left side (-X)
+ *   - Right column = right side (+X)
+ *
+ * Cell size is 4 world units by default.
+ */
+
+// Level 1: Simple intro level
+const LEVEL_1 = parseGridLevel(`
+............
+.3........2.
+....t.......
+.2....2.....
+............
+.....2....3.
+............
+.3........p.
+`, 4)
+
+// Level 2: Two turrets, two rolies
+const LEVEL_2 = parseGridLevel(`
+..............
+.4..r.....3...
+......t.......
+.3....3....t..
+..........r...
+...t....4.....
+.2........5.44
+.........6....
+.r......4...p.
+`, 4)
+
+// Level 3: Harder level with more enemies
+const LEVEL_3 = parseGridLevel(`
+................
+.5.r..t.....4.r.
+................
+.3....4.....3...
+....r...........
+.3..t...t...3...
+................
+.4....4.....4...
+.r..........6...
+.5.....t....5..p
+`, 4)
+
+/** All levels. Each level has its own arena dimensions derived from grid size. */
 export const LEVELS: LevelConfig[] = [
-  {
-    halfX: 24,
-    halfZ: 20,
-    boxes: [
-      { x: -10, z: -8, n: 3 },
-      { x: 10, z: -6, n: 2 },
-      { x: -6, z: 8, n: 3 },
-      { x: 8, z: 10, n: 2 },
-      { x: 0, z: 0, n: 2 },
-      { x: -15, z: 0, n: 2 },
-      { x: 14, z: -12, n: 3 },
-      { x: -12, z: 14, n: 2 },
-    ],
-    turrets: [{ x: -8, z: -4 }],
-    rolies: [],
-  },
-  {
-    halfX: 24,
-    halfZ: 20,
-    boxes: [
-      { x: -12, z: -10, n: 4 },
-      { x: 12, z: -8, n: 3 },
-      { x: -8, z: 10, n: 4 },
-      { x: 10, z: 12, n: 3 },
-      { x: 0, z: 0, n: 3 },
-      { x: -16, z: 0, n: 2 },
-      { x: 14, z: -14, n: 3 },
-      { x: -14, z: 14, n: 2 },
-      { x: 18, z: 16, n: 2 },
-      { x: -18, z: -12, n: 2 },
-    ],
-    turrets: [{ x: 10, z: 8 }, { x: -10, z: -8 }],
-    rolies: [{ x: -5, z: 5 }, { x: -12, z: -10 }], // Far from player spawn (21, 18) so they wander first
-  },
-  {
-    halfX: 28,
-    halfZ: 24,
-    boxes: [
-      { x: -20, z: -18, n: 5 },
-      { x: 20, z: -16, n: 4 },
-      { x: -18, z: 18, n: 5 },
-      { x: 18, z: 20, n: 4 },
-      { x: 0, z: 0, n: 4 },
-      { x: -22, z: 0, n: 3 },
-      { x: 22, z: 0, n: 3 },
-      { x: 0, z: -20, n: 3 },
-      { x: 0, z: 20, n: 3 },
-      { x: -14, z: -14, n: 4 },
-      { x: 14, z: -14, n: 4 },
-      { x: -14, z: 14, n: 4 },
-      { x: 14, z: 14, n: 4 },
-      { x: -8, z: -8, n: 3 },
-      { x: 8, z: -8, n: 3 },
-      { x: -8, z: 8, n: 3 },
-      { x: 8, z: 8, n: 3 },
-    ],
-    turrets: [
-      { x: -20, z: 18 }, { x: 20, z: -18 }, { x: -20, z: -18 },
-      { x: 0, z: 20 }, { x: 0, z: -20 }, { x: 24, z: 0 }, { x: -24, z: 0 },
-      { x: 14, z: 18 }, { x: -14, z: -18 },
-    ],
-    rolies: [
-      { x: -18, z: 16 }, { x: 18, z: -16 }, { x: -18, z: -16 },
-      { x: -10, z: 20 }, { x: 10, z: -20 }, { x: -10, z: -20 },
-      { x: -22, z: -10 },
-    ],
-  },
+  LEVEL_1,
+  LEVEL_2,
+  LEVEL_3,
+  // Empty placeholder levels (can be converted to grid later)
   { halfX: 32, halfZ: 28, boxes: [], turrets: [] },
   { halfX: 36, halfZ: 32, boxes: [], turrets: [] },
   { halfX: 40, halfZ: 36, boxes: [], turrets: [] },

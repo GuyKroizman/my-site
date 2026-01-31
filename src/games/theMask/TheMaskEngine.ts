@@ -116,7 +116,6 @@ export class TheMaskEngine {
   /** Generated siren when any Rolie is chasing the player. */
   private rolieSirenCtx: AudioContext | null = null
   private rolieSirenOsc: OscillatorNode | null = null
-  private rolieSirenGain: GainNode | null = null
   private rolieSirenPlaying = false
   private rolieSirenStartTime = 0
 
@@ -346,7 +345,6 @@ export class TheMaskEngine {
       gain.connect(ctx.destination)
       osc.start(ctx.currentTime)
       this.rolieSirenOsc = osc
-      this.rolieSirenGain = gain
       this.rolieSirenPlaying = true
       this.rolieSirenStartTime = performance.now() / 1000
     } catch {
@@ -365,7 +363,6 @@ export class TheMaskEngine {
       // ignore
     }
     this.rolieSirenOsc = null
-    this.rolieSirenGain = null
     this.rolieSirenCtx = null
     this.rolieSirenPlaying = false
   }
@@ -661,9 +658,9 @@ export class TheMaskEngine {
         console.error('Failed to create Rolie at', x, z, err)
       }
     })
-    // Start player near the positive-x, positive-z corner (like first level)
-    const startX = halfX - 3
-    const startZ = halfZ - 2
+    // Start player at level-defined position, or default to positive corner
+    const startX = level.playerStart?.x ?? (halfX - 3)
+    const startZ = level.playerStart?.z ?? (halfZ - 2)
     this.player.body.position.set(startX, FLOOR_Y + PLAYER_HEIGHT / 2, startZ)
     this.player.body.velocity.set(0, 0, 0)
     this.player.resetHealth()
