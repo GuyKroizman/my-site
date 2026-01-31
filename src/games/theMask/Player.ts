@@ -6,8 +6,13 @@ import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y } from './types'
 export const PLAYER_RADIUS = 0.4
 export const PLAYER_HEIGHT = 1.2
 const PLAYER_MASS = 80
-const PLAYER_MAX_HEALTH = 100
+/** Single source of truth for player max health; use this constant anywhere max health is needed. */
+export const PLAYER_MAX_HEALTH = 100
 export const PLAYER_DAMAGE_PER_HIT = 10
+const PLAYER_HEALTH_BAR_WIDTH = 0.5
+const PLAYER_HEALTH_BAR_HEIGHT = 0.1
+/** Offset above player center (body.position.y). */
+const PLAYER_HEALTH_BAR_Y_OFFSET = 0.9
 const MOVE_FORCE = 22
 const MAX_SPEED = 4
 const MOVE_SPEED_THRESHOLD = 0.3
@@ -56,6 +61,9 @@ export class Player {
   private currentAction: 'idle' | 'run' | 'hit' | 'wave' | 'death' = 'idle'
   private _health = PLAYER_MAX_HEALTH
   private _maxHealth = PLAYER_MAX_HEALTH
+  private healthBarContainer: THREE.Group
+  private healthBarBg: THREE.Mesh
+  private healthBarFill: THREE.Mesh
 
   constructor(
     world: CANNON.World,
@@ -86,6 +94,19 @@ export class Player {
     this.mesh = placeholder
     this.isCapsulePlaceholder = true
     scene.add(this.mesh)
+
+    this.healthBarContainer = new THREE.Group()
+    this.healthBarContainer.rotation.x = -Math.PI / 2
+    const bgGeo = new THREE.PlaneGeometry(PLAYER_HEALTH_BAR_WIDTH, PLAYER_HEALTH_BAR_HEIGHT)
+    this.healthBarBg = new THREE.Mesh(bgGeo, new THREE.MeshBasicMaterial({ color: 0x333333 }))
+    this.healthBarBg.position.z = 0.01
+    this.healthBarContainer.add(this.healthBarBg)
+    const fillGeo = new THREE.PlaneGeometry(PLAYER_HEALTH_BAR_WIDTH - 0.04, PLAYER_HEALTH_BAR_HEIGHT - 0.04)
+    this.healthBarFill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({ color: 0x4caf50 }))
+    this.healthBarFill.position.z = 0.02
+    this.healthBarFill.scale.x = 1
+    this.healthBarContainer.add(this.healthBarFill)
+    scene.add(this.healthBarContainer)
   }
 
   /** Replace the current visual with a loaded model (e.g. GLB). Optionally pass animations for idle/run. */
@@ -408,6 +429,22 @@ export class Player {
       this.mesh.position.y = this.body.position.y - PLAYER_HEIGHT / 2
     }
     this.mesh.rotation.y = this.facingAngle
+
+    this.healthBarContainer.position.set(
+      this.body.position.x,
+      this.body.position.y + PLAYER_HEALTH_BAR_Y_OFFSET,
+      this.body.position.z
+    )
+    this.updateHealthBar()
+  }
+
+  private updateHealthBar() {
+    const ratio = Math.max(0, this._health / this._maxHealth)
+    this.healthBarFill.scale.x = ratio
+    this.healthBarFill.position.x = -(1 - ratio) * (PLAYER_HEALTH_BAR_WIDTH - 0.04) / 2
+      ; (this.healthBarFill.material as THREE.MeshBasicMaterial).color.setHex(
+        ratio > 0.5 ? 0x4caf50 : ratio > 0.25 ? 0xff9800 : 0xf44336
+      )
   }
 
   /** Update animation mixer and switch idle/run based on velocity. Call every frame. */
@@ -448,6 +485,11 @@ export class Player {
   }
 
   dispose(scene: THREE.Scene, world: CANNON.World) {
+    scene.remove(this.healthBarContainer)
+    this.healthBarBg.geometry.dispose()
+      ; (this.healthBarBg.material as THREE.Material).dispose()
+    this.healthBarFill.geometry.dispose()
+      ; (this.healthBarFill.material as THREE.Material).dispose()
     scene.remove(this.mesh)
     if (this.isCapsulePlaceholder && this.mesh instanceof THREE.Mesh) {
       this.mesh.geometry.dispose()

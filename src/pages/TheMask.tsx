@@ -20,8 +20,6 @@ export default function TheMask() {
   const [uiState, setUiState] = useState<UIState>('menu')
   const [isPortraitMode, setIsPortraitMode] = useState(isPortrait())
   const [hideHeader, setHideHeader] = useState(isMobileLandscape())
-  const [playerHealth, setPlayerHealth] = useState(200)
-  const [playerMaxHealth, setPlayerMaxHealth] = useState(200)
 
   useEffect(() => {
     const handleOrientationChange = () => {
@@ -67,10 +65,6 @@ export default function TheMask() {
       const engine = new TheMaskEngine(containerRef.current, {
         mobile: isTouchDevice(),
         onGameOver: () => setUiState('gameOver'),
-        onHealthChange: (health, maxHealth) => {
-          setPlayerHealth(health)
-          setPlayerMaxHealth(maxHealth)
-        },
       })
       gameEngineRef.current = engine
       setUiState('playing')
@@ -85,8 +79,6 @@ export default function TheMask() {
       gameEngineRef.current = null
     }
     setUiState('menu')
-    setPlayerHealth(200)
-    setPlayerMaxHealth(200)
   }
 
   const handleTouchInputChange = (state: TouchInputState) => {
@@ -119,20 +111,6 @@ export default function TheMask() {
         ref={containerRef}
         className={`${uiState === 'playing' || uiState === 'paused' || uiState === 'gameOver' ? 'flex-1' : ''} w-full relative overflow-hidden min-h-0`}
       >
-        {(uiState === 'playing' || uiState === 'paused') && (
-          <div className="absolute top-2 left-2 right-2 z-20 flex justify-center pointer-events-none">
-            <div className="bg-gray-900/80 rounded-lg px-3 py-1.5 flex items-center gap-2 min-w-[120px] max-w-[200px]">
-              <span className="text-white text-xs font-medium whitespace-nowrap">Health</span>
-              <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-red-500 transition-all duration-150"
-                  style={{ width: `${Math.max(0, (playerHealth / playerMaxHealth) * 100)}%` }}
-                />
-              </div>
-              <span className="text-white text-xs tabular-nums">{playerHealth}/{playerMaxHealth}</span>
-            </div>
-          </div>
-        )}
         {uiState === 'paused' && <PausedDialog />}
         {uiState === 'gameOver' && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70">
