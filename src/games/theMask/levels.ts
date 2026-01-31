@@ -16,7 +16,7 @@ export const LEVELS: LevelConfig[] = [
       { x: -12, z: 14, n: 2 },
     ],
     turrets: [{ x: -8, z: -4 }],
-    rolies: [{ x: 0, z: 0 }], // Center of arena
+    rolies: [],
   },
   {
     halfX: 48,
