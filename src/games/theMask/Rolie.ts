@@ -8,7 +8,8 @@ const ROLIE_COLLISION_MASK = 1 | 4
 
 export const ROLIE_BODY_RADIUS = 0.7
 const ROLIE_BODY_HEIGHT = 1.2
-const ROLIE_MASS = 15
+/** Low mass so Rolie can't push boxes but still collides with them */
+const ROLIE_MASS = 0.5
 /** Distance (XZ) below which Rolie charges at the player to explode. */
 export const ROLIE_CHARGE_TRIGGER_DISTANCE = 8
 /** Speed when wandering (units per second). */
@@ -118,11 +119,12 @@ export class Rolie {
     // Update facing angle to match movement direction
     this.facingAngle = Math.atan2(dirX, dirZ)
 
-    // Move position manually (no physics)
-    this.position.x += dirX * speed * dt
-    this.position.z += dirZ * speed * dt
+    // Use velocity for movement - physics engine handles box collisions
+    this.body.velocity.x = dirX * speed
+    this.body.velocity.z = dirZ * speed
+    this.body.velocity.y = 0
 
-    // Clamp to arena bounds (physics will resolve; nudge position if out of bounds to avoid getting stuck)
+    // Clamp to arena bounds
     const margin = 1.0
     const minX = -halfX + margin
     const maxX = halfX - margin
@@ -134,10 +136,6 @@ export class Rolie {
     if (this.position.z < minZ) { this.body.position.z = minZ; hitWall = true }
     if (this.position.z > maxZ) { this.body.position.z = maxZ; hitWall = true }
     if (hitWall) this.pickNewWanderDirection()
-
-    this.body.velocity.x = dirX * speed
-    this.body.velocity.z = dirZ * speed
-    this.body.velocity.y = 0
   }
 
   takeDamage(amount: number) {
