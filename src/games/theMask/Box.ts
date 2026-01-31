@@ -70,9 +70,9 @@ export function createBoxPiles(
   pileConfigs.forEach(({ x: px, z: pz, n }, i) => {
     let stackY = FLOOR_Y  // Track cumulative height for stacking
     for (let j = 0; j < n; j++) {
-      const w = 0.8 + Math.random() * 0.4
+      const w = 0.8 + Math.random() * 0.19
       const h = 0.6 + Math.random() * 0.3
-      const d = 0.8 + Math.random() * 0.4
+      const d = 0.8 + Math.random() * 0.19
       const y = stackY + h / 2  // Place box center at stackY + half its height
       stackY += h  // Next box starts on top of this one
       boxes.push(
