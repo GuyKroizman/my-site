@@ -13,7 +13,7 @@ export const ROLIE_CHARGE_TRIGGER_DISTANCE = 10
 /** Speed when wandering (units per second). */
 const ROLIE_WANDER_SPEED = 1.8
 /** Speed when charging at player. */
-const ROLIE_CHARGE_SPEED = 7
+const ROLIE_CHARGE_SPEED = 4
 /** How often to pick a new wander direction (seconds). */
 const ROLIE_WANDER_CHANGE_INTERVAL = 2
 const ROLIE_MAX_HEALTH = 2
@@ -131,9 +131,9 @@ export class Rolie {
     const ratio = Math.max(0, this.health / this.maxHealth)
     this.healthBarFill.scale.x = ratio
     this.healthBarFill.position.x = -(1 - ratio) * (HEALTH_BAR_WIDTH - 0.04) / 2
-    ;(this.healthBarFill.material as THREE.MeshBasicMaterial).color.setHex(
-      ratio > 0.5 ? 0x4caf50 : ratio > 0.25 ? 0xff9800 : 0xf44336
-    )
+      ; (this.healthBarFill.material as THREE.MeshBasicMaterial).color.setHex(
+        ratio > 0.5 ? 0x4caf50 : ratio > 0.25 ? 0xff9800 : 0xf44336
+      )
   }
 
   takeDamage(amount: number) {
@@ -147,8 +147,8 @@ export class Rolie {
   dispose(scene: THREE.Scene, _world: CANNON.World) {
     scene.remove(this.healthBarContainer)
     this.healthBarBg.geometry.dispose()
-    ;(this.healthBarBg.material as THREE.Material).dispose()
+      ; (this.healthBarBg.material as THREE.Material).dispose()
     this.healthBarFill.geometry.dispose()
-    ;(this.healthBarFill.material as THREE.Material).dispose()
+      ; (this.healthBarFill.material as THREE.Material).dispose()
   }
 }
