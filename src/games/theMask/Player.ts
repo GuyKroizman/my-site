@@ -208,6 +208,12 @@ export class Player {
     return this._health
   }
 
+  /** Heal the player by the given amount, capped at max health. Returns new health. */
+  heal(amount: number): number {
+    this._health = Math.min(this._maxHealth, this._health + amount)
+    return this._health
+  }
+
   isDead(): boolean {
     return this._health <= 0
   }

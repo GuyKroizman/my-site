@@ -55,6 +55,13 @@ const INTRO_SWOOP_DURATION = 1.5
 const INTRO_CLOSEUP_DIST = 2.5
 const INTRO_CLOSEUP_HEIGHT = 0.5
 
+/** Health pickup configuration */
+const HEALTH_PICKUP_MODEL = '/theMask/models/pickup_health.glb'
+const HEALTH_PICKUP_AMOUNT = 20
+const HEALTH_PICKUP_RADIUS = 1.2
+const HEALTH_PICKUP_Y = FLOOR_Y + 0.5
+const HEALTH_PICKUP_ROTATION_SPEED = 2 // radians per second
+
 export interface TheMaskEngineOptions {
   mobile?: boolean
   onGameOver?: () => void
@@ -117,6 +124,10 @@ export class TheMaskEngine {
   private rolieSirenCtx: AudioContext | null = null
   private rolieSirenOsc: OscillatorNode | null = null
   private rolieSirenPlaying = false
+
+  /** Health pickup */
+  private healthPickupMesh: THREE.Object3D | null = null
+  private healthPickupTemplate: THREE.Object3D | null = null
   private rolieSirenStartTime = 0
 
   constructor(container: HTMLElement, options?: TheMaskEngineOptions) {
@@ -177,6 +188,7 @@ export class TheMaskEngine {
       spawn.body.addEventListener(COLLIDE_EVENT, handler as (e: unknown) => void)
     })
     this.loadPlayerModel()
+    this.loadHealthPickupModel()
     this.loadLevel(this.currentLevelIndex, true)
 
     const handleResize = () => {
@@ -228,6 +240,37 @@ export class TheMaskEngine {
       a.load()
       this.soundCache[url] = a
     })
+  }
+
+  private async loadHealthPickupModel() {
+    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
+    const loader = new GLTFLoader()
+    loader.load(
+      HEALTH_PICKUP_MODEL,
+      (gltf) => {
+        const model = gltf.scene
+        // Scale to a reasonable size
+        const box = new THREE.Box3().setFromObject(model)
+        const size = new THREE.Vector3()
+        box.getSize(size)
+        const targetHeight = 1.0
+        const scale = targetHeight / Math.max(size.y, 0.001)
+        model.scale.setScalar(scale)
+        this.healthPickupTemplate = model
+        // If a pickup is already spawned (placeholder), replace it
+        if (this.healthPickupMesh && this.healthPickupMesh.userData.isPlaceholder) {
+          const pos = this.healthPickupMesh.position.clone()
+          this.scene.remove(this.healthPickupMesh)
+          this.disposeObject3D(this.healthPickupMesh)
+          const pickup = model.clone()
+          pickup.position.copy(pos)
+          this.scene.add(pickup)
+          this.healthPickupMesh = pickup
+        }
+      },
+      undefined,
+      (err) => console.warn('Failed to load pickup_health.glb', err)
+    )
   }
 
   private getCachedSound(url: string): HTMLAudioElement {
@@ -603,6 +646,12 @@ export class TheMaskEngine {
       this.disposeObject3D(m)
     })
     this.rolieMeshes = []
+    // Remove existing health pickup
+    if (this.healthPickupMesh) {
+      this.scene.remove(this.healthPickupMesh)
+      this.disposeObject3D(this.healthPickupMesh)
+      this.healthPickupMesh = null
+    }
     const level = LEVELS[Math.min(index, LEVELS.length - 1)]
     const { halfX, halfZ } = level
     if (halfX !== this.currentArenaHalfX || halfZ !== this.currentArenaHalfZ) {
@@ -669,7 +718,120 @@ export class TheMaskEngine {
     }
     this.onHealthChange?.(this.player.getHealth(), this.player.getMaxHealth())
 
+    // Spawn health pickup at a random position
+    this.spawnHealthPickup(halfX, halfZ, startX, startZ)
+
     this.startLevelIntro()
+  }
+
+  private spawnHealthPickup(halfX: number, halfZ: number, playerX: number, playerZ: number) {
+    // Find a random position that is not too close to player start
+    const margin = 2
+    let pickupX: number
+    let pickupZ: number
+    const minDistFromPlayer = 5
+    let attempts = 0
+    do {
+      pickupX = (Math.random() * 2 - 1) * (halfX - margin)
+      pickupZ = (Math.random() * 2 - 1) * (halfZ - margin)
+      attempts++
+    } while (
+      Math.hypot(pickupX - playerX, pickupZ - playerZ) < minDistFromPlayer &&
+      attempts < 20
+    )
+
+    // Use loaded model or create placeholder
+    if (this.healthPickupTemplate) {
+      const pickup = this.healthPickupTemplate.clone()
+      pickup.position.set(pickupX, HEALTH_PICKUP_Y, pickupZ)
+      this.scene.add(pickup)
+      this.healthPickupMesh = pickup
+    } else {
+      // Placeholder sphere while model loads
+      const geo = new THREE.SphereGeometry(0.4, 16, 16)
+      const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+      const mesh = new THREE.Mesh(geo, mat)
+      mesh.position.set(pickupX, HEALTH_PICKUP_Y, pickupZ)
+      mesh.userData.isPlaceholder = true
+      this.scene.add(mesh)
+      this.healthPickupMesh = mesh
+    }
+  }
+
+  private updateHealthPickup(dt: number, playerPos: CANNON.Vec3) {
+    if (!this.healthPickupMesh) return
+
+    // Rotate the pickup
+    this.healthPickupMesh.rotation.y += HEALTH_PICKUP_ROTATION_SPEED * dt
+
+    // Check collision with player
+    const pickupPos = this.healthPickupMesh.position
+    const dx = playerPos.x - pickupPos.x
+    const dz = playerPos.z - pickupPos.z
+    const dist = Math.sqrt(dx * dx + dz * dz)
+
+    if (dist < HEALTH_PICKUP_RADIUS + PLAYER_RADIUS) {
+      // Player picked up health
+      const newHealth = this.player.heal(HEALTH_PICKUP_AMOUNT)
+      this.onHealthChange?.(newHealth, this.player.getMaxHealth())
+      this.playHealthPickupSound()
+
+      // Remove pickup
+      this.scene.remove(this.healthPickupMesh)
+      this.disposeObject3D(this.healthPickupMesh)
+      this.healthPickupMesh = null
+    }
+  }
+
+  /** Play a generated "powerup" sound when picking up health. */
+  private playHealthPickupSound() {
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      const now = ctx.currentTime
+      const duration = 0.35
+
+      // Rising tone (powerup feel)
+      const osc1 = ctx.createOscillator()
+      const gain1 = ctx.createGain()
+      osc1.type = 'sine'
+      osc1.frequency.setValueAtTime(400, now)
+      osc1.frequency.exponentialRampToValueAtTime(800, now + duration * 0.5)
+      osc1.frequency.exponentialRampToValueAtTime(1200, now + duration)
+      gain1.gain.setValueAtTime(0.15, now)
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + duration)
+      osc1.connect(gain1)
+      gain1.connect(ctx.destination)
+      osc1.start(now)
+      osc1.stop(now + duration)
+
+      // Sparkle layer
+      const osc2 = ctx.createOscillator()
+      const gain2 = ctx.createGain()
+      osc2.type = 'triangle'
+      osc2.frequency.setValueAtTime(1000, now)
+      osc2.frequency.exponentialRampToValueAtTime(2000, now + duration * 0.3)
+      gain2.gain.setValueAtTime(0.08, now)
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.3)
+      osc2.connect(gain2)
+      gain2.connect(ctx.destination)
+      osc2.start(now)
+      osc2.stop(now + duration * 0.3)
+
+      // Chime
+      const osc3 = ctx.createOscillator()
+      const gain3 = ctx.createGain()
+      osc3.type = 'sine'
+      osc3.frequency.setValueAtTime(1600, now + 0.05)
+      gain3.gain.setValueAtTime(0, now)
+      gain3.gain.linearRampToValueAtTime(0.1, now + 0.05)
+      gain3.gain.exponentialRampToValueAtTime(0.001, now + duration)
+      osc3.connect(gain3)
+      gain3.connect(ctx.destination)
+      osc3.start(now + 0.05)
+      osc3.stop(now + duration)
+    } catch {
+      // Silently fail if AudioContext not available
+    }
   }
 
   private startLevelIntro() {
@@ -1029,6 +1191,7 @@ export class TheMaskEngine {
     })
     this.bullets.forEach(syncBulletMesh)
     this.updateExplosions(animDt)
+    this.updateHealthPickup(animDt, playerBodyPos)
     if (!this.levelIntro) this.updateCameraFollow()
 
     this.bulletsToRemove.forEach((spawn) => {
@@ -1137,6 +1300,15 @@ export class TheMaskEngine {
       this.disposeObject3D(m)
     })
     this.rolieMeshes = []
+    if (this.healthPickupMesh) {
+      this.scene.remove(this.healthPickupMesh)
+      this.disposeObject3D(this.healthPickupMesh)
+      this.healthPickupMesh = null
+    }
+    if (this.healthPickupTemplate) {
+      this.disposeObject3D(this.healthPickupTemplate)
+      this.healthPickupTemplate = null
+    }
     this.explosions.forEach((ex) => {
       this.scene.remove(ex.group)
       ex.particles.forEach((p) => {
