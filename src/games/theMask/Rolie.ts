@@ -18,7 +18,7 @@ const ROLIE_WANDER_SPEED = 1.8
 const ROLIE_CHARGE_SPEED = 5
 /** How often to pick a new wander direction (seconds). */
 const ROLIE_WANDER_CHANGE_INTERVAL = 2
-const ROLIE_MAX_HEALTH = 3
+const ROLIE_MAX_HEALTH = 2
 const HEALTH_BAR_WIDTH = 0.8
 const HEALTH_BAR_HEIGHT = 0.08
 const HEALTH_BAR_Y_OFFSET = 1.2
