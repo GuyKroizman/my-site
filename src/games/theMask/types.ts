@@ -44,10 +44,18 @@ export interface TurretConfig {
   z: number
 }
 
-/** Level definition: boxes, turrets, and arena size (half-extents). Every level defines its own dimensions. */
+/** Rolie (exploding enemy) spawn position. */
+export interface RolieConfig {
+  x: number
+  z: number
+}
+
+/** Level definition: boxes, turrets, rolies, and arena size (half-extents). Every level defines its own dimensions. */
 export interface LevelConfig {
   boxes: BoxPileConfig[]
   turrets: TurretConfig[]
+  /** Rolie enemies (wander then charge and explode). Default [] if omitted. */
+  rolies?: RolieConfig[]
   /** Arena half-width (X). */
   halfX: number
   /** Arena half-depth (Z). */

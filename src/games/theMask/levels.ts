@@ -16,6 +16,7 @@ export const LEVELS: LevelConfig[] = [
       { x: -12, z: 14, n: 2 },
     ],
     turrets: [{ x: -8, z: -4 }],
+    rolies: [{ x: 0, z: 0 }], // Center of arena
   },
   {
     halfX: 48,
@@ -33,6 +34,7 @@ export const LEVELS: LevelConfig[] = [
       { x: 35, z: 15, n: 6 },
     ],
     turrets: [{ x: 10, z: 8 }, { x: -10, z: -8 }],
+    rolies: [{ x: 30, z: 28 }, { x: -25, z: -22 }], // Spread out so player can see them before they charge
   },
   { halfX: 28, halfZ: 24, boxes: [], turrets: [] },
   { halfX: 32, halfZ: 28, boxes: [], turrets: [] },

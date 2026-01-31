@@ -4,6 +4,7 @@ import { InputManager } from './InputManager'
 import { Player, PLAYER_HEIGHT, PLAYER_RADIUS, PLAYER_DAMAGE_PER_HIT } from './Player'
 import { Box, createBoxPiles } from './Box'
 import { Turret } from './Turret'
+import { Rolie } from './Rolie'
 import { LEVELS } from './levels'
 import type { BulletSpawn } from './Player'
 import { isBulletOutOfBounds, syncBulletMesh, disposeBullet } from './Bullet'
@@ -37,6 +38,15 @@ const EXPLOSION_PARTICLE_SIZE_MAX = 0.5
 const EXPLOSION_FLASH_DURATION = 0.35
 const EXPLOSION_FLASH_MAX_SCALE = 2.5
 
+/** Rolie explosion: radius for damaging player and boxes. */
+const ROLIE_EXPLOSION_RADIUS = 4
+/** Max player damage at explosion center. */
+const ROLIE_EXPLOSION_MAX_DAMAGE = 40
+/** Min player damage at edge of radius. */
+const ROLIE_EXPLOSION_MIN_DAMAGE = 5
+/** If Rolie is this close to player (XZ distance), it detonates. */
+const ROLIE_EXPLODE_ON_PLAYER_DIST = 1.8
+
 const INTRO_CLOSEUP_DURATION = 1.5
 const INTRO_SWOOP_DURATION = 1.5
 const INTRO_CLOSEUP_DIST = 2.5
@@ -57,6 +67,9 @@ export class TheMaskEngine {
   private player: Player
   private boxes: Box[] = []
   private turrets: Turret[] = []
+  private rolies: Rolie[] = []
+  /** Rolie visuals: created in engine (box + MeshBasicMaterial). */
+  private rolieMeshes: THREE.Object3D[] = []
   private bullets: BulletSpawn[] = []
   private touchState: TouchInputState = DEFAULT_TOUCH_INPUT_STATE
   private currentLevelIndex = 0
@@ -141,8 +154,13 @@ export class TheMaskEngine {
         if (hitBox) this.playBoxHitSound()
         const other = e.body
         const turretRef = (other as unknown as { turretRef?: Turret }).turretRef
+        const rolieRef = (other as unknown as { rolieRef?: Rolie }).rolieRef
         if (spawn.fromPlayer && turretRef) {
           turretRef.takeDamage(1)
+          this.bulletsToRemove.add(spawn)
+        }
+        if (spawn.fromPlayer && rolieRef) {
+          rolieRef.takeDamage(1)
           this.bulletsToRemove.add(spawn)
         }
       }
@@ -246,6 +264,99 @@ export class TheMaskEngine {
     a.currentTime = 0
     a.volume = 0.6
     a.play().catch(() => { })
+  }
+
+  /** Dispose geometry and materials from an Object3D (works for Mesh or Group). */
+  private disposeObject3D(obj: THREE.Object3D) {
+    obj.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry?.dispose()
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach((m) => m.dispose())
+          } else {
+            child.material.dispose()
+          }
+        }
+      }
+    })
+  }
+
+  /** Load Rolie GLB model and replace placeholder mesh at given index. */
+  private loadRolieModel(idx: number, x: number, z: number) {
+    import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
+      const loader = new GLTFLoader()
+      loader.load(
+        '/theMask/models/rolie_explodie.glb',
+        (gltf) => {
+          // Check if rolie still exists (may have been removed)
+          if (idx >= this.rolieMeshes.length) return
+          const oldMesh = this.rolieMeshes[idx]
+          this.scene.remove(oldMesh)
+          this.disposeObject3D(oldMesh)
+
+          const model = gltf.scene
+          // Scale model to reasonable size
+          const box = new THREE.Box3().setFromObject(model)
+          const size = new THREE.Vector3()
+          box.getSize(size)
+          const targetHeight = 1.5
+          const scale = targetHeight / Math.max(size.y, 0.001)
+          model.scale.setScalar(scale)
+          model.position.set(x, FLOOR_Y, z)
+          model.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.castShadow = true
+              child.receiveShadow = true
+            }
+          })
+          this.scene.add(model)
+          this.rolieMeshes[idx] = model
+        },
+        undefined,
+        (err) => console.warn('Failed to load rolie_explodie.glb', err)
+      )
+    })
+  }
+
+  /** Apply Rolie explosion at (x, y, z): visual/sound, damage player by distance, destroy boxes in radius. */
+  private applyRolieExplosion(px: number, py: number, pz: number) {
+    this.spawnExplosion(px, py, pz)
+    this.playExplosionSound()
+    const playerPos = this.player.body.position
+    const dx = playerPos.x - px
+    const dy = playerPos.y - py
+    const dz = playerPos.z - pz
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    if (dist <= ROLIE_EXPLOSION_RADIUS && !this.player.isDead() && !this.player.isPlayingDeath()) {
+      const t = dist / ROLIE_EXPLOSION_RADIUS
+      const damage = ROLIE_EXPLOSION_MIN_DAMAGE + (1 - t) * (ROLIE_EXPLOSION_MAX_DAMAGE - ROLIE_EXPLOSION_MIN_DAMAGE)
+      const health = this.player.takeDamage(Math.round(damage))
+      this.onHealthChange?.(health, this.player.getMaxHealth())
+      if (this.player.isDead()) {
+        this.player.playDeath(() => {
+          this.onGameOver?.()
+        })
+      } else {
+        this.player.playHitReact()
+        this.playPlayerHitSound()
+      }
+    }
+    const boxesToRemove: Box[] = []
+    this.boxes.forEach((box) => {
+      const bx = box.body.position.x - px
+      const by = box.body.position.y - py
+      const bz = box.body.position.z - pz
+      const d = Math.sqrt(bx * bx + by * by + bz * bz)
+      if (d <= ROLIE_EXPLOSION_RADIUS) {
+        box.dispose(this.scene, this.world)
+        boxesToRemove.push(box)
+      }
+    })
+    boxesToRemove.forEach((b) => {
+      const i = this.boxes.indexOf(b)
+      if (i !== -1) this.boxes.splice(i, 1)
+    })
   }
 
   /** Spawn a low-poly explosion at (x, y, z); runs for EXPLOSION_DURATION. */
@@ -371,6 +482,13 @@ export class TheMaskEngine {
     this.boxes = []
     this.turrets.forEach((t) => t.dispose(this.scene, this.world))
     this.turrets = []
+    this.rolies.forEach((r) => r.dispose(this.scene, this.world))
+    this.rolies = []
+    this.rolieMeshes.forEach((m) => {
+      this.scene.remove(m)
+      this.disposeObject3D(m)
+    })
+    this.rolieMeshes = []
     const level = LEVELS[Math.min(index, LEVELS.length - 1)]
     const { halfX, halfZ } = level
     if (halfX !== this.currentArenaHalfX || halfZ !== this.currentArenaHalfZ) {
@@ -408,6 +526,25 @@ export class TheMaskEngine {
         },
       })
       this.turrets.push(turret)
+    })
+    const rolieConfigs = level.rolies ?? []
+    rolieConfigs.forEach(({ x, z }, idx) => {
+      try {
+        const rolie = new Rolie(this.world, this.scene, { x, z })
+        this.rolies.push(rolie)
+        // Placeholder box while GLB loads
+        const size = 1.5
+        const geo = new THREE.BoxGeometry(size, size, size)
+        const mat = new THREE.MeshBasicMaterial({ color: 0xff3300 })
+        const mesh = new THREE.Mesh(geo, mat)
+        mesh.position.set(x, FLOOR_Y + size / 2, z)
+        this.scene.add(mesh)
+        this.rolieMeshes.push(mesh)
+        // Load GLB model and replace placeholder
+        this.loadRolieModel(idx, x, z)
+      } catch (err) {
+        console.error('Failed to create Rolie at', x, z, err)
+      }
     })
     // Start player near the positive-x, positive-z corner (like first level)
     const startX = halfX - 3
@@ -743,6 +880,14 @@ export class TheMaskEngine {
     this.boxes.forEach((b) => b.syncMesh())
     const playerPos = { x: this.player.body.position.x, z: this.player.body.position.z }
     this.turrets.forEach((t) => t.update(PHYSICS_DT, playerPos))
+    this.rolies.forEach((r) => r.update(PHYSICS_DT, playerPos, this.currentArenaHalfX, this.currentArenaHalfZ))
+    // Sync rolie mesh position from Rolie.position
+    this.rolieMeshes.forEach((mesh, i) => {
+      const r = this.rolies[i]
+      if (r) {
+        mesh.position.set(r.position.x, r.position.y, r.position.z)
+      }
+    })
     this.bullets.forEach(syncBulletMesh)
     this.updateExplosions(animDt)
     if (!this.levelIntro) this.updateCameraFollow()
@@ -773,10 +918,42 @@ export class TheMaskEngine {
       t.dispose(this.scene, this.world)
     })
     this.turrets = this.turrets.filter((t) => t.isAlive())
+
+    // Rolie removal only (explosion disabled for now): remove dead rolies or those too close, without applying explosion
+    const roliesToRemove: Rolie[] = []
+    this.rolies.forEach((r) => {
+      if (!r.isAlive()) {
+        roliesToRemove.push(r)
+        return
+      }
+      const dx = playerBodyPos.x - r.position.x
+      const dz = playerBodyPos.z - r.position.z
+      const dist = Math.sqrt(dx * dx + dz * dz)
+      if (r.isArmed() && dist <= ROLIE_EXPLODE_ON_PLAYER_DIST) roliesToRemove.push(r)
+    })
+    const rolieIndicesToRemove = roliesToRemove.map((r) => this.rolies.indexOf(r)).sort((a, b) => b - a)
+    roliesToRemove.forEach((r) => {
+      const p = r.position
+      this.applyRolieExplosion(p.x, p.y, p.z)
+      r.dispose(this.scene, this.world)
+    })
+    rolieIndicesToRemove.forEach((idx) => {
+      if (idx >= 0 && idx < this.rolieMeshes.length) {
+        const obj = this.rolieMeshes[idx]
+        this.scene.remove(obj)
+        this.disposeObject3D(obj)
+        this.rolieMeshes.splice(idx, 1)
+      }
+    })
+    this.rolies = this.rolies.filter((r) => !roliesToRemove.includes(r))
+
+    const level = LEVELS[this.currentLevelIndex]
+    const levelHasEnemies = (level.turrets?.length ?? 0) > 0 || (level.rolies?.length ?? 0) > 0
     if (
       this.turrets.length === 0 &&
+      this.rolies.length === 0 &&
       this.explosions.length === 0 &&
-      LEVELS[this.currentLevelIndex].turrets.length > 0
+      levelHasEnemies
     ) {
       this.playLevelVictorySound()
       this.currentLevelIndex = Math.min(this.currentLevelIndex + 1, LEVELS.length - 1)
@@ -810,6 +987,13 @@ export class TheMaskEngine {
     this.boxes = []
     this.turrets.forEach((t) => t.dispose(this.scene, this.world))
     this.turrets = []
+    this.rolies.forEach((r) => r.dispose(this.scene, this.world))
+    this.rolies = []
+    this.rolieMeshes.forEach((m) => {
+      this.scene.remove(m)
+      this.disposeObject3D(m)
+    })
+    this.rolieMeshes = []
     this.explosions.forEach((ex) => {
       this.scene.remove(ex.group)
       ex.particles.forEach((p) => {

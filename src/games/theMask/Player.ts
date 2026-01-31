@@ -83,7 +83,7 @@ export class Player {
       fixedRotation: true,
       linearDamping: 0.85,
       collisionFilterGroup: 1,
-      collisionFilterMask: 1 | 2 | 4, // default (1), bullets (2), turrets (4) so player cannot pass through turrets
+      collisionFilterMask: 1 | 2 | 4 | 8, // default (1), bullets (2), turrets (4), rolies (8)
     })
     world.addBody(this.body)
 
@@ -412,7 +412,7 @@ export class Player {
       velocity: new CANNON.Vec3(dx * BULLET_SPEED, 0, dz * BULLET_SPEED),
       linearDamping: 0,
       collisionFilterGroup: 2, // bullet group
-      collisionFilterMask: 1 | 2 | 4, // default (1), bullets (2), turrets (4)
+      collisionFilterMask: 1 | 2 | 4 | 8, // default (1), bullets (2), turrets (4), rolies (8)
     })
     world.addBody(bulletBody)
     const bulletMesh = new THREE.Mesh(
