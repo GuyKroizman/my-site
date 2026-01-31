@@ -364,14 +364,14 @@ export class Player {
     }
   }
 
-  /** Clamp position to arena (called after physics step). */
-  clampToArena() {
+  /** Clamp position to arena (called after physics step). Uses current level bounds when provided. */
+  clampToArena(halfX: number = ARENA_HALF_X, halfZ: number = ARENA_HALF_Z) {
     const p = this.body.position
     const r = PLAYER_RADIUS
-    if (p.x < -ARENA_HALF_X + r) this.body.position.x = -ARENA_HALF_X + r
-    if (p.x > ARENA_HALF_X - r) this.body.position.x = ARENA_HALF_X - r
-    if (p.z < -ARENA_HALF_Z + r) this.body.position.z = -ARENA_HALF_Z + r
-    if (p.z > ARENA_HALF_Z - r) this.body.position.z = ARENA_HALF_Z - r
+    if (p.x < -halfX + r) this.body.position.x = -halfX + r
+    if (p.x > halfX - r) this.body.position.x = halfX - r
+    if (p.z < -halfZ + r) this.body.position.z = -halfZ + r
+    if (p.z > halfZ - r) this.body.position.z = halfZ - r
     if (p.y < FLOOR_Y + PLAYER_HEIGHT / 2) this.body.position.y = FLOOR_Y + PLAYER_HEIGHT / 2
   }
 

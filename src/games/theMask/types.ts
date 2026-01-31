@@ -26,7 +26,7 @@ export const DEFAULT_TOUCH_INPUT_STATE: TouchInputState = {
   aim: { x: 0, y: 0 },
 }
 
-/** Arena bounds (half-extents from center). Physics walls at ±x, ±z. 4x area = 2x linear. */
+/** Default arena half-extents; used only as fallback for optional params (e.g. Player.clampToArena). Level dimensions are the source of truth. */
 export const ARENA_HALF_X = 24
 export const ARENA_HALF_Z = 20
 export const FLOOR_Y = 0
@@ -44,8 +44,12 @@ export interface TurretConfig {
   z: number
 }
 
-/** Level definition: boxes and turrets. */
+/** Level definition: boxes, turrets, and arena size (half-extents). Every level defines its own dimensions. */
 export interface LevelConfig {
   boxes: BoxPileConfig[]
   turrets: TurretConfig[]
+  /** Arena half-width (X). */
+  halfX: number
+  /** Arena half-depth (Z). */
+  halfZ: number
 }

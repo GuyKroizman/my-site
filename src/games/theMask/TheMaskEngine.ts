@@ -7,7 +7,7 @@ import { Turret } from './Turret'
 import { LEVELS } from './levels'
 import type { BulletSpawn } from './Player'
 import { isBulletOutOfBounds, syncBulletMesh, disposeBullet } from './Bullet'
-import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y, DEFAULT_TOUCH_INPUT_STATE } from './types'
+import { FLOOR_Y, DEFAULT_TOUCH_INPUT_STATE } from './types'
 import type { TouchInputState } from './types'
 
 const PHYSICS_DT = 1 / 60
@@ -85,6 +85,12 @@ export class TheMaskEngine {
     flashMesh: THREE.Mesh | null
   }[] = []
 
+  /** Current arena half-extents; set when loading a level (each level has its own dimensions). */
+  private currentArenaHalfX = 0
+  private currentArenaHalfZ = 0
+  private wallBodies: CANNON.Body[] = []
+  private curbMeshes: THREE.Mesh[] = []
+
   constructor(container: HTMLElement, options?: TheMaskEngineOptions) {
     this.container = container
     const width = Math.max(container.clientWidth || window.innerWidth, 1)
@@ -112,8 +118,7 @@ export class TheMaskEngine {
 
     this.setupLights()
     this.setupFloor()
-    this.setupWalls()
-    this.setupBoundaryVisual()
+    // Walls and boundary are created in loadLevel() from the level's halfX, halfZ
     this.preloadSounds()
     this.input = new InputManager()
     this.cameraDist = options?.mobile ? CAMERA_DIST_MOBILE : CAMERA_DIST_DESKTOP
@@ -359,6 +364,14 @@ export class TheMaskEngine {
     this.turrets.forEach((t) => t.dispose(this.scene, this.world))
     this.turrets = []
     const level = LEVELS[Math.min(index, LEVELS.length - 1)]
+    const { halfX, halfZ } = level
+    if (halfX !== this.currentArenaHalfX || halfZ !== this.currentArenaHalfZ) {
+      this.removeArenaWallsAndCurbs()
+      this.currentArenaHalfX = halfX
+      this.currentArenaHalfZ = halfZ
+      this.setupWalls(halfX, halfZ)
+      this.setupBoundaryVisual(halfX, halfZ)
+    }
     this.boxes = createBoxPiles(this.world, this.scene, level.boxes)
     level.turrets.forEach(({ x, z }) => {
       const turret = new Turret(this.world, this.scene, { x, z }, {
@@ -378,7 +391,10 @@ export class TheMaskEngine {
       })
       this.turrets.push(turret)
     })
-    this.player.body.position.set(21, FLOOR_Y + PLAYER_HEIGHT / 2, 18)
+    // Start player near the positive-x, positive-z corner (like first level)
+    const startX = halfX - 3
+    const startZ = halfZ - 2
+    this.player.body.position.set(startX, FLOOR_Y + PLAYER_HEIGHT / 2, startZ)
     this.player.body.velocity.set(0, 0, 0)
 
     this.startLevelIntro()
@@ -519,19 +535,19 @@ export class TheMaskEngine {
     this.scene.add(floorMesh)
   }
 
-  private setupWalls() {
+  private setupWalls(halfX: number, halfZ: number) {
     const h = WALL_HEIGHT / 2
     const positions: [number, number, number][] = [
-      [-ARENA_HALF_X - WALL_THICKNESS / 2, h + FLOOR_Y, 0],
-      [ARENA_HALF_X + WALL_THICKNESS / 2, h + FLOOR_Y, 0],
-      [0, h + FLOOR_Y, -ARENA_HALF_Z - WALL_THICKNESS / 2],
-      [0, h + FLOOR_Y, ARENA_HALF_Z + WALL_THICKNESS / 2],
+      [-halfX - WALL_THICKNESS / 2, h + FLOOR_Y, 0],
+      [halfX + WALL_THICKNESS / 2, h + FLOOR_Y, 0],
+      [0, h + FLOOR_Y, -halfZ - WALL_THICKNESS / 2],
+      [0, h + FLOOR_Y, halfZ + WALL_THICKNESS / 2],
     ]
     const halfExtents = [
-      new CANNON.Vec3(WALL_THICKNESS / 2, WALL_HEIGHT / 2, ARENA_HALF_Z + WALL_THICKNESS),
-      new CANNON.Vec3(WALL_THICKNESS / 2, WALL_HEIGHT / 2, ARENA_HALF_Z + WALL_THICKNESS),
-      new CANNON.Vec3(ARENA_HALF_X + WALL_THICKNESS, WALL_HEIGHT / 2, WALL_THICKNESS / 2),
-      new CANNON.Vec3(ARENA_HALF_X + WALL_THICKNESS, WALL_HEIGHT / 2, WALL_THICKNESS / 2),
+      new CANNON.Vec3(WALL_THICKNESS / 2, WALL_HEIGHT / 2, halfZ + WALL_THICKNESS),
+      new CANNON.Vec3(WALL_THICKNESS / 2, WALL_HEIGHT / 2, halfZ + WALL_THICKNESS),
+      new CANNON.Vec3(halfX + WALL_THICKNESS, WALL_HEIGHT / 2, WALL_THICKNESS / 2),
+      new CANNON.Vec3(halfX + WALL_THICKNESS, WALL_HEIGHT / 2, WALL_THICKNESS / 2),
     ]
     positions.forEach((pos, i) => {
       const body = new CANNON.Body({
@@ -542,55 +558,70 @@ export class TheMaskEngine {
         collisionFilterMask: 1 | 2, // so bullets hit the walls
       })
       this.world.addBody(body)
+      this.wallBodies.push(body)
     })
   }
 
+  private removeArenaWallsAndCurbs() {
+    this.wallBodies.forEach((b) => this.world.removeBody(b))
+    this.wallBodies.length = 0
+    this.curbMeshes.forEach((m) => {
+      this.scene.remove(m)
+      m.geometry.dispose()
+      ;(m.material as THREE.Material).dispose()
+    })
+    this.curbMeshes.length = 0
+  }
+
   /** Visible low walls at the play area edges so the user sees the level boundary. */
-  private setupBoundaryVisual() {
+  private setupBoundaryVisual(halfX: number, halfZ: number) {
     const curbHeight = 0.5
     const curbThickness = 0.4
     const color = 0xb71c1c // dark red / boundary color
-    const material = new THREE.MeshStandardMaterial({ color })
 
-    // Left (x = -ARENA_HALF_X)
+    // Left (x = -halfX)
     const leftCurb = new THREE.Mesh(
-      new THREE.BoxGeometry(curbThickness, curbHeight, 2 * ARENA_HALF_Z),
-      material
+      new THREE.BoxGeometry(curbThickness, curbHeight, 2 * halfZ),
+      new THREE.MeshStandardMaterial({ color })
     )
-    leftCurb.position.set(-ARENA_HALF_X + curbThickness / 2, FLOOR_Y + curbHeight / 2, 0)
+    leftCurb.position.set(-halfX + curbThickness / 2, FLOOR_Y + curbHeight / 2, 0)
     leftCurb.receiveShadow = true
     leftCurb.castShadow = true
     this.scene.add(leftCurb)
+    this.curbMeshes.push(leftCurb)
 
-    // Right (x = +ARENA_HALF_X)
+    // Right (x = +halfX)
     const rightCurb = new THREE.Mesh(
-      new THREE.BoxGeometry(curbThickness, curbHeight, 2 * ARENA_HALF_Z),
-      material
+      new THREE.BoxGeometry(curbThickness, curbHeight, 2 * halfZ),
+      new THREE.MeshStandardMaterial({ color })
     )
-    rightCurb.position.set(ARENA_HALF_X - curbThickness / 2, FLOOR_Y + curbHeight / 2, 0)
+    rightCurb.position.set(halfX - curbThickness / 2, FLOOR_Y + curbHeight / 2, 0)
     rightCurb.receiveShadow = true
     rightCurb.castShadow = true
     this.scene.add(rightCurb)
+    this.curbMeshes.push(rightCurb)
 
-    // Back (z = -ARENA_HALF_Z)
+    // Back (z = -halfZ)
     const backCurb = new THREE.Mesh(
-      new THREE.BoxGeometry(2 * ARENA_HALF_X, curbHeight, curbThickness),
-      material
+      new THREE.BoxGeometry(2 * halfX, curbHeight, curbThickness),
+      new THREE.MeshStandardMaterial({ color })
     )
-    backCurb.position.set(0, FLOOR_Y + curbHeight / 2, -ARENA_HALF_Z + curbThickness / 2)
+    backCurb.position.set(0, FLOOR_Y + curbHeight / 2, -halfZ + curbThickness / 2)
     backCurb.receiveShadow = true
     backCurb.castShadow = true
     this.scene.add(backCurb)
+    this.curbMeshes.push(backCurb)
 
-    // Front (z = +ARENA_HALF_Z)
+    // Front (z = +halfZ)
     const frontCurb = new THREE.Mesh(
-      new THREE.BoxGeometry(2 * ARENA_HALF_X, curbHeight, curbThickness),
-      material
+      new THREE.BoxGeometry(2 * halfX, curbHeight, curbThickness),
+      new THREE.MeshStandardMaterial({ color })
     )
-    frontCurb.position.set(0, FLOOR_Y + curbHeight / 2, ARENA_HALF_Z - curbThickness / 2)
+    frontCurb.position.set(0, FLOOR_Y + curbHeight / 2, halfZ - curbThickness / 2)
     frontCurb.receiveShadow = true
     frontCurb.castShadow = true
     this.scene.add(frontCurb)
+    this.curbMeshes.push(frontCurb)
   }
 
   private animate = () => {
@@ -669,7 +700,7 @@ export class TheMaskEngine {
         }
       }
     })
-    this.player.clampToArena()
+    this.player.clampToArena(this.currentArenaHalfX, this.currentArenaHalfZ)
     this.player.syncMesh()
     const animDt = this.lastAnimationTime > 0 ? now - this.lastAnimationTime : PHYSICS_DT
     this.lastAnimationTime = now
@@ -690,7 +721,7 @@ export class TheMaskEngine {
 
     const toRemove: number[] = []
     this.bullets.forEach((spawn, i) => {
-      if (isBulletOutOfBounds(spawn.body, spawn.createdAt)) {
+      if (isBulletOutOfBounds(spawn.body, spawn.createdAt, this.currentArenaHalfX, this.currentArenaHalfZ)) {
         toRemove.push(i)
       }
     })

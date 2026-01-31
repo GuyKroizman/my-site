@@ -5,13 +5,18 @@ import { ARENA_HALF_X, ARENA_HALF_Z } from './types'
 
 const BULLET_LIFETIME = 2
 
-export function isBulletOutOfBounds(body: CANNON.Body, createdAt: number): boolean {
+export function isBulletOutOfBounds(
+  body: CANNON.Body,
+  createdAt: number,
+  halfX: number = ARENA_HALF_X,
+  halfZ: number = ARENA_HALF_Z
+): boolean {
   const now = performance.now()
   if ((now - createdAt) / 1000 > BULLET_LIFETIME) return true
   const p = body.position
   const margin = 2
-  if (p.x < -ARENA_HALF_X - margin || p.x > ARENA_HALF_X + margin) return true
-  if (p.z < -ARENA_HALF_Z - margin || p.z > ARENA_HALF_Z + margin) return true
+  if (p.x < -halfX - margin || p.x > halfX + margin) return true
+  if (p.z < -halfZ - margin || p.z > halfZ + margin) return true
   if (p.y < -1) return true
   return false
 }
