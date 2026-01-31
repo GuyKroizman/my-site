@@ -19,7 +19,7 @@ type UIState = 'menu' | 'playing' | 'paused' | 'gameOver'
 function GameOverOverlay({ onBackToMenu }: { onBackToMenu: () => void }) {
   useEffect(() => {
     const audio = new Audio(SOUND_GAME_OVER)
-    audio.volume = 0.7
+    audio.volume = 0.595
     audio.play().catch((err) => console.warn('Game over sound failed:', err))
   }, [])
   return (

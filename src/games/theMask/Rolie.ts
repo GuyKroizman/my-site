@@ -35,6 +35,7 @@ export class Rolie {
   private wanderDir = { x: 1, z: 0 }
   private wanderTimeLeft = ROLIE_WANDER_CHANGE_INTERVAL
   private timeAlive = 0
+  private _charging = false
   private healthBarBg: THREE.Mesh
   private healthBarFill: THREE.Mesh
   private healthBarContainer: THREE.Group
@@ -82,6 +83,11 @@ export class Rolie {
     return this.timeAlive >= ROLIE_ARM_DELAY
   }
 
+  /** True when within trigger distance and moving toward player. */
+  isCharging(): boolean {
+    return this._charging
+  }
+
   update(
     dt: number,
     playerPosition: { x: number; z: number },
@@ -97,11 +103,13 @@ export class Rolie {
     let dirX: number
     let dirZ: number
     if (distToPlayer <= ROLIE_CHARGE_TRIGGER_DISTANCE && distToPlayer > 0.01) {
+      this._charging = true
       const norm = 1 / distToPlayer
       dirX = dx * norm
       dirZ = dz * norm
       speed = ROLIE_CHARGE_SPEED
     } else {
+      this._charging = false
       this.wanderTimeLeft -= dt
       if (this.wanderTimeLeft <= 0) this.pickNewWanderDirection()
       dirX = this.wanderDir.x

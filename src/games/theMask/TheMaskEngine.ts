@@ -110,6 +110,13 @@ export class TheMaskEngine {
   private onGameOver: (() => void) | undefined
   private onHealthChange: ((health: number, maxHealth: number) => void) | undefined
 
+  /** Generated siren when any Rolie is chasing the player. */
+  private rolieSirenCtx: AudioContext | null = null
+  private rolieSirenOsc: OscillatorNode | null = null
+  private rolieSirenGain: GainNode | null = null
+  private rolieSirenPlaying = false
+  private rolieSirenStartTime = 0
+
   constructor(container: HTMLElement, options?: TheMaskEngineOptions) {
     this.container = container
     const width = Math.max(container.clientWidth || window.innerWidth, 1)
@@ -319,6 +326,54 @@ export class TheMaskEngine {
       a.volume = 0.6
       a.play().catch(() => { })
     }
+  }
+
+  /** Start generated siren sound (Rolie chasing). */
+  private startRolieSiren() {
+    if (this.rolieSirenPlaying) return
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      this.rolieSirenCtx = ctx
+      const osc = ctx.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(400, ctx.currentTime)
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0.12, ctx.currentTime)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(ctx.currentTime)
+      this.rolieSirenOsc = osc
+      this.rolieSirenGain = gain
+      this.rolieSirenPlaying = true
+      this.rolieSirenStartTime = performance.now() / 1000
+    } catch {
+      this.rolieSirenPlaying = false
+    }
+  }
+
+  /** Stop Rolie siren and clean up. */
+  private stopRolieSiren() {
+    if (!this.rolieSirenPlaying || !this.rolieSirenOsc || !this.rolieSirenCtx) return
+    try {
+      const ctx = this.rolieSirenCtx
+      this.rolieSirenOsc.stop(ctx.currentTime)
+      this.rolieSirenOsc.disconnect()
+    } catch {
+      // ignore
+    }
+    this.rolieSirenOsc = null
+    this.rolieSirenGain = null
+    this.rolieSirenCtx = null
+    this.rolieSirenPlaying = false
+  }
+
+  /** Update siren frequency for warbling (call each frame while playing). */
+  private updateRolieSiren(now: number) {
+    if (!this.rolieSirenOsc || !this.rolieSirenCtx) return
+    const elapsed = now - this.rolieSirenStartTime
+    // Siren: oscillate between ~350 and ~650 Hz, ~1.2 Hz cycle
+    const freq = 500 + 150 * Math.sin(2 * Math.PI * 1.2 * elapsed)
+    this.rolieSirenOsc.frequency.setTargetAtTime(freq, this.rolieSirenCtx.currentTime, 0.02)
   }
 
   /** Dispose geometry and materials from an Object3D (works for Mesh or Group). */
@@ -937,6 +992,10 @@ export class TheMaskEngine {
     const playerPos = { x: this.player.body.position.x, z: this.player.body.position.z }
     this.turrets.forEach((t) => t.update(PHYSICS_DT, playerPos))
     this.rolies.forEach((r) => r.update(PHYSICS_DT, playerPos, this.currentArenaHalfX, this.currentArenaHalfZ))
+    const anyRolieCharging = this.rolies.some((r) => r.isCharging())
+    if (anyRolieCharging && !this.rolieSirenPlaying) this.startRolieSiren()
+    if (this.rolieSirenPlaying) this.updateRolieSiren(now)
+    if (!anyRolieCharging && this.rolieSirenPlaying) this.stopRolieSiren()
     // Sync rolie mesh position and rotation from Rolie
     this.rolieMeshes.forEach((mesh, i) => {
       const r = this.rolies[i]
@@ -1054,6 +1113,7 @@ export class TheMaskEngine {
 
   dispose() {
     this.isDisposed = true
+    this.stopRolieSiren()
     if (this.animationId != null) {
       cancelAnimationFrame(this.animationId)
       this.animationId = null
