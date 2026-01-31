@@ -6,6 +6,8 @@ import { ARENA_HALF_X, ARENA_HALF_Z, FLOOR_Y } from './types'
 export const PLAYER_RADIUS = 0.4
 export const PLAYER_HEIGHT = 1.2
 const PLAYER_MASS = 80
+const PLAYER_MAX_HEALTH = 100
+export const PLAYER_DAMAGE_PER_HIT = 10
 const MOVE_FORCE = 22
 const MAX_SPEED = 4
 const MOVE_SPEED_THRESHOLD = 0.3
@@ -50,7 +52,10 @@ export class Player {
   private runAction: THREE.AnimationAction | null = null
   private hitAction: THREE.AnimationAction | null = null
   private waveAction: THREE.AnimationAction | null = null
-  private currentAction: 'idle' | 'run' | 'hit' | 'wave' = 'idle'
+  private deathAction: THREE.AnimationAction | null = null
+  private currentAction: 'idle' | 'run' | 'hit' | 'wave' | 'death' = 'idle'
+  private _health = PLAYER_MAX_HEALTH
+  private _maxHealth = PLAYER_MAX_HEALTH
 
   constructor(
     world: CANNON.World,
@@ -88,7 +93,7 @@ export class Player {
     this.scene.remove(this.mesh)
     if (this.isCapsulePlaceholder && this.mesh instanceof THREE.Mesh) {
       this.mesh.geometry.dispose()
-      ;(this.mesh.material as THREE.Material).dispose()
+        ; (this.mesh.material as THREE.Material).dispose()
     } else {
       disposeObject3D(this.mesh)
     }
@@ -97,6 +102,7 @@ export class Player {
     this.runAction = null
     this.hitAction = null
     this.waveAction = null
+    this.deathAction = null
 
     this.mesh = model
     this.isCapsulePlaceholder = false
@@ -153,8 +159,74 @@ export class Player {
         this.waveAction.setEffectiveWeight(0)
         this.mixer.addEventListener('finished', this.onWaveFinished)
       }
+      const deathClip =
+        animations.find((c) => c.name === 'CharacterArmature|Death' || c.name === 'Death' || c.name.endsWith('|Death')) ??
+        animations.find((c) => c.name.toLowerCase().includes('death'))
+      if (deathClip) {
+        this.deathAction = this.mixer.clipAction(deathClip)
+        this.deathAction.setLoop(THREE.LoopOnce, 1)
+        this.deathAction.clampWhenFinished = true
+        this.deathAction.setEffectiveWeight(0)
+        this.mixer.addEventListener('finished', this.onDeathFinished)
+      }
       this.currentAction = 'idle'
     }
+  }
+
+  getHealth(): number {
+    return this._health
+  }
+
+  getMaxHealth(): number {
+    return this._maxHealth
+  }
+
+  /** Reset health to max (e.g. on new level). */
+  resetHealth() {
+    this._health = this._maxHealth
+  }
+
+  /**
+   * Apply damage. Returns new health after damage.
+   * Does not play hit react or death; caller should check health and play animations.
+   */
+  takeDamage(amount: number): number {
+    this._health = Math.max(0, this._health - amount)
+    return this._health
+  }
+
+  isDead(): boolean {
+    return this._health <= 0
+  }
+
+  isPlayingDeath(): boolean {
+    return this.currentAction === 'death'
+  }
+
+  /** Play death animation once; calls onComplete when finished (or immediately if no death clip). */
+  playDeath(onComplete: () => void) {
+    this.currentAction = 'death'
+    if (this.idleAction) this.idleAction.setEffectiveWeight(0)
+    if (this.runAction) this.runAction.setEffectiveWeight(0)
+    if (this.hitAction) this.hitAction.setEffectiveWeight(0)
+    if (this.waveAction) this.waveAction.setEffectiveWeight(0)
+    if (this.deathAction) {
+      this._deathOnComplete = onComplete
+      this.deathAction.reset().play()
+      this.deathAction.setEffectiveWeight(1)
+    } else {
+      onComplete()
+    }
+  }
+
+  private _deathOnComplete: (() => void) | null = null
+
+  private onDeathFinished = (e: { action: THREE.AnimationAction }) => {
+    if (e.action !== this.deathAction) return
+    this.deathAction?.setEffectiveWeight(0)
+    const cb = this._deathOnComplete
+    this._deathOnComplete = null
+    cb?.()
   }
 
   /** Play Wave animation (e.g. level intro). */
@@ -342,7 +414,7 @@ export class Player {
   updateAnimation(dt: number) {
     if (!this.mixer) return
     this.mixer.update(dt)
-    if (this.currentAction === 'hit' || this.currentAction === 'wave') return
+    if (this.currentAction === 'hit' || this.currentAction === 'wave' || this.currentAction === 'death') return
 
     const vx = this.body.velocity.x
     const vz = this.body.velocity.z
@@ -379,19 +451,21 @@ export class Player {
     scene.remove(this.mesh)
     if (this.isCapsulePlaceholder && this.mesh instanceof THREE.Mesh) {
       this.mesh.geometry.dispose()
-      ;(this.mesh.material as THREE.Material).dispose()
+        ; (this.mesh.material as THREE.Material).dispose()
     } else {
       disposeObject3D(this.mesh)
     }
     if (this.mixer) {
       this.mixer.removeEventListener('finished', this.onHitFinished)
       this.mixer.removeEventListener('finished', this.onWaveFinished)
+      this.mixer.removeEventListener('finished', this.onDeathFinished)
     }
     this.mixer = null
     this.idleAction = null
     this.runAction = null
     this.hitAction = null
     this.waveAction = null
+    this.deathAction = null
     world.removeBody(this.body)
   }
 }

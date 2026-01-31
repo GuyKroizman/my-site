@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 import { InputManager } from './InputManager'
-import { Player, PLAYER_HEIGHT, PLAYER_RADIUS } from './Player'
+import { Player, PLAYER_HEIGHT, PLAYER_RADIUS, PLAYER_DAMAGE_PER_HIT } from './Player'
 import { Box, createBoxPiles } from './Box'
 import { Turret } from './Turret'
 import { LEVELS } from './levels'
@@ -44,6 +44,8 @@ const INTRO_CLOSEUP_HEIGHT = 0.5
 
 export interface TheMaskEngineOptions {
   mobile?: boolean
+  onGameOver?: () => void
+  onHealthChange?: (health: number, maxHealth: number) => void
 }
 
 export class TheMaskEngine {
@@ -59,6 +61,8 @@ export class TheMaskEngine {
   private touchState: TouchInputState = DEFAULT_TOUCH_INPUT_STATE
   private currentLevelIndex = 0
   private bulletsToRemove = new Set<BulletSpawn>()
+  /** Bullets that already applied damage this frame (avoid double damage from collision + sweep). */
+  private bulletsHitPlayerThisFrame = new Set<BulletSpawn>()
   private animationId: number | null = null
   private isDisposed = false
   private isPaused = false
@@ -90,6 +94,8 @@ export class TheMaskEngine {
   private currentArenaHalfZ = 0
   private wallBodies: CANNON.Body[] = []
   private curbMeshes: THREE.Mesh[] = []
+  private onGameOver: (() => void) | undefined
+  private onHealthChange: ((health: number, maxHealth: number) => void) | undefined
 
   constructor(container: HTMLElement, options?: TheMaskEngineOptions) {
     this.container = container
@@ -120,6 +126,8 @@ export class TheMaskEngine {
     this.setupFloor()
     // Walls and boundary are created in loadLevel() from the level's halfX, halfZ
     this.preloadSounds()
+    this.onGameOver = options?.onGameOver
+    this.onHealthChange = options?.onHealthChange
     this.input = new InputManager()
     this.cameraDist = options?.mobile ? CAMERA_DIST_MOBILE : CAMERA_DIST_DESKTOP
     const playerOptions = options?.mobile ? { shootCooldown: MOBILE_SHOOT_COOLDOWN } : undefined
@@ -379,10 +387,20 @@ export class TheMaskEngine {
           this.bullets.push(spawn)
           this.scene.add(spawn.mesh)
           const handler = (e: { body: CANNON.Body }) => {
-            if (e.body === this.player.body) {
-              this.player.playHitReact()
-              this.playPlayerHitSound()
+            if (e.body === this.player.body && !this.bulletsHitPlayerThisFrame.has(spawn)) {
+              this.bulletsHitPlayerThisFrame.add(spawn)
               this.bulletsToRemove.add(spawn)
+              if (this.player.isDead() || this.player.isPlayingDeath()) return
+              const health = this.player.takeDamage(PLAYER_DAMAGE_PER_HIT)
+              this.onHealthChange?.(health, this.player.getMaxHealth())
+              if (this.player.isDead()) {
+                this.player.playDeath(() => {
+                  this.onGameOver?.()
+                })
+              } else {
+                this.player.playHitReact()
+                this.playPlayerHitSound()
+              }
             }
           }
           spawn.collisionHandler = handler
@@ -396,6 +414,8 @@ export class TheMaskEngine {
     const startZ = halfZ - 2
     this.player.body.position.set(startX, FLOOR_Y + PLAYER_HEIGHT / 2, startZ)
     this.player.body.velocity.set(0, 0, 0)
+    this.player.resetHealth()
+    this.onHealthChange?.(this.player.getHealth(), this.player.getMaxHealth())
 
     this.startLevelIntro()
   }
@@ -634,9 +654,11 @@ export class TheMaskEngine {
 
     const now = performance.now() / 1000
     this.updateLevelIntroCamera(now)
+    this.bulletsHitPlayerThisFrame.clear()
 
     const inIntro = !!this.levelIntro
-    if (!inIntro) {
+    const inDeath = this.player.isPlayingDeath()
+    if (!inIntro && !inDeath) {
       const keyboardState = this.input.getState()
       const joy = this.touchState.joystick
       const aim = this.touchState.aim
@@ -687,15 +709,28 @@ export class TheMaskEngine {
         const prev = enemyBulletPrevPos.get(spawn)
         if (prev) {
           const curr = spawn.body.position
-          if (this.segmentIntersectsSphere(
-            prev.x, prev.y, prev.z,
-            curr.x, curr.y, curr.z,
-            playerBodyPos.x, playerBodyPos.y, playerBodyPos.z,
-            playerSphereR
-          )) {
-            this.player.playHitReact()
-            this.playPlayerHitSound()
+          if (
+            !this.bulletsHitPlayerThisFrame.has(spawn) &&
+            this.segmentIntersectsSphere(
+              prev.x, prev.y, prev.z,
+              curr.x, curr.y, curr.z,
+              playerBodyPos.x, playerBodyPos.y, playerBodyPos.z,
+              playerSphereR
+            )
+          ) {
+            this.bulletsHitPlayerThisFrame.add(spawn)
             this.bulletsToRemove.add(spawn)
+            if (this.player.isDead() || this.player.isPlayingDeath()) return
+            const health = this.player.takeDamage(PLAYER_DAMAGE_PER_HIT)
+            this.onHealthChange?.(health, this.player.getMaxHealth())
+            if (this.player.isDead()) {
+              this.player.playDeath(() => {
+                this.onGameOver?.()
+              })
+            } else {
+              this.player.playHitReact()
+              this.playPlayerHitSound()
+            }
           }
         }
       }
