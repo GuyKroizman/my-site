@@ -1,4 +1,11 @@
-export function PausedDialog() {
+import { MuteButton } from './MuteButton'
+
+interface PausedDialogProps {
+  isMusicMuted: boolean
+  onToggleMute: () => void
+}
+
+export function PausedDialog({ isMusicMuted, onToggleMute }: PausedDialogProps) {
   return (
     <div className="absolute inset-0 bg-black/90 z-30 flex flex-col items-center justify-center px-4 py-6">
       <div className="max-w-md w-full text-center">
@@ -10,8 +17,11 @@ export function PausedDialog() {
         <p className="text-gray-400 text-sm sm:text-base mb-6">
           The game will automatically resume when you rotate back to landscape
         </p>
-        <div className="flex justify-center">
+        <div className="flex justify-center mb-6">
           <div className="animate-spin text-4xl">🔄</div>
+        </div>
+        <div className="flex justify-center">
+          <MuteButton isMuted={isMusicMuted} onToggle={onToggleMute} />
         </div>
       </div>
     </div>

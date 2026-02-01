@@ -1,9 +1,13 @@
+import { MuteButton } from './MuteButton'
+
 interface MenuScreenProps {
   isPortraitMode: boolean
   onStartGame: () => void
+  isMusicMuted: boolean
+  onToggleMute: () => void
 }
 
-export function MenuScreen({ isPortraitMode, onStartGame }: MenuScreenProps) {
+export function MenuScreen({ isPortraitMode, onStartGame, isMusicMuted, onToggleMute }: MenuScreenProps) {
   if (isPortraitMode) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center px-3 py-4">
@@ -18,6 +22,9 @@ export function MenuScreen({ isPortraitMode, onStartGame }: MenuScreenProps) {
           </p>
           <div className="flex justify-center mt-3">
             <div className="animate-spin text-2xl">🔄</div>
+          </div>
+          <div className="mt-4">
+            <MuteButton isMuted={isMusicMuted} onToggle={onToggleMute} />
           </div>
         </div>
       </div>
@@ -48,6 +55,9 @@ export function MenuScreen({ isPortraitMode, onStartGame }: MenuScreenProps) {
           >
             Play
           </button>
+          <div className="mt-3 flex justify-center">
+            <MuteButton isMuted={isMusicMuted} onToggle={onToggleMute} />
+          </div>
         </div>
       </div>
     </div>

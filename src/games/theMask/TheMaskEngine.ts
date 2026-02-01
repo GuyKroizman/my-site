@@ -269,13 +269,25 @@ export class TheMaskEngine {
   private static readonly MUSIC_VOLUME = 0.3
   private static readonly MUSIC_DUCK_VOLUME = 0.15
   private musicDuckTimer: ReturnType<typeof setTimeout> | null = null
+  private isMusicMuted = false
 
   private startMusic() {
     if (this.musicAudio) return
     this.musicAudio = new Audio(SOUND_MUSIC)
     this.musicAudio.loop = true
-    this.musicAudio.volume = TheMaskEngine.MUSIC_VOLUME
+    this.musicAudio.volume = this.isMusicMuted ? 0 : TheMaskEngine.MUSIC_VOLUME
     this.musicAudio.play().catch(() => {})
+  }
+
+  setMusicMuted(muted: boolean) {
+    this.isMusicMuted = muted
+    if (this.musicAudio) {
+      this.musicAudio.volume = muted ? 0 : TheMaskEngine.MUSIC_VOLUME
+    }
+  }
+
+  getMusicMuted(): boolean {
+    return this.isMusicMuted
   }
 
   private stopMusic() {

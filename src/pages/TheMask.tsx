@@ -4,6 +4,8 @@ import { TheMaskEngine } from '../games/theMask/TheMaskEngine'
 import { MenuScreen, VirtualControls, PausedDialog } from '../games/theMask/components'
 import type { TouchInputState } from '../games/theMask/types'
 
+const MUSIC_MUTE_KEY = 'theMask_musicMuted'
+
 const SOUND_GAME_OVER = '/theMask/sound/dramatic-moment.mp3'
 
 const isTouchDevice = () => {
@@ -64,6 +66,21 @@ export default function TheMask() {
   const [uiState, setUiState] = useState<UIState>('menu')
   const [isPortraitMode, setIsPortraitMode] = useState(isPortrait())
   const [hideHeader, setHideHeader] = useState(isMobileLandscape())
+  const [isMusicMuted, setIsMusicMuted] = useState(() => {
+    const stored = localStorage.getItem(MUSIC_MUTE_KEY)
+    return stored === 'true'
+  })
+
+  const handleToggleMute = useCallback(() => {
+    setIsMusicMuted((prev) => {
+      const newValue = !prev
+      localStorage.setItem(MUSIC_MUTE_KEY, String(newValue))
+      if (gameEngineRef.current) {
+        gameEngineRef.current.setMusicMuted(newValue)
+      }
+      return newValue
+    })
+  }, [])
 
   useEffect(() => {
     const handleOrientationChange = () => {
@@ -111,12 +128,13 @@ export default function TheMask() {
         onGameOver: () => setUiState('gameOver'),
         onVictory: () => setUiState('victory'),
       })
+      engine.setMusicMuted(isMusicMuted)
       gameEngineRef.current = engine
       setUiState('playing')
     } catch (e) {
       console.error('Failed to start The Mask:', e)
     }
-  }, [])
+  }, [isMusicMuted])
 
   const handleBackToMenu = () => {
     if (gameEngineRef.current) {
@@ -156,7 +174,7 @@ export default function TheMask() {
         ref={containerRef}
         className={`${uiState === 'playing' || uiState === 'paused' || uiState === 'gameOver' || uiState === 'victory' ? 'flex-1' : ''} w-full relative overflow-hidden min-h-0`}
       >
-        {uiState === 'paused' && <PausedDialog />}
+        {uiState === 'paused' && <PausedDialog isMusicMuted={isMusicMuted} onToggleMute={handleToggleMute} />}
         {uiState === 'gameOver' && (
           <GameOverOverlay onBackToMenu={handleBackToMenu} />
         )}
@@ -170,7 +188,7 @@ export default function TheMask() {
 
       {uiState === 'menu' && (
         <div className="flex-1 min-h-0 w-full flex flex-col bg-gradient-to-br from-gray-800 to-gray-900 z-20">
-          <MenuScreen isPortraitMode={isPortraitMode} onStartGame={startGame} />
+          <MenuScreen isPortraitMode={isPortraitMode} onStartGame={startGame} isMusicMuted={isMusicMuted} onToggleMute={handleToggleMute} />
         </div>
       )}
     </div>
