@@ -4,15 +4,19 @@ import type { BulletSpawn } from './Player'
 import { ARENA_HALF_X, ARENA_HALF_Z } from './types'
 
 const BULLET_LIFETIME = 2
+/** Bouncing bullets get much longer lifetime to allow multiple bounces */
+const BOUNCING_BULLET_LIFETIME = 10
 
 export function isBulletOutOfBounds(
   body: CANNON.Body,
   createdAt: number,
   halfX: number = ARENA_HALF_X,
-  halfZ: number = ARENA_HALF_Z
+  halfZ: number = ARENA_HALF_Z,
+  isBouncing: boolean = false
 ): boolean {
   const now = performance.now()
-  if ((now - createdAt) / 1000 > BULLET_LIFETIME) return true
+  const lifetime = isBouncing ? BOUNCING_BULLET_LIFETIME : BULLET_LIFETIME
+  if ((now - createdAt) / 1000 > lifetime) return true
   const p = body.position
   const margin = 2
   if (p.x < -halfX - margin || p.x > halfX + margin) return true

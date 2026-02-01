@@ -24,6 +24,8 @@ const BULLET_RADIUS = 0.15
 const BULLET_SPEED = 32
 const BULLET_MASS = 3
 const DEFAULT_SHOOT_COOLDOWN = 0.2
+/** Slower fire rate when bouncing bullets are enabled */
+const BOUNCING_SHOOT_COOLDOWN = 0.5
 
 /** Powered-up bullet stats */
 const POWERED_BULLET_RADIUS = 0.3
@@ -40,6 +42,8 @@ export interface BulletSpawn {
   fromPlayer?: boolean
   /** Optional collision handler; remove in dispose to avoid leaks. */
   collisionHandler?: (e: { body: CANNON.Body }) => void
+  /** If true, bullet bounces off walls and boxes instead of being destroyed */
+  isBouncing?: boolean
 }
 
 function disposeObject3D(obj: THREE.Object3D) {
@@ -72,6 +76,7 @@ export class Player {
   private _health = PLAYER_MAX_HEALTH
   private _maxHealth = PLAYER_MAX_HEALTH
   private _bulletsPoweredUp = false
+  private _bouncingBullets = false
   private healthBarContainer: THREE.Group
   private healthBarBg: THREE.Mesh
   private healthBarFill: THREE.Mesh
@@ -230,6 +235,17 @@ export class Player {
   /** Check if bullets are powered up. */
   hasPoweredUpBullets(): boolean {
     return this._bulletsPoweredUp
+  }
+
+  /** Enable bouncing bullets (slower fire rate, bullets bounce off walls/boxes). */
+  enableBouncingBullets() {
+    this._bouncingBullets = true
+    this.shootCooldown = BOUNCING_SHOOT_COOLDOWN
+  }
+
+  /** Check if bouncing bullets are enabled. */
+  hasBouncingBullets(): boolean {
+    return this._bouncingBullets
   }
 
   /** Get the damage player bullets deal to enemies (turrets, rolies). */
@@ -442,7 +458,13 @@ export class Player {
     )
     bulletMesh.castShadow = true
     bulletMesh.position.set(bulletBody.position.x, bulletBody.position.y, bulletBody.position.z)
-    this.onShoot({ body: bulletBody, mesh: bulletMesh, createdAt: performance.now(), fromPlayer: true })
+    this.onShoot({ 
+      body: bulletBody, 
+      mesh: bulletMesh, 
+      createdAt: performance.now(), 
+      fromPlayer: true,
+      isBouncing: this._bouncingBullets
+    })
   }
 
   /** Sync visual from physics (call every frame). */

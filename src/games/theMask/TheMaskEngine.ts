@@ -68,6 +68,11 @@ const BULLET_PICKUP_MODEL = '/theMask/models/pickup_bullets.glb'
 const BULLET_PICKUP_RADIUS = 1.2
 const BULLET_PICKUP_Y = FLOOR_Y + 0.5
 
+/** Sphere (bouncing bullets) pickup configuration */
+const SPHERE_PICKUP_MODEL = '/theMask/models/pickup_sphere.glb'
+const SPHERE_PICKUP_RADIUS = 1.2
+const SPHERE_PICKUP_Y = FLOOR_Y + 0.5
+
 export interface TheMaskEngineOptions {
   mobile?: boolean
   onGameOver?: () => void
@@ -140,8 +145,8 @@ export class TheMaskEngine {
   private rolieSirenOsc: OscillatorNode | null = null
   private rolieSirenPlaying = false
 
-  /** Health pickup */
-  private healthPickupMesh: THREE.Object3D | null = null
+  /** Health pickups (can be multiple on later levels) */
+  private healthPickupMeshes: THREE.Object3D[] = []
   private healthPickupTemplate: THREE.Object3D | null = null
 
   /** Bullet pickup */
@@ -149,6 +154,12 @@ export class TheMaskEngine {
   private bulletPickupTemplate: THREE.Object3D | null = null
   /** Once collected, bullet pickup won't spawn again. */
   private bulletPickupCollected = false
+
+  /** Sphere (bouncing bullets) pickup */
+  private spherePickupMesh: THREE.Object3D | null = null
+  private spherePickupTemplate: THREE.Object3D | null = null
+  /** Once collected, sphere pickup won't spawn again. */
+  private spherePickupCollected = false
 
   private rolieSirenStartTime = 0
 
@@ -192,19 +203,31 @@ export class TheMaskEngine {
       this.bullets.push(spawn)
       this.scene.add(spawn.mesh)
       this.playShotSound()
-      const handler = (e: { body: CANNON.Body }) => {
+      const handler = (e: { body: CANNON.Body; contact?: CANNON.ContactEquation }) => {
         const hitBox = this.boxes.some((b) => b.body === e.body)
         if (hitBox) this.playBoxHitSound()
         const other = e.body
         const turretRef = (other as unknown as { turretRef?: Turret }).turretRef
         const rolieRef = (other as unknown as { rolieRef?: Rolie }).rolieRef
+        
+        // If bouncing bullet hits enemy, destroy it
         if (spawn.fromPlayer && turretRef) {
           turretRef.takeDamage(this.player.getBulletDamage())
           this.bulletsToRemove.add(spawn)
+          return
         }
         if (spawn.fromPlayer && rolieRef) {
           rolieRef.takeDamage(this.player.getBulletDamage())
           this.bulletsToRemove.add(spawn)
+          return
+        }
+        
+        // If bouncing bullet hits wall or box, reflect velocity
+        if (spawn.isBouncing && spawn.fromPlayer) {
+          const isWall = this.wallBodies.includes(other) || other === this.floorBody
+          if (hitBox || isWall) {
+            this.reflectBulletVelocity(spawn, e.contact)
+          }
         }
       }
       spawn.collisionHandler = handler
@@ -213,6 +236,7 @@ export class TheMaskEngine {
     this.loadPlayerModel()
     this.loadHealthPickupModel()
     this.loadBulletPickupModel()
+    this.loadSpherePickupModel()
     this.loadLevel(this.currentLevelIndex, true)
 
     const handleResize = () => {
@@ -329,15 +353,18 @@ export class TheMaskEngine {
         const scale = targetHeight / Math.max(size.y, 0.001)
         model.scale.setScalar(scale)
         this.healthPickupTemplate = model
-        // If a pickup is already spawned (placeholder), replace it
-        if (this.healthPickupMesh && this.healthPickupMesh.userData.isPlaceholder) {
-          const pos = this.healthPickupMesh.position.clone()
-          this.scene.remove(this.healthPickupMesh)
-          this.disposeObject3D(this.healthPickupMesh)
-          const pickup = model.clone()
-          pickup.position.copy(pos)
-          this.scene.add(pickup)
-          this.healthPickupMesh = pickup
+        // If pickups are already spawned (placeholders), replace them
+        for (let i = 0; i < this.healthPickupMeshes.length; i++) {
+          const mesh = this.healthPickupMeshes[i]
+          if (mesh.userData.isPlaceholder) {
+            const pos = mesh.position.clone()
+            this.scene.remove(mesh)
+            this.disposeObject3D(mesh)
+            const pickup = model.clone()
+            pickup.position.copy(pos)
+            this.scene.add(pickup)
+            this.healthPickupMeshes[i] = pickup
+          }
         }
       },
       undefined,
@@ -720,6 +747,98 @@ export class TheMaskEngine {
     }
   }
 
+  /** Original bullet speed - must match BULLET_SPEED in Player.ts */
+  private static readonly BULLET_SPEED = 32
+
+  /** Clear all bullets from the scene (called when level is completed). */
+  private clearAllBullets() {
+    this.bullets.forEach((spawn) => {
+      disposeBullet(spawn, this.scene, this.world)
+    })
+    this.bullets = []
+    this.bulletsToRemove.clear()
+  }
+
+  /** Reflect a bouncing bullet's velocity based on contact normal. */
+  private reflectBulletVelocity(spawn: BulletSpawn, contact?: CANNON.ContactEquation) {
+    const vel = spawn.body.velocity
+    
+    // Store original speed before reflection
+    const originalSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z)
+    
+    let nx = 0, nz = 0
+    
+    if (contact) {
+      // Get contact normal - it points from body i to body j
+      const ni = contact.ni
+      // Determine if bullet is body i or j to get correct normal direction
+      if (contact.bi === spawn.body) {
+        nx = ni.x
+        nz = ni.z
+      } else {
+        nx = -ni.x
+        nz = -ni.z
+      }
+    } else {
+      // Fallback: estimate normal from position relative to arena bounds
+      const p = spawn.body.position
+      const margin = 0.5
+      if (p.x < -this.currentArenaHalfX + margin) nx = 1
+      else if (p.x > this.currentArenaHalfX - margin) nx = -1
+      if (p.z < -this.currentArenaHalfZ + margin) nz = 1
+      else if (p.z > this.currentArenaHalfZ - margin) nz = -1
+    }
+    
+    // Normalize normal (use only XZ plane)
+    const nLen = Math.sqrt(nx * nx + nz * nz)
+    if (nLen < 0.01) return // No valid normal
+    nx /= nLen
+    nz /= nLen
+    
+    // Reflect velocity in XZ plane: v' = v - 2(v·n)n
+    const dot = vel.x * nx + vel.z * nz
+    vel.x = vel.x - 2 * dot * nx
+    vel.z = vel.z - 2 * dot * nz
+    
+    // Keep bullet on XZ plane (no vertical movement)
+    vel.y = 0
+    
+    // Restore original speed (physics collision may have slowed it down)
+    const newSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z)
+    if (newSpeed > 0.01) {
+      const targetSpeed = Math.max(originalSpeed, TheMaskEngine.BULLET_SPEED)
+      const scale = targetSpeed / newSpeed
+      vel.x *= scale
+      vel.z *= scale
+    }
+    
+    // Play bounce sound
+    this.playBounceSound()
+  }
+  
+  /** Play a subtle bounce sound for bouncing bullets. */
+  private playBounceSound() {
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      const now = ctx.currentTime
+      const duration = 0.1
+      
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(800, now)
+      osc.frequency.exponentialRampToValueAtTime(400, now + duration)
+      gain.gain.setValueAtTime(0.08, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + duration)
+    } catch {
+      // Silently fail
+    }
+  }
+
   /** True if segment A->B intersects sphere at C with radius r (catches fast bullets that tunnel). */
   private segmentIntersectsSphere(
     ax: number, ay: number, az: number,
@@ -758,17 +877,23 @@ export class TheMaskEngine {
       this.disposeObject3D(m)
     })
     this.rolieMeshes = []
-    // Remove existing health pickup
-    if (this.healthPickupMesh) {
-      this.scene.remove(this.healthPickupMesh)
-      this.disposeObject3D(this.healthPickupMesh)
-      this.healthPickupMesh = null
-    }
+    // Remove existing health pickups
+    this.healthPickupMeshes.forEach((mesh) => {
+      this.scene.remove(mesh)
+      this.disposeObject3D(mesh)
+    })
+    this.healthPickupMeshes = []
     // Remove existing bullet pickup
     if (this.bulletPickupMesh) {
       this.scene.remove(this.bulletPickupMesh)
       this.disposeObject3D(this.bulletPickupMesh)
       this.bulletPickupMesh = null
+    }
+    // Remove existing sphere pickup
+    if (this.spherePickupMesh) {
+      this.scene.remove(this.spherePickupMesh)
+      this.disposeObject3D(this.spherePickupMesh)
+      this.spherePickupMesh = null
     }
     const level = LEVELS[Math.min(index, LEVELS.length - 1)]
     const { halfX, halfZ } = level
@@ -840,66 +965,80 @@ export class TheMaskEngine {
     // Spawn pickups at random positions
     this.spawnHealthPickup(halfX, halfZ, startX, startZ)
     this.spawnBulletPickup(halfX, halfZ, startX, startZ)
+    this.spawnSpherePickup(halfX, halfZ, startX, startZ)
 
     this.startLevelIntro()
   }
 
   private spawnHealthPickup(halfX: number, halfZ: number, playerX: number, playerZ: number) {
-    // Find a random position that is not too close to player start
+    // Levels 4, 5, 6 (index 3, 4, 5) get 2 health pickups
+    const pickupCount = this.currentLevelIndex >= 3 && this.currentLevelIndex <= 5 ? 2 : 1
     const margin = 2
-    let pickupX: number
-    let pickupZ: number
     const minDistFromPlayer = 5
-    let attempts = 0
-    do {
-      pickupX = (Math.random() * 2 - 1) * (halfX - margin)
-      pickupZ = (Math.random() * 2 - 1) * (halfZ - margin)
-      attempts++
-    } while (
-      Math.hypot(pickupX - playerX, pickupZ - playerZ) < minDistFromPlayer &&
-      attempts < 20
-    )
+    const minDistBetweenPickups = 4
+    const spawnedPositions: { x: number; z: number }[] = []
 
-    // Use loaded model or create placeholder
-    if (this.healthPickupTemplate) {
-      const pickup = this.healthPickupTemplate.clone()
-      pickup.position.set(pickupX, HEALTH_PICKUP_Y, pickupZ)
-      this.scene.add(pickup)
-      this.healthPickupMesh = pickup
-    } else {
-      // Placeholder sphere while model loads
-      const geo = new THREE.SphereGeometry(0.4, 16, 16)
-      const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
-      const mesh = new THREE.Mesh(geo, mat)
-      mesh.position.set(pickupX, HEALTH_PICKUP_Y, pickupZ)
-      mesh.userData.isPlaceholder = true
-      this.scene.add(mesh)
-      this.healthPickupMesh = mesh
+    for (let i = 0; i < pickupCount; i++) {
+      let pickupX: number
+      let pickupZ: number
+      let attempts = 0
+      do {
+        pickupX = (Math.random() * 2 - 1) * (halfX - margin)
+        pickupZ = (Math.random() * 2 - 1) * (halfZ - margin)
+        attempts++
+        const distFromPlayer = Math.hypot(pickupX - playerX, pickupZ - playerZ)
+        const tooCloseToOther = spawnedPositions.some(
+          (pos) => Math.hypot(pickupX - pos.x, pickupZ - pos.z) < minDistBetweenPickups
+        )
+        if (distFromPlayer >= minDistFromPlayer && !tooCloseToOther) break
+      } while (attempts < 30)
+
+      spawnedPositions.push({ x: pickupX, z: pickupZ })
+
+      // Use loaded model or create placeholder
+      if (this.healthPickupTemplate) {
+        const pickup = this.healthPickupTemplate.clone()
+        pickup.position.set(pickupX, HEALTH_PICKUP_Y, pickupZ)
+        this.scene.add(pickup)
+        this.healthPickupMeshes.push(pickup)
+      } else {
+        // Placeholder sphere while model loads
+        const geo = new THREE.SphereGeometry(0.4, 16, 16)
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+        const mesh = new THREE.Mesh(geo, mat)
+        mesh.position.set(pickupX, HEALTH_PICKUP_Y, pickupZ)
+        mesh.userData.isPlaceholder = true
+        this.scene.add(mesh)
+        this.healthPickupMeshes.push(mesh)
+      }
     }
   }
 
   private updateHealthPickup(dt: number, playerPos: CANNON.Vec3) {
-    if (!this.healthPickupMesh) return
+    // Process pickups in reverse order so we can remove while iterating
+    for (let i = this.healthPickupMeshes.length - 1; i >= 0; i--) {
+      const mesh = this.healthPickupMeshes[i]
+      
+      // Rotate the pickup
+      mesh.rotation.y += HEALTH_PICKUP_ROTATION_SPEED * dt
 
-    // Rotate the pickup
-    this.healthPickupMesh.rotation.y += HEALTH_PICKUP_ROTATION_SPEED * dt
+      // Check collision with player
+      const pickupPos = mesh.position
+      const dx = playerPos.x - pickupPos.x
+      const dz = playerPos.z - pickupPos.z
+      const dist = Math.sqrt(dx * dx + dz * dz)
 
-    // Check collision with player
-    const pickupPos = this.healthPickupMesh.position
-    const dx = playerPos.x - pickupPos.x
-    const dz = playerPos.z - pickupPos.z
-    const dist = Math.sqrt(dx * dx + dz * dz)
+      if (dist < HEALTH_PICKUP_RADIUS + PLAYER_RADIUS) {
+        // Player picked up health
+        const newHealth = this.player.heal(HEALTH_PICKUP_AMOUNT)
+        this.onHealthChange?.(newHealth, this.player.getMaxHealth())
+        this.playHealthPickupSound()
 
-    if (dist < HEALTH_PICKUP_RADIUS + PLAYER_RADIUS) {
-      // Player picked up health
-      const newHealth = this.player.heal(HEALTH_PICKUP_AMOUNT)
-      this.onHealthChange?.(newHealth, this.player.getMaxHealth())
-      this.playHealthPickupSound()
-
-      // Remove pickup
-      this.scene.remove(this.healthPickupMesh)
-      this.disposeObject3D(this.healthPickupMesh)
-      this.healthPickupMesh = null
+        // Remove pickup
+        this.scene.remove(mesh)
+        this.disposeObject3D(mesh)
+        this.healthPickupMeshes.splice(i, 1)
+      }
     }
   }
 
@@ -975,10 +1114,10 @@ export class TheMaskEngine {
       pickupZ = (Math.random() * 2 - 1) * (halfZ - margin)
       attempts++
       const distFromPlayer = Math.hypot(pickupX - playerX, pickupZ - playerZ)
-      const distFromHealth = this.healthPickupMesh
-        ? Math.hypot(pickupX - this.healthPickupMesh.position.x, pickupZ - this.healthPickupMesh.position.z)
-        : Infinity
-      if (distFromPlayer >= minDistFromPlayer && distFromHealth >= minDistFromHealthPickup) break
+      const tooCloseToHealth = this.healthPickupMeshes.some(
+        (mesh) => Math.hypot(pickupX - mesh.position.x, pickupZ - mesh.position.z) < minDistFromHealthPickup
+      )
+      if (distFromPlayer >= minDistFromPlayer && !tooCloseToHealth) break
     } while (attempts < 30)
 
     // Use loaded model or create placeholder
@@ -1070,6 +1209,144 @@ export class TheMaskEngine {
       gain3.connect(ctx.destination)
       osc3.start(now + 0.1)
       osc3.stop(now + duration)
+    } catch {
+      // Silently fail if AudioContext not available
+    }
+  }
+
+  private async loadSpherePickupModel() {
+    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
+    const loader = new GLTFLoader()
+    loader.load(
+      SPHERE_PICKUP_MODEL,
+      (gltf) => {
+        const model = gltf.scene
+        const box = new THREE.Box3().setFromObject(model)
+        const size = new THREE.Vector3()
+        box.getSize(size)
+        const targetHeight = 1.0
+        const scale = targetHeight / Math.max(size.y, 0.001)
+        model.scale.setScalar(scale)
+        this.spherePickupTemplate = model
+        // If a pickup is already spawned (placeholder), replace it
+        if (this.spherePickupMesh && this.spherePickupMesh.userData.isPlaceholder) {
+          const pos = this.spherePickupMesh.position.clone()
+          this.scene.remove(this.spherePickupMesh)
+          this.disposeObject3D(this.spherePickupMesh)
+          const pickup = model.clone()
+          pickup.position.copy(pos)
+          this.scene.add(pickup)
+          this.spherePickupMesh = pickup
+        }
+      },
+      undefined,
+      (err) => console.warn('Failed to load pickup_sphere.glb', err)
+    )
+  }
+
+  private spawnSpherePickup(halfX: number, halfZ: number, playerX: number, playerZ: number) {
+    // Only spawn on level 0 (first level) and only if not already collected
+    if (this.currentLevelIndex !== 0 || this.spherePickupCollected) return
+
+    // Find a random position that is not too close to player start or other pickups
+    const margin = 2
+    let pickupX: number
+    let pickupZ: number
+    const minDistFromPlayer = 5
+    const minDistFromOtherPickups = 4
+    let attempts = 0
+    do {
+      pickupX = (Math.random() * 2 - 1) * (halfX - margin)
+      pickupZ = (Math.random() * 2 - 1) * (halfZ - margin)
+      attempts++
+      const distFromPlayer = Math.hypot(pickupX - playerX, pickupZ - playerZ)
+      const tooCloseToHealth = this.healthPickupMeshes.some(
+        (mesh) => Math.hypot(pickupX - mesh.position.x, pickupZ - mesh.position.z) < minDistFromOtherPickups
+      )
+      const distFromBullet = this.bulletPickupMesh
+        ? Math.hypot(pickupX - this.bulletPickupMesh.position.x, pickupZ - this.bulletPickupMesh.position.z)
+        : Infinity
+      if (distFromPlayer >= minDistFromPlayer && !tooCloseToHealth && distFromBullet >= minDistFromOtherPickups) break
+    } while (attempts < 30)
+
+    // Use loaded model or create placeholder
+    if (this.spherePickupTemplate) {
+      const pickup = this.spherePickupTemplate.clone()
+      pickup.position.set(pickupX, SPHERE_PICKUP_Y, pickupZ)
+      this.scene.add(pickup)
+      this.spherePickupMesh = pickup
+    } else {
+      // Placeholder sphere while model loads (cyan for sphere pickup)
+      const geo = new THREE.SphereGeometry(0.4, 16, 16)
+      const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff })
+      const mesh = new THREE.Mesh(geo, mat)
+      mesh.position.set(pickupX, SPHERE_PICKUP_Y, pickupZ)
+      mesh.userData.isPlaceholder = true
+      this.scene.add(mesh)
+      this.spherePickupMesh = mesh
+    }
+  }
+
+  private updateSpherePickup(dt: number, playerPos: CANNON.Vec3) {
+    if (!this.spherePickupMesh) return
+
+    // Rotate the pickup
+    this.spherePickupMesh.rotation.y += HEALTH_PICKUP_ROTATION_SPEED * dt
+
+    // Check collision with player
+    const pickupPos = this.spherePickupMesh.position
+    const dx = playerPos.x - pickupPos.x
+    const dz = playerPos.z - pickupPos.z
+    const dist = Math.sqrt(dx * dx + dz * dz)
+
+    if (dist < SPHERE_PICKUP_RADIUS + PLAYER_RADIUS) {
+      // Player picked up sphere powerup
+      this.player.enableBouncingBullets()
+      this.playSpherePickupSound()
+      this.spherePickupCollected = true
+
+      // Remove pickup
+      this.scene.remove(this.spherePickupMesh)
+      this.disposeObject3D(this.spherePickupMesh)
+      this.spherePickupMesh = null
+    }
+  }
+
+  /** Play a generated "bouncy" sound when picking up sphere powerup. */
+  private playSpherePickupSound() {
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      const now = ctx.currentTime
+      const duration = 0.5
+
+      // Bouncy rising tone
+      const osc1 = ctx.createOscillator()
+      const gain1 = ctx.createGain()
+      osc1.type = 'sine'
+      osc1.frequency.setValueAtTime(200, now)
+      osc1.frequency.exponentialRampToValueAtTime(600, now + 0.1)
+      osc1.frequency.exponentialRampToValueAtTime(400, now + 0.2)
+      osc1.frequency.exponentialRampToValueAtTime(800, now + 0.3)
+      osc1.frequency.exponentialRampToValueAtTime(1000, now + duration)
+      gain1.gain.setValueAtTime(0.15, now)
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + duration)
+      osc1.connect(gain1)
+      gain1.connect(ctx.destination)
+      osc1.start(now)
+      osc1.stop(now + duration)
+
+      // Sparkle layer
+      const osc2 = ctx.createOscillator()
+      const gain2 = ctx.createGain()
+      osc2.type = 'triangle'
+      osc2.frequency.setValueAtTime(1500, now)
+      osc2.frequency.exponentialRampToValueAtTime(2500, now + duration * 0.4)
+      gain2.gain.setValueAtTime(0.06, now)
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.4)
+      osc2.connect(gain2)
+      gain2.connect(ctx.destination)
+      osc2.start(now)
+      osc2.stop(now + duration * 0.4)
     } catch {
       // Silently fail if AudioContext not available
     }
@@ -1461,6 +1738,7 @@ export class TheMaskEngine {
     this.updateExplosions(animDt)
     this.updateHealthPickup(animDt, playerBodyPos)
     this.updateBulletPickup(animDt, playerBodyPos)
+    this.updateSpherePickup(animDt, playerBodyPos)
     if (!this.levelIntro) this.updateCameraFollow()
 
     this.bulletsToRemove.forEach((spawn) => {
@@ -1472,7 +1750,7 @@ export class TheMaskEngine {
 
     const toRemove: number[] = []
     this.bullets.forEach((spawn, i) => {
-      if (isBulletOutOfBounds(spawn.body, spawn.createdAt, this.currentArenaHalfX, this.currentArenaHalfZ)) {
+      if (isBulletOutOfBounds(spawn.body, spawn.createdAt, this.currentArenaHalfX, this.currentArenaHalfZ, spawn.isBouncing)) {
         toRemove.push(i)
       }
     })
@@ -1529,6 +1807,9 @@ export class TheMaskEngine {
       this.explosions.length === 0 &&
       levelHasEnemies
     ) {
+      // Clear all bullets when level is completed
+      this.clearAllBullets()
+      
       // Check if this was the last level
       if (this.currentLevelIndex >= LEVELS.length - 1) {
         this.playLevelVictorySound()
@@ -1580,11 +1861,11 @@ export class TheMaskEngine {
       this.disposeObject3D(m)
     })
     this.rolieMeshes = []
-    if (this.healthPickupMesh) {
-      this.scene.remove(this.healthPickupMesh)
-      this.disposeObject3D(this.healthPickupMesh)
-      this.healthPickupMesh = null
-    }
+    this.healthPickupMeshes.forEach((mesh) => {
+      this.scene.remove(mesh)
+      this.disposeObject3D(mesh)
+    })
+    this.healthPickupMeshes = []
     if (this.healthPickupTemplate) {
       this.disposeObject3D(this.healthPickupTemplate)
       this.healthPickupTemplate = null
@@ -1597,6 +1878,15 @@ export class TheMaskEngine {
     if (this.bulletPickupTemplate) {
       this.disposeObject3D(this.bulletPickupTemplate)
       this.bulletPickupTemplate = null
+    }
+    if (this.spherePickupMesh) {
+      this.scene.remove(this.spherePickupMesh)
+      this.disposeObject3D(this.spherePickupMesh)
+      this.spherePickupMesh = null
+    }
+    if (this.spherePickupTemplate) {
+      this.disposeObject3D(this.spherePickupTemplate)
+      this.spherePickupTemplate = null
     }
     if (this.floorMesh) {
       this.scene.remove(this.floorMesh)
