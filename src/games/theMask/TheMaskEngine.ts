@@ -18,7 +18,7 @@ const WALL_THICKNESS = 1
 const WALL_HEIGHT = 4
 const CAMERA_ANGLE = Math.PI / 4
 const CAMERA_DIST_DESKTOP = 16
-const CAMERA_DIST_MOBILE = 10
+const CAMERA_DIST_MOBILE = 8
 const MOBILE_SHOOT_COOLDOWN = 0.45
 const SOUND_SHOT = '/hoot-sounds/Shoot.wav'
 const SOUND_BOX_HIT = '/theMask/sound/bang_box.wav'
@@ -209,7 +209,7 @@ export class TheMaskEngine {
         const other = e.body
         const turretRef = (other as unknown as { turretRef?: Turret }).turretRef
         const rolieRef = (other as unknown as { rolieRef?: Rolie }).rolieRef
-        
+
         // If bouncing bullet hits enemy, destroy it
         if (spawn.fromPlayer && turretRef) {
           turretRef.takeDamage(this.player.getBulletDamage())
@@ -221,7 +221,7 @@ export class TheMaskEngine {
           this.bulletsToRemove.add(spawn)
           return
         }
-        
+
         // If bouncing bullet hits wall or box, reflect velocity
         if (spawn.isBouncing && spawn.fromPlayer) {
           const isWall = this.wallBodies.includes(other) || other === this.floorBody
@@ -300,7 +300,7 @@ export class TheMaskEngine {
     this.musicAudio = new Audio(SOUND_MUSIC)
     this.musicAudio.loop = true
     this.musicAudio.volume = this.isMusicMuted ? 0 : TheMaskEngine.MUSIC_VOLUME
-    this.musicAudio.play().catch(() => {})
+    this.musicAudio.play().catch(() => { })
   }
 
   setMusicMuted(muted: boolean) {
@@ -626,7 +626,7 @@ export class TheMaskEngine {
       const health = this.player.takeDamage(Math.round(damage))
       this.onHealthChange?.(health, this.player.getMaxHealth())
       if (this.player.isDead()) {
-        this.player.playDeath(() => {})
+        this.player.playDeath(() => { })
         this.triggerDelayedGameOver()
       } else {
         this.player.playHitReact()
@@ -711,13 +711,13 @@ export class TheMaskEngine {
         const flashT = ex.elapsed / EXPLOSION_FLASH_DURATION
         if (flashT >= 1) {
           ex.group.remove(ex.flashMesh)
-          ;(ex.flashMesh.geometry as THREE.BufferGeometry).dispose()
-          ;(ex.flashMesh.material as THREE.Material).dispose()
+            ; (ex.flashMesh.geometry as THREE.BufferGeometry).dispose()
+            ; (ex.flashMesh.material as THREE.Material).dispose()
           ex.flashMesh = null
         } else {
           const flashScale = flashT * EXPLOSION_FLASH_MAX_SCALE
           ex.flashMesh.scale.setScalar(flashScale)
-          ;(ex.flashMesh.material as THREE.MeshBasicMaterial).opacity = 0.95 * (1 - flashT)
+            ; (ex.flashMesh.material as THREE.MeshBasicMaterial).opacity = 0.95 * (1 - flashT)
         }
       }
 
@@ -739,7 +739,7 @@ export class TheMaskEngine {
         })
         if (ex.flashMesh) {
           ex.flashMesh.geometry.dispose()
-          ;(ex.flashMesh.material as THREE.Material).dispose()
+            ; (ex.flashMesh.material as THREE.Material).dispose()
         }
         ex.sharedGeo.dispose()
         this.explosions.splice(i, 1)
@@ -762,12 +762,12 @@ export class TheMaskEngine {
   /** Reflect a bouncing bullet's velocity based on contact normal. */
   private reflectBulletVelocity(spawn: BulletSpawn, contact?: CANNON.ContactEquation) {
     const vel = spawn.body.velocity
-    
+
     // Store original speed before reflection
     const originalSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z)
-    
+
     let nx = 0, nz = 0
-    
+
     if (contact) {
       // Get contact normal - it points from body i to body j
       const ni = contact.ni
@@ -788,21 +788,21 @@ export class TheMaskEngine {
       if (p.z < -this.currentArenaHalfZ + margin) nz = 1
       else if (p.z > this.currentArenaHalfZ - margin) nz = -1
     }
-    
+
     // Normalize normal (use only XZ plane)
     const nLen = Math.sqrt(nx * nx + nz * nz)
     if (nLen < 0.01) return // No valid normal
     nx /= nLen
     nz /= nLen
-    
+
     // Reflect velocity in XZ plane: v' = v - 2(v·n)n
     const dot = vel.x * nx + vel.z * nz
     vel.x = vel.x - 2 * dot * nx
     vel.z = vel.z - 2 * dot * nz
-    
+
     // Keep bullet on XZ plane (no vertical movement)
     vel.y = 0
-    
+
     // Restore original speed (physics collision may have slowed it down)
     const newSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z)
     if (newSpeed > 0.01) {
@@ -811,18 +811,18 @@ export class TheMaskEngine {
       vel.x *= scale
       vel.z *= scale
     }
-    
+
     // Play bounce sound
     this.playBounceSound()
   }
-  
+
   /** Play a subtle bounce sound for bouncing bullets. */
   private playBounceSound() {
     try {
       const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const now = ctx.currentTime
       const duration = 0.1
-      
+
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.type = 'sine'
@@ -919,7 +919,7 @@ export class TheMaskEngine {
               const health = this.player.takeDamage(PLAYER_DAMAGE_PER_HIT)
               this.onHealthChange?.(health, this.player.getMaxHealth())
               if (this.player.isDead()) {
-                this.player.playDeath(() => {})
+                this.player.playDeath(() => { })
                 this.triggerDelayedGameOver()
               } else {
                 this.player.playHitReact()
@@ -1018,7 +1018,7 @@ export class TheMaskEngine {
     // Process pickups in reverse order so we can remove while iterating
     for (let i = this.healthPickupMeshes.length - 1; i >= 0; i--) {
       const mesh = this.healthPickupMeshes[i]
-      
+
       // Rotate the pickup
       mesh.rotation.y += HEALTH_PICKUP_ROTATION_SPEED * dt
 
@@ -1471,7 +1471,7 @@ export class TheMaskEngine {
     if (this.floorMesh) {
       this.scene.remove(this.floorMesh)
       this.floorMesh.geometry.dispose()
-      ;(this.floorMesh.material as THREE.Material).dispose()
+        ; (this.floorMesh.material as THREE.Material).dispose()
       this.floorMesh = null
     }
     if (this.floorGrid) {
@@ -1547,7 +1547,7 @@ export class TheMaskEngine {
     this.curbMeshes.forEach((m) => {
       this.scene.remove(m)
       m.geometry.dispose()
-      ;(m.material as THREE.Material).dispose()
+        ; (m.material as THREE.Material).dispose()
     })
     this.curbMeshes.length = 0
   }
@@ -1683,7 +1683,7 @@ export class TheMaskEngine {
             const health = this.player.takeDamage(PLAYER_DAMAGE_PER_HIT)
             this.onHealthChange?.(health, this.player.getMaxHealth())
             if (this.player.isDead()) {
-              this.player.playDeath(() => {})
+              this.player.playDeath(() => { })
               this.triggerDelayedGameOver()
             } else {
               this.player.playHitReact()
@@ -1809,7 +1809,7 @@ export class TheMaskEngine {
     ) {
       // Clear all bullets when level is completed
       this.clearAllBullets()
-      
+
       // Check if this was the last level
       if (this.currentLevelIndex >= LEVELS.length - 1) {
         this.playLevelVictorySound()
@@ -1891,7 +1891,7 @@ export class TheMaskEngine {
     if (this.floorMesh) {
       this.scene.remove(this.floorMesh)
       this.floorMesh.geometry.dispose()
-      ;(this.floorMesh.material as THREE.Material).dispose()
+        ; (this.floorMesh.material as THREE.Material).dispose()
       this.floorMesh = null
     }
     if (this.floorGrid) {
@@ -1911,7 +1911,7 @@ export class TheMaskEngine {
       })
       if (ex.flashMesh) {
         ex.flashMesh.geometry.dispose()
-        ;(ex.flashMesh.material as THREE.Material).dispose()
+          ; (ex.flashMesh.material as THREE.Material).dispose()
       }
       ex.sharedGeo.dispose()
     })
