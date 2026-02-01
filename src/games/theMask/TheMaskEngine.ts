@@ -303,11 +303,13 @@ export class TheMaskEngine {
 
   /** Temporarily lower music volume for important sounds */
   private duckMusic(durationMs = 2000) {
-    if (!this.musicAudio) return
+    if (!this.musicAudio || this.isMusicMuted) return
     this.musicAudio.volume = TheMaskEngine.MUSIC_DUCK_VOLUME
     if (this.musicDuckTimer) clearTimeout(this.musicDuckTimer)
     this.musicDuckTimer = setTimeout(() => {
-      if (this.musicAudio) this.musicAudio.volume = TheMaskEngine.MUSIC_VOLUME
+      if (this.musicAudio) {
+        this.musicAudio.volume = this.isMusicMuted ? 0 : TheMaskEngine.MUSIC_VOLUME
+      }
       this.musicDuckTimer = null
     }, durationMs)
   }
