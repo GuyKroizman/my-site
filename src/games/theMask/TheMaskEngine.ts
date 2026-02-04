@@ -1646,11 +1646,19 @@ export class TheMaskEngine {
         const worldZ = -joy.y * forwardZ - joy.x * rightZ
         this.player.updateInputFromTouch(worldX, worldZ, aimWorldX, aimWorldZ, shoot, PHYSICS_DT)
       } else {
-        this.player.updateInput({ ...keyboardState, shoot }, PHYSICS_DT)
+        // No left stick: still update facing from aim stick so player points where they aim when standing still
+        if (aimLen > 0.05) {
+          const aimWorldLen = Math.sqrt(aimWorldX * aimWorldX + aimWorldZ * aimWorldZ)
+          if (aimWorldLen > 0.01) {
+            this.player.facingAngle = Math.atan2(aimWorldX, aimWorldZ)
+          }
+        }
+        // Only pass keyboard shoot to updateInput; aim-stick shooting is handled via shootInDirection below
+        this.player.updateInput({ ...keyboardState, shoot: keyboardState.shoot }, PHYSICS_DT)
         if (shootFromAim && (aimWorldX !== 0 || aimWorldZ !== 0)) {
-          const aimLen = Math.sqrt(aimWorldX * aimWorldX + aimWorldZ * aimWorldZ)
-          if (aimLen > 0.01) {
-            this.player.shootInDirection(aimWorldX / aimLen, aimWorldZ / aimLen)
+          const aimWorldLen = Math.sqrt(aimWorldX * aimWorldX + aimWorldZ * aimWorldZ)
+          if (aimWorldLen > 0.01) {
+            this.player.shootInDirection(aimWorldX / aimWorldLen, aimWorldZ / aimWorldLen)
           }
         }
       }
