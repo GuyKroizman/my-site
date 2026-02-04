@@ -967,6 +967,11 @@ export class TheMaskEngine {
     this.spawnBulletPickup(halfX, halfZ, startX, startZ)
     this.spawnSpherePickup(halfX, halfZ, startX, startZ)
 
+    // Ensure music volume respects mute state after level load (e.g. after passing a level)
+    if (this.musicAudio) {
+      this.musicAudio.volume = this.isMusicMuted ? 0 : TheMaskEngine.MUSIC_VOLUME
+    }
+
     this.startLevelIntro()
   }
 
@@ -1817,6 +1822,14 @@ export class TheMaskEngine {
       } else {
         this.playLevelVictorySound()
         this.currentLevelIndex++
+        // Clear any duck timer so it cannot restore volume later; re-apply mute state before loading next level
+        if (this.musicDuckTimer) {
+          clearTimeout(this.musicDuckTimer)
+          this.musicDuckTimer = null
+        }
+        if (this.musicAudio) {
+          this.musicAudio.volume = this.isMusicMuted ? 0 : TheMaskEngine.MUSIC_VOLUME
+        }
         this.loadLevel(this.currentLevelIndex)
       }
     }

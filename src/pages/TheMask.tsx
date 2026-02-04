@@ -181,7 +181,7 @@ export default function TheMask() {
         {uiState === 'victory' && (
           <VictoryOverlay onBackToMenu={handleBackToMenu} />
         )}
-        {(uiState === 'playing' || uiState === 'paused') && isTouchDevice() && (
+        {uiState === 'playing' && isTouchDevice() && (
           <VirtualControls onTouchInputChange={handleTouchInputChange} />
         )}
       </div>
