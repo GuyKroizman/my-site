@@ -519,14 +519,36 @@ export class Player {
     }
   }
 
-  /** Clamp position to arena (called after physics step). Uses current level bounds when provided. */
+  /**
+   * Clamp position to arena (called after physics step). Uses a small inward margin so the player
+   * never gets deep into the wall (avoids getting stuck). Also zeroes velocity on clamped axes.
+   */
   clampToArena(halfX: number = ARENA_HALF_X, halfZ: number = ARENA_HALF_Z) {
     const p = this.body.position
+    const v = this.body.velocity
     const r = PLAYER_RADIUS
-    if (p.x < -halfX + r) this.body.position.x = -halfX + r
-    if (p.x > halfX - r) this.body.position.x = halfX - r
-    if (p.z < -halfZ + r) this.body.position.z = -halfZ + r
-    if (p.z > halfZ - r) this.body.position.z = halfZ - r
+    /** Keep player slightly inside the wall so they don't penetrate and get stuck. */
+    const margin = 0.15
+    const minX = -halfX + r + margin
+    const maxX = halfX - r - margin
+    const minZ = -halfZ + r + margin
+    const maxZ = halfZ - r - margin
+    if (p.x < minX) {
+      this.body.position.x = minX
+      v.x = Math.max(0, v.x)
+    }
+    if (p.x > maxX) {
+      this.body.position.x = maxX
+      v.x = Math.min(0, v.x)
+    }
+    if (p.z < minZ) {
+      this.body.position.z = minZ
+      v.z = Math.max(0, v.z)
+    }
+    if (p.z > maxZ) {
+      this.body.position.z = maxZ
+      v.z = Math.min(0, v.z)
+    }
     if (p.y < FLOOR_Y + PLAYER_HEIGHT / 2) this.body.position.y = FLOOR_Y + PLAYER_HEIGHT / 2
   }
 
