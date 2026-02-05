@@ -46,53 +46,81 @@ export default function FloatyMcHandface() {
       const AFRAME = (window as any).AFRAME
       if (!AFRAME) return
 
-      // Register arm-connector component - connects arm cylinder from shoulder to hand
+      // Register physics-sync component - syncs rig position to physics body
+      if (!AFRAME.components['physics-sync']) {
+        AFRAME.registerComponent('physics-sync', {
+          init: function() {
+            this.physicsBody = null
+            this.worldPos = new AFRAME.THREE.Vector3()
+          },
+          tick: function() {
+            // Find the physics body
+            if (!this.physicsBody) {
+              const physicsEntity = document.querySelector('#player-body') as any
+              if (physicsEntity && physicsEntity.body) {
+                this.physicsBody = physicsEntity
+              }
+              return
+            }
+            
+            // Sync rig position to physics body position
+            this.physicsBody.object3D.getWorldPosition(this.worldPos)
+            this.el.object3D.position.copy(this.worldPos)
+          }
+        })
+      }
+
+      // Register arm-connector component - connects arm cylinder from shoulder edge to hand
       if (!AFRAME.components['arm-connector']) {
         AFRAME.registerComponent('arm-connector', {
           schema: {
             hand: { type: 'string', default: 'left' }
           },
           init: function() {
-            this.shoulderPos = new AFRAME.THREE.Vector3()
+            this.shoulderEdgePos = new AFRAME.THREE.Vector3()
             this.handPos = new AFRAME.THREE.Vector3()
+            this.midpoint = new AFRAME.THREE.Vector3()
             this.direction = new AFRAME.THREE.Vector3()
             this.quaternion = new AFRAME.THREE.Quaternion()
-            this.up = new AFRAME.THREE.Vector3(0, 1, 0)
+            // Shoulder edge offset - left hand connects to left edge, right to right
+            this.edgeOffset = this.data.hand === 'left' ? -0.2 : 0.2
           },
           tick: function() {
             const shoulder = document.querySelector('#shoulder-box') as any
             if (!shoulder) return
             
-            // Get world positions
-            shoulder.object3D.getWorldPosition(this.shoulderPos)
+            // Get shoulder world position and add edge offset
+            shoulder.object3D.getWorldPosition(this.shoulderEdgePos)
+            // Get shoulder's world rotation to properly offset the edge
+            const shoulderRight = new AFRAME.THREE.Vector3(1, 0, 0)
+            shoulderRight.applyQuaternion(shoulder.object3D.getWorldQuaternion(new AFRAME.THREE.Quaternion()))
+            this.shoulderEdgePos.addScaledVector(shoulderRight, this.edgeOffset)
+            
+            // Get hand world position
             this.el.object3D.getWorldPosition(this.handPos)
             
-            // Calculate direction and distance
-            this.direction.subVectors(this.handPos, this.shoulderPos)
+            // Calculate distance
+            this.direction.subVectors(this.shoulderEdgePos, this.handPos)
             const distance = this.direction.length()
             
-            // Get the arm cylinder (first cylinder child)
-            const armCylinder = this.el.querySelector('a-cylinder')
+            // Get the arm cylinder
+            const armCylinder = this.el.querySelector('a-cylinder') as any
             if (!armCylinder) return
             
-            // Position cylinder at midpoint between shoulder and hand (in local space)
-            // Convert shoulder position to local space of hand entity
-            const localShoulderPos = this.el.object3D.worldToLocal(this.shoulderPos.clone())
+            // Calculate midpoint in world space, then convert to local
+            this.midpoint.addVectors(this.handPos, this.shoulderEdgePos).multiplyScalar(0.5)
+            const localMidpoint = this.el.object3D.worldToLocal(this.midpoint.clone())
             
-            // Midpoint in local space
-            armCylinder.object3D.position.set(
-              localShoulderPos.x / 2,
-              localShoulderPos.y / 2,
-              localShoulderPos.z / 2
-            )
+            // Position cylinder at midpoint
+            armCylinder.object3D.position.copy(localMidpoint)
             
             // Scale cylinder to match distance
-            armCylinder.setAttribute('height', distance)
+            armCylinder.object3D.scale.y = distance / 0.5 // 0.5 is default height
             
-            // Rotate cylinder to point from hand toward shoulder
+            // Rotate cylinder to point from hand toward shoulder edge
             if (distance > 0.01) {
-              const localDir = localShoulderPos.normalize()
-              // Cylinder's default orientation is along Y axis
+              const localShoulderEdge = this.el.object3D.worldToLocal(this.shoulderEdgePos.clone())
+              const localDir = localShoulderEdge.sub(localMidpoint).normalize()
               const defaultDir = new AFRAME.THREE.Vector3(0, 1, 0)
               this.quaternion.setFromUnitVectors(defaultDir, localDir)
               armCylinder.object3D.quaternion.copy(this.quaternion)
@@ -112,16 +140,22 @@ export default function FloatyMcHandface() {
             this.currentPosition = new AFRAME.THREE.Vector3()
             this.velocity = new AFRAME.THREE.Vector3()
             this.isGrounded = false
-            this.rig = document.querySelector('#rig')
+            this.playerBody = null
             
             // Get world position initially
             this.el.object3D.getWorldPosition(this.lastPosition)
           },
           tick: function(_time: number, delta: number) {
-            if (!this.rig || !delta) return
+            if (!delta) return
             
-            const rigBody = this.rig.body
-            if (!rigBody) return
+            // Find the physics body
+            if (!this.playerBody) {
+              this.playerBody = document.querySelector('#player-body') as any
+              return
+            }
+            
+            const body = this.playerBody.body
+            if (!body) return
             
             // Get current world position of hand
             this.el.object3D.getWorldPosition(this.currentPosition)
@@ -133,17 +167,17 @@ export default function FloatyMcHandface() {
               // Calculate hand movement delta
               this.velocity.subVectors(this.currentPosition, this.lastPosition)
               
-              // Apply opposite force to rig (push ground = move opposite direction)
+              // Apply opposite force to physics body (push ground = move opposite direction)
               // Newton's third law: push ground one way, you move the other
               const pushForce = 80
               
               // Horizontal movement - push sideways to slide
-              rigBody.velocity.x -= this.velocity.x * pushForce
-              rigBody.velocity.z -= this.velocity.z * pushForce
+              body.velocity.x -= this.velocity.x * pushForce
+              body.velocity.z -= this.velocity.z * pushForce
               
               // Vertical movement - push down to go up (pushing off ground)
               // When hand moves down (negative y velocity), push body up
-              rigBody.velocity.y -= this.velocity.y * pushForce
+              body.velocity.y -= this.velocity.y * pushForce
             }
             
             // Store position for next frame
@@ -230,16 +264,14 @@ export default function FloatyMcHandface() {
         ammo-shape="type: box"
       ></a-box>
       
-      <!-- VR Camera Rig with physics (affected by gravity) -->
-      <!-- The rig is the player body that falls and can be pushed by hands -->
-      <a-entity 
-        id="rig" 
+      <!-- Physics body - the shoulder that falls with gravity -->
+      <a-entity
+        id="player-body"
         position="0 1.5 0"
         ammo-body="type: dynamic; mass: 70; linearDamping: 0.5; angularDamping: 0.99"
         ammo-shape="type: box; fit: manual; halfExtents: 0.2 0.1 0.1"
       >
-        <!-- Shoulder box - the main body that falls to ground -->
-        <!-- This is the player's "torso" between the hands -->
+        <!-- Shoulder box - visible representation -->
         <a-box
           id="shoulder-box"
           position="0 0 0"
@@ -248,8 +280,11 @@ export default function FloatyMcHandface() {
           depth="0.2"
           color="#ffd93d"
         ></a-box>
-        
-        <!-- Camera slightly above shoulder for viewing -->
+      </a-entity>
+      
+      <!-- VR Camera Rig - syncs position to physics body -->
+      <a-entity id="rig" position="0 1.5 0" physics-sync>
+        <!-- Camera for VR view -->
         <a-camera id="camera" position="0 0.3 0" look-controls="pointerLockEnabled: true"></a-camera>
         
         <!-- Left hand controller with hand-walker and arm-connector -->
