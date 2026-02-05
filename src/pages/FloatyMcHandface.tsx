@@ -126,22 +126,24 @@ export default function FloatyMcHandface() {
             // Get current world position of hand
             this.el.object3D.getWorldPosition(this.currentPosition)
             
-            // Check if hand is near ground (y < 0.2)
-            this.isGrounded = this.currentPosition.y < 0.3
+            // Check if hand is near ground (y < 0.25 means touching/near floor)
+            this.isGrounded = this.currentPosition.y < 0.25
             
             if (this.isGrounded) {
               // Calculate hand movement delta
               this.velocity.subVectors(this.currentPosition, this.lastPosition)
               
               // Apply opposite force to rig (push ground = move opposite direction)
-              const pushForce = 50
+              // Newton's third law: push ground one way, you move the other
+              const pushForce = 80
+              
+              // Horizontal movement - push sideways to slide
               rigBody.velocity.x -= this.velocity.x * pushForce
               rigBody.velocity.z -= this.velocity.z * pushForce
               
-              // Slight upward push when hand moves down (can push up off ground)
-              if (this.velocity.y < -0.01) {
-                rigBody.velocity.y -= this.velocity.y * pushForce * 0.5
-              }
+              // Vertical movement - push down to go up (pushing off ground)
+              // When hand moves down (negative y velocity), push body up
+              rigBody.velocity.y -= this.velocity.y * pushForce
             }
             
             // Store position for next frame
@@ -229,25 +231,26 @@ export default function FloatyMcHandface() {
       ></a-box>
       
       <!-- VR Camera Rig with physics (affected by gravity) -->
-      <!-- Player is low so hands can easily reach ground for walking -->
+      <!-- The rig is the player body that falls and can be pushed by hands -->
       <a-entity 
         id="rig" 
-        position="0 0.5 0"
+        position="0 1.5 0"
         ammo-body="type: dynamic; mass: 70; linearDamping: 0.5; angularDamping: 0.99"
-        ammo-shape="type: sphere; fit: manual; sphereRadius: 0.3"
+        ammo-shape="type: box; fit: manual; halfExtents: 0.2 0.1 0.1"
       >
-        <!-- Camera low to ground - player walks on hands -->
-        <a-camera id="camera" position="0 0.5 0" look-controls="pointerLockEnabled: true">
-          <!-- Shoulder box attached to camera (between where hands would be) -->
-          <a-box
-            id="shoulder-box"
-            position="0 -0.15 0"
-            width="0.4"
-            height="0.15"
-            depth="0.15"
-            color="#ffd93d"
-          ></a-box>
-        </a-camera>
+        <!-- Shoulder box - the main body that falls to ground -->
+        <!-- This is the player's "torso" between the hands -->
+        <a-box
+          id="shoulder-box"
+          position="0 0 0"
+          width="0.4"
+          height="0.2"
+          depth="0.2"
+          color="#ffd93d"
+        ></a-box>
+        
+        <!-- Camera slightly above shoulder for viewing -->
+        <a-camera id="camera" position="0 0.3 0" look-controls="pointerLockEnabled: true"></a-camera>
         
         <!-- Left hand controller with hand-walker and arm-connector -->
         <a-entity 
