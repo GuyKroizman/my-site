@@ -60,7 +60,7 @@ export default function FloatyMcHandface() {
             this.up = new AFRAME.THREE.Vector3(0, 1, 0)
           },
           tick: function() {
-            const shoulder = document.querySelector('#shoulder-box')
+            const shoulder = document.querySelector('#shoulder-box') as any
             if (!shoulder) return
             
             // Get world positions
