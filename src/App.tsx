@@ -122,6 +122,24 @@ function App() {
                 Play Game
               </Link>
             </div>
+
+            {/* Floaty McHandface - VR Game */}
+            <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">🥽</div>
+                <h2 className="text-2xl font-semibold text-gray-800">Floaty McHandface</h2>
+                <p className="text-gray-600 mt-2">VR Experience</p>
+              </div>
+              <p className="text-gray-700 mb-4 text-sm">
+                VR room with floating hands. Put on your headset and push yourself around with your palms!
+              </p>
+              <Link
+                to="/floaty-mchandface"
+                className="block w-full text-center bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+              >
+                Enter VR
+              </Link>
+            </div>
           </div>
         </div>
       </div>
