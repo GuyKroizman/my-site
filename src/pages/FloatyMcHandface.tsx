@@ -22,25 +22,89 @@ export default function FloatyMcHandface() {
   const scriptLoadedRef = useRef(false)
 
   useEffect(() => {
-    // Load A-Frame script dynamically
-    if (!scriptLoadedRef.current && !document.querySelector('script[src*="aframe"]')) {
-      scriptLoadedRef.current = true
-      const script = document.createElement('script')
-      script.src = 'https://aframe.io/releases/1.5.0/aframe.min.js'
-      script.async = true
-      script.onload = () => {
-        // Force re-render after A-Frame loads
-        if (sceneRef.current) {
-          sceneRef.current.innerHTML = getSceneHTML()
-        }
+    const loadScripts = async () => {
+      // Load A-Frame first
+      if (!document.querySelector('script[src*="aframe.min"]')) {
+        await new Promise<void>((resolve) => {
+          const script = document.createElement('script')
+          script.src = 'https://aframe.io/releases/1.5.0/aframe.min.js'
+          script.onload = () => resolve()
+          document.head.appendChild(script)
+        })
       }
-      document.head.appendChild(script)
-    } else if (sceneRef.current && (window as any).AFRAME) {
-      sceneRef.current.innerHTML = getSceneHTML()
+
+      // Load physics system
+      if (!document.querySelector('script[src*="aframe-physics"]')) {
+        await new Promise<void>((resolve) => {
+          const script = document.createElement('script')
+          script.src = 'https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js'
+          script.onload = () => resolve()
+          document.head.appendChild(script)
+        })
+      }
+
+      // Register custom hand-walk component
+      const AFRAME = (window as any).AFRAME
+      if (AFRAME && !AFRAME.components['hand-walker']) {
+        AFRAME.registerComponent('hand-walker', {
+          schema: {
+            hand: { type: 'string', default: 'left' }
+          },
+          init: function() {
+            this.lastPosition = new AFRAME.THREE.Vector3()
+            this.currentPosition = new AFRAME.THREE.Vector3()
+            this.velocity = new AFRAME.THREE.Vector3()
+            this.isGrounded = false
+            this.rig = document.querySelector('#rig')
+            
+            // Get world position initially
+            this.el.object3D.getWorldPosition(this.lastPosition)
+          },
+          tick: function(time: number, delta: number) {
+            if (!this.rig || !delta) return
+            
+            const rigBody = this.rig.body
+            if (!rigBody) return
+            
+            // Get current world position of hand
+            this.el.object3D.getWorldPosition(this.currentPosition)
+            
+            // Check if hand is near ground (y < 0.2)
+            this.isGrounded = this.currentPosition.y < 0.3
+            
+            if (this.isGrounded) {
+              // Calculate hand movement delta
+              this.velocity.subVectors(this.currentPosition, this.lastPosition)
+              
+              // Apply opposite force to rig (push ground = move opposite direction)
+              const pushForce = 50
+              rigBody.velocity.x -= this.velocity.x * pushForce
+              rigBody.velocity.z -= this.velocity.z * pushForce
+              
+              // Slight upward push when hand moves down (can push up off ground)
+              if (this.velocity.y < -0.01) {
+                rigBody.velocity.y -= this.velocity.y * pushForce * 0.5
+              }
+            }
+            
+            // Store position for next frame
+            this.lastPosition.copy(this.currentPosition)
+          }
+        })
+      }
+
+      // Render the scene
+      if (sceneRef.current) {
+        sceneRef.current.innerHTML = getSceneHTML()
+      }
+    }
+
+    if (!scriptLoadedRef.current) {
+      scriptLoadedRef.current = true
+      loadScripts()
     }
 
     return () => {
-      // Cleanup A-Frame scene on unmount
       if (sceneRef.current) {
         sceneRef.current.innerHTML = ''
       }
@@ -48,9 +112,13 @@ export default function FloatyMcHandface() {
   }, [])
 
   const getSceneHTML = () => `
-    <a-scene vr-mode-ui="enabled: true" background="color: #1a1a2e">
+    <a-scene 
+      vr-mode-ui="enabled: true" 
+      background="color: #1a1a2e"
+      physics="driver: ammo; gravity: 0 -9.8 0; debug: false"
+    >
       <!-- Room - big enclosed space -->
-      <!-- Floor -->
+      <!-- Floor with physics -->
       <a-plane 
         position="0 0 0" 
         rotation="-90 0 0" 
@@ -58,6 +126,8 @@ export default function FloatyMcHandface() {
         height="30" 
         color="#3d3d5c"
         shadow="receive: true"
+        ammo-body="type: static"
+        ammo-shape="type: box; fit: all"
       ></a-plane>
       
       <!-- Ceiling -->
@@ -67,13 +137,15 @@ export default function FloatyMcHandface() {
         width="30" 
         height="30" 
         color="#2a2a4a"
+        ammo-body="type: static"
+        ammo-shape="type: box; fit: all"
       ></a-plane>
       
-      <!-- Walls -->
-      <a-plane position="0 6 -15" width="30" height="12" color="#4a4a6a"></a-plane>
-      <a-plane position="0 6 15" rotation="0 180 0" width="30" height="12" color="#4a4a6a"></a-plane>
-      <a-plane position="-15 6 0" rotation="0 90 0" width="30" height="12" color="#4a4a6a"></a-plane>
-      <a-plane position="15 6 0" rotation="0 -90 0" width="30" height="12" color="#4a4a6a"></a-plane>
+      <!-- Walls with physics -->
+      <a-plane position="0 6 -15" width="30" height="12" color="#4a4a6a" ammo-body="type: static" ammo-shape="type: box; fit: all"></a-plane>
+      <a-plane position="0 6 15" rotation="0 180 0" width="30" height="12" color="#4a4a6a" ammo-body="type: static" ammo-shape="type: box; fit: all"></a-plane>
+      <a-plane position="-15 6 0" rotation="0 90 0" width="30" height="12" color="#4a4a6a" ammo-body="type: static" ammo-shape="type: box; fit: all"></a-plane>
+      <a-plane position="15 6 0" rotation="0 -90 0" width="30" height="12" color="#4a4a6a" ammo-body="type: static" ammo-shape="type: box; fit: all"></a-plane>
       
       <!-- Low box - easy to touch -->
       <a-box 
@@ -83,6 +155,8 @@ export default function FloatyMcHandface() {
         depth="2" 
         color="#ff6b6b"
         shadow="cast: true; receive: true"
+        ammo-body="type: static"
+        ammo-shape="type: box"
       ></a-box>
       
       <!-- Very high pillar box -->
@@ -93,60 +167,77 @@ export default function FloatyMcHandface() {
         depth="1.5" 
         color="#4ecdc4"
         shadow="cast: true; receive: true"
+        ammo-body="type: static"
+        ammo-shape="type: box"
       ></a-box>
       
-      <!-- Player body - shoulder box between hands -->
-      <a-entity id="player" position="0 1.6 0">
-        <!-- Shoulder box (torso proxy) -->
-        <a-box
-          id="shoulder-box"
-          position="0 0 0"
-          width="0.4"
-          height="0.2"
-          depth="0.15"
-          color="#ffd93d"
-        ></a-box>
+      <!-- VR Camera Rig with physics (affected by gravity) -->
+      <a-entity 
+        id="rig" 
+        position="0 2 0"
+        ammo-body="type: dynamic; mass: 70; linearDamping: 0.5; angularDamping: 0.99"
+        ammo-shape="type: sphere; fit: manual; sphereRadius: 0.3"
+      >
+        <!-- Camera (follows headset) -->
+        <a-camera id="camera" position="0 1.6 0" look-controls="pointerLockEnabled: true">
+          <!-- Shoulder box attached to camera (between where hands would be) -->
+          <a-box
+            id="shoulder-box"
+            position="0 -0.3 -0.2"
+            width="0.4"
+            height="0.2"
+            depth="0.15"
+            color="#ffd93d"
+          ></a-box>
+        </a-camera>
         
-        <!-- Left arm -->
-        <a-entity id="left-arm" position="-0.3 0 0">
-          <!-- Long cylinder arm -->
+        <!-- Left hand controller with hand-walker -->
+        <a-entity 
+          id="left-hand" 
+          oculus-touch-controls="hand: left"
+          hand-tracking-controls="hand: left"
+          hand-walker="hand: left"
+        >
+          <!-- Arm cylinder pointing back toward shoulder -->
           <a-cylinder
-            position="0 -0.4 0"
+            position="0 0 0.3"
+            rotation="90 0 0"
             radius="0.05"
             height="0.6"
             color="#ffb347"
-            rotation="0 0 0"
           ></a-cylinder>
-          <!-- Palm ball -->
+          <!-- Palm ball at controller position -->
           <a-sphere
             id="left-palm"
-            position="0 -0.8 0"
+            position="0 0 0"
             radius="0.12"
             color="#ff7f50"
           ></a-sphere>
         </a-entity>
         
-        <!-- Right arm -->
-        <a-entity id="right-arm" position="0.3 0 0">
-          <!-- Long cylinder arm -->
+        <!-- Right hand controller with hand-walker -->
+        <a-entity 
+          id="right-hand" 
+          oculus-touch-controls="hand: right"
+          hand-tracking-controls="hand: right"
+          hand-walker="hand: right"
+        >
+          <!-- Arm cylinder pointing back toward shoulder -->
           <a-cylinder
-            position="0 -0.4 0"
+            position="0 0 0.3"
+            rotation="90 0 0"
             radius="0.05"
             height="0.6"
             color="#ffb347"
-            rotation="0 0 0"
           ></a-cylinder>
-          <!-- Palm ball -->
+          <!-- Palm ball at controller position -->
           <a-sphere
             id="right-palm"
-            position="0 -0.8 0"
+            position="0 0 0"
             radius="0.12"
             color="#ff7f50"
           ></a-sphere>
         </a-entity>
-        
-        <!-- Camera attached to player for first-person view -->
-        <a-camera position="0 0.3 0" look-controls="pointerLockEnabled: true"></a-camera>
       </a-entity>
       
       <!-- Lighting -->
