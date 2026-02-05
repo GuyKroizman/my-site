@@ -60,7 +60,7 @@ export default function FloatyMcHandface() {
             // Get world position initially
             this.el.object3D.getWorldPosition(this.lastPosition)
           },
-          tick: function(time: number, delta: number) {
+          tick: function(_time: number, delta: number) {
             if (!this.rig || !delta) return
             
             const rigBody = this.rig.body
