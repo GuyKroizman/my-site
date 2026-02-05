@@ -115,7 +115,7 @@ function App() {
             </div>
 
             {/* The Mask */}
-            <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+            <div className={`bg-white rounded-lg shadow-lg p-6 transition-shadow ${isMobile ? 'opacity-60' : 'hover:shadow-xl'}`}>
               <div className="text-center mb-4">
                 <div className="text-4xl mb-2">🎭</div>
                 <h2 className="text-2xl font-semibold text-gray-800">The Mask</h2>
@@ -124,33 +124,43 @@ function App() {
               <p className="text-gray-700 mb-4 text-sm">
                 3D arena with physics. Move with arrows/WASD, shoot with Space. Boxes react to hits.
               </p>
-              <Link
-                to="/the-mask"
-                className="block w-full text-center bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded transition-colors"
-              >
-                Play Game
-              </Link>
+              {isMobile ? (
+                <div className="block w-full text-center bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed">
+                  Desktop Only
+                </div>
+              ) : (
+                <Link
+                  to="/the-mask"
+                  className="block w-full text-center bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+                >
+                  Play Game
+                </Link>
+              )}
             </div>
 
-            {/* Floaty McHandface - VR Game (hidden on mobile) */}
-            {!isMobile && (
-              <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
-                <div className="text-center mb-4">
-                  <div className="text-4xl mb-2">🥽</div>
-                  <h2 className="text-2xl font-semibold text-gray-800">Floaty McHandface</h2>
-                  <p className="text-gray-600 mt-2">VR Experience</p>
+            {/* Floaty McHandface - VR Game */}
+            <div className={`bg-white rounded-lg shadow-lg p-6 transition-shadow ${isMobile ? 'opacity-60' : 'hover:shadow-xl'}`}>
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">🥽</div>
+                <h2 className="text-2xl font-semibold text-gray-800">Floaty McHandface</h2>
+                <p className="text-gray-600 mt-2">VR Experience</p>
+              </div>
+              <p className="text-gray-700 mb-4 text-sm">
+                VR room with floating hands. Put on your headset and push yourself around with your palms!
+              </p>
+              {isMobile ? (
+                <div className="block w-full text-center bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed">
+                  VR Headset Required
                 </div>
-                <p className="text-gray-700 mb-4 text-sm">
-                  VR room with floating hands. Put on your headset and push yourself around with your palms!
-                </p>
+              ) : (
                 <Link
                   to="/floaty-mchandface"
                   className="block w-full text-center bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 px-4 rounded transition-colors"
                 >
                   Enter VR
                 </Link>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
