@@ -43,9 +43,66 @@ export default function FloatyMcHandface() {
         })
       }
 
-      // Register custom hand-walk component
       const AFRAME = (window as any).AFRAME
-      if (AFRAME && !AFRAME.components['hand-walker']) {
+      if (!AFRAME) return
+
+      // Register arm-connector component - connects arm cylinder from shoulder to hand
+      if (!AFRAME.components['arm-connector']) {
+        AFRAME.registerComponent('arm-connector', {
+          schema: {
+            hand: { type: 'string', default: 'left' }
+          },
+          init: function() {
+            this.shoulderPos = new AFRAME.THREE.Vector3()
+            this.handPos = new AFRAME.THREE.Vector3()
+            this.direction = new AFRAME.THREE.Vector3()
+            this.quaternion = new AFRAME.THREE.Quaternion()
+            this.up = new AFRAME.THREE.Vector3(0, 1, 0)
+          },
+          tick: function() {
+            const shoulder = document.querySelector('#shoulder-box')
+            if (!shoulder) return
+            
+            // Get world positions
+            shoulder.object3D.getWorldPosition(this.shoulderPos)
+            this.el.object3D.getWorldPosition(this.handPos)
+            
+            // Calculate direction and distance
+            this.direction.subVectors(this.handPos, this.shoulderPos)
+            const distance = this.direction.length()
+            
+            // Get the arm cylinder (first cylinder child)
+            const armCylinder = this.el.querySelector('a-cylinder')
+            if (!armCylinder) return
+            
+            // Position cylinder at midpoint between shoulder and hand (in local space)
+            // Convert shoulder position to local space of hand entity
+            const localShoulderPos = this.el.object3D.worldToLocal(this.shoulderPos.clone())
+            
+            // Midpoint in local space
+            armCylinder.object3D.position.set(
+              localShoulderPos.x / 2,
+              localShoulderPos.y / 2,
+              localShoulderPos.z / 2
+            )
+            
+            // Scale cylinder to match distance
+            armCylinder.setAttribute('height', distance)
+            
+            // Rotate cylinder to point from hand toward shoulder
+            if (distance > 0.01) {
+              const localDir = localShoulderPos.normalize()
+              // Cylinder's default orientation is along Y axis
+              const defaultDir = new AFRAME.THREE.Vector3(0, 1, 0)
+              this.quaternion.setFromUnitVectors(defaultDir, localDir)
+              armCylinder.object3D.quaternion.copy(this.quaternion)
+            }
+          }
+        })
+      }
+
+      // Register custom hand-walk component
+      if (!AFRAME.components['hand-walker']) {
         AFRAME.registerComponent('hand-walker', {
           schema: {
             hand: { type: 'string', default: 'left' }
@@ -172,69 +229,68 @@ export default function FloatyMcHandface() {
       ></a-box>
       
       <!-- VR Camera Rig with physics (affected by gravity) -->
+      <!-- Player is low so hands can easily reach ground for walking -->
       <a-entity 
         id="rig" 
-        position="0 2 0"
+        position="0 0.5 0"
         ammo-body="type: dynamic; mass: 70; linearDamping: 0.5; angularDamping: 0.99"
         ammo-shape="type: sphere; fit: manual; sphereRadius: 0.3"
       >
-        <!-- Camera (follows headset) -->
-        <a-camera id="camera" position="0 1.6 0" look-controls="pointerLockEnabled: true">
+        <!-- Camera low to ground - player walks on hands -->
+        <a-camera id="camera" position="0 0.5 0" look-controls="pointerLockEnabled: true">
           <!-- Shoulder box attached to camera (between where hands would be) -->
           <a-box
             id="shoulder-box"
-            position="0 -0.3 -0.2"
+            position="0 -0.15 0"
             width="0.4"
-            height="0.2"
+            height="0.15"
             depth="0.15"
             color="#ffd93d"
           ></a-box>
         </a-camera>
         
-        <!-- Left hand controller with hand-walker -->
+        <!-- Left hand controller with hand-walker and arm-connector -->
         <a-entity 
           id="left-hand" 
           oculus-touch-controls="hand: left"
           hand-tracking-controls="hand: left"
           hand-walker="hand: left"
+          arm-connector="hand: left"
         >
-          <!-- Arm cylinder pointing back toward shoulder -->
+          <!-- Arm cylinder - dynamically positioned/rotated by arm-connector -->
           <a-cylinder
-            position="0 0 0.3"
-            rotation="90 0 0"
-            radius="0.05"
-            height="0.6"
+            radius="0.04"
+            height="0.5"
             color="#ffb347"
           ></a-cylinder>
-          <!-- Palm ball at controller position -->
+          <!-- Palm ball at controller/hand position -->
           <a-sphere
             id="left-palm"
             position="0 0 0"
-            radius="0.12"
+            radius="0.1"
             color="#ff7f50"
           ></a-sphere>
         </a-entity>
         
-        <!-- Right hand controller with hand-walker -->
+        <!-- Right hand controller with hand-walker and arm-connector -->
         <a-entity 
           id="right-hand" 
           oculus-touch-controls="hand: right"
           hand-tracking-controls="hand: right"
           hand-walker="hand: right"
+          arm-connector="hand: right"
         >
-          <!-- Arm cylinder pointing back toward shoulder -->
+          <!-- Arm cylinder - dynamically positioned/rotated by arm-connector -->
           <a-cylinder
-            position="0 0 0.3"
-            rotation="90 0 0"
-            radius="0.05"
-            height="0.6"
+            radius="0.04"
+            height="0.5"
             color="#ffb347"
           ></a-cylinder>
-          <!-- Palm ball at controller position -->
+          <!-- Palm ball at controller/hand position -->
           <a-sphere
             id="right-palm"
             position="0 0 0"
-            radius="0.12"
+            radius="0.1"
             color="#ff7f50"
           ></a-sphere>
         </a-entity>
