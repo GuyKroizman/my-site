@@ -115,7 +115,7 @@ function App() {
             </div>
 
             {/* The Mask */}
-            <div className={`bg-white rounded-lg shadow-lg p-6 transition-shadow ${isMobile ? 'opacity-60' : 'hover:shadow-xl'}`}>
+            <div className={`bg-white rounded-lg shadow-lg p-6 transition-shadow ${!isMobile ? 'opacity-60' : 'hover:shadow-xl'}`}>
               <div className="text-center mb-4">
                 <div className="text-4xl mb-2">🎭</div>
                 <h2 className="text-2xl font-semibold text-gray-800">The Mask</h2>
@@ -124,9 +124,9 @@ function App() {
               <p className="text-gray-700 mb-4 text-sm">
                 3D arena with physics. Move with arrows/WASD, shoot with Space. Boxes react to hits.
               </p>
-              {isMobile ? (
+              {!isMobile ? (
                 <div className="block w-full text-center bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed">
-                  Desktop Only
+                  Mobile Only
                 </div>
               ) : (
                 <Link
