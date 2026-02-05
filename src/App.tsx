@@ -1,6 +1,15 @@
 import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 
 function App() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))
+    }
+    checkMobile()
+  }, [])
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
@@ -123,23 +132,25 @@ function App() {
               </Link>
             </div>
 
-            {/* Floaty McHandface - VR Game */}
-            <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
-              <div className="text-center mb-4">
-                <div className="text-4xl mb-2">🥽</div>
-                <h2 className="text-2xl font-semibold text-gray-800">Floaty McHandface</h2>
-                <p className="text-gray-600 mt-2">VR Experience</p>
+            {/* Floaty McHandface - VR Game (hidden on mobile) */}
+            {!isMobile && (
+              <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                <div className="text-center mb-4">
+                  <div className="text-4xl mb-2">🥽</div>
+                  <h2 className="text-2xl font-semibold text-gray-800">Floaty McHandface</h2>
+                  <p className="text-gray-600 mt-2">VR Experience</p>
+                </div>
+                <p className="text-gray-700 mb-4 text-sm">
+                  VR room with floating hands. Put on your headset and push yourself around with your palms!
+                </p>
+                <Link
+                  to="/floaty-mchandface"
+                  className="block w-full text-center bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+                >
+                  Enter VR
+                </Link>
               </div>
-              <p className="text-gray-700 mb-4 text-sm">
-                VR room with floating hands. Put on your headset and push yourself around with your palms!
-              </p>
-              <Link
-                to="/floaty-mchandface"
-                className="block w-full text-center bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 px-4 rounded transition-colors"
-              >
-                Enter VR
-              </Link>
-            </div>
+            )}
           </div>
         </div>
       </div>
