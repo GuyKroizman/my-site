@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useRef } from 'react'
-import 'aframe'
-import '@c-frame/aframe-physics-system'
 
 declare global {
   namespace JSX {
@@ -21,12 +19,31 @@ declare global {
 
 export default function FloatyMcHandface() {
   const sceneRef = useRef<HTMLDivElement>(null)
+  const scriptLoadedRef = useRef(false)
 
   useEffect(() => {
-    const AFRAME = (window as any).AFRAME
-    if (!AFRAME || !sceneRef.current) return
+    const loadScripts = async () => {
+      if (!document.querySelector('script[src*="aframe.min"]')) {
+        await new Promise<void>((resolve) => {
+          const script = document.createElement('script')
+          script.src = 'https://aframe.io/releases/1.5.0/aframe.min.js'
+          script.onload = () => resolve()
+          document.head.appendChild(script)
+        })
+      }
+      if (!document.querySelector('script[src*="aframe-physics"]')) {
+        await new Promise<void>((resolve) => {
+          const script = document.createElement('script')
+          script.src = 'https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js'
+          script.onload = () => resolve()
+          document.head.appendChild(script)
+        })
+      }
 
-    // Register physics-sync component - syncs rig position to physics body
+      const AFRAME = (window as any).AFRAME
+      if (!AFRAME || !sceneRef.current) return
+
+      // Register physics-sync component - syncs rig position to physics body
     if (!AFRAME.components['physics-sync']) {
       AFRAME.registerComponent('physics-sync', {
         init: function () {
@@ -184,8 +201,14 @@ export default function FloatyMcHandface() {
       })
     }
 
-    // Render the scene
-    sceneRef.current.innerHTML = getSceneHTML()
+      // Render the scene
+      sceneRef.current.innerHTML = getSceneHTML()
+    }
+
+    if (!scriptLoadedRef.current) {
+      scriptLoadedRef.current = true
+      loadScripts()
+    }
 
     return () => {
       if (sceneRef.current) {

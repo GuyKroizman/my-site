@@ -1,4 +1,3 @@
-import path from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -6,12 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/',
-  resolve: {
-    // three-to-ammo has "module": "main.js" but main.js doesn't exist; force index.js
-    alias: {
-      'three-to-ammo': path.resolve(__dirname, 'node_modules/three-to-ammo/index.js'),
-    },
-  },
   build: {
     outDir: 'dist',
     rollupOptions: {

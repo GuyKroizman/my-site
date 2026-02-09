@@ -1,10 +1,10 @@
-# Cloudflare Pages build (Yarn 4)
+# Cloudflare Pages
 
-This project uses **Yarn 4** (Berry). In the Cloudflare Pages project **Build configuration**, set:
+This project uses **Yarn 4**. Cloudflare detects it from `package.json`'s `packageManager` and uses Yarn 4.0.2.
 
-| Setting | Value |
-|--------|--------|
-| **Install command** | `yarn install --ignore-scripts` |
-| **Build command** | `yarn run build:ci` |
+**No custom install or build commands are required.** Use the defaults:
 
-This is required because `@c-frame/aframe-physics-system` runs `patch-package` in its postinstall and expects `ammo-debug-drawer` under its own `node_modules`. With `--ignore-scripts` we skip that postinstall during install; `build:ci` then creates a symlink and runs the patch before building.
+- **Install command:** (default) `yarn` or `yarn install`
+- **Build command:** (default) `yarn build`
+
+Floaty McHandface loads A-Frame and the physics system from CDN at runtime, so no npm packages are needed for the VR game and the build runs without the previous patch-package workaround.
