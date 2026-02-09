@@ -27,144 +27,144 @@ export default function FloatyMcHandface() {
     if (!AFRAME || !sceneRef.current) return
 
     // Register physics-sync component - syncs rig position to physics body
-      if (!AFRAME.components['physics-sync']) {
-        AFRAME.registerComponent('physics-sync', {
-          init: function() {
-            this.physicsBody = null
-            this.worldPos = new AFRAME.THREE.Vector3()
-          },
-          tick: function() {
-            // Find the physics body
-            if (!this.physicsBody) {
-              const physicsEntity = document.querySelector('#player-body') as any
-              if (physicsEntity && physicsEntity.body) {
-                this.physicsBody = physicsEntity
-              }
-              return
+    if (!AFRAME.components['physics-sync']) {
+      AFRAME.registerComponent('physics-sync', {
+        init: function () {
+          this.physicsBody = null
+          this.worldPos = new AFRAME.THREE.Vector3()
+        },
+        tick: function () {
+          // Find the physics body
+          if (!this.physicsBody) {
+            const physicsEntity = document.querySelector('#player-body') as any
+            if (physicsEntity && physicsEntity.body) {
+              this.physicsBody = physicsEntity
             }
-            
-            // Sync rig position to physics body position
-            this.physicsBody.object3D.getWorldPosition(this.worldPos)
-            this.el.object3D.position.copy(this.worldPos)
+            return
           }
-        })
-      }
 
-      // Register arm-connector component - connects arm cylinder from shoulder edge to hand
-      if (!AFRAME.components['arm-connector']) {
-        AFRAME.registerComponent('arm-connector', {
-          schema: {
-            hand: { type: 'string', default: 'left' }
-          },
-          init: function() {
-            this.shoulderEdgePos = new AFRAME.THREE.Vector3()
-            this.handPos = new AFRAME.THREE.Vector3()
-            this.midpoint = new AFRAME.THREE.Vector3()
-            this.direction = new AFRAME.THREE.Vector3()
-            this.quaternion = new AFRAME.THREE.Quaternion()
-            // Shoulder edge offset - left hand connects to left edge, right to right
-            this.edgeOffset = this.data.hand === 'left' ? -0.2 : 0.2
-          },
-          tick: function() {
-            const shoulder = document.querySelector('#shoulder-box') as any
-            if (!shoulder) return
-            
-            // Get shoulder world position and add edge offset
-            shoulder.object3D.getWorldPosition(this.shoulderEdgePos)
-            // Get shoulder's world rotation to properly offset the edge
-            const shoulderRight = new AFRAME.THREE.Vector3(1, 0, 0)
-            shoulderRight.applyQuaternion(shoulder.object3D.getWorldQuaternion(new AFRAME.THREE.Quaternion()))
-            this.shoulderEdgePos.addScaledVector(shoulderRight, this.edgeOffset)
-            
-            // Get hand world position
-            this.el.object3D.getWorldPosition(this.handPos)
-            
-            // Calculate distance
-            this.direction.subVectors(this.shoulderEdgePos, this.handPos)
-            const distance = this.direction.length()
-            
-            // Get the arm cylinder
-            const armCylinder = this.el.querySelector('a-cylinder') as any
-            if (!armCylinder) return
-            
-            // Calculate midpoint in world space, then convert to local
-            this.midpoint.addVectors(this.handPos, this.shoulderEdgePos).multiplyScalar(0.5)
-            const localMidpoint = this.el.object3D.worldToLocal(this.midpoint.clone())
-            
-            // Position cylinder at midpoint
-            armCylinder.object3D.position.copy(localMidpoint)
-            
-            // Scale cylinder to match distance
-            armCylinder.object3D.scale.y = distance / 0.5 // 0.5 is default height
-            
-            // Rotate cylinder to point from hand toward shoulder edge
-            if (distance > 0.01) {
-              const localShoulderEdge = this.el.object3D.worldToLocal(this.shoulderEdgePos.clone())
-              const localDir = localShoulderEdge.sub(localMidpoint).normalize()
-              const defaultDir = new AFRAME.THREE.Vector3(0, 1, 0)
-              this.quaternion.setFromUnitVectors(defaultDir, localDir)
-              armCylinder.object3D.quaternion.copy(this.quaternion)
-            }
-          }
-        })
-      }
+          // Sync rig position to physics body position
+          this.physicsBody.object3D.getWorldPosition(this.worldPos)
+          this.el.object3D.position.copy(this.worldPos)
+        }
+      })
+    }
 
-      // Register custom hand-walk component
-      if (!AFRAME.components['hand-walker']) {
-        AFRAME.registerComponent('hand-walker', {
-          schema: {
-            hand: { type: 'string', default: 'left' }
-          },
-          init: function() {
-            this.lastPosition = new AFRAME.THREE.Vector3()
-            this.currentPosition = new AFRAME.THREE.Vector3()
-            this.velocity = new AFRAME.THREE.Vector3()
-            this.isGrounded = false
-            this.playerBody = null
-            
-            // Get world position initially
-            this.el.object3D.getWorldPosition(this.lastPosition)
-          },
-          tick: function(_time: number, delta: number) {
-            if (!delta) return
-            
-            // Find the physics body
-            if (!this.playerBody) {
-              this.playerBody = document.querySelector('#player-body') as any
-              return
-            }
-            
-            const body = this.playerBody.body
-            if (!body) return
-            
-            // Get current world position of hand
-            this.el.object3D.getWorldPosition(this.currentPosition)
-            
-            // Check if hand is near ground (y < 0.25 means touching/near floor)
-            this.isGrounded = this.currentPosition.y < 0.25
-            
-            if (this.isGrounded) {
-              // Calculate hand movement delta
-              this.velocity.subVectors(this.currentPosition, this.lastPosition)
-              
-              // Apply opposite force to physics body (push ground = move opposite direction)
-              // Newton's third law: push ground one way, you move the other
-              const pushForce = 80
-              
-              // Horizontal movement - push sideways to slide
-              body.velocity.x -= this.velocity.x * pushForce
-              body.velocity.z -= this.velocity.z * pushForce
-              
-              // Vertical movement - push down to go up (pushing off ground)
-              // When hand moves down (negative y velocity), push body up
-              body.velocity.y -= this.velocity.y * pushForce
-            }
-            
-            // Store position for next frame
-            this.lastPosition.copy(this.currentPosition)
+    // Register arm-connector component - connects arm cylinder from shoulder edge to hand
+    if (!AFRAME.components['arm-connector']) {
+      AFRAME.registerComponent('arm-connector', {
+        schema: {
+          hand: { type: 'string', default: 'left' }
+        },
+        init: function () {
+          this.shoulderEdgePos = new AFRAME.THREE.Vector3()
+          this.handPos = new AFRAME.THREE.Vector3()
+          this.midpoint = new AFRAME.THREE.Vector3()
+          this.direction = new AFRAME.THREE.Vector3()
+          this.quaternion = new AFRAME.THREE.Quaternion()
+          // Shoulder edge offset - left hand connects to left edge, right to right
+          this.edgeOffset = this.data.hand === 'left' ? -0.2 : 0.2
+        },
+        tick: function () {
+          const shoulder = document.querySelector('#shoulder-box') as any
+          if (!shoulder) return
+
+          // Get shoulder world position and add edge offset
+          shoulder.object3D.getWorldPosition(this.shoulderEdgePos)
+          // Get shoulder's world rotation to properly offset the edge
+          const shoulderRight = new AFRAME.THREE.Vector3(1, 0, 0)
+          shoulderRight.applyQuaternion(shoulder.object3D.getWorldQuaternion(new AFRAME.THREE.Quaternion()))
+          this.shoulderEdgePos.addScaledVector(shoulderRight, this.edgeOffset)
+
+          // Get hand world position
+          this.el.object3D.getWorldPosition(this.handPos)
+
+          // Calculate distance
+          this.direction.subVectors(this.shoulderEdgePos, this.handPos)
+          const distance = this.direction.length()
+
+          // Get the arm cylinder
+          const armCylinder = this.el.querySelector('a-cylinder') as any
+          if (!armCylinder) return
+
+          // Calculate midpoint in world space, then convert to local
+          this.midpoint.addVectors(this.handPos, this.shoulderEdgePos).multiplyScalar(0.5)
+          const localMidpoint = this.el.object3D.worldToLocal(this.midpoint.clone())
+
+          // Position cylinder at midpoint
+          armCylinder.object3D.position.copy(localMidpoint)
+
+          // Scale cylinder to match distance
+          armCylinder.object3D.scale.y = distance / 0.5 // 0.5 is default height
+
+          // Rotate cylinder to point from hand toward shoulder edge
+          if (distance > 0.01) {
+            const localShoulderEdge = this.el.object3D.worldToLocal(this.shoulderEdgePos.clone())
+            const localDir = localShoulderEdge.sub(localMidpoint).normalize()
+            const defaultDir = new AFRAME.THREE.Vector3(0, 1, 0)
+            this.quaternion.setFromUnitVectors(defaultDir, localDir)
+            armCylinder.object3D.quaternion.copy(this.quaternion)
           }
-        })
-      }
+        }
+      })
+    }
+
+    // Register custom hand-walk component
+    if (!AFRAME.components['hand-walker']) {
+      AFRAME.registerComponent('hand-walker', {
+        schema: {
+          hand: { type: 'string', default: 'left' }
+        },
+        init: function () {
+          this.lastPosition = new AFRAME.THREE.Vector3()
+          this.currentPosition = new AFRAME.THREE.Vector3()
+          this.velocity = new AFRAME.THREE.Vector3()
+          this.isGrounded = false
+          this.playerBody = null
+
+          // Get world position initially
+          this.el.object3D.getWorldPosition(this.lastPosition)
+        },
+        tick: function (_time: number, delta: number) {
+          if (!delta) return
+
+          // Find the physics body
+          if (!this.playerBody) {
+            this.playerBody = document.querySelector('#player-body') as any
+            return
+          }
+
+          const body = this.playerBody.body
+          if (!body) return
+
+          // Get current world position of hand
+          this.el.object3D.getWorldPosition(this.currentPosition)
+
+          // Check if hand is near ground (y < 0.25 means touching/near floor)
+          this.isGrounded = this.currentPosition.y < 0.25
+
+          if (this.isGrounded) {
+            // Calculate hand movement delta
+            this.velocity.subVectors(this.currentPosition, this.lastPosition)
+
+            // Apply opposite force to physics body (push ground = move opposite direction)
+            // Newton's third law: push ground one way, you move the other
+            const pushForce = 80
+
+            // Horizontal movement - push sideways to slide
+            body.velocity.x -= this.velocity.x * pushForce
+            body.velocity.z -= this.velocity.z * pushForce
+
+            // Vertical movement - push down to go up (pushing off ground)
+            // When hand moves down (negative y velocity), push body up
+            body.velocity.y -= this.velocity.y * pushForce
+          }
+
+          // Store position for next frame
+          this.lastPosition.copy(this.currentPosition)
+        }
+      })
+    }
 
     // Render the scene
     sceneRef.current.innerHTML = getSceneHTML()
@@ -323,8 +323,8 @@ export default function FloatyMcHandface() {
           Back to Menu
         </Link>
       </div>
-      <div 
-        ref={sceneRef} 
+      <div
+        ref={sceneRef}
         className="flex-1 w-full h-full overflow-hidden"
         style={{ position: 'relative' }}
       />
