@@ -39,13 +39,12 @@ export function MenuScreen({ isPortraitMode, onStartGame, isMusicMuted, onToggle
             <div className="text-3xl sm:text-4xl mb-1 sm:mb-2">🎭</div>
             <h2 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2">The Mask</h2>
             <p className="text-gray-300 text-xs sm:text-sm mb-2 sm:mb-3">
-              3D top-down shooter. Push boxes, shoot, survive.
+              Mobile game made in 32 hours for Global Game Jam 2026. 3D top-down shooter — push boxes, shoot, survive.
             </p>
             <div className="bg-gray-800 bg-opacity-50 rounded-lg p-2 sm:p-3 mb-2 sm:mb-3">
               <p className="text-gray-300 text-[10px] sm:text-xs text-left leading-tight">
                 <span className="font-semibold">Controls:</span><br />
-                <span className="text-gray-400">• Desktop: Arrow keys (or WASD) to move, Space to shoot</span><br />
-                <span className="text-gray-400">• Mobile: Left joystick = move, right joystick = aim & shoot</span>
+                <span className="text-gray-400">Left joystick = move, right joystick = aim & shoot</span>
               </p>
             </div>
           </div>

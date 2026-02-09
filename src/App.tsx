@@ -122,7 +122,7 @@ function App() {
                 <p className="text-gray-600 mt-2">3D Top-Down Shooter</p>
               </div>
               <p className="text-gray-700 mb-4 text-sm">
-                3D arena with physics. Move with arrows/WASD, shoot with Space. Boxes react to hits.
+                Mobile 3D top-down shooter made in 32 hours for Global Game Jam. Push boxes, shoot, survive.
               </p>
               {!isMobile ? (
                 <div className="block w-full text-center bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed">
