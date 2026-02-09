@@ -17,6 +17,7 @@
     "@c-frame/aframe-physics-system": "^4.2.2",
     "@types/three": "^0.182.0",
     "aframe": "^1.5.0",
+    "ammo-debug-drawer": "^0.1.0",
     "cannon-es": "^0.20.0",
     "pathfinding": "^0.4.18",
     "phaser": "^3.70.0",
