@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useRef } from 'react'
+import 'aframe'
+import '@c-frame/aframe-physics-system'
 
 declare global {
   namespace JSX {
@@ -19,34 +21,12 @@ declare global {
 
 export default function FloatyMcHandface() {
   const sceneRef = useRef<HTMLDivElement>(null)
-  const scriptLoadedRef = useRef(false)
 
   useEffect(() => {
-    const loadScripts = async () => {
-      // Load A-Frame first
-      if (!document.querySelector('script[src*="aframe.min"]')) {
-        await new Promise<void>((resolve) => {
-          const script = document.createElement('script')
-          script.src = 'https://aframe.io/releases/1.5.0/aframe.min.js'
-          script.onload = () => resolve()
-          document.head.appendChild(script)
-        })
-      }
+    const AFRAME = (window as any).AFRAME
+    if (!AFRAME || !sceneRef.current) return
 
-      // Load physics system
-      if (!document.querySelector('script[src*="aframe-physics"]')) {
-        await new Promise<void>((resolve) => {
-          const script = document.createElement('script')
-          script.src = 'https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js'
-          script.onload = () => resolve()
-          document.head.appendChild(script)
-        })
-      }
-
-      const AFRAME = (window as any).AFRAME
-      if (!AFRAME) return
-
-      // Register physics-sync component - syncs rig position to physics body
+    // Register physics-sync component - syncs rig position to physics body
       if (!AFRAME.components['physics-sync']) {
         AFRAME.registerComponent('physics-sync', {
           init: function() {
@@ -186,16 +166,8 @@ export default function FloatyMcHandface() {
         })
       }
 
-      // Render the scene
-      if (sceneRef.current) {
-        sceneRef.current.innerHTML = getSceneHTML()
-      }
-    }
-
-    if (!scriptLoadedRef.current) {
-      scriptLoadedRef.current = true
-      loadScripts()
-    }
+    // Render the scene
+    sceneRef.current.innerHTML = getSceneHTML()
 
     return () => {
       if (sceneRef.current) {
@@ -208,7 +180,7 @@ export default function FloatyMcHandface() {
     <a-scene 
       vr-mode-ui="enabled: true" 
       background="color: #1a1a2e"
-      physics="driver: ammo; gravity: 0 -9.8 0; debug: false"
+      physics="driver: cannon; gravity: 0 -9.8 0; debug: false"
     >
       <!-- Room - big enclosed space -->
       <!-- Floor with physics -->
@@ -219,8 +191,7 @@ export default function FloatyMcHandface() {
         height="30" 
         color="#3d3d5c"
         shadow="receive: true"
-        ammo-body="type: static"
-        ammo-shape="type: box; fit: all"
+        static-body
       ></a-plane>
       
       <!-- Ceiling -->
@@ -230,15 +201,14 @@ export default function FloatyMcHandface() {
         width="30" 
         height="30" 
         color="#2a2a4a"
-        ammo-body="type: static"
-        ammo-shape="type: box; fit: all"
+        static-body
       ></a-plane>
       
       <!-- Walls with physics -->
-      <a-plane position="0 6 -15" width="30" height="12" color="#4a4a6a" ammo-body="type: static" ammo-shape="type: box; fit: all"></a-plane>
-      <a-plane position="0 6 15" rotation="0 180 0" width="30" height="12" color="#4a4a6a" ammo-body="type: static" ammo-shape="type: box; fit: all"></a-plane>
-      <a-plane position="-15 6 0" rotation="0 90 0" width="30" height="12" color="#4a4a6a" ammo-body="type: static" ammo-shape="type: box; fit: all"></a-plane>
-      <a-plane position="15 6 0" rotation="0 -90 0" width="30" height="12" color="#4a4a6a" ammo-body="type: static" ammo-shape="type: box; fit: all"></a-plane>
+      <a-plane position="0 6 -15" width="30" height="12" color="#4a4a6a" static-body></a-plane>
+      <a-plane position="0 6 15" rotation="0 180 0" width="30" height="12" color="#4a4a6a" static-body></a-plane>
+      <a-plane position="-15 6 0" rotation="0 90 0" width="30" height="12" color="#4a4a6a" static-body></a-plane>
+      <a-plane position="15 6 0" rotation="0 -90 0" width="30" height="12" color="#4a4a6a" static-body></a-plane>
       
       <!-- Low box - easy to touch -->
       <a-box 
@@ -248,8 +218,7 @@ export default function FloatyMcHandface() {
         depth="2" 
         color="#ff6b6b"
         shadow="cast: true; receive: true"
-        ammo-body="type: static"
-        ammo-shape="type: box"
+        static-body
       ></a-box>
       
       <!-- Very high pillar box -->
@@ -260,16 +229,14 @@ export default function FloatyMcHandface() {
         depth="1.5" 
         color="#4ecdc4"
         shadow="cast: true; receive: true"
-        ammo-body="type: static"
-        ammo-shape="type: box"
+        static-body
       ></a-box>
       
       <!-- Physics body - the shoulder that falls with gravity -->
       <a-entity
         id="player-body"
         position="0 1.5 0"
-        ammo-body="type: dynamic; mass: 70; linearDamping: 0.5; angularDamping: 0.99"
-        ammo-shape="type: box; fit: manual; halfExtents: 0.2 0.1 0.1"
+        dynamic-body="mass: 70; linearDamping: 0.5; angularDamping: 0.99"
       >
         <!-- Shoulder box - visible representation -->
         <a-box

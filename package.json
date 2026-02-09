@@ -14,7 +14,9 @@
     "security:update": "npm audit fix && npm update"
   },
   "dependencies": {
+    "@c-frame/aframe-physics-system": "^4.2.2",
     "@types/three": "^0.182.0",
+    "aframe": "^1.5.0",
     "cannon-es": "^0.20.0",
     "pathfinding": "^0.4.18",
     "phaser": "^3.70.0",
@@ -39,5 +41,8 @@
     "typescript": "^5.2.2",
     "vite": "^7.2.7"
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "resolutions": {
+    "cannon-es": "^0.20.0"
+  }
 }
