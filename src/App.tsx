@@ -3,12 +3,12 @@ import { useState, useEffect } from 'react'
 
 function App() {
   const [isMobile, setIsMobile] = useState(false)
+  const [isIPhone, setIsIPhone] = useState(false)
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))
-    }
-    checkMobile()
+    const ua = navigator.userAgent
+    setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua))
+    setIsIPhone(/iPhone|iPad|iPod/i.test(ua))
   }, [])
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -114,8 +114,8 @@ function App() {
               </Link>
             </div>
 
-            {/* The Mask */}
-            <div className={`bg-white rounded-lg shadow-lg p-6 transition-shadow ${!isMobile ? 'opacity-60' : 'hover:shadow-xl'}`}>
+            {/* The Mask - mobile only; disabled on desktop and on iPhone (Safari/iOS limits) */}
+            <div className={`bg-white rounded-lg shadow-lg p-6 transition-shadow ${!isMobile || isIPhone ? 'opacity-75' : 'hover:shadow-xl'}`}>
               <div className="text-center mb-4">
                 <div className="text-4xl mb-2">🎭</div>
                 <h2 className="text-2xl font-semibold text-gray-800">The Mask</h2>
@@ -126,8 +126,17 @@ function App() {
               </p>
               {!isMobile ? (
                 <div className="block w-full text-center bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed">
-                  Mobile Only
+                  Mobile only
                 </div>
+              ) : isIPhone ? (
+                <>
+                  <p className="text-amber-700 text-sm mb-3 font-medium">
+                    Not available on iPhone. Apple restricts advanced web tech (e.g. WebGL) on iOS to favor native apps and tighter security, so this game doesn’t run well in Safari. Use an Android phone for the best experience.
+                  </p>
+                  <div className="block w-full text-center bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed">
+                    Unavailable on this device
+                  </div>
+                </>
               ) : (
                 <Link
                   to="/the-mask"

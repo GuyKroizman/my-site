@@ -12,6 +12,8 @@ const isTouchDevice = () => {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0
 }
 
+const isIPhone = () => /iPhone|iPad|iPod/i.test(navigator.userAgent)
+
 const isPortrait = () => window.innerHeight > window.innerWidth
 const isLandscape = () => window.innerWidth > window.innerHeight
 const isMobileLandscape = () => isTouchDevice() && isLandscape()
@@ -60,10 +62,37 @@ function VictoryOverlay({ onBackToMenu }: { onBackToMenu: () => void }) {
   )
 }
 
+function IPhoneBlockScreen() {
+  return (
+    <div className="w-full h-screen flex flex-col bg-gray-900">
+      <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white">
+        <h1 className="text-lg font-semibold">The Mask</h1>
+        <Link to="/" className="text-base text-blue-400 underline hover:text-blue-300">
+          Back to Home
+        </Link>
+      </header>
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+        <div className="text-5xl mb-4">🎭</div>
+        <h2 className="text-xl font-bold text-white mb-2">Not available on iPhone</h2>
+        <p className="text-gray-400 max-w-sm mb-6">
+          Apple restricts advanced web tech (e.g. WebGL) on iOS so this game doesn’t run well in Safari. Also apple doesn't allow any browser which is not Safari. For the best experience, please play on an Android phone. (This game is mobile-only and not playable on desktop.)
+        </p>
+        <Link
+          to="/"
+          className="px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white font-semibold rounded-lg transition-colors"
+        >
+          Back to Home
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 export default function TheMask() {
   const containerRef = useRef<HTMLDivElement>(null)
   const gameEngineRef = useRef<TheMaskEngine | null>(null)
   const [uiState, setUiState] = useState<UIState>('menu')
+  const [isIPhoneDevice] = useState(isIPhone)
   const [isPortraitMode, setIsPortraitMode] = useState(isPortrait())
   const [hideHeader, setHideHeader] = useState(isMobileLandscape())
   const [isMusicMuted, setIsMusicMuted] = useState(() => {
@@ -148,6 +177,10 @@ export default function TheMask() {
     if (gameEngineRef.current) {
       gameEngineRef.current.setTouchControls(state)
     }
+  }
+
+  if (isIPhoneDevice) {
+    return <IPhoneBlockScreen />
   }
 
   return (
