@@ -31,7 +31,10 @@ export default function FloatyMcHandface() {
       AFRAME.registerComponent('physics-sync', {
         init: function () {
           this.physicsBody = null
+          this.camera = null
           this.worldPos = new AFRAME.THREE.Vector3()
+          // How far above the shoulder the camera should sit
+          this.cameraOffset = 0.3
         },
         tick: function () {
           // Find the physics body
@@ -43,9 +46,24 @@ export default function FloatyMcHandface() {
             return
           }
 
-          // Sync rig position to physics body position
+          // Find camera once
+          if (!this.camera) {
+            this.camera = document.querySelector('#camera') as any
+            return
+          }
+
+          // Get shoulder position from physics body
           this.physicsBody.object3D.getWorldPosition(this.worldPos)
-          this.el.object3D.position.copy(this.worldPos)
+
+          // In VR the headset tracking sets the camera's local Y to your
+          // real-world head height. Compensate for that so the camera
+          // always sits just above the shoulders regardless of player height.
+          const trackedCamY = this.camera.object3D.position.y
+          this.el.object3D.position.set(
+            this.worldPos.x,
+            this.worldPos.y + this.cameraOffset - trackedCamY,
+            this.worldPos.z
+          )
         }
       })
     }
@@ -252,7 +270,7 @@ export default function FloatyMcHandface() {
       <!-- VR Camera Rig - syncs position to physics body -->
       <a-entity id="rig" position="0 1.5 0" physics-sync>
         <!-- Camera for VR view -->
-        <a-camera id="camera" position="0 0.3 0" look-controls="pointerLockEnabled: true"></a-camera>
+        <a-camera id="camera" position="0 0 0" look-controls="pointerLockEnabled: true"></a-camera>
         
         <!-- Left hand controller with hand-walker and arm-connector -->
         <a-entity 
