@@ -9,6 +9,13 @@ lerna-debug.log*
 
 node_modules
 dist
+
+# Yarn 4
+.yarn/install-state.gz
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/*.pnp.*
 dist-ssr
 *.local
 
