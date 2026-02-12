@@ -122,6 +122,8 @@ export default function FloatyMcHandface() {
             const errZ = this.cameraWorldPos.z - this.targetCameraWorldPos.z
 
             const bodyPhysicsPos = this.playerBodyEntity?.body?.position
+            const bodyPhysicsVel = this.playerBodyEntity?.body?.velocity
+            const bodySleepState = this.playerBodyEntity?.body?.sleepState
             const handDebug = (window as any).__floatyHandDebug || {}
             const leftHandDebug = handDebug.left
             const rightHandDebug = handDebug.right
@@ -138,11 +140,14 @@ export default function FloatyMcHandface() {
               bodyPhysicsPos
                 ? `physicsBody   : x=${bodyPhysicsPos.x.toFixed(3)} y=${bodyPhysicsPos.y.toFixed(3)} z=${bodyPhysicsPos.z.toFixed(3)}`
                 : 'physicsBody   : missing',
+              bodyPhysicsVel
+                ? `gravityDiag   : bodyVelY=${bodyPhysicsVel.y.toFixed(3)} sleepState=${String(bodySleepState)}`
+                : 'gravityDiag   : body velocity missing',
               leftHandDebug
-                ? `leftPalm      : y=${leftHandDebug.palmY.toFixed(3)} grounded=${leftHandDebug.grounded ? 'Y' : 'N'} handVelY=${leftHandDebug.handVelY.toFixed(3)} pushY=${leftHandDebug.pushY.toFixed(3)}`
+                ? `leftPalm      : tracked=${leftHandDebug.tracked ? 'Y' : 'N'} y=${leftHandDebug.palmY.toFixed(3)} grounded=${leftHandDebug.grounded ? 'Y' : 'N'} rawVelY=${leftHandDebug.rawVelY.toFixed(3)} relVelY=${leftHandDebug.relVelY.toFixed(3)} pushY=${leftHandDebug.pushY.toFixed(3)}`
                 : 'leftPalm      : missing',
               rightHandDebug
-                ? `rightPalm     : y=${rightHandDebug.palmY.toFixed(3)} grounded=${rightHandDebug.grounded ? 'Y' : 'N'} handVelY=${rightHandDebug.handVelY.toFixed(3)} pushY=${rightHandDebug.pushY.toFixed(3)}`
+                ? `rightPalm     : tracked=${rightHandDebug.tracked ? 'Y' : 'N'} y=${rightHandDebug.palmY.toFixed(3)} grounded=${rightHandDebug.grounded ? 'Y' : 'N'} rawVelY=${rightHandDebug.rawVelY.toFixed(3)} relVelY=${rightHandDebug.relVelY.toFixed(3)} pushY=${rightHandDebug.pushY.toFixed(3)}`
                 : 'rightPalm     : missing'
             ]
 
@@ -150,10 +155,10 @@ export default function FloatyMcHandface() {
             window.dispatchEvent(new CustomEvent('floaty-vr-debug', { detail: debugOutput }))
 
             if (this.debugHudEntity) {
-              const hudValue = debugLines.slice(0, 5).join('\n').split(';').join(',')
+              const hudValue = debugLines.slice(0, 6).join('\n').split(';').join(',')
               this.debugHudEntity.setAttribute(
                 'text',
-                `value: ${hudValue}; color: #7CFF7C; width: 1.9; align: left; wrapCount: 38`
+                `value: ${hudValue}; color: #7CFF7C; width: 3.0; align: left; wrapCount: 70`
               )
             }
           }
@@ -253,6 +258,7 @@ export default function FloatyMcHandface() {
           this.currentPalmPosition = new AFRAME.THREE.Vector3()
           this.handDelta = new AFRAME.THREE.Vector3()
           this.handVelocity = new AFRAME.THREE.Vector3()
+          this.relativeHandVelocity = new AFRAME.THREE.Vector3()
           this.pushVelocityDelta = new AFRAME.THREE.Vector3()
           this.isGrounded = false
           this.playerBody = null
@@ -293,21 +299,27 @@ export default function FloatyMcHandface() {
           this.handDelta.subVectors(this.currentPalmPosition, this.lastPalmPosition)
           const dt = Math.max(delta / 1000, 0.001)
           this.handVelocity.copy(this.handDelta).multiplyScalar(1 / dt)
-          const handSpeed = this.handVelocity.length()
+          this.relativeHandVelocity.copy(this.handVelocity)
+          this.relativeHandVelocity.x -= body.velocity.x
+          this.relativeHandVelocity.y -= body.velocity.y
+          this.relativeHandVelocity.z -= body.velocity.z
+          const relativeHandSpeed = this.relativeHandVelocity.length()
+
+          const isTracked = this.el.object3D.visible !== false
 
           // Floor contact check by palm height.
-          this.isGrounded = this.currentPalmPosition.y <= this.data.palmContactY
+          this.isGrounded = isTracked && this.currentPalmPosition.y <= this.data.palmContactY
           this.pushVelocityDelta.set(0, 0, 0)
 
           // Gorilla-tag style: when palm is planted/moving on floor,
           // body gets opposite velocity delta.
-          if (this.isGrounded && handSpeed > this.data.minHandSpeed) {
-            this.pushVelocityDelta.x = -this.handVelocity.x * this.data.horizontalGain * dt
-            this.pushVelocityDelta.z = -this.handVelocity.z * this.data.horizontalGain * dt
+          if (this.isGrounded && relativeHandSpeed > this.data.minHandSpeed) {
+            this.pushVelocityDelta.x = -this.relativeHandVelocity.x * this.data.horizontalGain * dt
+            this.pushVelocityDelta.z = -this.relativeHandVelocity.z * this.data.horizontalGain * dt
 
             // Only convert downward palm movement into upward boost.
-            if (this.handVelocity.y < 0) {
-              this.pushVelocityDelta.y = -this.handVelocity.y * this.data.verticalGain * dt
+            if (this.relativeHandVelocity.y < 0) {
+              this.pushVelocityDelta.y = -this.relativeHandVelocity.y * this.data.verticalGain * dt
             }
 
             body.velocity.x += this.pushVelocityDelta.x
@@ -328,9 +340,11 @@ export default function FloatyMcHandface() {
 
           const handDebug = (window as any).__floatyHandDebug
           handDebug[this.data.hand] = {
+            tracked: isTracked,
             grounded: this.isGrounded,
             palmY: Number(this.currentPalmPosition.y.toFixed(3)),
-            handVelY: Number(this.handVelocity.y.toFixed(3)),
+            rawVelY: Number(this.handVelocity.y.toFixed(3)),
+            relVelY: Number(this.relativeHandVelocity.y.toFixed(3)),
             pushY: Number(this.pushVelocityDelta.y.toFixed(3))
           }
 
@@ -436,8 +450,8 @@ export default function FloatyMcHandface() {
           <!-- In-headset debug HUD -->
           <a-entity
             id="debug-hud"
-            position="-0.55 -0.5 -0.9"
-            text="value: Waiting for VR debug...; color: #7CFF7C; width: 1.9; align: left; wrapCount: 38"
+            position="-0.75 -0.72 -2.0"
+            text="value: Waiting for VR debug...; color: #7CFF7C; width: 3.0; align: left; wrapCount: 70"
           ></a-entity>
         </a-camera>
         
