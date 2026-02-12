@@ -57,7 +57,7 @@ export default function FloatyMcHandface() {
       if (!AFRAME.components['shoulder-camera-sync']) {
         AFRAME.registerComponent('shoulder-camera-sync', {
           schema: {
-            shoulderOffsetY: { type: 'number', default: 0.16 },
+            shoulderOffsetY: { type: 'number', default: 0.22 },
             lockHorizontal: { type: 'boolean', default: true },
             debugEveryMs: { type: 'number', default: 250 }
           },
@@ -122,6 +122,9 @@ export default function FloatyMcHandface() {
             const errZ = this.cameraWorldPos.z - this.targetCameraWorldPos.z
 
             const bodyPhysicsPos = this.playerBodyEntity?.body?.position
+            const handDebug = (window as any).__floatyHandDebug || {}
+            const leftHandDebug = handDebug.left
+            const rightHandDebug = handDebug.right
             const scene = this.el.sceneEl
             const isVr = scene ? scene.is('vr-mode') : false
 
@@ -134,7 +137,13 @@ export default function FloatyMcHandface() {
               `rigWorld      : x=${this.rigCurrentPos.x.toFixed(3)} y=${this.rigCurrentPos.y.toFixed(3)} z=${this.rigCurrentPos.z.toFixed(3)}`,
               bodyPhysicsPos
                 ? `physicsBody   : x=${bodyPhysicsPos.x.toFixed(3)} y=${bodyPhysicsPos.y.toFixed(3)} z=${bodyPhysicsPos.z.toFixed(3)}`
-                : 'physicsBody   : missing'
+                : 'physicsBody   : missing',
+              leftHandDebug
+                ? `leftPalm      : y=${leftHandDebug.palmY.toFixed(3)} grounded=${leftHandDebug.grounded ? 'Y' : 'N'} handVelY=${leftHandDebug.handVelY.toFixed(3)} pushY=${leftHandDebug.pushY.toFixed(3)}`
+                : 'leftPalm      : missing',
+              rightHandDebug
+                ? `rightPalm     : y=${rightHandDebug.palmY.toFixed(3)} grounded=${rightHandDebug.grounded ? 'Y' : 'N'} handVelY=${rightHandDebug.handVelY.toFixed(3)} pushY=${rightHandDebug.pushY.toFixed(3)}`
+                : 'rightPalm     : missing'
             ]
 
             const debugOutput = debugLines.join('\n')
@@ -162,20 +171,38 @@ export default function FloatyMcHandface() {
           this.handPos = new AFRAME.THREE.Vector3()
           this.midpoint = new AFRAME.THREE.Vector3()
           this.direction = new AFRAME.THREE.Vector3()
+          this.shoulderRight = new AFRAME.THREE.Vector3()
+          this.cameraWorldQuat = new AFRAME.THREE.Quaternion()
           this.quaternion = new AFRAME.THREE.Quaternion()
-          // Shoulder edge offset - left hand connects to left edge, right to right
-          this.edgeOffset = this.data.hand === 'left' ? -0.2 : 0.2
+          this.camera = null
+          // Shoulder edge offset from body center (left/right side).
+          this.edgeOffset = this.data.hand === 'left' ? -0.22 : 0.22
         },
         tick: function () {
           const shoulder = document.querySelector('#shoulder-box') as any
           if (!shoulder) return
 
-          // Get shoulder world position and add edge offset
+          if (!this.camera) {
+            this.camera = document.querySelector('#camera') as any
+          }
+
+          // Get shoulder world position and add side offset.
           shoulder.object3D.getWorldPosition(this.shoulderEdgePos)
-          // Get shoulder's world rotation to properly offset the edge
-          const shoulderRight = new AFRAME.THREE.Vector3(1, 0, 0)
-          shoulderRight.applyQuaternion(shoulder.object3D.getWorldQuaternion(new AFRAME.THREE.Quaternion()))
-          this.shoulderEdgePos.addScaledVector(shoulderRight, this.edgeOffset)
+
+          // Use camera orientation for shoulder left/right so arms do not cross
+          // when physics body rotates.
+          this.shoulderRight.set(1, 0, 0)
+          if (this.camera) {
+            this.camera.object3D.getWorldQuaternion(this.cameraWorldQuat)
+            this.shoulderRight.applyQuaternion(this.cameraWorldQuat)
+          }
+          this.shoulderRight.y = 0
+          if (this.shoulderRight.lengthSq() < 0.0001) {
+            this.shoulderRight.set(1, 0, 0)
+          } else {
+            this.shoulderRight.normalize()
+          }
+          this.shoulderEdgePos.addScaledVector(this.shoulderRight, this.edgeOffset)
 
           // Get hand world position
           this.el.object3D.getWorldPosition(this.handPos)
@@ -214,22 +241,32 @@ export default function FloatyMcHandface() {
     if (!AFRAME.components['hand-walker']) {
       AFRAME.registerComponent('hand-walker', {
         schema: {
-          hand: { type: 'string', default: 'left' }
+          hand: { type: 'string', default: 'left' },
+          palmContactY: { type: 'number', default: 0.2 },
+          horizontalGain: { type: 'number', default: 13 },
+          verticalGain: { type: 'number', default: 16 },
+          maxSpeed: { type: 'number', default: 6 },
+          minHandSpeed: { type: 'number', default: 0.03 }
         },
         init: function () {
-          this.lastPosition = new AFRAME.THREE.Vector3()
-          this.currentPosition = new AFRAME.THREE.Vector3()
-          this.velocity = new AFRAME.THREE.Vector3()
+          this.lastPalmPosition = new AFRAME.THREE.Vector3()
+          this.currentPalmPosition = new AFRAME.THREE.Vector3()
+          this.handDelta = new AFRAME.THREE.Vector3()
+          this.handVelocity = new AFRAME.THREE.Vector3()
+          this.pushVelocityDelta = new AFRAME.THREE.Vector3()
           this.isGrounded = false
           this.playerBody = null
+          this.palmEntity = null
+          this.didInitializePalmPosition = false
 
-          // Get world position initially
-          this.el.object3D.getWorldPosition(this.lastPosition)
+          if (!(window as any).__floatyHandDebug) {
+            ;(window as any).__floatyHandDebug = {}
+          }
         },
         tick: function (_time: number, delta: number) {
           if (!delta) return
 
-          // Find the physics body
+          // Find physics body
           if (!this.playerBody) {
             this.playerBody = document.querySelector('#player-body') as any
             return
@@ -238,31 +275,66 @@ export default function FloatyMcHandface() {
           const body = this.playerBody.body
           if (!body) return
 
-          // Get current world position of hand
-          this.el.object3D.getWorldPosition(this.currentPosition)
-
-          // Check if hand is near ground (y < 0.25 means touching/near floor)
-          this.isGrounded = this.currentPosition.y < 0.25
-
-          if (this.isGrounded) {
-            // Calculate hand movement delta
-            this.velocity.subVectors(this.currentPosition, this.lastPosition)
-
-            // Apply opposite force to physics body (push ground = move opposite direction)
-            // Newton's third law: push ground one way, you move the other
-            const pushForce = 80
-
-            // Horizontal movement - push sideways to slide
-            body.velocity.x -= this.velocity.x * pushForce
-            body.velocity.z -= this.velocity.z * pushForce
-
-            // Vertical movement - push down to go up (pushing off ground)
-            // When hand moves down (negative y velocity), push body up
-            body.velocity.y -= this.velocity.y * pushForce
+          // Use palm marker if present, otherwise fallback to hand origin.
+          if (!this.palmEntity) {
+            this.palmEntity = this.el.querySelector('a-sphere') as any
           }
 
-          // Store position for next frame
-          this.lastPosition.copy(this.currentPosition)
+          const palmObject = this.palmEntity ? this.palmEntity.object3D : this.el.object3D
+          palmObject.getWorldPosition(this.currentPalmPosition)
+
+          if (!this.didInitializePalmPosition) {
+            this.lastPalmPosition.copy(this.currentPalmPosition)
+            this.didInitializePalmPosition = true
+            return
+          }
+
+          // Convert hand movement to world-space hand velocity.
+          this.handDelta.subVectors(this.currentPalmPosition, this.lastPalmPosition)
+          const dt = Math.max(delta / 1000, 0.001)
+          this.handVelocity.copy(this.handDelta).multiplyScalar(1 / dt)
+          const handSpeed = this.handVelocity.length()
+
+          // Floor contact check by palm height.
+          this.isGrounded = this.currentPalmPosition.y <= this.data.palmContactY
+          this.pushVelocityDelta.set(0, 0, 0)
+
+          // Gorilla-tag style: when palm is planted/moving on floor,
+          // body gets opposite velocity delta.
+          if (this.isGrounded && handSpeed > this.data.minHandSpeed) {
+            this.pushVelocityDelta.x = -this.handVelocity.x * this.data.horizontalGain * dt
+            this.pushVelocityDelta.z = -this.handVelocity.z * this.data.horizontalGain * dt
+
+            // Only convert downward palm movement into upward boost.
+            if (this.handVelocity.y < 0) {
+              this.pushVelocityDelta.y = -this.handVelocity.y * this.data.verticalGain * dt
+            }
+
+            body.velocity.x += this.pushVelocityDelta.x
+            body.velocity.y += this.pushVelocityDelta.y
+            body.velocity.z += this.pushVelocityDelta.z
+
+            // Keep locomotion controllable.
+            const horizontalSpeed = Math.hypot(body.velocity.x, body.velocity.z)
+            if (horizontalSpeed > this.data.maxSpeed) {
+              const speedScale = this.data.maxSpeed / horizontalSpeed
+              body.velocity.x *= speedScale
+              body.velocity.z *= speedScale
+            }
+            if (body.velocity.y > this.data.maxSpeed * 0.9) {
+              body.velocity.y = this.data.maxSpeed * 0.9
+            }
+          }
+
+          const handDebug = (window as any).__floatyHandDebug
+          handDebug[this.data.hand] = {
+            grounded: this.isGrounded,
+            palmY: Number(this.currentPalmPosition.y.toFixed(3)),
+            handVelY: Number(this.handVelocity.y.toFixed(3)),
+            pushY: Number(this.pushVelocityDelta.y.toFixed(3))
+          }
+
+          this.lastPalmPosition.copy(this.currentPalmPosition)
         }
       })
     }
@@ -358,7 +430,7 @@ export default function FloatyMcHandface() {
       </a-entity>
       
       <!-- VR Camera Rig - shoulder anchored camera -->
-      <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.16; lockHorizontal: true; debugEveryMs: 250">
+      <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.22; lockHorizontal: true; debugEveryMs: 250">
         <!-- Camera for VR view -->
         <a-camera id="camera" position="0 0 0" look-controls="pointerLockEnabled: true">
           <!-- In-headset debug HUD -->
