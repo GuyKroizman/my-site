@@ -158,7 +158,7 @@ export default function FloatyMcHandface() {
               const hudValue = debugLines.slice(0, 4).join('\n').split(';').join(',')
               this.debugHudEntity.setAttribute(
                 'text',
-                `value: ${hudValue}; color: #7CFF7C; width: 4.6; align: left; wrapCount: 110`
+                `value: ${hudValue}; color: #7CFF7C; width: 3.2; align: left; wrapCount: 36`
               )
             }
           }
@@ -450,8 +450,8 @@ export default function FloatyMcHandface() {
           <!-- In-headset debug HUD -->
           <a-entity
             id="debug-hud"
-            position="-1.3 -1.0 -3.8"
-            text="value: Waiting for VR debug...; color: #7CFF7C; width: 4.6; align: left; wrapCount: 110"
+            position="0 -0.45 -1.7"
+            text="value: Waiting for VR debug...; color: #7CFF7C; width: 3.2; align: left; wrapCount: 36"
           ></a-entity>
         </a-camera>
         
