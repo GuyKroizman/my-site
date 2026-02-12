@@ -57,7 +57,7 @@ export default function FloatyMcHandface() {
       if (!AFRAME.components['shoulder-camera-sync']) {
         AFRAME.registerComponent('shoulder-camera-sync', {
           schema: {
-            shoulderOffsetY: { type: 'number', default: 0.22 },
+            shoulderOffsetY: { type: 'number', default: 0.3 },
             lockHorizontal: { type: 'boolean', default: true },
             debugEveryMs: { type: 'number', default: 250 }
           },
@@ -155,10 +155,10 @@ export default function FloatyMcHandface() {
             window.dispatchEvent(new CustomEvent('floaty-vr-debug', { detail: debugOutput }))
 
             if (this.debugHudEntity) {
-              const hudValue = debugLines.slice(0, 6).join('\n').split(';').join(',')
+              const hudValue = debugLines.slice(0, 4).join('\n').split(';').join(',')
               this.debugHudEntity.setAttribute(
                 'text',
-                `value: ${hudValue}; color: #7CFF7C; width: 3.0; align: left; wrapCount: 70`
+                `value: ${hudValue}; color: #7CFF7C; width: 4.6; align: left; wrapCount: 110`
               )
             }
           }
@@ -444,14 +444,14 @@ export default function FloatyMcHandface() {
       </a-entity>
       
       <!-- VR Camera Rig - shoulder anchored camera -->
-      <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.22; lockHorizontal: true; debugEveryMs: 250">
+      <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.3; lockHorizontal: true; debugEveryMs: 250">
         <!-- Camera for VR view -->
         <a-camera id="camera" position="0 0 0" look-controls="pointerLockEnabled: true">
           <!-- In-headset debug HUD -->
           <a-entity
             id="debug-hud"
-            position="-0.75 -0.72 -2.0"
-            text="value: Waiting for VR debug...; color: #7CFF7C; width: 3.0; align: left; wrapCount: 70"
+            position="-1.3 -1.0 -3.8"
+            text="value: Waiting for VR debug...; color: #7CFF7C; width: 4.6; align: left; wrapCount: 110"
           ></a-entity>
         </a-camera>
         
