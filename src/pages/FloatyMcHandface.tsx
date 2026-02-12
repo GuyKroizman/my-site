@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 declare global {
   namespace JSX {
@@ -20,8 +20,18 @@ declare global {
 export default function FloatyMcHandface() {
   const sceneRef = useRef<HTMLDivElement>(null)
   const scriptLoadedRef = useRef(false)
+  const [debugText, setDebugText] = useState('Waiting for scene...')
 
   useEffect(() => {
+    const onDebugEvent = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      if (typeof detail === 'string') {
+        setDebugText(detail)
+      }
+    }
+
+    window.addEventListener('floaty-vr-debug', onDebugEvent as EventListener)
+
     const loadScripts = async () => {
       if (!document.querySelector('script[src*="aframe.min"]')) {
         await new Promise<void>((resolve) => {
@@ -43,47 +53,103 @@ export default function FloatyMcHandface() {
       const AFRAME = (window as any).AFRAME
       if (!AFRAME || !sceneRef.current) return
 
-      // Register physics-sync component - syncs rig position to physics body
-    if (!AFRAME.components['physics-sync']) {
-      AFRAME.registerComponent('physics-sync', {
-        init: function () {
-          this.physicsBody = null
-          this.camera = null
-          this.worldPos = new AFRAME.THREE.Vector3()
-          // How far above the shoulder the camera should sit
-          this.cameraOffset = 0.3
-        },
-        tick: function () {
-          // Find the physics body
-          if (!this.physicsBody) {
-            const physicsEntity = document.querySelector('#player-body') as any
-            if (physicsEntity && physicsEntity.body) {
-              this.physicsBody = physicsEntity
+      // Register shoulder-camera-sync component - keeps camera shoulder-anchored.
+      if (!AFRAME.components['shoulder-camera-sync']) {
+        AFRAME.registerComponent('shoulder-camera-sync', {
+          schema: {
+            shoulderOffsetY: { type: 'number', default: 0.16 },
+            lockHorizontal: { type: 'boolean', default: true },
+            debugEveryMs: { type: 'number', default: 250 }
+          },
+          init: function () {
+            this.playerBodyEntity = null
+            this.cameraEntity = null
+            this.debugHudEntity = null
+            this.bodyWorldPos = new AFRAME.THREE.Vector3()
+            this.cameraWorldPos = new AFRAME.THREE.Vector3()
+            this.targetCameraWorldPos = new AFRAME.THREE.Vector3()
+            this.rigTargetPos = new AFRAME.THREE.Vector3()
+            this.rigCurrentPos = new AFRAME.THREE.Vector3()
+            this.debugLastSentAt = 0
+          },
+          tick: function (time: number) {
+            if (!this.playerBodyEntity) {
+              const bodyEntity = document.querySelector('#player-body') as any
+              if (bodyEntity) {
+                this.playerBodyEntity = bodyEntity
+              }
+              return
             }
-            return
+
+            if (!this.cameraEntity) {
+              this.cameraEntity = document.querySelector('#camera') as any
+              return
+            }
+
+            if (!this.debugHudEntity) {
+              this.debugHudEntity = document.querySelector('#debug-hud') as any
+            }
+
+            // Shoulder world position from physics body.
+            this.playerBodyEntity.object3D.getWorldPosition(this.bodyWorldPos)
+
+            // Local headset offset inside rig (XR tracking writes this).
+            const trackedLocalHead = this.cameraEntity.object3D.position
+
+            // Desired camera world position: just above the shoulders.
+            this.targetCameraWorldPos.set(
+              this.bodyWorldPos.x,
+              this.bodyWorldPos.y + this.data.shoulderOffsetY,
+              this.bodyWorldPos.z
+            )
+
+            // Put rig so camera lands at shoulder target.
+            this.rigTargetPos.set(
+              this.targetCameraWorldPos.x - (this.data.lockHorizontal ? trackedLocalHead.x : 0),
+              this.targetCameraWorldPos.y - trackedLocalHead.y,
+              this.targetCameraWorldPos.z - (this.data.lockHorizontal ? trackedLocalHead.z : 0)
+            )
+            this.el.object3D.position.copy(this.rigTargetPos)
+
+            if (time - this.debugLastSentAt < this.data.debugEveryMs) return
+            this.debugLastSentAt = time
+
+            this.cameraEntity.object3D.getWorldPosition(this.cameraWorldPos)
+            this.el.object3D.getWorldPosition(this.rigCurrentPos)
+
+            const errX = this.cameraWorldPos.x - this.targetCameraWorldPos.x
+            const errY = this.cameraWorldPos.y - this.targetCameraWorldPos.y
+            const errZ = this.cameraWorldPos.z - this.targetCameraWorldPos.z
+
+            const bodyPhysicsPos = this.playerBodyEntity?.body?.position
+            const scene = this.el.sceneEl
+            const isVr = scene ? scene.is('vr-mode') : false
+
+            const debugLines = [
+              `VR: ${isVr ? 'ON' : 'OFF'} | lockHorizontal: ${this.data.lockHorizontal ? 'ON' : 'OFF'}`,
+              `targetCamWorld: x=${this.targetCameraWorldPos.x.toFixed(3)} y=${this.targetCameraWorldPos.y.toFixed(3)} z=${this.targetCameraWorldPos.z.toFixed(3)}`,
+              `actualCamWorld: x=${this.cameraWorldPos.x.toFixed(3)} y=${this.cameraWorldPos.y.toFixed(3)} z=${this.cameraWorldPos.z.toFixed(3)}`,
+              `camError      : x=${errX.toFixed(3)} y=${errY.toFixed(3)} z=${errZ.toFixed(3)}`,
+              `headLocal(rig): x=${trackedLocalHead.x.toFixed(3)} y=${trackedLocalHead.y.toFixed(3)} z=${trackedLocalHead.z.toFixed(3)}`,
+              `rigWorld      : x=${this.rigCurrentPos.x.toFixed(3)} y=${this.rigCurrentPos.y.toFixed(3)} z=${this.rigCurrentPos.z.toFixed(3)}`,
+              bodyPhysicsPos
+                ? `physicsBody   : x=${bodyPhysicsPos.x.toFixed(3)} y=${bodyPhysicsPos.y.toFixed(3)} z=${bodyPhysicsPos.z.toFixed(3)}`
+                : 'physicsBody   : missing'
+            ]
+
+            const debugOutput = debugLines.join('\n')
+            window.dispatchEvent(new CustomEvent('floaty-vr-debug', { detail: debugOutput }))
+
+            if (this.debugHudEntity) {
+              const hudValue = debugLines.slice(0, 5).join('\n').split(';').join(',')
+              this.debugHudEntity.setAttribute(
+                'text',
+                `value: ${hudValue}; color: #7CFF7C; width: 1.9; align: left; wrapCount: 38`
+              )
+            }
           }
-
-          // Find camera once
-          if (!this.camera) {
-            this.camera = document.querySelector('#camera') as any
-            return
-          }
-
-          // Get shoulder position from physics body
-          this.physicsBody.object3D.getWorldPosition(this.worldPos)
-
-          // In VR the headset tracking sets the camera's local Y to your
-          // real-world head height. Compensate for that so the camera
-          // always sits just above the shoulders regardless of player height.
-          const trackedCamY = this.camera.object3D.position.y
-          this.el.object3D.position.set(
-            this.worldPos.x,
-            this.worldPos.y + this.cameraOffset - trackedCamY,
-            this.worldPos.z
-          )
-        }
-      })
-    }
+        })
+      }
 
     // Register arm-connector component - connects arm cylinder from shoulder edge to hand
     if (!AFRAME.components['arm-connector']) {
@@ -211,6 +277,7 @@ export default function FloatyMcHandface() {
     }
 
     return () => {
+      window.removeEventListener('floaty-vr-debug', onDebugEvent as EventListener)
       if (sceneRef.current) {
         sceneRef.current.innerHTML = ''
       }
@@ -290,10 +357,17 @@ export default function FloatyMcHandface() {
         ></a-box>
       </a-entity>
       
-      <!-- VR Camera Rig - syncs position to physics body -->
-      <a-entity id="rig" position="0 1.5 0" physics-sync>
+      <!-- VR Camera Rig - shoulder anchored camera -->
+      <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.16; lockHorizontal: true; debugEveryMs: 250">
         <!-- Camera for VR view -->
-        <a-camera id="camera" position="0 0 0" look-controls="pointerLockEnabled: true"></a-camera>
+        <a-camera id="camera" position="0 0 0" look-controls="pointerLockEnabled: true">
+          <!-- In-headset debug HUD -->
+          <a-entity
+            id="debug-hud"
+            position="-0.55 -0.5 -0.9"
+            text="value: Waiting for VR debug...; color: #7CFF7C; width: 1.9; align: left; wrapCount: 38"
+          ></a-entity>
+        </a-camera>
         
         <!-- Left hand controller with hand-walker and arm-connector -->
         <a-entity 
@@ -354,7 +428,7 @@ export default function FloatyMcHandface() {
   `
 
   return (
-    <div className="w-full h-screen flex flex-col overflow-hidden">
+    <div className="w-full h-screen flex flex-col overflow-hidden relative">
       <div className="flex justify-between items-center p-4 bg-gray-900 text-white flex-shrink-0 z-10">
         <div>
           <h1 className="text-2xl font-bold">Floaty McHandface</h1>
@@ -369,6 +443,10 @@ export default function FloatyMcHandface() {
         className="flex-1 w-full h-full overflow-hidden"
         style={{ position: 'relative' }}
       />
+      <div className="absolute bottom-3 left-3 right-3 md:max-w-2xl bg-black/75 text-green-200 text-xs p-3 rounded-md pointer-events-none">
+        <div className="font-semibold mb-1 text-green-100">Floaty debug</div>
+        <pre className="whitespace-pre-wrap break-words m-0 leading-4">{debugText}</pre>
+      </div>
     </div>
   )
 }
