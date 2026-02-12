@@ -60,8 +60,14 @@ function App() {
               </Link>
             </div>
 
-            {/* Hoot Game */}
-            <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+            {/* Hoot Game - Desktop only */}
+            <div
+              className={`rounded-lg shadow-lg p-6 transition-shadow ${
+                isMobile
+                  ? 'bg-gray-100 shadow cursor-not-allowed opacity-75'
+                  : 'bg-white hover:shadow-xl'
+              }`}
+            >
               <div className="text-center mb-4">
                 <div className="text-4xl mb-2">🎯</div>
                 <h2 className="text-2xl font-semibold text-gray-800">Hoot</h2>
@@ -71,12 +77,18 @@ function App() {
                 Desktop game with 3 Stages and a bose fight.
                 Done during GMTK 2025.
               </p>
-              <Link
-                to="/hoot"
-                className="block w-full text-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
-              >
-                Play Game
-              </Link>
+              {isMobile ? (
+                <div className="block w-full text-center bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed">
+                  Desktop only
+                </div>
+              ) : (
+                <Link
+                  to="/hoot"
+                  className="block w-full text-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+                >
+                  Play Game
+                </Link>
+              )}
             </div>
 
             {/* Work Tools */}
