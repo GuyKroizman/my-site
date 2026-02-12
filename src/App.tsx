@@ -69,6 +69,7 @@ function App() {
               </div>
               <p className="text-gray-700 mb-4 text-sm">
                 Desktop game with 3 Stages and a bose fight.
+                Done during GMTK 2025.
               </p>
               <Link
                 to="/hoot"
