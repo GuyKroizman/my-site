@@ -232,10 +232,10 @@ export default function FloatyMcHandface() {
                 ? `groundDiag    : bodyY=${bodyPhysicsPos.y.toFixed(3)} bodyHalfHeight=0.100 gapToFloor=${(bodyPhysicsPos.y - 0.10).toFixed(3)} shoulderGapToFloor=${(this.shoulderWorldPos.y - 0.10).toFixed(3)}`
                 : 'groundDiag    : body position missing',
               leftHandDebug
-                ? `leftPalm      : tracked=${leftHandDebug.tracked ? 'Y' : 'N'} y=${leftHandDebug.palmY.toFixed(3)} grounded=${leftHandDebug.grounded ? 'Y' : 'N'} relSpeed=${leftHandDebug.relSpeed.toFixed(3)} rawVelY=${leftHandDebug.rawVelY.toFixed(3)} relVelY=${leftHandDebug.relVelY.toFixed(3)} pushY=${leftHandDebug.pushY.toFixed(3)} pushMag=${leftHandDebug.pushMag.toFixed(3)}`
+                ? `leftPalm      : tracked=${leftHandDebug.tracked ? 'Y' : 'N'} y=${leftHandDebug.palmY.toFixed(3)} grounded=${leftHandDebug.grounded ? 'Y' : 'N'} relSpeed=${leftHandDebug.relSpeed.toFixed(3)} rawHoriz=${leftHandDebug.rawHoriz.toFixed(3)} rawVelY=${leftHandDebug.rawVelY.toFixed(3)} relVelY=${leftHandDebug.relVelY.toFixed(3)} pushH=${leftHandDebug.pushH.toFixed(3)} pushY=${leftHandDebug.pushY.toFixed(3)} pushMag=${leftHandDebug.pushMag.toFixed(3)}`
                 : 'leftPalm      : missing',
               rightHandDebug
-                ? `rightPalm     : tracked=${rightHandDebug.tracked ? 'Y' : 'N'} y=${rightHandDebug.palmY.toFixed(3)} grounded=${rightHandDebug.grounded ? 'Y' : 'N'} relSpeed=${rightHandDebug.relSpeed.toFixed(3)} rawVelY=${rightHandDebug.rawVelY.toFixed(3)} relVelY=${rightHandDebug.relVelY.toFixed(3)} pushY=${rightHandDebug.pushY.toFixed(3)} pushMag=${rightHandDebug.pushMag.toFixed(3)}`
+                ? `rightPalm     : tracked=${rightHandDebug.tracked ? 'Y' : 'N'} y=${rightHandDebug.palmY.toFixed(3)} grounded=${rightHandDebug.grounded ? 'Y' : 'N'} relSpeed=${rightHandDebug.relSpeed.toFixed(3)} rawHoriz=${rightHandDebug.rawHoriz.toFixed(3)} rawVelY=${rightHandDebug.rawVelY.toFixed(3)} relVelY=${rightHandDebug.relVelY.toFixed(3)} pushH=${rightHandDebug.pushH.toFixed(3)} pushY=${rightHandDebug.pushY.toFixed(3)} pushMag=${rightHandDebug.pushMag.toFixed(3)}`
                 : 'rightPalm     : missing'
             ]
 
@@ -256,17 +256,19 @@ export default function FloatyMcHandface() {
               const leftGrounded = leftHandDebug ? (leftHandDebug.grounded ? 'Y' : 'N') : '?'
               const leftRel = leftHandDebug ? leftHandDebug.relSpeed.toFixed(2) : 'na'
               const leftPush = leftHandDebug ? leftHandDebug.pushMag.toFixed(2) : 'na'
+              const leftPushH = leftHandDebug ? leftHandDebug.pushH.toFixed(2) : 'na'
               const leftPalmY = leftHandDebug ? leftHandDebug.palmY.toFixed(2) : 'na'
               const rightTracked = rightHandDebug ? (rightHandDebug.tracked ? 'Y' : 'N') : '?'
               const rightGrounded = rightHandDebug ? (rightHandDebug.grounded ? 'Y' : 'N') : '?'
               const rightRel = rightHandDebug ? rightHandDebug.relSpeed.toFixed(2) : 'na'
               const rightPush = rightHandDebug ? rightHandDebug.pushMag.toFixed(2) : 'na'
+              const rightPushH = rightHandDebug ? rightHandDebug.pushH.toFixed(2) : 'na'
               const rightPalmY = rightHandDebug ? rightHandDebug.palmY.toFixed(2) : 'na'
               const hudLines = [
                 `phys:${physicsReady}/${bodyMode} vr:${isVr ? 'Y' : 'N'} bodyY:${bodyY} shoulderY:${shoulderY}`,
                 `gap:${bodyGap} shoulderGap:${shoulderGap} bodyVy:${bodyVelY} sleep:${sleep}`,
-                `L tr:${leftTracked} gr:${leftGrounded} rel:${leftRel} push:${leftPush} pY:${leftPalmY}`,
-                `R tr:${rightTracked} gr:${rightGrounded} rel:${rightRel} push:${rightPush} pY:${rightPalmY}`,
+                `L tr:${leftTracked} gr:${leftGrounded} rel:${leftRel} pH:${leftPushH} pT:${leftPush} pY:${leftPalmY}`,
+                `R tr:${rightTracked} gr:${rightGrounded} rel:${rightRel} pH:${rightPushH} pT:${rightPush} pY:${rightPalmY}`,
                 `camErrY:${errY.toFixed(2)}`
               ]
               const hudValue = hudLines.join('\n').split(';').join(',')
@@ -361,11 +363,11 @@ export default function FloatyMcHandface() {
         AFRAME.registerComponent('hand-walker', {
           schema: {
             hand: { type: 'string', default: 'left' },
-            palmContactY: { type: 'number', default: 0.2 },
-            horizontalGain: { type: 'number', default: 13 },
-            verticalGain: { type: 'number', default: 16 },
-            maxSpeed: { type: 'number', default: 6 },
-            minHandSpeed: { type: 'number', default: 0.03 }
+            palmContactY: { type: 'number', default: 0.24 },
+            horizontalGain: { type: 'number', default: 24 },
+            verticalGain: { type: 'number', default: 14 },
+            maxSpeed: { type: 'number', default: 7 },
+            minHandSpeed: { type: 'number', default: 0.02 }
           },
           init: function () {
             this.lastPalmPosition = new AFRAME.THREE.Vector3()
@@ -420,6 +422,8 @@ export default function FloatyMcHandface() {
             this.relativeHandVelocity.y -= baseVel.y
             this.relativeHandVelocity.z -= baseVel.z
             const relativeHandSpeed = this.relativeHandVelocity.length()
+            const rawHorizontalSpeed = Math.hypot(this.handVelocity.x, this.handVelocity.z)
+            const relativeVerticalSpeed = this.relativeHandVelocity.y
 
             const isTracked = this.el.object3D.visible !== false
 
@@ -429,13 +433,15 @@ export default function FloatyMcHandface() {
 
             // Gorilla-tag style: when palm is planted/moving on floor,
             // body gets opposite velocity delta.
-            if (this.isGrounded && relativeHandSpeed > this.data.minHandSpeed) {
-              this.pushVelocityDelta.x = -this.relativeHandVelocity.x * this.data.horizontalGain * dt
-              this.pushVelocityDelta.z = -this.relativeHandVelocity.z * this.data.horizontalGain * dt
+            const contactMotion = Math.max(rawHorizontalSpeed, Math.abs(relativeVerticalSpeed))
+            if (this.isGrounded && contactMotion > this.data.minHandSpeed) {
+              // Horizontal locomotion follows raw hand sweep on the floor.
+              this.pushVelocityDelta.x = -this.handVelocity.x * this.data.horizontalGain * dt
+              this.pushVelocityDelta.z = -this.handVelocity.z * this.data.horizontalGain * dt
 
               // Only convert downward palm movement into upward boost.
-              if (this.relativeHandVelocity.y < 0) {
-                this.pushVelocityDelta.y = -this.relativeHandVelocity.y * this.data.verticalGain * dt
+              if (relativeVerticalSpeed < 0) {
+                this.pushVelocityDelta.y = -relativeVerticalSpeed * this.data.verticalGain * dt
               }
 
               if (body) {
@@ -459,14 +465,17 @@ export default function FloatyMcHandface() {
             }
 
             const handDebug = (window as any).__floatyHandDebug
+            const pushHorizontal = Math.hypot(this.pushVelocityDelta.x, this.pushVelocityDelta.z)
             const pushMag = Math.hypot(this.pushVelocityDelta.x, this.pushVelocityDelta.y, this.pushVelocityDelta.z)
             handDebug[this.data.hand] = {
               tracked: isTracked,
               grounded: this.isGrounded,
               palmY: Number(this.currentPalmPosition.y.toFixed(3)),
               relSpeed: Number(relativeHandSpeed.toFixed(3)),
+              rawHoriz: Number(rawHorizontalSpeed.toFixed(3)),
               rawVelY: Number(this.handVelocity.y.toFixed(3)),
               relVelY: Number(this.relativeHandVelocity.y.toFixed(3)),
+              pushH: Number(pushHorizontal.toFixed(3)),
               pushY: Number(this.pushVelocityDelta.y.toFixed(3)),
               pushMag: Number(pushMag.toFixed(3))
             }
@@ -557,8 +566,8 @@ export default function FloatyMcHandface() {
         height="0.2"
         depth="0.2"
         material="opacity: 0; transparent: true; depthWrite: false"
-        dynamic-body="shape: box; mass: 70; linearDamping: 0.45; angularDamping: 0.99"
-        player-motion="gravity: -9.8; floorY: 0.1; roomHalfSize: 14.8; damping: 3.2; maxSpeed: 6"
+        dynamic-body="shape: box; mass: 70; linearDamping: 0.2; angularDamping: 0.99"
+        player-motion="gravity: -9.8; floorY: 0.1; roomHalfSize: 14.8; damping: 1.4; maxSpeed: 7"
       >
         <!-- Visible shoulder body. -->
         <a-box
@@ -589,7 +598,7 @@ export default function FloatyMcHandface() {
           id="left-hand" 
           oculus-touch-controls="hand: left"
           hand-tracking-controls="hand: left"
-          hand-walker="hand: left"
+          hand-walker="hand: left; palmContactY: 0.24; horizontalGain: 24; verticalGain: 14; maxSpeed: 7; minHandSpeed: 0.02"
           arm-connector="hand: left"
         >
           <!-- Arm cylinder - dynamically positioned/rotated by arm-connector -->
@@ -612,7 +621,7 @@ export default function FloatyMcHandface() {
           id="right-hand" 
           oculus-touch-controls="hand: right"
           hand-tracking-controls="hand: right"
-          hand-walker="hand: right"
+          hand-walker="hand: right; palmContactY: 0.24; horizontalGain: 24; verticalGain: 14; maxSpeed: 7; minHandSpeed: 0.02"
           arm-connector="hand: right"
         >
           <!-- Arm cylinder - dynamically positioned/rotated by arm-connector -->
