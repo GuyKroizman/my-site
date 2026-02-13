@@ -53,6 +53,78 @@ export default function FloatyMcHandface() {
       const AFRAME = (window as any).AFRAME
       if (!AFRAME || !sceneRef.current) return
 
+      // Register fallback player-motion component.
+      // Used when physics-system dynamic-body is unavailable.
+      if (!AFRAME.components['player-motion']) {
+        AFRAME.registerComponent('player-motion', {
+          schema: {
+            gravity: { type: 'number', default: -9.8 },
+            floorY: { type: 'number', default: 0.1 },
+            roomHalfSize: { type: 'number', default: 14.8 },
+            damping: { type: 'number', default: 3.2 },
+            maxSpeed: { type: 'number', default: 6 }
+          },
+          init: function () {
+            this.velocity = new AFRAME.THREE.Vector3()
+          },
+          applyPush: function (delta: { x: number; y: number; z: number }) {
+            this.velocity.x += delta.x
+            this.velocity.y += delta.y
+            this.velocity.z += delta.z
+            this.clampVelocity(this.data.maxSpeed)
+          },
+          clampVelocity: function (maxSpeed: number) {
+            const horizontalSpeed = Math.hypot(this.velocity.x, this.velocity.z)
+            if (horizontalSpeed > maxSpeed) {
+              const s = maxSpeed / horizontalSpeed
+              this.velocity.x *= s
+              this.velocity.z *= s
+            }
+            if (this.velocity.y > maxSpeed * 0.9) {
+              this.velocity.y = maxSpeed * 0.9
+            }
+          },
+          tick: function (_time: number, delta: number) {
+            if (!delta) return
+            if ((this.el as any).body) return
+
+            const dt = Math.max(delta / 1000, 0.001)
+            this.velocity.y += this.data.gravity * dt
+
+            // Dampen horizontal motion to mimic friction.
+            const damp = Math.exp(-this.data.damping * dt)
+            this.velocity.x *= damp
+            this.velocity.z *= damp
+
+            const pos = this.el.object3D.position
+            pos.x += this.velocity.x * dt
+            pos.y += this.velocity.y * dt
+            pos.z += this.velocity.z * dt
+
+            const bound = this.data.roomHalfSize - 0.2
+            if (pos.x < -bound) {
+              pos.x = -bound
+              if (this.velocity.x < 0) this.velocity.x = 0
+            } else if (pos.x > bound) {
+              pos.x = bound
+              if (this.velocity.x > 0) this.velocity.x = 0
+            }
+            if (pos.z < -bound) {
+              pos.z = -bound
+              if (this.velocity.z < 0) this.velocity.z = 0
+            } else if (pos.z > bound) {
+              pos.z = bound
+              if (this.velocity.z > 0) this.velocity.z = 0
+            }
+
+            if (pos.y < this.data.floorY) {
+              pos.y = this.data.floorY
+              if (this.velocity.y < 0) this.velocity.y = 0
+            }
+          }
+        })
+      }
+
       // Register shoulder-camera-sync component - keeps camera shoulder-anchored.
       if (!AFRAME.components['shoulder-camera-sync']) {
         AFRAME.registerComponent('shoulder-camera-sync', {
@@ -129,8 +201,10 @@ export default function FloatyMcHandface() {
             const errY = this.cameraWorldPos.y - this.targetCameraWorldPos.y
             const errZ = this.cameraWorldPos.z - this.targetCameraWorldPos.z
 
-            const bodyPhysicsPos = this.playerBodyEntity?.body?.position
-            const bodyPhysicsVel = this.playerBodyEntity?.body?.velocity
+            const manualMotion = this.playerBodyEntity?.components?.['player-motion']
+            const bodyMode = this.playerBodyEntity?.body ? 'physics' : (manualMotion ? 'manual' : 'none')
+            const bodyPhysicsPos = this.playerBodyEntity?.body?.position ?? this.playerBodyEntity?.object3D?.position
+            const bodyPhysicsVel = this.playerBodyEntity?.body?.velocity ?? manualMotion?.velocity
             const bodySleepState = this.playerBodyEntity?.body?.sleepState
             const handDebug = (window as any).__floatyHandDebug || {}
             const leftHandDebug = handDebug.left
@@ -140,7 +214,7 @@ export default function FloatyMcHandface() {
 
             const debugLines = [
               `VR: ${isVr ? 'ON' : 'OFF'} | lockHorizontal: ${this.data.lockHorizontal ? 'ON' : 'OFF'}`,
-              `physicsReady : ${this.playerBodyEntity?.body ? 'YES' : 'NO'}`,
+              `physicsReady : ${bodyMode !== 'none' ? 'YES' : 'NO'} mode=${bodyMode}`,
               `bodyWorld    : x=${this.bodyWorldPos.x.toFixed(3)} y=${this.bodyWorldPos.y.toFixed(3)} z=${this.bodyWorldPos.z.toFixed(3)}`,
               `shoulderWorld: x=${this.shoulderWorldPos.x.toFixed(3)} y=${this.shoulderWorldPos.y.toFixed(3)} z=${this.shoulderWorldPos.z.toFixed(3)}`,
               `targetCamWorld: x=${this.targetCameraWorldPos.x.toFixed(3)} y=${this.targetCameraWorldPos.y.toFixed(3)} z=${this.targetCameraWorldPos.z.toFixed(3)}`,
@@ -152,7 +226,7 @@ export default function FloatyMcHandface() {
                 ? `physicsBody   : x=${bodyPhysicsPos.x.toFixed(3)} y=${bodyPhysicsPos.y.toFixed(3)} z=${bodyPhysicsPos.z.toFixed(3)}`
                 : 'physicsBody   : missing',
               bodyPhysicsVel
-                ? `gravityDiag   : bodyVelY=${bodyPhysicsVel.y.toFixed(3)} sleepState=${String(bodySleepState)}`
+                ? `gravityDiag   : bodyVelY=${bodyPhysicsVel.y.toFixed(3)} sleepState=${bodyMode === 'physics' ? String(bodySleepState) : 'manual'}`
                 : 'gravityDiag   : body velocity missing',
               bodyPhysicsPos
                 ? `groundDiag    : bodyY=${bodyPhysicsPos.y.toFixed(3)} bodyHalfHeight=0.100 gapToFloor=${(bodyPhysicsPos.y - 0.10).toFixed(3)} shoulderGapToFloor=${(this.shoulderWorldPos.y - 0.10).toFixed(3)}`
@@ -174,8 +248,10 @@ export default function FloatyMcHandface() {
               const bodyGap = bodyPhysicsPos ? (bodyPhysicsPos.y - 0.10).toFixed(3) : 'na'
               const shoulderGap = (this.shoulderWorldPos.y - 0.10).toFixed(3)
               const bodyVelY = bodyPhysicsVel ? bodyPhysicsVel.y.toFixed(2) : 'na'
-              const sleep = bodySleepState === undefined ? 'na' : String(bodySleepState)
-              const physicsReady = this.playerBodyEntity?.body ? 'Y' : 'N'
+              const sleep = bodyMode === 'physics'
+                ? (bodySleepState === undefined ? 'na' : String(bodySleepState))
+                : (bodyMode === 'manual' ? 'manual' : 'na')
+              const physicsReady = bodyMode !== 'none' ? 'Y' : 'N'
               const leftTracked = leftHandDebug ? (leftHandDebug.tracked ? 'Y' : 'N') : '?'
               const leftGrounded = leftHandDebug ? (leftHandDebug.grounded ? 'Y' : 'N') : '?'
               const leftRel = leftHandDebug ? leftHandDebug.relSpeed.toFixed(2) : 'na'
@@ -187,7 +263,7 @@ export default function FloatyMcHandface() {
               const rightPush = rightHandDebug ? rightHandDebug.pushMag.toFixed(2) : 'na'
               const rightPalmY = rightHandDebug ? rightHandDebug.palmY.toFixed(2) : 'na'
               const hudLines = [
-                `phys:${physicsReady} vr:${isVr ? 'Y' : 'N'} bodyY:${bodyY} shoulderY:${shoulderY}`,
+                `phys:${physicsReady}/${bodyMode} vr:${isVr ? 'Y' : 'N'} bodyY:${bodyY} shoulderY:${shoulderY}`,
                 `gap:${bodyGap} shoulderGap:${shoulderGap} bodyVy:${bodyVelY} sleep:${sleep}`,
                 `L tr:${leftTracked} gr:${leftGrounded} rel:${leftRel} push:${leftPush} pY:${leftPalmY}`,
                 `R tr:${rightTracked} gr:${rightGrounded} rel:${rightRel} push:${rightPush} pY:${rightPalmY}`,
@@ -317,7 +393,8 @@ export default function FloatyMcHandface() {
             }
 
             const body = this.playerBody.body
-            if (!body) return
+            const manualMotion = this.playerBody.components?.['player-motion']
+            if (!body && !manualMotion) return
 
             // Use palm marker if present, otherwise fallback to hand origin.
             if (!this.palmEntity) {
@@ -338,9 +415,10 @@ export default function FloatyMcHandface() {
             const dt = Math.max(delta / 1000, 0.001)
             this.handVelocity.copy(this.handDelta).multiplyScalar(1 / dt)
             this.relativeHandVelocity.copy(this.handVelocity)
-            this.relativeHandVelocity.x -= body.velocity.x
-            this.relativeHandVelocity.y -= body.velocity.y
-            this.relativeHandVelocity.z -= body.velocity.z
+            const baseVel = body ? body.velocity : manualMotion.velocity
+            this.relativeHandVelocity.x -= baseVel.x
+            this.relativeHandVelocity.y -= baseVel.y
+            this.relativeHandVelocity.z -= baseVel.z
             const relativeHandSpeed = this.relativeHandVelocity.length()
 
             const isTracked = this.el.object3D.visible !== false
@@ -360,19 +438,23 @@ export default function FloatyMcHandface() {
                 this.pushVelocityDelta.y = -this.relativeHandVelocity.y * this.data.verticalGain * dt
               }
 
-              body.velocity.x += this.pushVelocityDelta.x
-              body.velocity.y += this.pushVelocityDelta.y
-              body.velocity.z += this.pushVelocityDelta.z
+              if (body) {
+                body.velocity.x += this.pushVelocityDelta.x
+                body.velocity.y += this.pushVelocityDelta.y
+                body.velocity.z += this.pushVelocityDelta.z
 
-              // Keep locomotion controllable.
-              const horizontalSpeed = Math.hypot(body.velocity.x, body.velocity.z)
-              if (horizontalSpeed > this.data.maxSpeed) {
-                const speedScale = this.data.maxSpeed / horizontalSpeed
-                body.velocity.x *= speedScale
-                body.velocity.z *= speedScale
-              }
-              if (body.velocity.y > this.data.maxSpeed * 0.9) {
-                body.velocity.y = this.data.maxSpeed * 0.9
+                // Keep locomotion controllable.
+                const horizontalSpeed = Math.hypot(body.velocity.x, body.velocity.z)
+                if (horizontalSpeed > this.data.maxSpeed) {
+                  const speedScale = this.data.maxSpeed / horizontalSpeed
+                  body.velocity.x *= speedScale
+                  body.velocity.z *= speedScale
+                }
+                if (body.velocity.y > this.data.maxSpeed * 0.9) {
+                  body.velocity.y = this.data.maxSpeed * 0.9
+                }
+              } else {
+                manualMotion.applyPush(this.pushVelocityDelta)
               }
             }
 
@@ -474,8 +556,9 @@ export default function FloatyMcHandface() {
         width="0.4"
         height="0.2"
         depth="0.2"
-        visible="false"
+        material="opacity: 0; transparent: true; depthWrite: false"
         dynamic-body="shape: box; mass: 70; linearDamping: 0.45; angularDamping: 0.99"
+        player-motion="gravity: -9.8; floorY: 0.1; roomHalfSize: 14.8; damping: 3.2; maxSpeed: 6"
       >
         <!-- Visible shoulder body. -->
         <a-box
