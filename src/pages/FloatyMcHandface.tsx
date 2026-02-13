@@ -453,8 +453,8 @@ export default function FloatyMcHandface() {
           <!-- In-headset debug HUD -->
           <a-entity
             id="debug-hud"
-            position="0 -0.36 -1.85"
-            scale="0.50 0.50 0.50"
+            position="0 0 -1.85"
+            scale="1 1 1"
             text="value: Waiting for VR debug...; color: #7CFF7C; width: 2.6; align: center; wrapCount: 80"
           ></a-entity>
         </a-camera>
