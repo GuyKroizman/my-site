@@ -155,10 +155,13 @@ export default function FloatyMcHandface() {
             window.dispatchEvent(new CustomEvent('floaty-vr-debug', { detail: debugOutput }))
 
             if (this.debugHudEntity) {
-              const hudValue = debugLines.slice(0, 3).join('\n').split(';').join(',')
+              const leftState = leftHandDebug ? (leftHandDebug.grounded ? 'G' : '-') : '?'
+              const rightState = rightHandDebug ? (rightHandDebug.grounded ? 'G' : '-') : '?'
+              const bodyVelY = bodyPhysicsVel ? bodyPhysicsVel.y.toFixed(2) : 'na'
+              const hudValue = `errY:${errY.toFixed(2)} bodyVy:${bodyVelY} L:${leftState} R:${rightState}`
               this.debugHudEntity.setAttribute(
                 'text',
-                `value: ${hudValue}; color: #7CFF7C; width: 4.0; align: left; wrapCount: 44`
+                `value: ${hudValue}; color: #7CFF7C; width: 2.6; align: center; wrapCount: 80`
               )
             }
           }
@@ -450,8 +453,9 @@ export default function FloatyMcHandface() {
           <!-- In-headset debug HUD -->
           <a-entity
             id="debug-hud"
-            position="0 -0.52 -2.2"
-            text="value: Waiting for VR debug...; color: #7CFF7C; width: 4.0; align: left; wrapCount: 44"
+            position="0 -0.36 -1.85"
+            scale="0.45 0.45 0.45"
+            text="value: Waiting for VR debug...; color: #7CFF7C; width: 2.6; align: center; wrapCount: 80"
           ></a-entity>
         </a-camera>
         
