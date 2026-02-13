@@ -63,9 +63,11 @@ export default function FloatyMcHandface() {
           },
           init: function () {
             this.playerBodyEntity = null
+            this.shoulderEntity = null
             this.cameraEntity = null
             this.debugHudEntity = null
             this.bodyWorldPos = new AFRAME.THREE.Vector3()
+            this.shoulderWorldPos = new AFRAME.THREE.Vector3()
             this.cameraWorldPos = new AFRAME.THREE.Vector3()
             this.targetCameraWorldPos = new AFRAME.THREE.Vector3()
             this.rigTargetPos = new AFRAME.THREE.Vector3()
@@ -86,21 +88,27 @@ export default function FloatyMcHandface() {
               return
             }
 
+            if (!this.shoulderEntity) {
+              this.shoulderEntity = document.querySelector('#shoulder-box') as any
+              return
+            }
+
             if (!this.debugHudEntity) {
               this.debugHudEntity = document.querySelector('#debug-hud') as any
             }
 
-            // Shoulder world position from physics body.
+            // Body world position from dynamic physics body.
             this.playerBodyEntity.object3D.getWorldPosition(this.bodyWorldPos)
+            this.shoulderEntity.object3D.getWorldPosition(this.shoulderWorldPos)
 
             // Local headset offset inside rig (XR tracking writes this).
             const trackedLocalHead = this.cameraEntity.object3D.position
 
             // Desired camera world position: just above the shoulders.
             this.targetCameraWorldPos.set(
-              this.bodyWorldPos.x,
-              this.bodyWorldPos.y + this.data.shoulderOffsetY,
-              this.bodyWorldPos.z
+              this.shoulderWorldPos.x,
+              this.shoulderWorldPos.y + this.data.shoulderOffsetY,
+              this.shoulderWorldPos.z
             )
 
             // Put rig so camera lands at shoulder target.
@@ -132,6 +140,9 @@ export default function FloatyMcHandface() {
 
             const debugLines = [
               `VR: ${isVr ? 'ON' : 'OFF'} | lockHorizontal: ${this.data.lockHorizontal ? 'ON' : 'OFF'}`,
+              `physicsReady : ${this.playerBodyEntity?.body ? 'YES' : 'NO'}`,
+              `bodyWorld    : x=${this.bodyWorldPos.x.toFixed(3)} y=${this.bodyWorldPos.y.toFixed(3)} z=${this.bodyWorldPos.z.toFixed(3)}`,
+              `shoulderWorld: x=${this.shoulderWorldPos.x.toFixed(3)} y=${this.shoulderWorldPos.y.toFixed(3)} z=${this.shoulderWorldPos.z.toFixed(3)}`,
               `targetCamWorld: x=${this.targetCameraWorldPos.x.toFixed(3)} y=${this.targetCameraWorldPos.y.toFixed(3)} z=${this.targetCameraWorldPos.z.toFixed(3)}`,
               `actualCamWorld: x=${this.cameraWorldPos.x.toFixed(3)} y=${this.cameraWorldPos.y.toFixed(3)} z=${this.cameraWorldPos.z.toFixed(3)}`,
               `camError      : x=${errX.toFixed(3)} y=${errY.toFixed(3)} z=${errZ.toFixed(3)}`,
@@ -143,11 +154,14 @@ export default function FloatyMcHandface() {
               bodyPhysicsVel
                 ? `gravityDiag   : bodyVelY=${bodyPhysicsVel.y.toFixed(3)} sleepState=${String(bodySleepState)}`
                 : 'gravityDiag   : body velocity missing',
+              bodyPhysicsPos
+                ? `groundDiag    : bodyY=${bodyPhysicsPos.y.toFixed(3)} bodyHalfHeight=0.100 gapToFloor=${(bodyPhysicsPos.y - 0.10).toFixed(3)} shoulderGapToFloor=${(this.shoulderWorldPos.y - 0.10).toFixed(3)}`
+                : 'groundDiag    : body position missing',
               leftHandDebug
-                ? `leftPalm      : tracked=${leftHandDebug.tracked ? 'Y' : 'N'} y=${leftHandDebug.palmY.toFixed(3)} grounded=${leftHandDebug.grounded ? 'Y' : 'N'} rawVelY=${leftHandDebug.rawVelY.toFixed(3)} relVelY=${leftHandDebug.relVelY.toFixed(3)} pushY=${leftHandDebug.pushY.toFixed(3)}`
+                ? `leftPalm      : tracked=${leftHandDebug.tracked ? 'Y' : 'N'} y=${leftHandDebug.palmY.toFixed(3)} grounded=${leftHandDebug.grounded ? 'Y' : 'N'} relSpeed=${leftHandDebug.relSpeed.toFixed(3)} rawVelY=${leftHandDebug.rawVelY.toFixed(3)} relVelY=${leftHandDebug.relVelY.toFixed(3)} pushY=${leftHandDebug.pushY.toFixed(3)} pushMag=${leftHandDebug.pushMag.toFixed(3)}`
                 : 'leftPalm      : missing',
               rightHandDebug
-                ? `rightPalm     : tracked=${rightHandDebug.tracked ? 'Y' : 'N'} y=${rightHandDebug.palmY.toFixed(3)} grounded=${rightHandDebug.grounded ? 'Y' : 'N'} rawVelY=${rightHandDebug.rawVelY.toFixed(3)} relVelY=${rightHandDebug.relVelY.toFixed(3)} pushY=${rightHandDebug.pushY.toFixed(3)}`
+                ? `rightPalm     : tracked=${rightHandDebug.tracked ? 'Y' : 'N'} y=${rightHandDebug.palmY.toFixed(3)} grounded=${rightHandDebug.grounded ? 'Y' : 'N'} relSpeed=${rightHandDebug.relSpeed.toFixed(3)} rawVelY=${rightHandDebug.rawVelY.toFixed(3)} relVelY=${rightHandDebug.relVelY.toFixed(3)} pushY=${rightHandDebug.pushY.toFixed(3)} pushMag=${rightHandDebug.pushMag.toFixed(3)}`
                 : 'rightPalm     : missing'
             ]
 
@@ -155,13 +169,34 @@ export default function FloatyMcHandface() {
             window.dispatchEvent(new CustomEvent('floaty-vr-debug', { detail: debugOutput }))
 
             if (this.debugHudEntity) {
-              const leftState = leftHandDebug ? (leftHandDebug.grounded ? 'G' : '-') : '?'
-              const rightState = rightHandDebug ? (rightHandDebug.grounded ? 'G' : '-') : '?'
+              const bodyY = bodyPhysicsPos ? bodyPhysicsPos.y.toFixed(2) : 'na'
+              const shoulderY = this.shoulderWorldPos.y.toFixed(2)
+              const bodyGap = bodyPhysicsPos ? (bodyPhysicsPos.y - 0.10).toFixed(3) : 'na'
+              const shoulderGap = (this.shoulderWorldPos.y - 0.10).toFixed(3)
               const bodyVelY = bodyPhysicsVel ? bodyPhysicsVel.y.toFixed(2) : 'na'
-              const hudValue = `errY:${errY.toFixed(2)} bodyVy:${bodyVelY} L:${leftState} R:${rightState}`
+              const sleep = bodySleepState === undefined ? 'na' : String(bodySleepState)
+              const physicsReady = this.playerBodyEntity?.body ? 'Y' : 'N'
+              const leftTracked = leftHandDebug ? (leftHandDebug.tracked ? 'Y' : 'N') : '?'
+              const leftGrounded = leftHandDebug ? (leftHandDebug.grounded ? 'Y' : 'N') : '?'
+              const leftRel = leftHandDebug ? leftHandDebug.relSpeed.toFixed(2) : 'na'
+              const leftPush = leftHandDebug ? leftHandDebug.pushMag.toFixed(2) : 'na'
+              const leftPalmY = leftHandDebug ? leftHandDebug.palmY.toFixed(2) : 'na'
+              const rightTracked = rightHandDebug ? (rightHandDebug.tracked ? 'Y' : 'N') : '?'
+              const rightGrounded = rightHandDebug ? (rightHandDebug.grounded ? 'Y' : 'N') : '?'
+              const rightRel = rightHandDebug ? rightHandDebug.relSpeed.toFixed(2) : 'na'
+              const rightPush = rightHandDebug ? rightHandDebug.pushMag.toFixed(2) : 'na'
+              const rightPalmY = rightHandDebug ? rightHandDebug.palmY.toFixed(2) : 'na'
+              const hudLines = [
+                `phys:${physicsReady} vr:${isVr ? 'Y' : 'N'} bodyY:${bodyY} shoulderY:${shoulderY}`,
+                `gap:${bodyGap} shoulderGap:${shoulderGap} bodyVy:${bodyVelY} sleep:${sleep}`,
+                `L tr:${leftTracked} gr:${leftGrounded} rel:${leftRel} push:${leftPush} pY:${leftPalmY}`,
+                `R tr:${rightTracked} gr:${rightGrounded} rel:${rightRel} push:${rightPush} pY:${rightPalmY}`,
+                `camErrY:${errY.toFixed(2)}`
+              ]
+              const hudValue = hudLines.join('\n').split(';').join(',')
               this.debugHudEntity.setAttribute(
                 'text',
-                `value: ${hudValue}; color: #7CFF7C; width: 2.6; align: center; wrapCount: 80`
+                `value: ${hudValue}; color: #7CFF7C; width: 3.6; align: left; wrapCount: 64`
               )
             }
           }
@@ -342,13 +377,16 @@ export default function FloatyMcHandface() {
             }
 
             const handDebug = (window as any).__floatyHandDebug
+            const pushMag = Math.hypot(this.pushVelocityDelta.x, this.pushVelocityDelta.y, this.pushVelocityDelta.z)
             handDebug[this.data.hand] = {
               tracked: isTracked,
               grounded: this.isGrounded,
               palmY: Number(this.currentPalmPosition.y.toFixed(3)),
+              relSpeed: Number(relativeHandSpeed.toFixed(3)),
               rawVelY: Number(this.handVelocity.y.toFixed(3)),
               relVelY: Number(this.relativeHandVelocity.y.toFixed(3)),
-              pushY: Number(this.pushVelocityDelta.y.toFixed(3))
+              pushY: Number(this.pushVelocityDelta.y.toFixed(3)),
+              pushMag: Number(pushMag.toFixed(3))
             }
 
             this.lastPalmPosition.copy(this.currentPalmPosition)
@@ -429,13 +467,17 @@ export default function FloatyMcHandface() {
         static-body
       ></a-box>
       
-      <!-- Physics body - the shoulder that falls with gravity -->
-      <a-entity
+      <!-- Invisible physics shoulder body (driven by gravity). -->
+      <a-box
         id="player-body"
-        position="0 1.5 0"
-        dynamic-body="mass: 70; linearDamping: 0.5; angularDamping: 0.99"
+        position="0 1.6 0"
+        width="0.4"
+        height="0.2"
+        depth="0.2"
+        visible="false"
+        dynamic-body="shape: box; mass: 70; linearDamping: 0.45; angularDamping: 0.99"
       >
-        <!-- Shoulder box - visible representation -->
+        <!-- Visible shoulder body. -->
         <a-box
           id="shoulder-box"
           position="0 0 0"
@@ -444,7 +486,7 @@ export default function FloatyMcHandface() {
           depth="0.2"
           color="#ffd93d"
         ></a-box>
-      </a-entity>
+      </a-box>
       
       <!-- VR Camera Rig - shoulder anchored camera -->
       <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.3; lockHorizontal: true; debugEveryMs: 250">
@@ -453,9 +495,9 @@ export default function FloatyMcHandface() {
           <!-- In-headset debug HUD -->
           <a-entity
             id="debug-hud"
-            position="0 0 -1.85"
-            scale="1 1 1"
-            text="value: Waiting for VR debug...; color: #7CFF7C; width: 2.6; align: center; wrapCount: 80"
+            position="0 -0.24 -2.2"
+            scale="0.55 0.55 0.55"
+            text="value: Waiting for VR debug...; color: #7CFF7C; width: 3.6; align: left; wrapCount: 64"
           ></a-entity>
         </a-camera>
         
