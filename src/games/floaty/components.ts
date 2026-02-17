@@ -153,7 +153,8 @@ function registerShoulderCameraSync(AFRAME: any) {
     schema: {
       shoulderOffsetY: { type: 'number', default: 0.3 },
       lockHorizontal: { type: 'boolean', default: true },
-      debugEveryMs: { type: 'number', default: 250 }
+      debugEveryMs: { type: 'number', default: 250 },
+      shoulderTurnLerp: { type: 'number', default: 0.18 }
     },
     init: function () {
       this.playerBodyEntity = null
@@ -166,6 +167,10 @@ function registerShoulderCameraSync(AFRAME: any) {
       this.targetCameraWorldPos = new AFRAME.THREE.Vector3()
       this.rigTargetPos = new AFRAME.THREE.Vector3()
       this.rigCurrentPos = new AFRAME.THREE.Vector3()
+      this.cameraForward = new AFRAME.THREE.Vector3()
+      this.flatForward = new AFRAME.THREE.Vector3()
+      this.defaultForward = new AFRAME.THREE.Vector3(0, 0, -1)
+      this.targetShoulderQuat = new AFRAME.THREE.Quaternion()
       this.debugLastSentAt = 0
     },
     tick: function (time: number) {
@@ -203,6 +208,18 @@ function registerShoulderCameraSync(AFRAME: any) {
         this.targetCameraWorldPos.z - (this.data.lockHorizontal ? trackedLocalHead.z : 0)
       )
       this.el.object3D.position.copy(this.rigTargetPos)
+
+      // Rotate shoulders to follow head yaw (horizontal look direction only).
+      this.cameraEntity.object3D.getWorldDirection(this.cameraForward)
+      this.flatForward.set(this.cameraForward.x, 0, this.cameraForward.z)
+      if (this.flatForward.lengthSq() > 0.0001) {
+        this.flatForward.normalize()
+        this.targetShoulderQuat.setFromUnitVectors(this.defaultForward, this.flatForward)
+        this.shoulderEntity.object3D.quaternion.slerp(
+          this.targetShoulderQuat,
+          Math.max(0, Math.min(1, this.data.shoulderTurnLerp))
+        )
+      }
 
       if (time - this.debugLastSentAt < this.data.debugEveryMs) return
       this.debugLastSentAt = time

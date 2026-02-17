@@ -80,7 +80,7 @@ export function getSceneHTML(): string {
       </a-box>
       
       <!-- VR Camera Rig - shoulder anchored camera -->
-      <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.3; lockHorizontal: true; debugEveryMs: 250">
+      <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.3; lockHorizontal: true; debugEveryMs: 250; shoulderTurnLerp: 0.18">
         <!-- Camera for VR view -->
         <a-camera id="camera" position="0 0 0" look-controls="pointerLockEnabled: true">
           <!-- In-headset debug HUD -->
