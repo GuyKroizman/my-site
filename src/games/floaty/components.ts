@@ -66,21 +66,14 @@ function registerPlayerMotion(AFRAME: any) {
       const meshes = collectSolidMeshes()
       if (meshes.length === 0) return
 
-      const dt = Math.max(delta / 1000, 0.001)
       const d = this.data
-      this.velocity.y += d.gravity * dt
-
-      const damp = Math.exp(-d.damping * dt)
-      this.velocity.x *= damp
-      this.velocity.z *= damp
-
       const pos = this.el.object3D.position
-      pos.x += this.velocity.x * dt
-      pos.y += this.velocity.y * dt
-      pos.z += this.velocity.z * dt
+      const maxFrameDt = 0.2
+      const fixedStep = 1 / 90
+      let remaining = Math.min(Math.max(delta / 1000, 0), maxFrameDt)
 
-      this.rayOrigin.copy(pos)
       this.collisionInfo.onGround = false
+      this.collisionInfo.hitWall = false
 
       const dirs = [
         { x: 0, y: -1, z: 0, extent: d.bodyHalfHeight, axis: 'y' as const, sign: -1 },
@@ -92,29 +85,57 @@ function registerPlayerMotion(AFRAME: any) {
       ]
 
       const dirVec = new AFRAME.THREE.Vector3()
-      for (const dd of dirs) {
-        dirVec.set(dd.x, dd.y, dd.z)
-        const maxDist = dd.extent + d.skinWidth
-        const hit = this.castRay(this.rayOrigin, dirVec, maxDist, meshes)
-        if (hit && hit.distance < dd.extent + d.skinWidth) {
-          const pushOut = dd.extent + d.skinWidth - hit.distance
-          pos[dd.axis] -= dd.sign * pushOut
+      while (remaining > 0.000001) {
+        const dt = Math.min(remaining, fixedStep)
+        remaining -= dt
 
-          if (dd.sign === 1 && (this.velocity as any)[dd.axis] > 0) {
-            (this.velocity as any)[dd.axis] = 0
+        this.velocity.y += d.gravity * dt
+
+        const damp = Math.exp(-d.damping * dt)
+        this.velocity.x *= damp
+        this.velocity.z *= damp
+
+        pos.x += this.velocity.x * dt
+        pos.y += this.velocity.y * dt
+        pos.z += this.velocity.z * dt
+
+        this.rayOrigin.copy(pos)
+
+        for (const dd of dirs) {
+          dirVec.set(dd.x, dd.y, dd.z)
+          const maxDist = dd.extent + d.skinWidth
+          const hit = this.castRay(this.rayOrigin, dirVec, maxDist, meshes)
+          if (hit && hit.distance < dd.extent + d.skinWidth) {
+            const pushOut = dd.extent + d.skinWidth - hit.distance
+            pos[dd.axis] -= dd.sign * pushOut
+
+            if (dd.sign === 1 && (this.velocity as any)[dd.axis] > 0) {
+              (this.velocity as any)[dd.axis] = 0
+            }
+            if (dd.sign === -1 && (this.velocity as any)[dd.axis] < 0) {
+              (this.velocity as any)[dd.axis] = 0
+            }
+            if (dd.y === -1) {
+              this.collisionInfo.onGround = true
+              this.collisionInfo.groundY = hit.point.y
+            }
+            if (dd.x !== 0 || dd.z !== 0) {
+              this.collisionInfo.hitWall = true
+            }
+            this.rayOrigin.copy(pos)
           }
-          if (dd.sign === -1 && (this.velocity as any)[dd.axis] < 0) {
-            (this.velocity as any)[dd.axis] = 0
-          }
-          if (dd.y === -1) {
-            this.collisionInfo.onGround = true
-            this.collisionInfo.groundY = hit.point.y
-          }
-          if (dd.x !== 0 || dd.z !== 0) {
-            this.collisionInfo.hitWall = true
-          }
-          this.rayOrigin.copy(pos)
         }
+      }
+
+      // Safety guard for VR mode transitions:
+      // if a very bad frame ever pushes us far below the room floor,
+      // snap back to the floor baseline instead of free-falling forever.
+      const floorBaselineY = d.bodyHalfHeight + d.skinWidth
+      if (pos.y < -1) {
+        pos.y = floorBaselineY
+        if (this.velocity.y < 0) this.velocity.y = 0
+        this.collisionInfo.onGround = true
+        this.collisionInfo.groundY = 0
       }
     }
   })
