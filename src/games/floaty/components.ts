@@ -60,7 +60,6 @@ function registerPlayerMotion(AFRAME: any) {
     },
     tick: function (_time: number, delta: number) {
       if (!delta) return
-      if ((this.el as any).body) return
 
       // Wait for solid meshes before applying any physics so
       // the player doesn't fall through the floor during load.
@@ -195,10 +194,9 @@ function registerShoulderCameraSync(AFRAME: any) {
       const errZ = this.cameraWorldPos.z - this.targetCameraWorldPos.z
 
       const manualMotion = this.playerBodyEntity?.components?.['player-motion']
-      const bodyMode = this.playerBodyEntity?.body ? 'physics' : (manualMotion ? 'manual' : 'none')
-      const bodyPhysicsPos = this.playerBodyEntity?.body?.position ?? this.playerBodyEntity?.object3D?.position
-      const bodyPhysicsVel = this.playerBodyEntity?.body?.velocity ?? manualMotion?.velocity
-      const bodySleepState = this.playerBodyEntity?.body?.sleepState
+      const bodyMode = manualMotion ? 'manual' : 'none'
+      const bodyPhysicsPos = this.playerBodyEntity?.object3D?.position
+      const bodyPhysicsVel = manualMotion?.velocity
       const handDebug = (window as any).__floatyHandDebug || {}
       const leftHandDebug = handDebug.left
       const rightHandDebug = handDebug.right
@@ -219,7 +217,7 @@ function registerShoulderCameraSync(AFRAME: any) {
           ? `physicsBody   : x=${bodyPhysicsPos.x.toFixed(3)} y=${bodyPhysicsPos.y.toFixed(3)} z=${bodyPhysicsPos.z.toFixed(3)}`
           : 'physicsBody   : missing',
         bodyPhysicsVel
-          ? `gravityDiag   : bodyVelY=${bodyPhysicsVel.y.toFixed(3)} sleepState=${bodyMode === 'physics' ? String(bodySleepState) : 'manual'}`
+          ? `gravityDiag   : bodyVelY=${bodyPhysicsVel.y.toFixed(3)} mode=${bodyMode}`
           : 'gravityDiag   : body velocity missing',
         bodyPhysicsPos
           ? `groundDiag    : bodyY=${bodyPhysicsPos.y.toFixed(3)} shoulderY=${this.shoulderWorldPos.y.toFixed(3)}`
@@ -415,9 +413,8 @@ function registerHandWalker(AFRAME: any) {
         return
       }
 
-      const body = this.playerBody.body
       const manualMotion = this.playerBody.components?.['player-motion']
-      if (!body && !manualMotion) return
+      if (!manualMotion) return
 
       if (!this.palmEntity) {
         this.palmEntity = this.el.querySelector('a-sphere') as any
@@ -461,22 +458,7 @@ function registerHandWalker(AFRAME: any) {
           this.pushVelocityDelta.z += -nDot * this.contactNormal.z * this.data.verticalGain * dt
         }
 
-        if (body) {
-          body.velocity.x += this.pushVelocityDelta.x
-          body.velocity.y += this.pushVelocityDelta.y
-          body.velocity.z += this.pushVelocityDelta.z
-          const hSpeed = Math.hypot(body.velocity.x, body.velocity.z)
-          if (hSpeed > this.data.maxSpeed) {
-            const s = this.data.maxSpeed / hSpeed
-            body.velocity.x *= s
-            body.velocity.z *= s
-          }
-          if (body.velocity.y > this.data.maxSpeed * 0.9) {
-            body.velocity.y = this.data.maxSpeed * 0.9
-          }
-        } else {
-          manualMotion.applyPush(this.pushVelocityDelta)
-        }
+        manualMotion.applyPush(this.pushVelocityDelta)
       }
 
       const handDebug = (window as any).__floatyHandDebug

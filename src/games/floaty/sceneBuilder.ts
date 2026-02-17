@@ -58,7 +58,7 @@ export function getSceneHTML(): string {
         static-body
       ></a-box>
       
-      <!-- Invisible physics shoulder body (driven by gravity). -->
+      <!-- Invisible physics shoulder body (driven by player-motion raycasting). -->
       <a-box
         id="player-body"
         position="0 1.6 0"
@@ -66,7 +66,6 @@ export function getSceneHTML(): string {
         height="0.2"
         depth="0.2"
         material="opacity: 0; transparent: true; depthWrite: false"
-        dynamic-body="shape: box; mass: 70; linearDamping: 0.2; angularDamping: 0.99"
         player-motion="gravity: -9.8; damping: 1.4; maxSpeed: 7"
       >
         <!-- Visible shoulder body. -->
