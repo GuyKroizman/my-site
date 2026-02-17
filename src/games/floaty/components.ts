@@ -9,9 +9,13 @@ export function registerFloatyComponents() {
   if (!AFRAME) return
 
   registerPlayerMotion(AFRAME)
+  registerPlayerHealth(AFRAME)
+  registerHealthHud(AFRAME)
   registerShoulderCameraSync(AFRAME)
   registerArmConnector(AFRAME)
   registerHandWalker(AFRAME)
+  registerCannonball(AFRAME)
+  registerCannonShooter(AFRAME)
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +158,7 @@ function registerShoulderCameraSync(AFRAME: any) {
       shoulderOffsetY: { type: 'number', default: 0.3 },
       lockHorizontal: { type: 'boolean', default: true },
       debugEveryMs: { type: 'number', default: 250 },
+      debugEnabled: { type: 'boolean', default: false },
       shoulderTurnLerp: { type: 'number', default: 0.18 }
     },
     init: function () {
@@ -221,6 +226,7 @@ function registerShoulderCameraSync(AFRAME: any) {
         )
       }
 
+      if (!this.data.debugEnabled) return
       if (time - this.debugLastSentAt < this.data.debugEveryMs) return
       this.debugLastSentAt = time
 
@@ -527,4 +533,356 @@ function registerHandWalker(AFRAME: any) {
       this.lastPalmPosition.copy(this.currentPalmPosition)
     }
   })
+}
+
+// ---------------------------------------------------------------------------
+// player-health
+// Owns health, damage, and respawn logic for the player body.
+// ---------------------------------------------------------------------------
+function registerPlayerHealth(AFRAME: any) {
+  if (AFRAME.components['player-health']) return
+
+  AFRAME.registerComponent('player-health', {
+    schema: {
+      maxHealth: { type: 'number', default: 100 },
+      respawnPosition: { type: 'vec3', default: { x: 0, y: 1.6, z: 0 } },
+      respawnInvulnMs: { type: 'number', default: 1200 }
+    },
+    init: function () {
+      this.currentHealth = this.data.maxHealth
+      this.lastRespawnAt = -Infinity
+      this.respawnPos = new AFRAME.THREE.Vector3(
+        this.data.respawnPosition.x,
+        this.data.respawnPosition.y,
+        this.data.respawnPosition.z
+      )
+      this.publishState()
+    },
+    update: function () {
+      if (typeof this.currentHealth !== 'number') {
+        this.currentHealth = this.data.maxHealth
+      }
+      this.currentHealth = Math.min(this.currentHealth, this.data.maxHealth)
+      this.publishState()
+    },
+    publishState: function () {
+      ;(window as any).__floatyPlayerHealth = {
+        current: this.currentHealth,
+        max: this.data.maxHealth
+      }
+    },
+    applyDamage: function (amount: number) {
+      if (!Number.isFinite(amount) || amount <= 0) return
+
+      const nowMs = performance.now()
+      if (nowMs - this.lastRespawnAt < this.data.respawnInvulnMs) return
+
+      this.currentHealth = Math.max(0, this.currentHealth - amount)
+      this.publishState()
+
+      if (this.currentHealth <= 0) {
+        this.respawn()
+      }
+    },
+    respawn: function () {
+      const pos = this.el.object3D.position
+      pos.set(this.respawnPos.x, this.respawnPos.y, this.respawnPos.z)
+      this.el.object3D.updateMatrixWorld(true)
+
+      const motion = this.el.components?.['player-motion']
+      if (motion?.velocity) {
+        motion.velocity.set(0, 0, 0)
+      }
+
+      this.currentHealth = this.data.maxHealth
+      this.lastRespawnAt = performance.now()
+      this.publishState()
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// health-hud
+// Renders health bar + text in front of the camera.
+// ---------------------------------------------------------------------------
+function registerHealthHud(AFRAME: any) {
+  if (AFRAME.components['health-hud']) return
+
+  AFRAME.registerComponent('health-hud', {
+    schema: {
+      maxWidth: { type: 'number', default: 0.9 }
+    },
+    init: function () {
+      this.fillEntity = null
+      this.textEntity = null
+      this.lastUpdateAt = 0
+      this.lastCurrent = -1
+      this.lastMax = -1
+    },
+    renderHealth: function (current: number, max: number) {
+      if (!this.fillEntity) {
+        this.fillEntity = this.el.querySelector('#health-fill') as any
+      }
+      if (!this.textEntity) {
+        this.textEntity = this.el.querySelector('#health-text') as any
+      }
+      if (!this.fillEntity || !this.textEntity) return
+
+      const ratio = Math.max(0, Math.min(1, current / max))
+      const fillWidth = Math.max(0.001, this.data.maxWidth * ratio)
+      const fillX = -this.data.maxWidth * 0.5 + fillWidth * 0.5
+
+      let fillColor = '#37ff66'
+      if (ratio < 0.25) {
+        fillColor = '#ff3b30'
+      } else if (ratio < 0.55) {
+        fillColor = '#ffb020'
+      }
+
+      this.fillEntity.setAttribute('width', fillWidth)
+      this.fillEntity.setAttribute('position', `${fillX.toFixed(3)} 0 0.01`)
+      this.fillEntity.setAttribute('color', fillColor)
+      this.textEntity.setAttribute(
+        'text',
+        `value: HP ${Math.ceil(current)}/${max}; color: #ffffff; align: center; width: 1.35; wrapCount: 18`
+      )
+    },
+    tick: function (time: number) {
+      if (time - this.lastUpdateAt < 80) return
+      this.lastUpdateAt = time
+
+      const state = (window as any).__floatyPlayerHealth
+      const max = Math.max(1, Number(state?.max || 100))
+      const current = Math.max(0, Math.min(max, Number(state?.current ?? max)))
+
+      if (current !== this.lastCurrent || max !== this.lastMax) {
+        this.renderHealth(current, max)
+        this.lastCurrent = current
+        this.lastMax = max
+      }
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// cannonball
+// Simple projectile: moves forward, collides with solids/player, then despawns.
+// ---------------------------------------------------------------------------
+function registerCannonball(AFRAME: any) {
+  if (AFRAME.components['cannonball']) return
+
+  AFRAME.registerComponent('cannonball', {
+    schema: {
+      velocity: { type: 'vec3', default: { x: 0, y: 0, z: 0 } },
+      gravity: { type: 'number', default: -3.2 },
+      damage: { type: 'number', default: 20 },
+      radius: { type: 'number', default: 0.1 },
+      lifeMs: { type: 'number', default: 7000 }
+    },
+    init: function () {
+      this.spawnAt = null
+      this.velocity = new AFRAME.THREE.Vector3(
+        this.data.velocity.x,
+        this.data.velocity.y,
+        this.data.velocity.z
+      )
+      this.prevPos = new AFRAME.THREE.Vector3()
+      this.rayDir = new AFRAME.THREE.Vector3()
+      this.playerPos = new AFRAME.THREE.Vector3()
+      this.raycaster = new AFRAME.THREE.Raycaster()
+      this.playerBody = null
+    },
+    removeSelf: function () {
+      if (this.el.parentNode) {
+        this.el.parentNode.removeChild(this.el)
+      }
+    },
+    tick: function (time: number, delta: number) {
+      if (!delta) return
+      if (this.spawnAt === null) this.spawnAt = time
+      if (time - this.spawnAt > this.data.lifeMs) {
+        this.removeSelf()
+        return
+      }
+
+      const dt = Math.min(Math.max(delta / 1000, 0), 0.05)
+      const pos = this.el.object3D.position
+      this.prevPos.copy(pos)
+
+      this.velocity.y += this.data.gravity * dt
+      pos.x += this.velocity.x * dt
+      pos.y += this.velocity.y * dt
+      pos.z += this.velocity.z * dt
+
+      if (!this.playerBody) {
+        this.playerBody = document.querySelector('#player-body') as any
+      }
+      if (this.playerBody) {
+        this.playerBody.object3D.getWorldPosition(this.playerPos)
+        const hitDist = this.data.radius + 0.24
+        if (pos.distanceToSquared(this.playerPos) <= hitDist * hitDist) {
+          const playerHealth = this.playerBody.components?.['player-health']
+          if (playerHealth?.applyDamage) {
+            playerHealth.applyDamage(this.data.damage)
+          }
+          this.removeSelf()
+          return
+        }
+      }
+
+      const meshes = collectSolidMeshes()
+      if (meshes.length > 0) {
+        this.rayDir.subVectors(pos, this.prevPos)
+        const travel = this.rayDir.length()
+        if (travel > 0.0001) {
+          this.rayDir.multiplyScalar(1 / travel)
+          this.raycaster.set(this.prevPos, this.rayDir)
+          this.raycaster.near = 0
+          this.raycaster.far = travel + this.data.radius
+          const hits = this.raycaster.intersectObjects(meshes, true)
+          if (hits.length > 0) {
+            this.removeSelf()
+            return
+          }
+        }
+      }
+
+      if (Math.abs(pos.x) > 90 || Math.abs(pos.z) > 90 || pos.y < -6 || pos.y > 80) {
+        this.removeSelf()
+      }
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// cannon-shooter
+// Periodically spawns cannonball entities from the cannon muzzle.
+// ---------------------------------------------------------------------------
+function registerCannonShooter(AFRAME: any) {
+  if (AFRAME.components['cannon-shooter']) return
+
+  AFRAME.registerComponent('cannon-shooter', {
+    schema: {
+      fireRateMs: { type: 'number', default: 950 },
+      ballSpeed: { type: 'number', default: 11 },
+      ballGravity: { type: 'number', default: -3.2 },
+      damage: { type: 'number', default: 20 },
+      ballRadius: { type: 'number', default: 0.1 },
+      lifeMs: { type: 'number', default: 7000 },
+      muzzleOffset: { type: 'vec3', default: { x: 0, y: 0.34, z: 1.36 } },
+      shotVolume: { type: 'number', default: 0.11 }
+    },
+    init: function () {
+      this.lastShotAt = 0
+      this.muzzleWorld = new AFRAME.THREE.Vector3()
+      this.fireDirection = new AFRAME.THREE.Vector3()
+      this.worldQuat = new AFRAME.THREE.Quaternion()
+    },
+    fireBall: function () {
+      const scene = this.el.sceneEl
+      if (!scene) return
+
+      this.muzzleWorld.set(
+        this.data.muzzleOffset.x,
+        this.data.muzzleOffset.y,
+        this.data.muzzleOffset.z
+      )
+      this.el.object3D.localToWorld(this.muzzleWorld)
+
+      this.el.object3D.getWorldQuaternion(this.worldQuat)
+      this.fireDirection.set(0, 0, 1).applyQuaternion(this.worldQuat).normalize()
+
+      const velocityX = this.fireDirection.x * this.data.ballSpeed
+      const velocityY = this.fireDirection.y * this.data.ballSpeed
+      const velocityZ = this.fireDirection.z * this.data.ballSpeed
+
+      const cannonBall = document.createElement('a-sphere')
+      cannonBall.setAttribute(
+        'position',
+        `${this.muzzleWorld.x.toFixed(3)} ${this.muzzleWorld.y.toFixed(3)} ${this.muzzleWorld.z.toFixed(3)}`
+      )
+      cannonBall.setAttribute('radius', this.data.ballRadius)
+      cannonBall.setAttribute('color', '#252a33')
+      cannonBall.setAttribute(
+        'material',
+        'roughness: 0.62; metalness: 0.25; emissive: #7a1d1d; emissiveIntensity: 0.36'
+      )
+      cannonBall.setAttribute('shadow', 'cast: true')
+      cannonBall.setAttribute(
+        'cannonball',
+        `velocity: ${velocityX.toFixed(4)} ${velocityY.toFixed(4)} ${velocityZ.toFixed(4)}; gravity: ${this.data.ballGravity}; damage: ${this.data.damage}; radius: ${this.data.ballRadius}; lifeMs: ${this.data.lifeMs}`
+      )
+      scene.appendChild(cannonBall)
+
+      playCannonShotSound(this.data.shotVolume)
+    },
+    tick: function (time: number) {
+      if (time - this.lastShotAt < this.data.fireRateMs) return
+      this.lastShotAt = time
+      this.fireBall()
+    }
+  })
+}
+
+function playCannonShotSound(volume: number) {
+  const AudioContextCtor = (window as any).AudioContext || (window as any).webkitAudioContext
+  if (!AudioContextCtor) return
+
+  const win = window as any
+  if (!win.__floatyAudioCtx) {
+    win.__floatyAudioCtx = new AudioContextCtor()
+  }
+  const ctx = win.__floatyAudioCtx as AudioContext
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => undefined)
+  }
+
+  const t0 = ctx.currentTime
+  const bodyGain = ctx.createGain()
+  bodyGain.gain.setValueAtTime(0.0001, t0)
+  bodyGain.gain.exponentialRampToValueAtTime(Math.max(0.01, volume), t0 + 0.01)
+  bodyGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2)
+
+  const tone = ctx.createOscillator()
+  tone.type = 'square'
+  tone.frequency.setValueAtTime(260, t0)
+  tone.frequency.exponentialRampToValueAtTime(95, t0 + 0.16)
+
+  const bandpass = ctx.createBiquadFilter()
+  bandpass.type = 'bandpass'
+  bandpass.frequency.setValueAtTime(1150, t0)
+  bandpass.Q.value = 0.8
+
+  tone.connect(bandpass)
+  bandpass.connect(bodyGain)
+  bodyGain.connect(ctx.destination)
+  tone.start(t0)
+  tone.stop(t0 + 0.2)
+
+  if (!win.__floatyNoiseBuffer || win.__floatyNoiseBuffer.sampleRate !== ctx.sampleRate) {
+    const sampleCount = Math.floor(ctx.sampleRate * 0.14)
+    const noiseBuffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate)
+    const channel = noiseBuffer.getChannelData(0)
+    for (let i = 0; i < sampleCount; i++) {
+      const decay = 1 - i / sampleCount
+      channel[i] = (Math.random() * 2 - 1) * decay
+    }
+    win.__floatyNoiseBuffer = noiseBuffer
+  }
+
+  const noiseSource = ctx.createBufferSource()
+  noiseSource.buffer = win.__floatyNoiseBuffer as AudioBuffer
+  const noiseFilter = ctx.createBiquadFilter()
+  noiseFilter.type = 'highpass'
+  noiseFilter.frequency.setValueAtTime(520, t0)
+
+  const noiseGain = ctx.createGain()
+  noiseGain.gain.setValueAtTime(Math.max(0.006, volume * 0.55), t0)
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14)
+
+  noiseSource.connect(noiseFilter)
+  noiseFilter.connect(noiseGain)
+  noiseGain.connect(ctx.destination)
+  noiseSource.start(t0)
+  noiseSource.stop(t0 + 0.15)
 }

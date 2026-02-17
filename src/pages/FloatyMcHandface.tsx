@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { registerFloatyComponents } from '../games/floaty/components'
 import { getSceneHTML } from '../games/floaty/sceneBuilder'
 
@@ -22,18 +22,8 @@ declare global {
 export default function FloatyMcHandface() {
   const sceneRef = useRef<HTMLDivElement>(null)
   const scriptLoadedRef = useRef(false)
-  const [debugText, setDebugText] = useState('Waiting for scene...')
 
   useEffect(() => {
-    const onDebugEvent = (event: Event) => {
-      const detail = (event as CustomEvent<string>).detail
-      if (typeof detail === 'string') {
-        setDebugText(detail)
-      }
-    }
-
-    window.addEventListener('floaty-vr-debug', onDebugEvent as EventListener)
-
     const loadScripts = async () => {
       if (!document.querySelector('script[src*="aframe.min"]')) {
         await new Promise<void>((resolve) => {
@@ -64,7 +54,6 @@ export default function FloatyMcHandface() {
     }
 
     return () => {
-      window.removeEventListener('floaty-vr-debug', onDebugEvent as EventListener)
       if (sceneRef.current) {
         sceneRef.current.innerHTML = ''
       }
@@ -87,10 +76,6 @@ export default function FloatyMcHandface() {
         className="flex-1 w-full h-full overflow-hidden"
         style={{ position: 'relative' }}
       />
-      <div className="absolute bottom-3 left-3 right-3 md:max-w-2xl bg-black/75 text-green-200 text-xs p-3 rounded-md pointer-events-none">
-        <div className="font-semibold mb-1 text-green-100">Floaty debug</div>
-        <pre className="whitespace-pre-wrap break-words m-0 leading-4">{debugText}</pre>
-      </div>
     </div>
   )
 }

@@ -57,6 +57,77 @@ export function getSceneHTML(): string {
         shadow="cast: true; receive: true"
         static-body
       ></a-box>
+
+      <!-- Wide ramp and elevated jump route -->
+      <a-box
+        position="0 0.8 -9.6"
+        width="8"
+        height="0.4"
+        depth="8"
+        rotation="-18 0 0"
+        color="#9f845e"
+        shadow="cast: true; receive: true"
+        static-body
+      ></a-box>
+      <a-box
+        position="0 1.1 -15"
+        width="10"
+        height="2.2"
+        depth="9"
+        color="#59627a"
+        shadow="cast: true; receive: true"
+        static-body
+      ></a-box>
+      <a-box
+        position="0 1.55 -25.8"
+        width="11"
+        height="3.1"
+        depth="11"
+        color="#66708a"
+        shadow="cast: true; receive: true"
+        static-body
+      ></a-box>
+      <a-box
+        position="0 0.02 -20.4"
+        width="12"
+        height="0.04"
+        depth="2.8"
+        color="#101420"
+      ></a-box>
+
+      <!-- Stationary cannon built from basic shapes -->
+      <a-entity
+        id="cannon"
+        position="1.8 3.35 -23.8"
+        rotation="-7 8 0"
+        cannon-shooter="fireRateMs: 950; ballSpeed: 11; ballGravity: -3.2; damage: 20; lifeMs: 7000; muzzleOffset: 0 0.34 1.36; shotVolume: 0.11"
+      >
+        <a-cylinder
+          position="0 0.1 0"
+          radius="0.42"
+          height="0.24"
+          color="#2a2e39"
+        ></a-cylinder>
+        <a-cylinder
+          position="0 0.34 0.68"
+          radius="0.18"
+          height="1.35"
+          rotation="90 0 0"
+          color="#343945"
+        ></a-cylinder>
+        <a-sphere
+          position="0 0.34 1.36"
+          radius="0.13"
+          color="#3d444f"
+        ></a-sphere>
+        <a-box
+          position="0 0.18 -0.35"
+          width="0.8"
+          height="0.12"
+          depth="0.7"
+          color="#3a2f22"
+        ></a-box>
+      </a-entity>
       
       <!-- Invisible physics shoulder body (driven by player-motion raycasting). -->
       <a-box
@@ -67,6 +138,7 @@ export function getSceneHTML(): string {
         depth="0.2"
         material="opacity: 0; transparent: true; depthWrite: false"
         player-motion="gravity: -9.8; damping: 1.4; maxSpeed: 7"
+        player-health="maxHealth: 100; respawnPosition: 0 1.6 0; respawnInvulnMs: 1200"
       >
         <!-- Visible shoulder body. -->
         <a-box
@@ -80,16 +152,34 @@ export function getSceneHTML(): string {
       </a-box>
       
       <!-- VR Camera Rig - shoulder anchored camera -->
-      <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.3; lockHorizontal: true; debugEveryMs: 250; shoulderTurnLerp: 0.18">
+      <a-entity id="rig" position="0 1.5 0" shoulder-camera-sync="shoulderOffsetY: 0.3; lockHorizontal: true; debugEveryMs: 250; debugEnabled: false; shoulderTurnLerp: 0.18">
         <!-- Camera for VR view -->
         <a-camera id="camera" position="0 0 0" look-controls="pointerLockEnabled: true">
-          <!-- In-headset debug HUD -->
+          <!-- Health HUD -->
           <a-entity
-            id="debug-hud"
-            position="0 -0.24 -2.2"
-            scale="0.55 0.55 0.55"
-            text="value: Waiting for VR debug...; color: #7CFF7C; width: 3.6; align: left; wrapCount: 64"
-          ></a-entity>
+            id="health-hud"
+            position="0 0.26 -1.05"
+            health-hud="maxWidth: 0.9"
+          >
+            <a-plane
+              width="0.98"
+              height="0.14"
+              color="#220b0b"
+              opacity="0.78"
+            ></a-plane>
+            <a-plane
+              id="health-fill"
+              width="0.9"
+              height="0.09"
+              position="0 0 0.01"
+              color="#37ff66"
+            ></a-plane>
+            <a-entity
+              id="health-text"
+              position="0 0 0.02"
+              text="value: HP 100/100; color: #ffffff; align: center; width: 1.35; wrapCount: 18"
+            ></a-entity>
+          </a-entity>
         </a-camera>
         
         <!-- Left hand controller with hand-walker and arm-connector -->
