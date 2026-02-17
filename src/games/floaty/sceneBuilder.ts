@@ -13,8 +13,8 @@ export function getSceneHTML(): string {
       <a-plane 
         position="0 0 0" 
         rotation="-90 0 0" 
-        width="30" 
-        height="30" 
+        width="70" 
+        height="70" 
         color="#3d3d5c"
         shadow="receive: true"
         static-body
@@ -24,17 +24,17 @@ export function getSceneHTML(): string {
       <a-plane 
         position="0 12 0" 
         rotation="90 0 0" 
-        width="30" 
-        height="30" 
+        width="70" 
+        height="70" 
         color="#2a2a4a"
         static-body
       ></a-plane>
       
       <!-- Walls with physics -->
-      <a-plane position="0 6 -15" width="30" height="12" color="#4a4a6a" static-body></a-plane>
-      <a-plane position="0 6 15" rotation="0 180 0" width="30" height="12" color="#4a4a6a" static-body></a-plane>
-      <a-plane position="-15 6 0" rotation="0 90 0" width="30" height="12" color="#4a4a6a" static-body></a-plane>
-      <a-plane position="15 6 0" rotation="0 -90 0" width="30" height="12" color="#4a4a6a" static-body></a-plane>
+      <a-plane position="0 6 -35" width="70" height="12" color="#4a4a6a" static-body></a-plane>
+      <a-plane position="0 6 35" rotation="0 180 0" width="70" height="12" color="#4a4a6a" static-body></a-plane>
+      <a-plane position="-35 6 0" rotation="0 90 0" width="70" height="12" color="#4a4a6a" static-body></a-plane>
+      <a-plane position="35 6 0" rotation="0 -90 0" width="70" height="12" color="#4a4a6a" static-body></a-plane>
       
       <!-- Low box - easy to touch -->
       <a-box 
@@ -98,8 +98,8 @@ export function getSceneHTML(): string {
       <!-- Stationary cannon built from basic shapes -->
       <a-entity
         id="cannon"
-        position="1.8 3.35 -23.8"
-        rotation="-7 8 0"
+        position="1.8 3.25 -23.8"
+        rotation="6 -8 0"
         cannon-shooter="fireRateMs: 950; ballSpeed: 11; ballGravity: -3.2; damage: 20; lifeMs: 7000; muzzleOffset: 0 0.34 1.36; shotVolume: 0.11"
       >
         <a-cylinder
