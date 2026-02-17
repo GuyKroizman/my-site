@@ -15,7 +15,10 @@ export function collectSolidMeshes(): any[] {
     const mesh = el.getObject3D ? el.getObject3D('mesh') : null
     if (mesh) meshes.push(mesh)
   })
-  win.__solidMeshes = meshes
-  win.__solidMeshesStamp = now
+  // Only cache non-empty results so we keep retrying until the scene is ready.
+  if (meshes.length > 0) {
+    win.__solidMeshes = meshes
+    win.__solidMeshesStamp = now
+  }
   return meshes
 }

@@ -62,6 +62,11 @@ function registerPlayerMotion(AFRAME: any) {
       if (!delta) return
       if ((this.el as any).body) return
 
+      // Wait for solid meshes before applying any physics so
+      // the player doesn't fall through the floor during load.
+      const meshes = collectSolidMeshes()
+      if (meshes.length === 0) return
+
       const dt = Math.max(delta / 1000, 0.001)
       const d = this.data
       this.velocity.y += d.gravity * dt
@@ -74,9 +79,6 @@ function registerPlayerMotion(AFRAME: any) {
       pos.x += this.velocity.x * dt
       pos.y += this.velocity.y * dt
       pos.z += this.velocity.z * dt
-
-      const meshes = collectSolidMeshes()
-      if (meshes.length === 0) return
 
       this.rayOrigin.copy(pos)
       this.collisionInfo.onGround = false
