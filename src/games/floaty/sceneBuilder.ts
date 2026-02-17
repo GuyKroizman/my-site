@@ -97,7 +97,7 @@ export function getSceneHTML(): string {
           id="left-hand" 
           oculus-touch-controls="hand: left"
           hand-tracking-controls="hand: left"
-          hand-walker="hand: left; contactDistance: 0.15; horizontalGain: 24; verticalGain: 14; maxSpeed: 7; minHandSpeed: 0.02"
+          hand-walker="hand: left; contactDistance: 0.15; horizontalGain: 24; verticalGain: 14; maxSpeed: 7; minHandSpeed: 0.02; oneHandBoost: 1.65; contactGraceMs: 90"
           arm-connector="hand: left"
         >
           <!-- Arm cylinder - dynamically positioned/rotated by arm-connector -->
@@ -120,7 +120,7 @@ export function getSceneHTML(): string {
           id="right-hand" 
           oculus-touch-controls="hand: right"
           hand-tracking-controls="hand: right"
-          hand-walker="hand: right; contactDistance: 0.15; horizontalGain: 24; verticalGain: 14; maxSpeed: 7; minHandSpeed: 0.02"
+          hand-walker="hand: right; contactDistance: 0.15; horizontalGain: 24; verticalGain: 14; maxSpeed: 7; minHandSpeed: 0.02; oneHandBoost: 1.65; contactGraceMs: 90"
           arm-connector="hand: right"
         >
           <!-- Arm cylinder - dynamically positioned/rotated by arm-connector -->

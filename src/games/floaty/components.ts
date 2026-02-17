@@ -369,7 +369,9 @@ function registerHandWalker(AFRAME: any) {
       horizontalGain: { type: 'number', default: 24 },
       verticalGain: { type: 'number', default: 14 },
       maxSpeed: { type: 'number', default: 7 },
-      minHandSpeed: { type: 'number', default: 0.02 }
+      minHandSpeed: { type: 'number', default: 0.02 },
+      oneHandBoost: { type: 'number', default: 1.65 },
+      contactGraceMs: { type: 'number', default: 90 }
     },
     init: function () {
       this.lastPalmPosition = new AFRAME.THREE.Vector3()
@@ -383,6 +385,7 @@ function registerHandWalker(AFRAME: any) {
       this.playerBody = null
       this.palmEntity = null
       this.didInitializePalmPosition = false
+      this.lastContactAt = 0
       this.raycaster = new AFRAME.THREE.Raycaster()
       this.normalMatrix = new AFRAME.THREE.Matrix3()
       this.rayDirs = [
@@ -400,8 +403,6 @@ function registerHandWalker(AFRAME: any) {
     },
     checkSurfaceContact: function (palmPos: any, meshes: any[]) {
       this.isInContact = false
-      this.contactSurfaceName = 'none'
-      this.contactNormal.set(0, 1, 0)
       let closestDist = Infinity
 
       for (let i = 0; i < this.rayDirs.length; i++) {
@@ -458,20 +459,30 @@ function registerHandWalker(AFRAME: any) {
       const isTracked = this.el.object3D.visible !== false
 
       const meshes = collectSolidMeshes()
-      const touching = isTracked && meshes.length > 0
+      const touchingNow = isTracked && meshes.length > 0
         && this.checkSurfaceContact(this.currentPalmPosition, meshes)
+      const nowMs = performance.now()
+      if (touchingNow) this.lastContactAt = nowMs
+      const touching = touchingNow
+        || (isTracked && nowMs - this.lastContactAt <= this.data.contactGraceMs)
+      if (!touching) this.contactSurfaceName = 'none'
 
       this.pushVelocityDelta.set(0, 0, 0)
 
       if (touching && rawSpeed > this.data.minHandSpeed) {
+        const handDebug = (window as any).__floatyHandDebug || {}
+        const otherHand = this.data.hand === 'left' ? 'right' : 'left'
+        const otherTouching = handDebug[otherHand]?.contact === true
+        const oneHandScale = otherTouching ? 1 : this.data.oneHandBoost
+
         const nDot = this.handVelocity.x * this.contactNormal.x
           + this.handVelocity.y * this.contactNormal.y
           + this.handVelocity.z * this.contactNormal.z
 
         const tanX = this.handVelocity.x - nDot * this.contactNormal.x
         const tanZ = this.handVelocity.z - nDot * this.contactNormal.z
-        this.pushVelocityDelta.x = -tanX * this.data.horizontalGain * dt
-        this.pushVelocityDelta.z = -tanZ * this.data.horizontalGain * dt
+        this.pushVelocityDelta.x = -tanX * this.data.horizontalGain * oneHandScale * dt
+        this.pushVelocityDelta.z = -tanZ * this.data.horizontalGain * oneHandScale * dt
 
         if (nDot < 0) {
           this.pushVelocityDelta.x += -nDot * this.contactNormal.x * this.data.verticalGain * dt
