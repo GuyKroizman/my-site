@@ -813,7 +813,7 @@ export class Track {
       this.trackMesh.add(dashMesh)
     }
 
-    for (let distance = startOffset; distance < totalLength; distance += spacing) {
+    for (let distance = startOffset + 2; distance < totalLength; distance += spacing) {
       createCurvedDash(distance, distance + stripeLength)
     }
   }
