@@ -14,6 +14,7 @@ export const level5: LevelConfig = {
       z: -10,
       color: 0xff0000,
       name: 'Red Racer',
+      modelPath: '/racing/models/hatchback_car.glb',
       isPlayer: false,
       characteristics: {
         // Master level speedster
@@ -47,6 +48,7 @@ export const level5: LevelConfig = {
       z: -13,
       color: 0x000000,
       name: 'Player',
+      modelPath: '/racing/models/sport_car2.glb',
       isPlayer: true,
       characteristics: {
         // Player car at master level
@@ -63,6 +65,7 @@ export const level5: LevelConfig = {
       z: -13,
       color: 0x00ff00,
       name: 'Green Machine',
+      modelPath: '/racing/models/pickup_truck.glb',
       isPlayer: false,
       characteristics: {
         // Master level cornering specialist

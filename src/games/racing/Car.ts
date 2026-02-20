@@ -147,23 +147,41 @@ export class Car {
   }
 
   private async loadCustomModel(modelPath: string): Promise<void> {
+    const isGlb = modelPath.toLowerCase().endsWith('.glb') || modelPath.toLowerCase().endsWith('.gltf')
     try {
-      const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js')
-      const loader = new FBXLoader()
-      loader.load(
-        modelPath,
-        (fbx) => {
-          const model = this.orientAndScaleLoadedModel(fbx)
-          this.replaceCarVisual(model)
-          this.boundingBox.setFromObject(this.mesh)
-        },
-        undefined,
-        (error) => {
-          console.warn(`Failed to load car model "${modelPath}"`, error)
-        }
-      )
+      if (isGlb) {
+        const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
+        const loader = new GLTFLoader()
+        loader.load(
+          modelPath,
+          (gltf) => {
+            const model = this.orientAndScaleLoadedModel(gltf.scene as THREE.Group)
+            this.replaceCarVisual(model)
+            this.boundingBox.setFromObject(this.mesh)
+          },
+          undefined,
+          (error) => {
+            console.warn(`Failed to load car model "${modelPath}"`, error)
+          }
+        )
+      } else {
+        const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js')
+        const loader = new FBXLoader()
+        loader.load(
+          modelPath,
+          (fbx) => {
+            const model = this.orientAndScaleLoadedModel(fbx)
+            this.replaceCarVisual(model)
+            this.boundingBox.setFromObject(this.mesh)
+          },
+          undefined,
+          (error) => {
+            console.warn(`Failed to load car model "${modelPath}"`, error)
+          }
+        )
+      }
     } catch (error) {
-      console.warn(`Failed to initialize FBX loader for "${modelPath}"`, error)
+      console.warn(`Failed to initialize loader for "${modelPath}"`, error)
     }
   }
 
@@ -181,8 +199,8 @@ export class Car {
     const orientedSize = new THREE.Vector3()
     orientedBounds.getSize(orientedSize)
 
-    // Match the original procedural car size, then make imported model 20% larger.
-    const targetLength = 2.4
+    // Car model size (larger = more visible on track).
+    const targetLength = 3.0
     const scale = targetLength / Math.max(orientedSize.z, 0.001)
     model.scale.setScalar(scale)
 

@@ -14,6 +14,7 @@ export const level1: LevelConfig = {
       z: -10,
       color: 0xff0000,
       name: 'Red Racer',
+      modelPath: '/racing/models/hatchback_car.glb',
       isPlayer: false,
       characteristics: {
         // Aggressive speedster - fast but less precise on corners
@@ -30,7 +31,7 @@ export const level1: LevelConfig = {
       z: -10,
       color: 0x0000ff,
       name: 'Blue Cruiser',
-      modelPath: '/racing%5C/models%5C/sport_car.fbx',
+      modelPath: '/racing/models/sport_car.fbx',
       isPlayer: false,
       characteristics: {
         // Balanced all-rounder - good at everything
@@ -47,6 +48,7 @@ export const level1: LevelConfig = {
       z: -13,
       color: 0x000000,
       name: 'Player',
+      modelPath: '/racing/models/sport_car2.glb',
       isPlayer: true,
       characteristics: {
         // Player car characteristics
@@ -63,6 +65,7 @@ export const level1: LevelConfig = {
       z: -13,
       color: 0x00ff00,
       name: 'Green Machine',
+      modelPath: '/racing/models/pickup_truck.glb',
       isPlayer: false,
       characteristics: {
         // Careful navigator - slower top speed but great cornering
