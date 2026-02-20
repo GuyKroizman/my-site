@@ -249,6 +249,18 @@ export class Track {
 
     // Add lane divider stripes (center line)
     this.addLaneDividers(length, width)
+    // Add solid shoulder lines near both road edges
+    this.addRoadShoulders(
+      outerMinX,
+      outerMaxX,
+      outerMinZ,
+      outerMaxZ,
+      innerMinX,
+      innerMaxX,
+      innerMinZ,
+      innerMaxZ,
+      radius
+    )
 
     // Create track borders with rounded corners
     const borderMaterial = new THREE.MeshStandardMaterial({
@@ -797,6 +809,127 @@ export class Track {
       this.trackMesh.add(stripe)
       currentZ -= stripeLength + gapLength
     }
+  }
+
+  private addRoadShoulders(
+    outerMinX: number,
+    outerMaxX: number,
+    outerMinZ: number,
+    outerMaxZ: number,
+    innerMinX: number,
+    innerMaxX: number,
+    innerMinZ: number,
+    innerMaxZ: number,
+    cornerRadius: number
+  ) {
+    const shoulderMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      flatShading: true
+    })
+
+    const lineWidth = 0.35
+    const lineInset = 0.7
+    const lineHeight = 0.03
+    const lineY = 0.1 + lineHeight / 2 + 0.005
+
+    const addRoundedRectPath = (
+      path: THREE.Shape | THREE.Path,
+      minX: number,
+      maxX: number,
+      minZ: number,
+      maxZ: number,
+      radius: number
+    ) => {
+      path.moveTo(minX, minZ + radius)
+      path.absarc(minX + radius, minZ + radius, radius, Math.PI, Math.PI * 1.5, false)
+      path.lineTo(maxX - radius, minZ)
+      path.absarc(maxX - radius, minZ + radius, radius, Math.PI * 1.5, 0, false)
+      path.lineTo(maxX, maxZ - radius)
+      path.absarc(maxX - radius, maxZ - radius, radius, 0, Math.PI / 2, false)
+      path.lineTo(minX + radius, maxZ)
+      path.absarc(minX + radius, maxZ - radius, radius, Math.PI / 2, Math.PI, false)
+      path.lineTo(minX, minZ + radius)
+    }
+
+    const createShoulderStrip = (
+      stripOuterMinX: number,
+      stripOuterMaxX: number,
+      stripOuterMinZ: number,
+      stripOuterMaxZ: number,
+      stripOuterRadius: number,
+      stripInnerMinX: number,
+      stripInnerMaxX: number,
+      stripInnerMinZ: number,
+      stripInnerMaxZ: number,
+      stripInnerRadius: number
+    ) => {
+      const stripShape = new THREE.Shape()
+      addRoundedRectPath(
+        stripShape,
+        stripOuterMinX,
+        stripOuterMaxX,
+        stripOuterMinZ,
+        stripOuterMaxZ,
+        stripOuterRadius
+      )
+
+      const stripHole = new THREE.Path()
+      addRoundedRectPath(
+        stripHole,
+        stripInnerMinX,
+        stripInnerMaxX,
+        stripInnerMinZ,
+        stripInnerMaxZ,
+        stripInnerRadius
+      )
+
+      stripShape.holes.push(stripHole)
+
+      const shoulderGeometry = new THREE.ExtrudeGeometry(stripShape, {
+        depth: lineHeight,
+        bevelEnabled: false,
+        curveSegments: 32
+      })
+
+      const shoulderMesh = new THREE.Mesh(shoulderGeometry, shoulderMaterial)
+      shoulderMesh.rotation.x = -Math.PI / 2
+      shoulderMesh.position.y = lineY
+      shoulderMesh.receiveShadow = true
+      return shoulderMesh
+    }
+
+    const nearInset = lineInset - lineWidth / 2
+    const farInset = lineInset + lineWidth / 2
+
+    // Outer shoulder line: inset from the outside edge toward the center of the road
+    const outerShoulder = createShoulderStrip(
+      outerMinX + nearInset,
+      outerMaxX - nearInset,
+      outerMinZ + nearInset,
+      outerMaxZ - nearInset,
+      cornerRadius - nearInset,
+      outerMinX + farInset,
+      outerMaxX - farInset,
+      outerMinZ + farInset,
+      outerMaxZ - farInset,
+      cornerRadius - farInset
+    )
+    this.trackMesh.add(outerShoulder)
+
+    // Inner shoulder line: offset outward from the infield edge into the road
+    const innerShoulder = createShoulderStrip(
+      innerMinX - farInset,
+      innerMaxX + farInset,
+      innerMinZ - farInset,
+      innerMaxZ + farInset,
+      cornerRadius + farInset,
+      innerMinX - nearInset,
+      innerMaxX + nearInset,
+      innerMinZ - nearInset,
+      innerMaxZ + nearInset,
+      cornerRadius + nearInset
+    )
+    this.trackMesh.add(innerShoulder)
   }
 
   public getProgress(position: THREE.Vector3, previousProgress: number = 0): number {
