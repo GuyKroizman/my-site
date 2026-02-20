@@ -61,6 +61,8 @@ export class RacingGameEngine {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1))
     this.renderer.setSize(width, height, false) // false = don't update style
     this.renderer.shadowMap.enabled = true
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 1.25
     this.renderer.domElement.style.display = 'block'
     this.renderer.domElement.style.width = '100%'
     this.renderer.domElement.style.height = '100%'
@@ -111,14 +113,19 @@ export class RacingGameEngine {
       this.raceStartTime = performance.now() / 1000 // Convert to seconds
     })
 
-    // Setup lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
+    // Setup lighting (brighter so car models are more visible)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95)
     this.scene.add(ambientLight)
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0)
     directionalLight.position.set(10, 20, 10)
     directionalLight.castShadow = true
     this.scene.add(directionalLight)
+
+    // Fill light from the opposite side to reduce dark shadows on cars
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4)
+    fillLight.position.set(-8, 12, -8)
+    this.scene.add(fillLight)
 
     // Create cars
     this.createCars()
