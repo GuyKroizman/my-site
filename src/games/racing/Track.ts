@@ -248,7 +248,7 @@ export class Track {
     this.trackMesh.add(trackSurface)
 
     // Add lane divider stripes (center line)
-    this.addLaneDividers(length, width)
+    this.addLaneDividers()
     // Add solid shoulder lines near both road edges
     this.addRoadShoulders(
       outerMinX,
@@ -742,8 +742,8 @@ export class Track {
     return null
   }
 
-  private addLaneDividers(length: number, width: number) {
-    // Create dashed lane divider lines to separate track into two lanes
+  private addLaneDividers() {
+    // Create dashed center divider strips that follow the curved center path.
     const stripeMaterial = new THREE.MeshStandardMaterial({
       color: 0xffff00, // Yellow stripes
       flatShading: true
@@ -752,62 +752,69 @@ export class Track {
     const stripeWidth = 0.3
     const stripeLength = 2
     const gapLength = 2
-    const stripeHeight = 0.05
-    // Track surface top is at y: 0.1, position stripes on top of track
-    const stripeY = 0.1 + stripeHeight / 2
+    const stripeHeight = 0.03
+    const stripeY = 0.1 + stripeHeight / 2 + 0.005
+    const startOffset = 3
+    const halfStripeWidth = stripeWidth / 2
+    const spacing = stripeLength + gapLength
 
-    // Top horizontal section (from -length/2 to length/2 at z: -width/2)
-    let currentX = -length / 2
-    while (currentX < length / 2 - 3) {
-      const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(stripeLength, stripeHeight, stripeWidth),
-        stripeMaterial
-      )
-      stripe.rotation.x = -Math.PI / 2
-      stripe.position.set(currentX + 3, stripeY, -width / 2)
-      this.trackMesh.add(stripe)
-      currentX += stripeLength + gapLength
+    const centerCurve = new THREE.CurvePath<THREE.Vector3>()
+    for (let i = 0; i < this.path.length - 1; i++) {
+      centerCurve.add(new THREE.LineCurve3(this.path[i], this.path[i + 1]))
     }
 
-    // Right vertical section (from -width/2 to width/2 at x: length/2)
-    // Vertical stripes should extend in Z direction, no rotation needed
-    let currentZ = -width / 2
-    while (currentZ < width / 2 - 4) {
-      const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(stripeWidth, stripeHeight, stripeLength),
-        stripeMaterial
-      )
-      // No rotation - stripe is already vertical (extends in Z direction)
-      stripe.position.set(length / 2, stripeY + 0.01, currentZ + 3.5)
-      this.trackMesh.add(stripe)
-      currentZ += stripeLength + gapLength
+    const totalLength = centerCurve.getLength()
+    if (totalLength <= 0) return
+
+    const createCurvedDash = (dashStart: number, dashEnd: number) => {
+      const clampedStart = Math.max(0, dashStart)
+      const clampedEnd = Math.min(totalLength, dashEnd)
+      const dashDistance = clampedEnd - clampedStart
+      if (dashDistance <= 0.05) return
+
+      const sampleCount = Math.max(8, Math.ceil(dashDistance / 0.15))
+      const leftPoints: THREE.Vector2[] = []
+      const rightPoints: THREE.Vector2[] = []
+
+      for (let i = 0; i <= sampleCount; i++) {
+        const distance = clampedStart + (dashDistance * i) / sampleCount
+        const u = distance / totalLength
+
+        const point = centerCurve.getPointAt(u)
+        const tangent = centerCurve.getTangentAt(u).setY(0).normalize()
+        const normal = new THREE.Vector3(-tangent.z, 0, tangent.x)
+
+        const left = point.clone().addScaledVector(normal, halfStripeWidth)
+        const right = point.clone().addScaledVector(normal, -halfStripeWidth)
+        leftPoints.push(new THREE.Vector2(left.x, left.z))
+        rightPoints.push(new THREE.Vector2(right.x, right.z))
+      }
+
+      const dashShape = new THREE.Shape()
+      dashShape.moveTo(leftPoints[0].x, leftPoints[0].y)
+      for (let i = 1; i < leftPoints.length; i++) {
+        dashShape.lineTo(leftPoints[i].x, leftPoints[i].y)
+      }
+      for (let i = rightPoints.length - 1; i >= 0; i--) {
+        dashShape.lineTo(rightPoints[i].x, rightPoints[i].y)
+      }
+      dashShape.lineTo(leftPoints[0].x, leftPoints[0].y)
+
+      const dashGeometry = new THREE.ExtrudeGeometry(dashShape, {
+        depth: stripeHeight,
+        bevelEnabled: false,
+        curveSegments: 16
+      })
+
+      const dashMesh = new THREE.Mesh(dashGeometry, stripeMaterial)
+      dashMesh.rotation.x = -Math.PI / 2
+      dashMesh.position.y = stripeY
+      dashMesh.receiveShadow = true
+      this.trackMesh.add(dashMesh)
     }
 
-    // Bottom horizontal section (from length/2 to -length/2 at z: width/2)
-    currentX = length / 2
-    while (currentX > -length / 2 + 3) {
-      const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(stripeLength, stripeHeight, stripeWidth),
-        stripeMaterial
-      )
-      stripe.rotation.x = -Math.PI / 2
-      stripe.position.set(currentX - 3, stripeY, width / 2)
-      this.trackMesh.add(stripe)
-      currentX -= stripeLength + gapLength
-    }
-
-    // Left vertical section (from width/2 to -width/2 at x: -length/2)
-    // Vertical stripes should extend in Z direction, no rotation needed
-    currentZ = width / 2
-    while (currentZ > -width / 2 + 4) {
-      const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(stripeWidth, stripeHeight, stripeLength),
-        stripeMaterial
-      )
-      // No rotation - stripe is already vertical (extends in Z direction)
-      stripe.position.set(-length / 2, stripeY + 0.01, currentZ - 3.5)
-      this.trackMesh.add(stripe)
-      currentZ -= stripeLength + gapLength
+    for (let distance = startOffset; distance < totalLength; distance += spacing) {
+      createCurvedDash(distance, distance + stripeLength)
     }
   }
 
