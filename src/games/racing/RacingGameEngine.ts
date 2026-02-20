@@ -174,7 +174,8 @@ export class RacingGameEngine {
         config.color,
         config.name,
         config.isPlayer,
-        config.characteristics
+        config.characteristics,
+        config.modelPath
       )
       this.cars.push(car)
       this.scene.add(car.mesh)

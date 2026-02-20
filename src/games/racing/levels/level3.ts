@@ -30,6 +30,7 @@ export const level3: LevelConfig = {
       z: -10,
       color: 0x0000ff,
       name: 'Blue Cruiser',
+      modelPath: '/racing/models/sport_car.fbx',
       isPlayer: false,
       characteristics: {
         // High-performance all-rounder

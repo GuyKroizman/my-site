@@ -7,6 +7,7 @@ export interface CarConfig {
   name: string
   isPlayer: boolean
   characteristics: CarCharacteristics
+  modelPath?: string
 }
 
 export interface WinCondition {

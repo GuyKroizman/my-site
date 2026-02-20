@@ -59,7 +59,8 @@ export class Car {
     color: number, 
     name: string, 
     isPlayer: boolean,
-    characteristics?: CarCharacteristics
+    characteristics?: CarCharacteristics,
+    modelPath?: string
   ) {
     this.position = new THREE.Vector3(x, y, z)
     this.startX = x // Store starting X position
@@ -125,6 +126,10 @@ export class Car {
     // Setup bounding box
     this.boundingBox = new THREE.Box3().setFromObject(this.mesh)
 
+    if (modelPath) {
+      void this.loadCustomModel(modelPath)
+    }
+
     // Setup keyboard controls for player
     if (isPlayer) {
       this.setupControls()
@@ -138,6 +143,84 @@ export class Car {
 
     window.addEventListener('keyup', (e) => {
       this.keys[e.key] = false
+    })
+  }
+
+  private async loadCustomModel(modelPath: string): Promise<void> {
+    try {
+      const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js')
+      const loader = new FBXLoader()
+      loader.load(
+        modelPath,
+        (fbx) => {
+          const model = this.orientAndScaleLoadedModel(fbx)
+          this.replaceCarVisual(model)
+          this.boundingBox.setFromObject(this.mesh)
+        },
+        undefined,
+        (error) => {
+          console.warn(`Failed to load car model "${modelPath}"`, error)
+        }
+      )
+    } catch (error) {
+      console.warn(`Failed to initialize FBX loader for "${modelPath}"`, error)
+    }
+  }
+
+  private orientAndScaleLoadedModel(model: THREE.Group): THREE.Group {
+    const initialBounds = new THREE.Box3().setFromObject(model)
+    const initialSize = new THREE.Vector3()
+    initialBounds.getSize(initialSize)
+
+    // If the longest axis is X, rotate so the car's length points forward on Z.
+    if (initialSize.x > initialSize.z) {
+      model.rotation.y = Math.PI / 2
+    }
+
+    const orientedBounds = new THREE.Box3().setFromObject(model)
+    const orientedSize = new THREE.Vector3()
+    orientedBounds.getSize(orientedSize)
+
+    // Match the original procedural car size, then make imported model 20% larger.
+    const targetLength = 2.4
+    const scale = targetLength / Math.max(orientedSize.z, 0.001)
+    model.scale.setScalar(scale)
+
+    const finalBounds = new THREE.Box3().setFromObject(model)
+    const finalCenter = new THREE.Vector3()
+    finalBounds.getCenter(finalCenter)
+    const targetBottomY = -0.3
+    model.position.set(-finalCenter.x, targetBottomY - finalBounds.min.y, -finalCenter.z)
+
+    model.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+
+    return model
+  }
+
+  private replaceCarVisual(model: THREE.Object3D) {
+    const oldChildren = [...this.mesh.children]
+    oldChildren.forEach((child) => {
+      this.mesh.remove(child)
+      this.disposeVisualObject(child)
+    })
+    this.mesh.add(model)
+  }
+
+  private disposeVisualObject(object: THREE.Object3D) {
+    object.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose()
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat) => mat.dispose())
+        } else {
+          child.material.dispose()
+        }
+      }
     })
   }
 
@@ -533,16 +616,7 @@ export class Car {
   }
 
   public dispose() {
-    this.mesh.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.geometry.dispose()
-        if (Array.isArray(child.material)) {
-          child.material.forEach(mat => mat.dispose())
-        } else {
-          child.material.dispose()
-        }
-      }
-    })
+    this.disposeVisualObject(this.mesh)
     this.soundGenerator.dispose()
   }
 }
