@@ -5,6 +5,7 @@ import { RaceManager } from './RaceManager'
 import { StartLights } from './StartLights'
 import { Mine } from './Mine'
 import { SoundGenerator } from './SoundGenerator'
+import { PlayerArrow } from './PlayerArrow'
 import { LevelConfig, CarConfig } from './levels'
 
 export interface RacingGameCallbacks {
@@ -35,6 +36,7 @@ export class RacingGameEngine {
   private totalPauseTime: number = 0
   private mine: Mine | null = null
   private soundGenerator: SoundGenerator = new SoundGenerator()
+  private playerArrow: PlayerArrow | null = null
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig) {
     this.callbacks = callbacks
@@ -133,6 +135,9 @@ export class RacingGameEngine {
 
     // Create cars
     this.createCars()
+
+    // Create player indicator arrow (visible during countdown)
+    this.playerArrow = new PlayerArrow(this.scene)
 
     // Spawn mine on levels 2 and above (one per level, random position on track)
     if (this.currentLevelConfig.id >= 2) {
@@ -254,6 +259,19 @@ export class RacingGameEngine {
 
     // Update cars - pass start lights state
     const canStart = this.startLights ? this.startLights.isGreen() : false
+
+    // Update player arrow (show during countdown, hide once race starts)
+    if (this.playerArrow) {
+      if (canStart) {
+        this.playerArrow.hide()
+      } else {
+        const playerCar = this.cars.find(car => car.isPlayer)
+        if (playerCar) {
+          this.playerArrow.update(deltaTime, playerCar.position)
+        }
+      }
+    }
+
     this.cars.forEach(car => {
       car.update(deltaTime, this.track, this.cars, raceComplete, canStart)
     })
@@ -299,6 +317,11 @@ export class RacingGameEngine {
     // Reset start lights
     if (this.startLights) {
       this.startLights.reset()
+    }
+
+    // Show player arrow again for countdown
+    if (this.playerArrow) {
+      this.playerArrow.show()
     }
 
     // Start lights will begin sequence automatically
@@ -364,6 +387,10 @@ export class RacingGameEngine {
     if (this.mine) {
       this.mine.destroy()
       this.mine = null
+    }
+    if (this.playerArrow) {
+      this.playerArrow.dispose()
+      this.playerArrow = null
     }
     this.soundGenerator.dispose()
     this.cars.forEach(car => car.dispose())
