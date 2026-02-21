@@ -3,6 +3,7 @@ import { Car } from './Car'
 import { Track } from './Track'
 import { RaceManager } from './RaceManager'
 import { StartLights } from './StartLights'
+import { Mine } from './Mine'
 import { LevelConfig, CarConfig } from './levels'
 
 export interface RacingGameCallbacks {
@@ -31,6 +32,7 @@ export class RacingGameEngine {
   private isPaused: boolean = false
   private pauseStartTime: number = 0
   private totalPauseTime: number = 0
+  private mine: Mine | null = null
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig) {
     this.callbacks = callbacks
@@ -129,6 +131,12 @@ export class RacingGameEngine {
 
     // Create cars
     this.createCars()
+
+    // Spawn mine on levels 2 and above (one per level, random position on track)
+    if (this.currentLevelConfig.id >= 2) {
+      const minePos = this.track.getRandomPointOnTrack()
+      this.mine = new Mine(this.scene, minePos.x, minePos.z)
+    }
 
     // Initialize frame time tracking
     this.lastFrameTime = performance.now() / 1000
@@ -248,6 +256,19 @@ export class RacingGameEngine {
       car.update(deltaTime, this.track, this.cars, raceComplete, canStart)
     })
 
+    // Check car–mine collision (only one mine per level; first collision destroys it)
+    if (this.mine && !raceComplete) {
+      for (const car of this.cars) {
+        if (car.launched || car.finished) continue
+        if (this.mine.collidesWith(car.position)) {
+          car.applyExplosionForce(this.mine.getPosition())
+          this.mine.destroy()
+          this.mine = null
+          break
+        }
+      }
+    }
+
     // Update race manager (only if race not complete)
     if (!raceComplete) {
       const currentTime = performance.now() / 1000
@@ -337,6 +358,10 @@ export class RacingGameEngine {
       this.startLights = null
     }
 
+    if (this.mine) {
+      this.mine.destroy()
+      this.mine = null
+    }
     this.cars.forEach(car => car.dispose())
     this.cars = []
     this.track.dispose()

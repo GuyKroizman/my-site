@@ -742,6 +742,19 @@ export class Track {
     return null
   }
 
+  /**
+   * Returns a random point on the track center path (for placing mines etc.).
+   * Avoids the start/finish area.
+   */
+  public getRandomPointOnTrack(): THREE.Vector3 {
+    const skip = 8
+    const from = skip
+    const to = Math.max(from, this.path.length - 1 - skip)
+    const i = from + Math.floor(Math.random() * (to - from + 1))
+    const p = this.path[i]
+    return new THREE.Vector3(p.x, p.y, p.z)
+  }
+
   private addLaneDividers() {
     // Create dashed center divider strips that follow the curved center path.
     const stripeMaterial = new THREE.MeshStandardMaterial({

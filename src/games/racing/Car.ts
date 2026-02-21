@@ -42,6 +42,10 @@ export class Car {
 
   private boundingBox: THREE.Box3
   private keys: { [key: string]: boolean } = {}
+  /** When set, car is flying from a mine explosion and ignores normal driving. */
+  public launched: boolean = false
+  public launchVelocity: THREE.Vector3 | null = null
+  private readonly gravity: number = 35
   private touchControls: { up: boolean; down: boolean; left: boolean; right: boolean } = {
     up: false,
     down: false,
@@ -242,7 +246,36 @@ export class Car {
     })
   }
 
+  /** Apply explosion force from a mine; car will be launched and fly off. */
+  public applyExplosionForce(origin: THREE.Vector3, forceMagnitude: number = 45) {
+    this.launched = true
+    this.speed = 0
+    const dir = new THREE.Vector3()
+    dir.subVectors(this.position, origin)
+    dir.y = 0
+    if (dir.lengthSq() < 0.01) {
+      dir.set(1, 0, 0)
+    } else {
+      dir.normalize()
+    }
+    const upComponent = 0.7
+    const horizontalComponent = Math.sqrt(1 - upComponent * upComponent)
+    this.launchVelocity = new THREE.Vector3(
+      dir.x * horizontalComponent * forceMagnitude,
+      upComponent * forceMagnitude,
+      dir.z * horizontalComponent * forceMagnitude
+    )
+  }
+
   public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false, canStart: boolean = false) {
+    // If launched by mine, apply velocity and gravity only
+    if (this.launched && this.launchVelocity) {
+      this.position.add(this.launchVelocity.clone().multiplyScalar(deltaTime))
+      this.launchVelocity.y -= this.gravity * deltaTime
+      this.mesh.position.copy(this.position)
+      return
+    }
+
     // If race is complete or car is finished, stop all movement
     if (this.finished || raceComplete) {
       this.speed = 0
@@ -614,6 +647,8 @@ export class Car {
     this.lapProgress = 0
     this.lapsCompleted = 0
     this.finishPosition = 0
+    this.launched = false
+    this.launchVelocity = null
     // Don't give AI cars initial speed - they'll wait for green light
     this.speed = 0
   }
@@ -629,6 +664,8 @@ export class Car {
     this.lapsCompleted = 0
     this.finished = false
     this.finishPosition = 0
+    this.launched = false
+    this.launchVelocity = null
     this.mesh.position.copy(this.position)
     this.mesh.rotation.y = this.rotation
   }
