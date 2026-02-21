@@ -173,6 +173,11 @@ export class RaceManager {
     })
   }
 
+  public forceComplete() {
+    if (this.raceComplete) return
+    this.completeRace()
+  }
+
   public isRaceComplete(): boolean {
     return this.raceComplete
   }

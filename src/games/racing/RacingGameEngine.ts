@@ -37,6 +37,7 @@ export class RacingGameEngine {
   private mine: Mine | null = null
   private soundGenerator: SoundGenerator = new SoundGenerator()
   private playerArrow: PlayerArrow | null = null
+  private playerMineHitTime: number | null = null
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig) {
     this.callbacks = callbacks
@@ -283,10 +284,22 @@ export class RacingGameEngine {
         if (this.mine.collidesWith(car.position)) {
           car.applyExplosionForce(this.mine.getPosition())
           this.soundGenerator.playExplosionSound()
+          if (car.isPlayer) {
+            this.playerMineHitTime = performance.now() / 1000
+          }
           this.mine.destroy()
           this.mine = null
           break
         }
+      }
+    }
+
+    // End race 3 seconds after player hit a mine
+    if (this.playerMineHitTime !== null && !raceComplete) {
+      const elapsed = performance.now() / 1000 - this.playerMineHitTime
+      if (elapsed >= 3) {
+        this.playerMineHitTime = null
+        this.raceManager.forceComplete()
       }
     }
 
@@ -313,6 +326,7 @@ export class RacingGameEngine {
     this.raceStartTime = 0
     this.totalPauseTime = 0
     this.pauseStartTime = 0
+    this.playerMineHitTime = null
 
     // Reset start lights
     if (this.startLights) {
