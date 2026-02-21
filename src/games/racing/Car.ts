@@ -45,6 +45,7 @@ export class Car {
   /** When set, car is flying from a mine explosion and ignores normal driving. */
   public launched: boolean = false
   public launchVelocity: THREE.Vector3 | null = null
+  private launchAngularVelocity: THREE.Vector3 | null = null
   private readonly gravity: number = 35
   private touchControls: { up: boolean; down: boolean; left: boolean; right: boolean } = {
     up: false,
@@ -265,14 +266,24 @@ export class Car {
       upComponent * forceMagnitude,
       dir.z * horizontalComponent * forceMagnitude
     )
+    this.launchAngularVelocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 14,
+      (Math.random() - 0.5) * 10,
+      (Math.random() - 0.5) * 14
+    )
   }
 
   public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false, canStart: boolean = false) {
-    // If launched by mine, apply velocity and gravity only
+    // If launched by mine, apply velocity, gravity, and tumble
     if (this.launched && this.launchVelocity) {
       this.position.add(this.launchVelocity.clone().multiplyScalar(deltaTime))
       this.launchVelocity.y -= this.gravity * deltaTime
       this.mesh.position.copy(this.position)
+      if (this.launchAngularVelocity) {
+        this.mesh.rotation.x += this.launchAngularVelocity.x * deltaTime
+        this.mesh.rotation.y += this.launchAngularVelocity.y * deltaTime
+        this.mesh.rotation.z += this.launchAngularVelocity.z * deltaTime
+      }
       return
     }
 
@@ -576,7 +587,7 @@ export class Car {
     let isAiCollision = false
 
     for (const otherCar of allCars) {
-      if (otherCar === this || otherCar.finished) continue
+      if (otherCar === this || otherCar.finished || otherCar.launched) continue
       
       if (testBox.intersectsBox(otherCar.boundingBox)) {
         collided = true
@@ -649,6 +660,7 @@ export class Car {
     this.finishPosition = 0
     this.launched = false
     this.launchVelocity = null
+    this.launchAngularVelocity = null
     // Don't give AI cars initial speed - they'll wait for green light
     this.speed = 0
   }
@@ -666,8 +678,9 @@ export class Car {
     this.finishPosition = 0
     this.launched = false
     this.launchVelocity = null
+    this.launchAngularVelocity = null
     this.mesh.position.copy(this.position)
-    this.mesh.rotation.y = this.rotation
+    this.mesh.rotation.set(0, this.rotation, 0)
   }
 
   public dispose() {

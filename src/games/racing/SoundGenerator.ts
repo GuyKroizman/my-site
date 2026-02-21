@@ -257,6 +257,97 @@ export class SoundGenerator {
   }
 
   /**
+   * Play a mine explosion sound - deep boom with rumble and debris.
+   */
+  playExplosionSound(volume: number = 0.9): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+
+    try {
+      const now = ctx.currentTime
+      const masterGain = ctx.createGain()
+      masterGain.connect(ctx.destination)
+
+      // Layer 1: Deep low-frequency boom
+      const boomOsc = ctx.createOscillator()
+      const boomGain = ctx.createGain()
+      boomOsc.type = 'sine'
+      boomOsc.frequency.setValueAtTime(80, now)
+      boomOsc.frequency.exponentialRampToValueAtTime(20, now + 0.8)
+      boomGain.gain.setValueAtTime(volume, now)
+      boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9)
+      boomOsc.connect(boomGain)
+      boomGain.connect(masterGain)
+      boomOsc.start(now)
+      boomOsc.stop(now + 0.9)
+
+      // Layer 2: Distorted mid-frequency punch
+      const punchOsc = ctx.createOscillator()
+      const punchGain = ctx.createGain()
+      const distortion = ctx.createWaveShaper()
+      punchOsc.type = 'sawtooth'
+      punchOsc.frequency.setValueAtTime(200, now)
+      punchOsc.frequency.exponentialRampToValueAtTime(40, now + 0.5)
+      const curve = new Float32Array(256)
+      for (let i = 0; i < 256; i++) {
+        const x = (i * 2) / 256 - 1
+        curve[i] = (Math.PI + 200) * x / (Math.PI + 200 * Math.abs(x))
+      }
+      distortion.curve = curve
+      punchGain.gain.setValueAtTime(volume * 0.6, now)
+      punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+      punchOsc.connect(distortion)
+      distortion.connect(punchGain)
+      punchGain.connect(masterGain)
+      punchOsc.start(now)
+      punchOsc.stop(now + 0.5)
+
+      // Layer 3: Noise burst for debris / shrapnel
+      const noiseLen = ctx.sampleRate * 1.0
+      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
+      const noiseData = noiseBuf.getChannelData(0)
+      for (let i = 0; i < noiseLen; i++) {
+        noiseData[i] = Math.random() * 2 - 1
+      }
+      const noiseSrc = ctx.createBufferSource()
+      noiseSrc.buffer = noiseBuf
+      const noiseFilter = ctx.createBiquadFilter()
+      noiseFilter.type = 'lowpass'
+      noiseFilter.frequency.setValueAtTime(4000, now)
+      noiseFilter.frequency.exponentialRampToValueAtTime(200, now + 0.8)
+      const noiseGain = ctx.createGain()
+      noiseGain.gain.setValueAtTime(volume * 0.55, now)
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.0)
+      noiseSrc.connect(noiseFilter)
+      noiseFilter.connect(noiseGain)
+      noiseGain.connect(masterGain)
+      noiseSrc.start(now)
+      noiseSrc.stop(now + 1.0)
+
+      // Cleanup
+      const cleanup = () => {
+        boomOsc.disconnect()
+        boomGain.disconnect()
+        punchOsc.disconnect()
+        punchGain.disconnect()
+        distortion.disconnect()
+        noiseSrc.disconnect()
+        noiseFilter.disconnect()
+        noiseGain.disconnect()
+        masterGain.disconnect()
+      }
+      noiseSrc.onended = cleanup
+    } catch (error) {
+      console.warn('Failed to play explosion sound:', error)
+    }
+  }
+
+  /**
    * Clean up audio context
    */
   dispose(): void {

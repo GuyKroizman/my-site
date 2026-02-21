@@ -4,6 +4,7 @@ import { Track } from './Track'
 import { RaceManager } from './RaceManager'
 import { StartLights } from './StartLights'
 import { Mine } from './Mine'
+import { SoundGenerator } from './SoundGenerator'
 import { LevelConfig, CarConfig } from './levels'
 
 export interface RacingGameCallbacks {
@@ -33,6 +34,7 @@ export class RacingGameEngine {
   private pauseStartTime: number = 0
   private totalPauseTime: number = 0
   private mine: Mine | null = null
+  private soundGenerator: SoundGenerator = new SoundGenerator()
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig) {
     this.callbacks = callbacks
@@ -262,6 +264,7 @@ export class RacingGameEngine {
         if (car.launched || car.finished) continue
         if (this.mine.collidesWith(car.position)) {
           car.applyExplosionForce(this.mine.getPosition())
+          this.soundGenerator.playExplosionSound()
           this.mine.destroy()
           this.mine = null
           break
@@ -362,6 +365,7 @@ export class RacingGameEngine {
       this.mine.destroy()
       this.mine = null
     }
+    this.soundGenerator.dispose()
     this.cars.forEach(car => car.dispose())
     this.cars = []
     this.track.dispose()
