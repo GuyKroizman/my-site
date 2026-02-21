@@ -39,6 +39,15 @@ export class RacingGameEngine {
   private playerArrow: PlayerArrow | null = null
   private playerMineHitTime: number | null = null
 
+  // Cinematic camera intro
+  private cinematicActive: boolean = false
+  private cinematicTimer: number = 0
+  private gameplayCameraPos: THREE.Vector3 = new THREE.Vector3()
+  private cinematicStartPos: THREE.Vector3 = new THREE.Vector3()
+  private cinematicStartLookAt: THREE.Vector3 = new THREE.Vector3()
+  private readonly CINEMATIC_HOLD_DURATION: number = 0.5
+  private readonly CINEMATIC_SWEEP_DURATION: number = 2.0
+
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig) {
     this.callbacks = callbacks
     this.currentLevelConfig = levelConfig
@@ -88,7 +97,9 @@ export class RacingGameEngine {
         if (newWidth > 0 && newHeight > 0) {
           this.camera.aspect = newWidth / newHeight
           this.updateCameraPosition(newWidth, newHeight)
-          this.camera.lookAt(0, 0, 0)
+          if (!this.cinematicActive) {
+            this.camera.lookAt(0, 0, 0)
+          }
           this.camera.updateProjectionMatrix()
           this.renderer.setSize(newWidth, newHeight, false) // false = don't update style
         }
@@ -137,6 +148,9 @@ export class RacingGameEngine {
     // Create cars
     this.createCars()
 
+    // Initialize cinematic camera intro
+    this.initCinematicCamera()
+
     // Create player indicator arrow (visible during countdown)
     this.playerArrow = new PlayerArrow(this.scene)
 
@@ -156,32 +170,77 @@ export class RacingGameEngine {
 
   private updateCameraPosition(viewWidth: number, viewHeight: number) {
     const aspect = viewWidth / viewHeight
-
-    // Track outer bounds: roughly 42 units wide (-21 to +21) and 32 units tall (-16 to +16)
-    // We want to ensure the full track width (plus margin) is always visible
-    const trackWidth = 50 // 42 units + some margin
+    const trackWidth = 50
     const fovRad = (this.camera.fov * Math.PI) / 180
-
-    // Base camera position for landscape mode
     const baseCameraY = 25
     const baseCameraZ = 26
 
     if (aspect < 1) {
-      // Portrait mode: calculate exact camera height to fit track width
-      // For a camera looking at origin from (0, Y, Z), the visible width at y=0
-      // depends on the camera's distance and angle.
-      // 
-      // Simplified: visible width ≈ 2 * cameraY * tan(fov/2) * aspect
-      // Solving for cameraY: cameraY = trackWidth / (2 * tan(fov/2) * aspect)
-
       const requiredY = trackWidth / (2 * Math.tan(fovRad / 2) * aspect)
-      // Keep Z proportional to Y to maintain similar viewing angle
       const requiredZ = requiredY * (baseCameraZ / baseCameraY)
-
-      this.camera.position.set(0, requiredY, requiredZ)
+      this.gameplayCameraPos.set(0, requiredY, requiredZ)
     } else {
-      // Landscape mode: use base position
-      this.camera.position.set(0, baseCameraY, baseCameraZ)
+      this.gameplayCameraPos.set(0, baseCameraY, baseCameraZ)
+    }
+
+    if (!this.cinematicActive) {
+      this.camera.position.copy(this.gameplayCameraPos)
+    }
+  }
+
+  private smootherstep(t: number): number {
+    t = Math.max(0, Math.min(1, t))
+    return t * t * t * (t * (t * 6 - 15) + 10)
+  }
+
+  private initCinematicCamera() {
+    const carConfigs = this.currentLevelConfig.cars
+    let centerX = 0, centerZ = 0
+    carConfigs.forEach(config => {
+      centerX += config.x
+      centerZ += config.z
+    })
+    centerX /= carConfigs.length
+    centerZ /= carConfigs.length
+
+    this.cinematicStartPos.set(centerX + 8, 1.5, centerZ)
+    this.cinematicStartLookAt.set(centerX - 2, 0.5, centerZ)
+
+    this.camera.position.copy(this.cinematicStartPos)
+    this.camera.lookAt(this.cinematicStartLookAt)
+
+    this.cinematicActive = true
+    this.cinematicTimer = 0
+  }
+
+  private updateCinematicCamera(deltaTime: number) {
+    if (!this.cinematicActive) return
+
+    this.cinematicTimer += deltaTime
+
+    if (this.cinematicTimer <= this.CINEMATIC_HOLD_DURATION) {
+      this.camera.position.copy(this.cinematicStartPos)
+      this.camera.lookAt(this.cinematicStartLookAt)
+      return
+    }
+
+    const sweepTime = this.cinematicTimer - this.CINEMATIC_HOLD_DURATION
+    const t = Math.min(sweepTime / this.CINEMATIC_SWEEP_DURATION, 1)
+    const easedT = this.smootherstep(t)
+
+    this.camera.position.lerpVectors(this.cinematicStartPos, this.gameplayCameraPos, easedT)
+
+    const currentLookAt = new THREE.Vector3().lerpVectors(
+      this.cinematicStartLookAt,
+      new THREE.Vector3(0, 0, 0),
+      easedT
+    )
+    this.camera.lookAt(currentLookAt)
+
+    if (t >= 1) {
+      this.cinematicActive = false
+      this.camera.position.copy(this.gameplayCameraPos)
+      this.camera.lookAt(0, 0, 0)
     }
   }
 
@@ -316,6 +375,8 @@ export class RacingGameEngine {
       this.callbacks.onLapUpdate(playerCar.lapsCompleted)
     }
 
+    this.updateCinematicCamera(deltaTime)
+
     // Render
     this.renderer.render(this.scene, this.camera)
   }
@@ -327,6 +388,9 @@ export class RacingGameEngine {
     this.totalPauseTime = 0
     this.pauseStartTime = 0
     this.playerMineHitTime = null
+
+    // Reset cinematic camera
+    this.initCinematicCamera()
 
     // Reset start lights
     if (this.startLights) {
