@@ -23,6 +23,7 @@ export class GameManager {
   private state: GameState = 'menu'
   private callbacks: GameManagerCallbacks
   private lastRaceResult: RaceResult | null = null
+  private playerWonFirstPlace: boolean = false
 
   constructor(callbacks: GameManagerCallbacks) {
     this.callbacks = callbacks
@@ -50,6 +51,7 @@ export class GameManager {
 
   public startGame(): void {
     this.currentLevelIndex = 0
+    this.playerWonFirstPlace = false
     this.state = 'playing'
     this.lastRaceResult = null
     this.callbacks.onStateChange(this.state)
@@ -83,9 +85,40 @@ export class GameManager {
       levelPassed
     }
 
+    this.playerWonFirstPlace = playerPosition === 1
+
     this.state = 'raceComplete'
     this.callbacks.onStateChange(this.state)
     this.callbacks.onRaceResult(this.lastRaceResult)
+  }
+
+  private getLevelWithGridPosition(): LevelConfig {
+    const level = this.getCurrentLevel()
+    if (!this.playerWonFirstPlace) return level
+
+    const adjustedCars = level.cars.map(c => ({ ...c }))
+    const playerIndex = adjustedCars.findIndex(c => c.isPlayer)
+    if (playerIndex === -1) return level
+
+    const playerCar = adjustedCars[playerIndex]
+    const frontRowX = 1.5
+
+    if (playerCar.x === frontRowX) return level
+
+    const frontRowCar = adjustedCars.find(c => !c.isPlayer && c.x === frontRowX && c.z === playerCar.z)
+    if (frontRowCar) {
+      frontRowCar.x = playerCar.x
+      playerCar.x = frontRowX
+    } else {
+      const anyFrontRowCar = adjustedCars.find(c => !c.isPlayer && c.x === frontRowX)
+      if (anyFrontRowCar) {
+        const tmpX = anyFrontRowCar.x
+        anyFrontRowCar.x = playerCar.x
+        playerCar.x = tmpX
+      }
+    }
+
+    return { ...level, cars: adjustedCars }
   }
 
   public proceedAfterRace(): void {
@@ -99,7 +132,7 @@ export class GameManager {
         this.state = 'playing'
         this.lastRaceResult = null
         this.callbacks.onStateChange(this.state)
-        this.callbacks.onLevelChange(this.getCurrentLevel())
+        this.callbacks.onLevelChange(this.getLevelWithGridPosition())
       } else {
         // All levels completed - game won!
         this.state = 'gameWon'
