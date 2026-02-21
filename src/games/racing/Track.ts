@@ -478,22 +478,18 @@ export class Track {
     )
     this.trackMesh.add(topLeftInnerCorner)
 
-    // Create finish line - vertical, in the middle of the top lane
-    // Track surface top is at y: 0.1 (track center at 0.05 + half thickness 0.05)
-    const finishLineHeight = 0.8 // Height of the finish line (vertical, standing up)
-    // Track width spans from -trackWidth to +trackWidth in X direction (total width = trackWidth * 2)
-    // But we want it to span only the drivable track, not the outer borders
-    // The actual drivable track width is trackWidth * 2 = 12 units
-    const finishLineWidth = this.trackWidth * 2 // 12 units wide
-    const finishLineThickness = 0.2 // Thickness of the finish line
-    const finishLineGeometry = new THREE.BoxGeometry(finishLineThickness, finishLineHeight, finishLineWidth)
+    // Create finish line - a flat stripe on the track surface (painted line)
+    // Track surface top is at y: 0.1
+    const finishLineWidth = this.trackWidth * 2 // 12 units across the track (Z)
+    const finishLineLength = 0.4 // Length along track direction (X) - visible stripe
+    const finishLineHeight = 0.1 // Very thin so it sits on the track like paint
+    const finishLineGeometry = new THREE.BoxGeometry(finishLineLength, finishLineHeight, finishLineWidth)
     const finishLineMaterial = new THREE.MeshStandardMaterial({
       color: 0xffff00,
       flatShading: true
     })
     this.finishLine = new THREE.Mesh(finishLineGeometry, finishLineMaterial)
-    // Position at center of top lane (x: 0), standing on track surface (y: 0.1 + finishLineHeight/2), top of track (z: -width/2)
-    // Cars are at y: 0.5, so finish line extends from y: 0.1 to y: 0.9, cars pass through at y: 0.5
+    // Position at center of top lane (x: 0), flush on track surface (y: 0.1 + half thickness), top of track (z: -width/2)
     this.finishLine.position.set(0, 0.1 + finishLineHeight / 2, -width / 2)
     this.trackMesh.add(this.finishLine)
   }
