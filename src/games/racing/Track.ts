@@ -1094,24 +1094,59 @@ export class Track {
     return new THREE.Vector3(0, 0, -this.width / 2)
   }
 
-  public isOutsideOuterBorder(position: THREE.Vector3): boolean {
-    // Check if position is outside the outer track border
+  public isOutsideOuterBorder(position: THREE.Vector3, margin: number = 0): boolean {
+    // Check if position is outside the outer track border.
+    // When margin > 0 (e.g. car half-extent), bounds are inset so the car body stays on track.
     return (
-      position.x < this.outerBounds.minX ||
-      position.x > this.outerBounds.maxX ||
-      position.z < this.outerBounds.minZ ||
-      position.z > this.outerBounds.maxZ
+      position.x < this.outerBounds.minX + margin ||
+      position.x > this.outerBounds.maxX - margin ||
+      position.z < this.outerBounds.minZ + margin ||
+      position.z > this.outerBounds.maxZ - margin
     )
   }
 
-  public isInsideInnerArea(position: THREE.Vector3): boolean {
-    // Check if position is inside the inner area (grass/off-track)
+  public isInsideInnerArea(position: THREE.Vector3, margin: number = 0): boolean {
+    // Check if position is inside the inner area (grass/off-track).
+    // When margin > 0, inner bounds are expanded so we treat "near grass" as off-track.
     return (
-      position.x > this.innerBounds.minX &&
-      position.x < this.innerBounds.maxX &&
-      position.z > this.innerBounds.minZ &&
-      position.z < this.innerBounds.maxZ
+      position.x > this.innerBounds.minX - margin &&
+      position.x < this.innerBounds.maxX + margin &&
+      position.z > this.innerBounds.minZ - margin &&
+      position.z < this.innerBounds.maxZ + margin
     )
+  }
+
+  /**
+   * Clamps position to stay inside the outer track bounds (with margin) and returns
+   * the outward normals of any wall(s) hit. Used for wall-slide physics.
+   */
+  public clampPositionToOuterBounds(
+    position: THREE.Vector3,
+    margin: number
+  ): { clamped: THREE.Vector3; normals: THREE.Vector3[] } {
+    const minX = this.outerBounds.minX + margin
+    const maxX = this.outerBounds.maxX - margin
+    const minZ = this.outerBounds.minZ + margin
+    const maxZ = this.outerBounds.maxZ - margin
+    const clamped = position.clone()
+    const normals: THREE.Vector3[] = []
+    if (clamped.x < minX) {
+      clamped.x = minX
+      normals.push(new THREE.Vector3(1, 0, 0))
+    }
+    if (clamped.x > maxX) {
+      clamped.x = maxX
+      normals.push(new THREE.Vector3(-1, 0, 0))
+    }
+    if (clamped.z < minZ) {
+      clamped.z = minZ
+      normals.push(new THREE.Vector3(0, 0, 1))
+    }
+    if (clamped.z > maxZ) {
+      clamped.z = maxZ
+      normals.push(new THREE.Vector3(0, 0, -1))
+    }
+    return { clamped, normals }
   }
 
   // ==================== A* Navigation Grid Methods ====================

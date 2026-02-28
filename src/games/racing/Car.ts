@@ -57,6 +57,9 @@ export class Car {
   private lastCollisionTime: number = 0
   private collisionCooldown: number = 0.2 // Minimum time between collision sounds (seconds)
 
+  /** Half-extent of car for track boundary checks (keeps car body on track, not just center) */
+  private static readonly TRACK_COLLISION_MARGIN = 1.6
+
   constructor(
     x: number, 
     y: number, 
@@ -322,7 +325,7 @@ export class Car {
     )
 
     // Check if car is in inner area (off-track) - slow down significantly
-    const isOffTrack = track.isInsideInnerArea(this.position)
+    const isOffTrack = track.isInsideInnerArea(this.position, Car.TRACK_COLLISION_MARGIN)
     if (isOffTrack) {
       // Continuously reduce speed when off-track (grass) - apply friction
       this.speed *= 0.85 // Continuous friction on grass
@@ -339,18 +342,38 @@ export class Car {
 
     const newPosition = this.position.clone().add(direction.multiplyScalar(moveDistance))
 
-    // Check if position is outside outer border - block movement
-    if (track.isOutsideOuterBorder(newPosition)) {
-      // Block movement - don't allow car to go outside
-      this.speed *= 0.3 // Slow down significantly when hitting outer wall
-      // Push car back inside
-      const pushBack = direction.clone().multiplyScalar(-0.2)
-      this.position.add(pushBack)
-      return // Don't move forward
+    // Wall collision: slide along the rail instead of stopping dead
+    let positionAfterWall: THREE.Vector3
+    if (track.isOutsideOuterBorder(newPosition, Car.TRACK_COLLISION_MARGIN)) {
+      const { clamped, normals } = track.clampPositionToOuterBounds(
+        newPosition,
+        Car.TRACK_COLLISION_MARGIN
+      )
+      positionAfterWall = clamped
+      // Remove velocity component into the wall(s) so we slide along the rail
+      const velocity = direction.clone().multiplyScalar(this.speed)
+      const slideVelocity = velocity.clone()
+      for (const n of normals) {
+        const intoWall = slideVelocity.dot(n)
+        if (intoWall < 0) {
+          slideVelocity.addScaledVector(n, -intoWall)
+        }
+      }
+      const slideSpeed = slideVelocity.length()
+      this.speed = slideSpeed
+      if (slideSpeed > 0.05) {
+        this.rotation = Math.atan2(slideVelocity.x, slideVelocity.z)
+      }
+      // Slight speed loss on impact (friction against wall)
+      this.speed *= 0.92
+    } else {
+      positionAfterWall = newPosition
     }
 
+    this.position.copy(positionAfterWall)
+
     // Check collision with other cars and handle repulsion
-    const collisionResult = this.checkCollisionWithRepulsion(newPosition, allCars)
+    const collisionResult = this.checkCollisionWithRepulsion(positionAfterWall, allCars)
     if (collisionResult.collided) {
       // Play crash sound if enough time has passed since last collision
       const currentTime = performance.now() / 1000
@@ -379,7 +402,7 @@ export class Car {
         this.rotation -= rotationAmount
       }
     } else {
-      this.position.copy(newPosition)
+      this.position.copy(positionAfterWall)
     }
 
     // Update mesh position and rotation
