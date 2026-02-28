@@ -31,7 +31,7 @@ export const level2: LevelConfig = {
       z: -10,
       color: 0x0000ff,
       name: 'Blue Cruiser',
-      modelPath: '/racing/models/sport_car.fbx',
+      modelPath: '/racing/models/sport_car.glb',
       isPlayer: false,
       characteristics: {
         // Improved all-rounder
