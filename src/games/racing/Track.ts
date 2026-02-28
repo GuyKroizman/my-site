@@ -247,6 +247,41 @@ export class Track {
     trackSurface.castShadow = true
     this.trackMesh.add(trackSurface)
 
+    // Infield plane: fill the hole so the middle is not see-through
+    const infieldShape = new THREE.Shape()
+    infieldShape.moveTo(innerMinX, innerMinZ + radius)
+    infieldShape.absarc(innerMinX + radius, innerMinZ + radius, radius, Math.PI, Math.PI * 1.5, false)
+    infieldShape.lineTo(innerMaxX - radius, innerMinZ)
+    infieldShape.absarc(innerMaxX - radius, innerMinZ + radius, radius, Math.PI * 1.5, 0, false)
+    infieldShape.lineTo(innerMaxX, innerMaxZ - radius)
+    infieldShape.absarc(innerMaxX - radius, innerMaxZ - radius, radius, 0, Math.PI / 2, false)
+    infieldShape.lineTo(innerMinX + radius, innerMaxZ)
+    infieldShape.absarc(innerMinX + radius, innerMaxZ - radius, radius, Math.PI / 2, Math.PI, false)
+    infieldShape.lineTo(innerMinX, innerMinZ + radius)
+    const infieldGeometry = new THREE.ShapeGeometry(infieldShape, 32)
+    const infieldMaterial = new THREE.MeshStandardMaterial({
+      color: 0x555555,
+      flatShading: true
+    })
+    const infieldPlane = new THREE.Mesh(infieldGeometry, infieldMaterial)
+    infieldPlane.rotation.x = -Math.PI / 2
+    infieldPlane.position.y = 0.02
+    infieldPlane.receiveShadow = true
+    this.trackMesh.add(infieldPlane)
+
+    // Large ground plane around the track so no edge is visible
+    const groundSize = 500
+    const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize)
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: 0x444444,
+      flatShading: true
+    })
+    const groundPlane = new THREE.Mesh(groundGeometry, groundMaterial)
+    groundPlane.rotation.x = -Math.PI / 2
+    groundPlane.position.y = 0
+    groundPlane.receiveShadow = true
+    this.trackMesh.add(groundPlane)
+
     // Add lane divider stripes (center line)
     this.addLaneDividers()
     // Add solid shoulder lines near both road edges

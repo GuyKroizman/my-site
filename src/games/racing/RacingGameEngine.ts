@@ -38,6 +38,7 @@ export class RacingGameEngine {
   private soundGenerator: SoundGenerator = new SoundGenerator()
   private playerArrow: PlayerArrow | null = null
   private playerMineHitTime: number | null = null
+  private backgroundTexture: THREE.Texture | null = null
 
   // Cinematic camera intro
   private cinematicActive: boolean = false
@@ -59,7 +60,16 @@ export class RacingGameEngine {
 
     // Scene setup
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x87ceeb) // Sky blue
+    this.scene.background = new THREE.Color(0x87ceeb)
+    if (levelConfig.id === 1) {
+      const loader = new THREE.TextureLoader()
+      loader.load('/racing/sunset-skybox.png', (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping
+        texture.colorSpace = THREE.SRGBColorSpace
+        this.scene.background = texture
+        this.backgroundTexture = texture
+      })
+    }
 
     // Camera setup - top-down, slightly angled
     const width = Math.max(container.clientWidth || window.innerWidth, 1)
@@ -474,6 +484,11 @@ export class RacingGameEngine {
     this.cars.forEach(car => car.dispose())
     this.cars = []
     this.track.dispose()
+    if (this.backgroundTexture) {
+      this.backgroundTexture.dispose()
+      this.backgroundTexture = null
+    }
+    this.scene.background = null
 
     if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentNode) {
       this.renderer.domElement.parentNode.removeChild(this.renderer.domElement)
