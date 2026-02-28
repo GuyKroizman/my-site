@@ -57,8 +57,10 @@ export class Car {
   private lastCollisionTime: number = 0
   private collisionCooldown: number = 0.2 // Minimum time between collision sounds (seconds)
 
-  /** Half-extent of car for track boundary checks (keeps car body on track, not just center) */
+  /** Half-extent of car for outer track boundary checks (keeps car body on track, not just center) */
   private static readonly TRACK_COLLISION_MARGIN = 1.6
+  /** Tighter margin for inner rail so the car visually touches the rail before bouncing */
+  private static readonly INNER_RAIL_MARGIN = 0.7
 
   constructor(
     x: number, 
@@ -324,22 +326,6 @@ export class Car {
       Math.cos(this.rotation)
     )
 
-    // Check if car is in inner area (off-track) - slow down significantly
-    const isOffTrack = track.isInsideInnerArea(this.position, Car.TRACK_COLLISION_MARGIN)
-    if (isOffTrack) {
-      // Continuously reduce speed when off-track (grass) - apply friction
-      this.speed *= 0.85 // Continuous friction on grass
-      // Also limit max speed when off-track
-      const maxSpeedOnGrass = this.maxSpeed * 0.3
-      if (this.speed > maxSpeedOnGrass) {
-        this.speed = maxSpeedOnGrass
-      }
-      // Ensure AI cars never go backwards
-      if (!this.isPlayer) {
-        this.speed = Math.max(0, this.speed)
-      }
-    }
-
     const newPosition = this.position.clone().add(direction.multiplyScalar(moveDistance))
 
     // Wall collision: slide along the rail instead of stopping dead
@@ -366,6 +352,15 @@ export class Car {
       }
       // Slight speed loss on impact (friction against wall)
       this.speed *= 0.92
+    } else if (track.isInsideInnerArea(newPosition, Car.INNER_RAIL_MARGIN)) {
+      // Inner rail: just clamp position, don't touch speed or rotation.
+      // The clamping naturally lets the car slide along the wall
+      // (only the axis perpendicular to the wall is clamped, the other axis moves freely).
+      const { clamped } = track.clampPositionToInnerBounds(
+        newPosition,
+        Car.INNER_RAIL_MARGIN
+      )
+      positionAfterWall = clamped
     } else {
       positionAfterWall = newPosition
     }

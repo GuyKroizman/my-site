@@ -1184,6 +1184,55 @@ export class Track {
     return { clamped, normals }
   }
 
+  /**
+   * Clamps position to stay outside the inner track bounds (inner rail / infield).
+   * If position is inside the inner area (with margin), clamps to the nearest
+   * point on the inner boundary (single nearest edge only) so the car doesn't
+   * teleport to a corner. Returns normals pointing outward from the inner area.
+   */
+  public clampPositionToInnerBounds(
+    position: THREE.Vector3,
+    margin: number
+  ): { clamped: THREE.Vector3; normals: THREE.Vector3[] } {
+    const minX = this.innerBounds.minX - margin
+    const maxX = this.innerBounds.maxX + margin
+    const minZ = this.innerBounds.minZ - margin
+    const maxZ = this.innerBounds.maxZ + margin
+    const clamped = position.clone()
+    const normals: THREE.Vector3[] = []
+
+    const insideX = clamped.x > minX && clamped.x < maxX
+    const insideZ = clamped.z > minZ && clamped.z < maxZ
+    if (!insideX && !insideZ) return { clamped, normals }
+
+    // Only push to the single nearest edge to avoid teleporting to a corner
+    const distToMinX = clamped.x - minX
+    const distToMaxX = maxX - clamped.x
+    const distToMinZ = clamped.z - minZ
+    const distToMaxZ = maxZ - clamped.z
+
+    const dMinX = insideX ? distToMinX : Infinity
+    const dMaxX = insideX ? distToMaxX : Infinity
+    const dMinZ = insideZ ? distToMinZ : Infinity
+    const dMaxZ = insideZ ? distToMaxZ : Infinity
+
+    const minDist = Math.min(dMinX, dMaxX, dMinZ, dMaxZ)
+    if (minDist === dMinX) {
+      clamped.x = minX
+      normals.push(new THREE.Vector3(-1, 0, 0))
+    } else if (minDist === dMaxX) {
+      clamped.x = maxX
+      normals.push(new THREE.Vector3(1, 0, 0))
+    } else if (minDist === dMinZ) {
+      clamped.z = minZ
+      normals.push(new THREE.Vector3(0, 0, -1))
+    } else {
+      clamped.z = maxZ
+      normals.push(new THREE.Vector3(0, 0, 1))
+    }
+    return { clamped, normals }
+  }
+
   // ==================== A* Navigation Grid Methods ====================
 
   /**
