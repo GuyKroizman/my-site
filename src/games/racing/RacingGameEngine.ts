@@ -6,6 +6,7 @@ import { StartLights } from './StartLights'
 import { Mine } from './Mine'
 import { SoundGenerator } from './SoundGenerator'
 import { PlayerArrow } from './PlayerArrow'
+import { BackgroundEye } from './BackgroundEye'
 import { LevelConfig, CarConfig } from './levels'
 
 export interface RacingGameCallbacks {
@@ -39,6 +40,7 @@ export class RacingGameEngine {
   private playerArrow: PlayerArrow | null = null
   private playerMineHitTime: number | null = null
   private backgroundTexture: THREE.Texture | null = null
+  private backgroundEye: BackgroundEye | null = null
 
   // Cinematic camera intro
   private cinematicActive: boolean = false
@@ -169,6 +171,9 @@ export class RacingGameEngine {
       const minePos = this.track.getRandomPointOnTrack()
       this.mine = new Mine(this.scene, minePos.x, minePos.z)
     }
+
+    // Giant eye in the background (pupil animates to look around)
+    this.backgroundEye = new BackgroundEye(this.scene)
 
     // Initialize frame time tracking
     this.lastFrameTime = performance.now() / 1000
@@ -387,6 +392,10 @@ export class RacingGameEngine {
 
     this.updateCinematicCamera(deltaTime)
 
+    if (this.backgroundEye) {
+      this.backgroundEye.update(deltaTime)
+    }
+
     // Render
     this.renderer.render(this.scene, this.camera)
   }
@@ -487,6 +496,10 @@ export class RacingGameEngine {
     if (this.backgroundTexture) {
       this.backgroundTexture.dispose()
       this.backgroundTexture = null
+    }
+    if (this.backgroundEye) {
+      this.backgroundEye.dispose()
+      this.backgroundEye = null
     }
     this.scene.background = null
 
