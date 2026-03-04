@@ -11,8 +11,8 @@ const MOVE_SPEED_MAX = 5
 
 const STROLL_Z = -25
 const STROLL_DURATION = 10
-const STROLL_START_X = 42
-const STROLL_SPEED = -3.2
+const STROLL_START_X = 62
+const STROLL_SPEED = -5
 
 /** Finds a child object by name (case-insensitive), including nested. */
 function findByName(obj: THREE.Object3D, name: string): THREE.Object3D | null {
