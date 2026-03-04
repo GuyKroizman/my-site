@@ -21,7 +21,7 @@ export class StartLights {
     this.soundGenerator = new SoundGenerator()
     this.lightsGroup = new THREE.Group()
 
-    // Position lights at the top of the screen, below the level name
+    // Position lights at the top of the screen
     // Center horizontally, high on Y axis, close to camera
     const lightX = 0 // Centered horizontally
     const lightY = 3 // Above the ground plane so lights are visible

@@ -226,7 +226,6 @@ export default function RacingGame() {
 
         {uiState === 'playing' && currentLevel && (
           <GameHUD
-            currentLevel={currentLevel}
             playerLaps={playerLaps}
             requiredLaps={requiredLaps}
             raceTime={raceTime}
