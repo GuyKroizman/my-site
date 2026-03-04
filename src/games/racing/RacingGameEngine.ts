@@ -172,29 +172,29 @@ export class RacingGameEngine {
       this.mine = new Mine(this.scene, minePos.x, minePos.z)
     }
 
-    // Big eye: from the right, strolls left and stops after 10s
-    this.backgroundEyes.push(
-      new BackgroundEye(this.scene, {
-        position: { x: 62, y: 4, z: -25 },
-        stroll: {
-          delay: 10,
-          duration: 15,
-          endPosition: { x: 10, y: 4, z: -17 }
-        }
-      })
-    )
-    // Small eye: half size, starts 10s later from far right and up, strolls to near big eye
-    this.backgroundEyes.push(
-      new BackgroundEye(this.scene, {
-        position: { x: 62, y: 4, z: -25 },
-        scaleMultiplier: 0.5,
-        stroll: {
-          delay: 24,
-          duration: 10,
-          endPosition: { x: 5, y: 4, z: -22 }
-        }
-      })
-    )
+    if (this.currentLevelConfig.id === 1) {
+      this.backgroundEyes.push(
+        new BackgroundEye(this.scene, {
+          position: { x: 62, y: 4, z: -25 },
+          stroll: {
+            delay: 10,
+            duration: 15,
+            endPosition: { x: 10, y: 4, z: -17 }
+          }
+        })
+      )
+      this.backgroundEyes.push(
+        new BackgroundEye(this.scene, {
+          position: { x: 62, y: 4, z: -25 },
+          scaleMultiplier: 0.5,
+          stroll: {
+            delay: 24,
+            duration: 10,
+            endPosition: { x: 5, y: 4, z: -22 }
+          }
+        })
+      )
+    }
 
     // Initialize frame time tracking
     this.lastFrameTime = performance.now() / 1000
