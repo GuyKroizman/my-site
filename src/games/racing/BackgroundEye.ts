@@ -9,6 +9,11 @@ const HOLD_DURATION_MAX = 2.2
 const MOVE_SPEED_MIN = 0.8
 const MOVE_SPEED_MAX = 5
 
+const STROLL_Z = -25
+const STROLL_DURATION = 10
+const STROLL_START_X = 42
+const STROLL_SPEED = -3.2
+
 /** Finds a child object by name (case-insensitive), including nested. */
 function findByName(obj: THREE.Object3D, name: string): THREE.Object3D | null {
   if (obj.name.toLowerCase() === name.toLowerCase()) return obj
@@ -27,10 +32,11 @@ export class BackgroundEye {
   private holdDuration: number = 1
   private moveSpeed: number = 2
   private isHolding: boolean = true
+  private strollTimer: number = 0
 
   constructor(scene: THREE.Scene) {
     this.mesh = new THREE.Group()
-    this.mesh.position.set(2, 4, -17)
+    this.mesh.position.set(STROLL_START_X, 4, STROLL_Z)
     this.mesh.rotation.order = 'YXZ'
     this.mesh.rotation.x = 0
     this.mesh.rotation.y = 0
@@ -81,6 +87,13 @@ export class BackgroundEye {
   }
 
   public update(deltaTime: number): void {
+    if (this.strollTimer < STROLL_DURATION) {
+      this.strollTimer += deltaTime
+      if (this.strollTimer < STROLL_DURATION) {
+        this.mesh.position.x += STROLL_SPEED * deltaTime
+      }
+    }
+
     if (!this.pupil) return
 
     if (this.isHolding) {
