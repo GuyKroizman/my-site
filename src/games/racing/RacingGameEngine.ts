@@ -277,6 +277,10 @@ export class RacingGameEngine {
       this.cinematicActive = false
       this.camera.position.copy(this.gameplayCameraPos)
       this.camera.lookAt(0, 0, 0)
+
+      if (this.startLights) {
+        this.startLights.startSequence()
+      }
     }
   }
 

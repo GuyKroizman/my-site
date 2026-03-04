@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { SoundGenerator } from './SoundGenerator'
 
-export type StartLightState = 'red' | 'orange' | 'green' | 'go' | 'complete'
+export type StartLightState = 'waiting' | 'red' | 'orange' | 'green' | 'go' | 'complete'
 
 export class StartLights {
   private scene: THREE.Scene
@@ -10,7 +10,7 @@ export class StartLights {
   private orangeLight: THREE.Mesh
   private greenLight: THREE.Mesh
   private goText: THREE.Mesh | null = null
-  private state: StartLightState = 'red'
+  private state: StartLightState = 'waiting'
   private stateTimer: number = 0
   private onComplete: () => void
   private soundGenerator: SoundGenerator
@@ -76,9 +76,7 @@ export class StartLights {
 
     // Add lights to scene
     this.scene.add(this.lightsGroup)
-
-    // Start with red light on
-    this.activateRed()
+    this.lightsGroup.visible = false
   }
 
   private activateRed() {
@@ -211,8 +209,14 @@ export class StartLights {
     this.stateTimer = 0
   }
 
+  public startSequence() {
+    if (this.state !== 'waiting') return
+    this.lightsGroup.visible = true
+    this.activateRed()
+  }
+
   public update(deltaTime: number) {
-    if (this.state === 'complete') return
+    if (this.state === 'complete' || this.state === 'waiting') return
 
     this.stateTimer += deltaTime
 
@@ -264,8 +268,7 @@ export class StartLights {
   }
 
   public reset() {
-    // Reset to initial state
-    this.state = 'red'
+    this.state = 'waiting'
     this.stateTimer = 0
 
     // Remove "Go!" text if it exists
@@ -282,11 +285,7 @@ export class StartLights {
       this.goText = null
     }
 
-    // Show lights again
-    this.lightsGroup.visible = true
-
-    // Start with red light on
-    this.activateRed()
+    this.lightsGroup.visible = false
   }
 
   public dispose() {
