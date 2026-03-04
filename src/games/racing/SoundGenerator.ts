@@ -225,8 +225,8 @@ export class SoundGenerator {
       filter.connect(gain)
       gain.connect(ctx.destination)
 
-      // Use provided volume, or randomize for variety (0.49-0.7, which is 70% of original 0.7-1.0 range)
-      const initialVolume = volume !== undefined ? volume : (0.7 + Math.random() * 0.3) * 0.7
+      // Use provided volume, or randomize for variety at lower level so bumps aren't overpowering
+      const initialVolume = volume !== undefined ? volume : 0.2 + Math.random() * 0.15
       
       // Much shorter, sharper decay for car crash (0.08-0.2 seconds)
       // Car crashes are abrupt, not sustained
