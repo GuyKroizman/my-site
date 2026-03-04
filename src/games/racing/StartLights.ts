@@ -35,9 +35,11 @@ export class StartLights {
     // Red light (left)
     const redGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
     const redMaterial = new THREE.MeshStandardMaterial({
-      color: 0x333333, // Dark when off
+      color: 0x333333,
       emissive: 0x000000,
-      emissiveIntensity: 0
+      emissiveIntensity: 0,
+      transparent: true,
+      opacity: 0.5
     })
     this.redLight = new THREE.Mesh(redGeometry, redMaterial)
     this.redLight.position.set(lightX - lightSpacing, lightY, lightZ)
@@ -47,9 +49,11 @@ export class StartLights {
     // Orange light (middle)
     const orangeGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
     const orangeMaterial = new THREE.MeshStandardMaterial({
-      color: 0x333333, // Dark when off
+      color: 0x333333,
       emissive: 0x000000,
-      emissiveIntensity: 0
+      emissiveIntensity: 0,
+      transparent: true,
+      opacity: 0.5
     })
     this.orangeLight = new THREE.Mesh(orangeGeometry, orangeMaterial)
     this.orangeLight.position.set(lightX, lightY, lightZ)
@@ -59,9 +63,11 @@ export class StartLights {
     // Green light (right)
     const greenGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
     const greenMaterial = new THREE.MeshStandardMaterial({
-      color: 0x333333, // Dark when off
+      color: 0x333333,
       emissive: 0x000000,
-      emissiveIntensity: 0
+      emissiveIntensity: 0,
+      transparent: true,
+      opacity: 0.5
     })
     this.greenLight = new THREE.Mesh(greenGeometry, greenMaterial)
     this.greenLight.position.set(lightX + lightSpacing, lightY, lightZ)
@@ -78,22 +84,23 @@ export class StartLights {
   private activateRed() {
     this.state = 'red'
     this.stateTimer = 0
-    // Turn on red light
     const redMaterial = this.redLight.material as THREE.MeshStandardMaterial
     redMaterial.color.setHex(0xff0000)
     redMaterial.emissive.setHex(0xff0000)
     redMaterial.emissiveIntensity = 1
+    redMaterial.opacity = 1
 
-    // Turn off orange and green
     const orangeMaterial = this.orangeLight.material as THREE.MeshStandardMaterial
     orangeMaterial.color.setHex(0x333333)
     orangeMaterial.emissive.setHex(0x000000)
     orangeMaterial.emissiveIntensity = 0
+    orangeMaterial.opacity = 0.5
 
     const greenMaterial = this.greenLight.material as THREE.MeshStandardMaterial
     greenMaterial.color.setHex(0x333333)
     greenMaterial.emissive.setHex(0x000000)
     greenMaterial.emissiveIntensity = 0
+    greenMaterial.opacity = 0.5
 
     // Play low beep for red light (subtle, optional)
     this.soundGenerator.playBeep(250, 0.1, 0.3)
@@ -102,23 +109,23 @@ export class StartLights {
   private activateOrange() {
     this.state = 'orange'
     this.stateTimer = 0
-    // Turn off red
     const redMaterial = this.redLight.material as THREE.MeshStandardMaterial
     redMaterial.color.setHex(0x333333)
     redMaterial.emissive.setHex(0x000000)
     redMaterial.emissiveIntensity = 0
+    redMaterial.opacity = 0.5
 
-    // Turn on orange
     const orangeMaterial = this.orangeLight.material as THREE.MeshStandardMaterial
     orangeMaterial.color.setHex(0xff8800)
     orangeMaterial.emissive.setHex(0xff8800)
     orangeMaterial.emissiveIntensity = 1
+    orangeMaterial.opacity = 1
 
-    // Green still off
     const greenMaterial = this.greenLight.material as THREE.MeshStandardMaterial
     greenMaterial.color.setHex(0x333333)
     greenMaterial.emissive.setHex(0x000000)
     greenMaterial.emissiveIntensity = 0
+    greenMaterial.opacity = 0.5
 
     // Play medium beep for orange light
     this.soundGenerator.playBeep(450, 0.1, 0.5)
@@ -127,17 +134,17 @@ export class StartLights {
   private activateGreen() {
     this.state = 'green'
     this.stateTimer = 0
-    // Turn off orange
     const orangeMaterial = this.orangeLight.material as THREE.MeshStandardMaterial
     orangeMaterial.color.setHex(0x333333)
     orangeMaterial.emissive.setHex(0x000000)
     orangeMaterial.emissiveIntensity = 0
+    orangeMaterial.opacity = 0.5
 
-    // Turn on green
     const greenMaterial = this.greenLight.material as THREE.MeshStandardMaterial
     greenMaterial.color.setHex(0x00ff00)
     greenMaterial.emissive.setHex(0x00ff00)
     greenMaterial.emissiveIntensity = 1
+    greenMaterial.opacity = 1
 
     // Play higher beep for green light (ready signal)
     this.soundGenerator.playBeep(700, 0.15, 0.7)
