@@ -71,6 +71,57 @@ export class Track {
     }
   }
 
+  private createGrassTexture(): THREE.CanvasTexture {
+    const size = 32
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')!
+
+    const baseColors = [
+      [58, 107, 35],
+      [68, 120, 40],
+      [50, 95, 30],
+      [75, 130, 45],
+      [45, 85, 28],
+    ]
+    const dirtColors = [
+      [100, 80, 50],
+      [90, 72, 45],
+      [85, 68, 40],
+    ]
+
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const r = Math.random()
+        let color: number[]
+        if (r < 0.08) {
+          color = dirtColors[Math.floor(Math.random() * dirtColors.length)]
+        } else if (r < 0.25) {
+          // Brighter grass blades
+          color = [
+            60 + Math.floor(Math.random() * 40),
+            130 + Math.floor(Math.random() * 50),
+            30 + Math.floor(Math.random() * 25),
+          ]
+        } else {
+          color = baseColors[Math.floor(Math.random() * baseColors.length)]
+        }
+        // Small per-pixel brightness variation
+        const v = 0.9 + Math.random() * 0.2
+        ctx.fillStyle = `rgb(${Math.floor(color[0] * v)},${Math.floor(color[1] * v)},${Math.floor(color[2] * v)})`
+        ctx.fillRect(x, y, 1, 1)
+      }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.wrapS = THREE.RepeatWrapping
+    texture.wrapT = THREE.RepeatWrapping
+    texture.magFilter = THREE.NearestFilter
+    texture.minFilter = THREE.NearestFilter
+    return texture
+  }
+
   private createRectangularTrack() {
     // Create a rectangular track
     this.length = 30
@@ -247,6 +298,8 @@ export class Track {
     trackSurface.castShadow = true
     this.trackMesh.add(trackSurface)
 
+    const grassTexture = this.createGrassTexture()
+
     // Infield plane: fill the hole so the middle is not see-through
     const infieldShape = new THREE.Shape()
     infieldShape.moveTo(innerMinX, innerMinZ + radius)
@@ -259,8 +312,14 @@ export class Track {
     infieldShape.absarc(innerMinX + radius, innerMaxZ - radius, radius, Math.PI / 2, Math.PI, false)
     infieldShape.lineTo(innerMinX, innerMinZ + radius)
     const infieldGeometry = new THREE.ShapeGeometry(infieldShape, 32)
+    // ShapeGeometry UVs use raw shape coordinates (roughly -9..9, -4..4),
+    // so repeat must be 1/tileSize to match the ground plane density.
+    const tileWorldSize = 8.33
+    const infieldTexture = grassTexture.clone()
+    infieldTexture.needsUpdate = true
+    infieldTexture.repeat.set(1 / tileWorldSize, 1 / tileWorldSize)
     const infieldMaterial = new THREE.MeshStandardMaterial({
-      color: 0x555555,
+      map: infieldTexture,
       flatShading: true
     })
     const infieldPlane = new THREE.Mesh(infieldGeometry, infieldMaterial)
@@ -272,8 +331,12 @@ export class Track {
     // Large ground plane around the track so no edge is visible
     const groundSize = 500
     const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize)
+    // PlaneGeometry UVs are 0..1, so repeat = worldSize / tileSize
+    const groundTexture = grassTexture.clone()
+    groundTexture.needsUpdate = true
+    groundTexture.repeat.set(groundSize / tileWorldSize, groundSize / tileWorldSize)
     const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x444444,
+      map: groundTexture,
       flatShading: true
     })
     const groundPlane = new THREE.Mesh(groundGeometry, groundMaterial)
