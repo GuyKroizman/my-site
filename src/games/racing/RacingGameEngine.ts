@@ -40,7 +40,7 @@ export class RacingGameEngine {
   private playerArrow: PlayerArrow | null = null
   private playerMineHitTime: number | null = null
   private backgroundTexture: THREE.Texture | null = null
-  private backgroundEye: BackgroundEye | null = null
+  private backgroundEyes: BackgroundEye[] = []
 
   // Cinematic camera intro
   private cinematicActive: boolean = false
@@ -172,8 +172,29 @@ export class RacingGameEngine {
       this.mine = new Mine(this.scene, minePos.x, minePos.z)
     }
 
-    // Giant eye in the background (pupil animates to look around)
-    this.backgroundEye = new BackgroundEye(this.scene)
+    // Big eye: from the right, strolls left and stops after 10s
+    this.backgroundEyes.push(
+      new BackgroundEye(this.scene, {
+        position: { x: 62, y: 4, z: -25 },
+        stroll: {
+          delay: 10,
+          duration: 15,
+          endPosition: { x: 10, y: 4, z: -17 }
+        }
+      })
+    )
+    // Small eye: half size, starts 10s later from far right and up, strolls to near big eye
+    this.backgroundEyes.push(
+      new BackgroundEye(this.scene, {
+        position: { x: 62, y: 4, z: -25 },
+        scaleMultiplier: 0.5,
+        stroll: {
+          delay: 24,
+          duration: 10,
+          endPosition: { x: 5, y: 4, z: -22 }
+        }
+      })
+    )
 
     // Initialize frame time tracking
     this.lastFrameTime = performance.now() / 1000
@@ -392,9 +413,7 @@ export class RacingGameEngine {
 
     this.updateCinematicCamera(deltaTime)
 
-    if (this.backgroundEye) {
-      this.backgroundEye.update(deltaTime)
-    }
+    this.backgroundEyes.forEach((eye) => eye.update(deltaTime))
 
     // Render
     this.renderer.render(this.scene, this.camera)
@@ -497,10 +516,8 @@ export class RacingGameEngine {
       this.backgroundTexture.dispose()
       this.backgroundTexture = null
     }
-    if (this.backgroundEye) {
-      this.backgroundEye.dispose()
-      this.backgroundEye = null
-    }
+    this.backgroundEyes.forEach((eye) => eye.dispose())
+    this.backgroundEyes = []
     this.scene.background = null
 
     if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentNode) {
