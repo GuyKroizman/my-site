@@ -5,6 +5,7 @@ export const level1: LevelConfig = {
   name: "Beginner's Oval",
   description: 'A simple oval track to get you started. Finish in the top 3 to advance.',
   requiredLaps: 4,
+  groundTheme: 'grass',
   winCondition: {
     maxPosition: 3 // Finish top 3 to win
   },

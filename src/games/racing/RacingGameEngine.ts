@@ -130,8 +130,8 @@ export class RacingGameEngine {
       setTimeout(handleResize, 100)
     })
 
-    // Create track
-    this.track = new Track(this.scene)
+    // Create track (with level-specific ground/grass theme)
+    this.track = new Track(this.scene, undefined, this.currentLevelConfig.groundTheme)
 
     // Create navigation grid for A* pathfinding
     this.track.createNavigationGrid(1.0)

@@ -5,6 +5,7 @@ export const level5: LevelConfig = {
   name: "Master's Challenge",
   description: 'The ultimate test! Push your skills to the limit. Finish first to claim victory.',
   requiredLaps: 4,
+  groundTheme: 'snow',
   winCondition: {
     maxPosition: 1 // Must finish first to win
   },

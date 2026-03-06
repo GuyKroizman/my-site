@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import PF from 'pathfinding'
+import type { GroundTheme } from './levels/types'
 
 export interface Checkpoint {
   id: number
@@ -42,8 +43,11 @@ export class Track {
   private navGridOffsetX: number = 0 // World X coordinate of grid origin
   private navGridOffsetZ: number = 0 // World Z coordinate of grid origin
 
-  constructor(scene: THREE.Scene, checkpointConfigs?: CheckpointConfig[]) {
+  private groundTheme: GroundTheme = 'grass'
+
+  constructor(scene: THREE.Scene, checkpointConfigs?: CheckpointConfig[], groundTheme?: GroundTheme) {
     this.trackMesh = new THREE.Group()
+    if (groundTheme) this.groundTheme = groundTheme
     this.createRectangularTrack()
 
     // Create checkpoints - use provided configs or default rectangular track checkpoints
@@ -71,6 +75,39 @@ export class Track {
     }
   }
 
+  private static GROUND_PALETTES: Record<GroundTheme, { base: number[][]; accent: number[][]; dirt: number[][] }> = {
+    grass: {
+      base: [[58, 107, 35], [68, 120, 40], [50, 95, 30], [75, 130, 45], [45, 85, 28]],
+      accent: [[60, 130, 30], [80, 150, 40], [70, 140, 35], [90, 160, 45]],
+      dirt: [[100, 80, 50], [90, 72, 45], [85, 68, 40]],
+    },
+    dry: {
+      base: [[140, 120, 50], [150, 130, 55], [130, 110, 45], [160, 138, 58], [120, 100, 42]],
+      accent: [[165, 145, 60], [175, 155, 65], [155, 135, 55]],
+      dirt: [[110, 85, 55], [100, 75, 48], [95, 70, 45]],
+    },
+    sand: {
+      base: [[210, 185, 130], [218, 192, 138], [200, 178, 122], [222, 198, 145], [195, 172, 118]],
+      accent: [[225, 205, 155], [232, 212, 162], [218, 198, 148]],
+      dirt: [[160, 130, 90], [150, 120, 82], [145, 115, 78]],
+    },
+    snow: {
+      base: [[230, 238, 245], [235, 242, 248], [225, 233, 242], [238, 245, 250], [222, 230, 240]],
+      accent: [[240, 248, 252], [245, 250, 254], [235, 242, 248]],
+      dirt: [[180, 190, 200], [170, 180, 190], [165, 175, 185]],
+    },
+    dirt: {
+      base: [[120, 90, 60], [110, 82, 55], [130, 98, 65], [115, 85, 58], [125, 92, 62]],
+      accent: [[140, 105, 70], [135, 100, 68], [145, 110, 72]],
+      dirt: [[95, 70, 45], [88, 65, 42], [85, 62, 40]],
+    },
+    autumn: {
+      base: [[160, 95, 40], [170, 100, 45], [150, 90, 38], [178, 108, 48], [145, 85, 35]],
+      accent: [[190, 115, 55], [185, 110, 52], [195, 120, 58]],
+      dirt: [[100, 75, 50], [92, 70, 46], [88, 66, 43]],
+    },
+  }
+
   private createGrassTexture(): THREE.CanvasTexture {
     const size = 32
     const canvas = document.createElement('canvas')
@@ -78,18 +115,8 @@ export class Track {
     canvas.height = size
     const ctx = canvas.getContext('2d')!
 
-    const baseColors = [
-      [58, 107, 35],
-      [68, 120, 40],
-      [50, 95, 30],
-      [75, 130, 45],
-      [45, 85, 28],
-    ]
-    const dirtColors = [
-      [100, 80, 50],
-      [90, 72, 45],
-      [85, 68, 40],
-    ]
+    const pal = Track.GROUND_PALETTES[this.groundTheme]
+    const { base: baseColors, accent: accentColors, dirt: dirtColors } = pal
 
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
@@ -98,16 +125,10 @@ export class Track {
         if (r < 0.08) {
           color = dirtColors[Math.floor(Math.random() * dirtColors.length)]
         } else if (r < 0.25) {
-          // Brighter grass blades
-          color = [
-            60 + Math.floor(Math.random() * 40),
-            130 + Math.floor(Math.random() * 50),
-            30 + Math.floor(Math.random() * 25),
-          ]
+          color = accentColors[Math.floor(Math.random() * accentColors.length)]
         } else {
           color = baseColors[Math.floor(Math.random() * baseColors.length)]
         }
-        // Small per-pixel brightness variation
         const v = 0.9 + Math.random() * 0.2
         ctx.fillStyle = `rgb(${Math.floor(color[0] * v)},${Math.floor(color[1] * v)},${Math.floor(color[2] * v)})`
         ctx.fillRect(x, y, 1, 1)

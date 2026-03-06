@@ -5,6 +5,7 @@ export const level2: LevelConfig = {
   name: "Challenger's Circuit",
   description: 'The competition heats up! AI drivers are faster and smarter. Finish in the top 2 to win.',
   requiredLaps: 4,
+  groundTheme: 'dry',
   winCondition: {
     maxPosition: 2 // Finish top 2 to win
   },
