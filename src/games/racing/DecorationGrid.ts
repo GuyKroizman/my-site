@@ -48,8 +48,15 @@ export class DecorationGrid {
   private placeModel(config: DecorationModelConfig, x: number, z: number): void {
     const mesh = new THREE.Group()
     mesh.position.set(x, 0, z)
-    if (config.rotation !== undefined && config.rotation !== 0) {
-      mesh.rotation.y = config.rotation
+    const r = config.rotation
+    if (r !== undefined) {
+      if (typeof r === 'number') {
+        mesh.rotation.y = r
+      } else {
+        if (r.x !== undefined) mesh.rotation.x = r.x
+        if (r.y !== undefined) mesh.rotation.y = r.y
+        if (r.z !== undefined) mesh.rotation.z = r.z
+      }
     }
     this.group.add(mesh)
 
