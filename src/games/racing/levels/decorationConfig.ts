@@ -13,16 +13,25 @@ export interface DecorationRotation {
   z?: number
 }
 
+/** Position offset in world units, applied on top of the grid cell center. For fine-tuning placement. */
+export interface DecorationPosition {
+  x?: number
+  y?: number
+  z?: number
+}
+
 export interface DecorationModelConfig {
   path: string
   scale?: number
   /** Rotation in radians. Use a number for Y-only (legacy), or { x, y, z } for per-axis. */
   rotation?: number | DecorationRotation
+  /** Offset from grid cell center (world units). Use to fine-tune position. */
+  position?: DecorationPosition
 }
 
 /** Character key → model config. Used by all levels; decoration grid rows reference these keys. */
 export const DECORATION_MODELS: Record<string, DecorationModelConfig> = {
   p: { path: '/racing/models/Plant.glb', scale: 4 },
   m: { path: '/racing/models/Mushroom.glb', scale: 8, rotation: 0 },
-  d: { path: '/racing/models/mushroom_dude.glb', scale: 12, rotation: { z: Math.PI / 2 } }
+  d: { path: '/racing/models/mushroom_dude.glb', scale: 14, rotation: { z: Math.PI / 2 }, position: { y: 0.5 } }
 }

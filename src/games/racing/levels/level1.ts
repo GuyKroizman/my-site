@@ -84,7 +84,7 @@ export const level1: LevelConfig = {
     // Infield: plants and mushrooms near center (rows 27–31, cols ~36–48)
     const pad = (n: number) => ' '.repeat(n)
     rows[0] = '                                                                               p'
-    rows[6] = '     m          d                                                               '
+    rows[6] = '    m           d                                                               '
     rows[31] = pad(36) + 'p            '
     rows[40] = pad(57) + 'm'
     return rows
