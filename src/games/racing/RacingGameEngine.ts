@@ -7,7 +7,9 @@ import { Mine } from './Mine'
 import { SoundGenerator } from './SoundGenerator'
 import { PlayerArrow } from './PlayerArrow'
 import { BackgroundEye } from './BackgroundEye'
+import { DecorationGrid } from './DecorationGrid'
 import { LevelConfig, CarConfig } from './levels'
+import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
 
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
@@ -41,6 +43,7 @@ export class RacingGameEngine {
   private playerMineHitTime: number | null = null
   private backgroundTexture: THREE.Texture | null = null
   private backgroundEyes: BackgroundEye[] = []
+  private decorationGrid: DecorationGrid | null = null
 
   // Cinematic camera intro
   private cinematicActive: boolean = false
@@ -193,6 +196,15 @@ export class RacingGameEngine {
             endPosition: { x: 5, y: 4, z: -22 }
           }
         })
+      )
+    }
+
+    if (this.currentLevelConfig.decorationRows?.length) {
+      this.decorationGrid = new DecorationGrid(
+        this.scene,
+        DECORATION_BOUNDS,
+        DECORATION_MODELS,
+        this.currentLevelConfig.decorationRows
       )
     }
 
@@ -511,6 +523,10 @@ export class RacingGameEngine {
     if (this.playerArrow) {
       this.playerArrow.dispose()
       this.playerArrow = null
+    }
+    if (this.decorationGrid) {
+      this.decorationGrid.destroy()
+      this.decorationGrid = null
     }
     this.soundGenerator.dispose()
     this.cars.forEach(car => car.dispose())

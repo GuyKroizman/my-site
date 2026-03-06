@@ -22,4 +22,6 @@ export interface LevelConfig {
   cars: CarConfig[]
   winCondition: WinCondition
   requiredLaps: number
+  /** Optional 80×60 grid: 60 strings, each up to 80 chars. Space = empty; other chars map via DECORATION_MODELS. */
+  decorationRows?: string[]
 }
