@@ -52,6 +52,8 @@ export default function RacingGame() {
   const [requiredLaps, setRequiredLaps] = useState(4)
   const [isPortraitMode, setIsPortraitMode] = useState(isPortrait())
   const [isMuted, setIsMuted] = useState(SoundGenerator.getMuted())
+  const [isExitingMenu, setIsExitingMenu] = useState(false)
+  const [gameContainerVisible, setGameContainerVisible] = useState(true)
 
   // Initialize GameManager
   useEffect(() => {
@@ -172,14 +174,27 @@ export default function RacingGame() {
     }
   }, [uiState, currentLevel, createAndStartRace])
 
+  // Fade in game container when transitioning from menu to playing
+  useEffect(() => {
+    if (uiState === 'playing' && !gameContainerVisible) {
+      const id = requestAnimationFrame(() => setGameContainerVisible(true))
+      return () => cancelAnimationFrame(id)
+    }
+  }, [uiState, gameContainerVisible])
+
   const handleStartGame = () => {
     // Only allow starting game if in landscape mode
     if (isPortrait()) {
       return // Don't start if in portrait - rotate screen will be shown
     }
-    if (gameManagerRef.current) {
-      gameManagerRef.current.startGame()
-    }
+    setIsExitingMenu(true)
+  }
+
+  const handleMenuTransitionEnd = (e: React.TransitionEvent) => {
+    if (e.propertyName !== 'opacity' || !isExitingMenu) return
+    setGameContainerVisible(false)
+    gameManagerRef.current?.startGame()
+    setIsExitingMenu(false)
   }
 
   const handleProceedAfterRace = () => {
@@ -220,7 +235,7 @@ export default function RacingGame() {
       {/* Game container - always exists, menu overlays it */}
       <div
         ref={containerRef}
-        className={`${uiState !== 'menu' ? 'flex-1' : ''} w-full relative overflow-hidden`}
+        className={`${uiState !== 'menu' && !isExitingMenu ? 'flex-1' : ''} w-full relative overflow-hidden transition-opacity duration-300 ease-out ${uiState === 'playing' && !gameContainerVisible ? 'opacity-0' : 'opacity-100'}`}
       >
         <MuteButton isMuted={isMuted} onToggle={handleToggleMute} />
 
@@ -265,15 +280,35 @@ export default function RacingGame() {
         )}
       </div>
 
-      {/* Menu screen - shown when uiState is 'menu' */}
-      {uiState === 'menu' && (
-        <div className="flex-1 w-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 z-20">
-          <MenuScreen
-            isPortraitMode={isPortraitMode}
-            totalLevels={totalLevels}
-            onStartGame={handleStartGame}
-          />
-        </div>
+      {/* Menu screen - shown when uiState is 'menu' or exiting (fade-out transition) */}
+      {(uiState === 'menu' || isExitingMenu) && (
+        <>
+          <svg className="absolute w-0 h-0" aria-hidden="true">
+            <defs>
+              <filter id="racing-menu-pixelate" x="0" y="0">
+                <feFlood x="0" y="0" width="48" height="48" />
+                <feComposite width="48" height="48" />
+                <feTile result="a" />
+                <feComposite in="SourceGraphic" in2="a" operator="in" />
+                <feMorphology operator="dilate" radius="6" />
+              </filter>
+            </defs>
+          </svg>
+          <div
+            className={`flex-1 w-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 z-20 ${isExitingMenu ? 'opacity-0' : 'opacity-100'}`}
+            style={{
+              transition: 'opacity 800ms ease-out, filter 800ms ease-out',
+              filter: isExitingMenu ? 'url(#racing-menu-pixelate)' : 'none',
+            }}
+            onTransitionEnd={handleMenuTransitionEnd}
+          >
+            <MenuScreen
+              isPortraitMode={isPortraitMode}
+              totalLevels={totalLevels}
+              onStartGame={handleStartGame}
+            />
+          </div>
+        </>
       )}
     </div>
   )
