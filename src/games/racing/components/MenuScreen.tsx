@@ -55,7 +55,7 @@ export function MenuScreen({ isPortraitMode, totalLevels, onStartGame }: MenuScr
         style={{
           backgroundImage: 'url(/racing/woman_and_dog_watching_sunset.png)',
           transformOrigin: 'center center',
-          animation: 'racingMenuKenBurns 35s ease-in-out infinite',
+          animation: 'racingMenuKenBurns 55s ease-in-out infinite',
         }}
       />
       <button
