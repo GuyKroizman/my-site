@@ -14,7 +14,7 @@ export function MenuScreen({ isPortraitMode, totalLevels, onStartGame }: MenuScr
               <div className="text-4xl sm:text-6xl mb-3">🏎️</div>
               <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3">Racing Game</h2>
               <p className="text-gray-300 text-sm sm:text-xl mb-4">
-              Race against AI opponents across {totalLevels} tracks!
+                Race against AI opponents across {totalLevels} tracks!
               </p>
               <div className="bg-gray-900 bg-opacity-50 rounded-lg p-3 sm:p-4">
                 <p className="text-gray-300 text-xs sm:text-base text-left">
@@ -43,13 +43,24 @@ export function MenuScreen({ isPortraitMode, totalLevels, onStartGame }: MenuScr
   }
 
   return (
-    <div
-      className="w-full h-full flex items-center justify-center bg-gray-900 bg-center bg-contain bg-no-repeat"
-      style={{ backgroundImage: 'url(/racing/woman_and_dog_watching_sunset.png)' }}
-    >
+    <div className="w-full h-full flex items-center justify-center bg-gray-900 overflow-hidden relative">
+      <style>{`
+        @keyframes racingMenuKenBurns {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.38); }
+        }
+      `}</style>
+      <div
+        className="absolute inset-0 bg-center bg-contain bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/racing/woman_and_dog_watching_sunset.png)',
+          transformOrigin: 'center center',
+          animation: 'racingMenuKenBurns 35s ease-in-out infinite',
+        }}
+      />
       <button
         onClick={onStartGame}
-        className="bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 px-4 sm:py-4 sm:px-6 rounded-lg transition-colors text-sm sm:text-xl whitespace-nowrap shadow-lg"
+        className="relative z-10 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 px-4 sm:py-4 sm:px-6 rounded-lg transition-colors text-sm sm:text-xl whitespace-nowrap shadow-lg"
       >
         Start Race
       </button>
