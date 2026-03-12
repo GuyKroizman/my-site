@@ -60,7 +60,7 @@ export function MenuScreen({ isPortraitMode, totalLevels, onStartGame }: MenuScr
       />
       <button
         onClick={onStartGame}
-        className="relative z-10 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 px-4 sm:py-4 sm:px-6 rounded-lg transition-colors text-sm sm:text-xl whitespace-nowrap shadow-lg"
+        className="relative z-10 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 px-4 sm:py-4 sm:px-6 rounded-lg transition-colors text-sm sm:text-xl whitespace-nowrap shadow-lg opacity-70 hover:opacity-90 active:opacity-80"
       >
         Start Race
       </button>
