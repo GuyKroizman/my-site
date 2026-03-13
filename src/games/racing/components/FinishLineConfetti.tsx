@@ -31,7 +31,7 @@ function spawnBurst(particles: Particle[], originX: number, originY: number, _w:
 
   // Left side burst — mostly upward with slight leftward lean
   for (let i = 0; i < countPerSide; i++) {
-    const speed = 10 + Math.random()
+    const speed = 3 + Math.random() * 2
     const sideways = (Math.random() - 0.5) * 3
     particles.push({
       x: originX - 10,
@@ -50,7 +50,7 @@ function spawnBurst(particles: Particle[], originX: number, originY: number, _w:
 
   // Right side burst — mostly upward with slight rightward lean
   for (let i = 0; i < countPerSide; i++) {
-    const speed = 10 + Math.random()
+    const speed = 3 + Math.random() * 2
     const sideways = (Math.random() - 0.5) * 3
     particles.push({
       x: originX + 10,
