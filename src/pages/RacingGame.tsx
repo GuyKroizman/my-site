@@ -56,6 +56,7 @@ export default function RacingGame() {
   const [isExitingMenu, setIsExitingMenu] = useState(false)
   const [gameContainerVisible, setGameContainerVisible] = useState(true)
   const [confettiCount, setConfettiCount] = useState(0)
+  const [confettiOrigin, setConfettiOrigin] = useState<{ x: number; y: number } | null>(null)
 
   // Initialize GameManager
   useEffect(() => {
@@ -151,10 +152,12 @@ export default function RacingGame() {
           onTimerUpdate: (time) => {
             setRaceTime(time)
           },
-          onCarFinished: () => {
+          onCarFinished: (_name, screenPos) => {
+            setConfettiOrigin(screenPos)
             setConfettiCount((c) => c + 1)
           },
-          onCameraReady: () => {
+          onCameraReady: (screenPos) => {
+            setConfettiOrigin(screenPos)
             setConfettiCount((c) => c + 1)
           }
         },
@@ -320,7 +323,7 @@ export default function RacingGame() {
         </>
       )}
       {(uiState === 'playing' || uiState === 'raceComplete') && (
-        <FinishLineConfetti triggerCount={confettiCount} />
+        <FinishLineConfetti triggerCount={confettiCount} origin={confettiOrigin} />
       )}
     </div>
   )

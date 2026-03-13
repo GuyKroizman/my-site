@@ -15,8 +15,8 @@ export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
   onLapUpdate?: (laps: number) => void
   onTimerUpdate?: (time: number) => void
-  onCarFinished?: (carName: string) => void
-  onCameraReady?: () => void
+  onCarFinished?: (carName: string, screenPos: { x: number; y: number }) => void
+  onCameraReady?: (screenPos: { x: number; y: number }) => void
 }
 
 export class RacingGameEngine {
@@ -141,6 +141,7 @@ export class RacingGameEngine {
 
     // Create race manager with level-specific required laps
     this.raceManager = new RaceManager(this.callbacks, this.currentLevelConfig.requiredLaps)
+    this.raceManager.setFinishScreenPosGetter(() => this.projectFinishLine())
 
     // Create start lights
     this.startLights = new StartLights(this.scene, () => {
@@ -219,6 +220,14 @@ export class RacingGameEngine {
     this.animate()
   }
 
+  private projectFinishLine(): { x: number; y: number } {
+    const pos = new THREE.Vector3(0, 0.5, -10).project(this.camera)
+    return {
+      x: (pos.x * 0.5 + 0.5) * window.innerWidth,
+      y: (-pos.y * 0.5 + 0.5) * window.innerHeight
+    }
+  }
+
   private updateCameraPosition(viewWidth: number, viewHeight: number) {
     const aspect = viewWidth / viewHeight
     const trackWidth = 50
@@ -293,7 +302,7 @@ export class RacingGameEngine {
       this.camera.position.copy(this.gameplayCameraPos)
       this.camera.lookAt(0, 0, 0)
 
-      this.callbacks.onCameraReady?.()
+      this.callbacks.onCameraReady?.(this.projectFinishLine())
 
       if (this.startLights) {
         this.startLights.startSequence()

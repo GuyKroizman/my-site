@@ -14,10 +14,15 @@ export class RaceManager {
   private finishTimes: Map<Car, number> = new Map()
   private firstFinishTime: number | null = null
   private readonly COMPLETION_DELAY: number = 5 // 5 seconds after first car finishes
+  private getFinishScreenPos?: () => { x: number; y: number }
 
   constructor(callbacks: RacingGameCallbacks, requiredLaps: number = 4) {
     this.callbacks = callbacks
     this.requiredLaps = requiredLaps
+  }
+
+  public setFinishScreenPosGetter(getter: () => { x: number; y: number }) {
+    this.getFinishScreenPos = getter
   }
 
   public addCar(car: Car, track: Track) {
@@ -100,7 +105,8 @@ export class RaceManager {
           this.finishTimes.set(car, raceTime)
 
           // Notify that a car reached the finish line (e.g. for confetti)
-          this.callbacks.onCarFinished?.(car.name)
+          const screenPos = this.getFinishScreenPos?.() ?? { x: 0, y: 0 }
+          this.callbacks.onCarFinished?.(car.name, screenPos)
 
           // Track when first car finishes
           if (this.firstFinishTime === null) {

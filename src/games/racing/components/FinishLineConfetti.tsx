@@ -22,20 +22,22 @@ interface Particle {
 
 interface FinishLineConfettiProps {
   triggerCount: number
+  origin?: { x: number; y: number } | null
 }
 
-function spawnBurst(particles: Particle[], w: number, h: number) {
+function spawnBurst(particles: Particle[], originX: number, originY: number, _w: number, h: number) {
   const countPerSide = 80
+  const spread = h * 0.06
 
-  // Left side burst — shoots right and upward
+  // Left side burst — mostly upward with slight leftward lean
   for (let i = 0; i < countPerSide; i++) {
-    const speed = 8 + Math.random() * 14
-    const angle = -Math.PI / 6 + Math.random() * (Math.PI / 3)
+    const speed = 10 + Math.random()
+    const sideways = (Math.random() - 0.5) * 3
     particles.push({
-      x: -5,
-      y: h * 0.25 + Math.random() * h * 0.5,
-      vx: Math.cos(angle) * speed + 3,
-      vy: -Math.sin(angle) * speed - 3 - Math.random() * 4,
+      x: originX - 10,
+      y: originY + (Math.random() - 0.5) * spread,
+      vx: -(1 + Math.random() * 2) + sideways,
+      vy: -speed,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       w: 8 + Math.random() * 12,
       h: 4 + Math.random() * 6,
@@ -46,15 +48,15 @@ function spawnBurst(particles: Particle[], w: number, h: number) {
     })
   }
 
-  // Right side burst — shoots left and upward
+  // Right side burst — mostly upward with slight rightward lean
   for (let i = 0; i < countPerSide; i++) {
-    const speed = 8 + Math.random() * 14
-    const angle = Math.PI - Math.PI / 6 + Math.random() * (Math.PI / 3)
+    const speed = 10 + Math.random()
+    const sideways = (Math.random() - 0.5) * 3
     particles.push({
-      x: w + 5,
-      y: h * 0.25 + Math.random() * h * 0.5,
-      vx: Math.cos(angle) * speed - 3,
-      vy: -Math.sin(angle) * speed - 3 - Math.random() * 4,
+      x: originX + 10,
+      y: originY + (Math.random() - 0.5) * spread,
+      vx: (1 + Math.random() * 2) + sideways,
+      vy: -speed,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       w: 8 + Math.random() * 12,
       h: 4 + Math.random() * 6,
@@ -66,7 +68,7 @@ function spawnBurst(particles: Particle[], w: number, h: number) {
   }
 }
 
-export function FinishLineConfetti({ triggerCount }: FinishLineConfettiProps) {
+export function FinishLineConfetti({ triggerCount, origin }: FinishLineConfettiProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Particle[]>([])
   const rafRef = useRef<number>(0)
@@ -88,17 +90,20 @@ export function FinishLineConfetti({ triggerCount }: FinishLineConfettiProps) {
     canvas.width = w
     canvas.height = h
 
+    const ox = origin?.x ?? w / 2
+    const oy = origin?.y ?? h * 0.45
+
     // Immediate burst
-    spawnBurst(particlesRef.current, w, h)
+    spawnBurst(particlesRef.current, ox, oy, w, h)
 
     // Schedule 2 follow-up waves for a fuller effect
     pendingWavesRef.current = 2
     const wave1 = setTimeout(() => {
-      spawnBurst(particlesRef.current, w, h)
+      spawnBurst(particlesRef.current, ox, oy, w, h)
       pendingWavesRef.current--
     }, 150)
     const wave2 = setTimeout(() => {
-      spawnBurst(particlesRef.current, w, h)
+      spawnBurst(particlesRef.current, ox, oy, w, h)
       pendingWavesRef.current--
     }, 350)
 
@@ -150,7 +155,7 @@ export function FinishLineConfetti({ triggerCount }: FinishLineConfettiProps) {
       clearTimeout(wave1)
       clearTimeout(wave2)
     }
-  }, [triggerCount])
+  }, [triggerCount, origin])
 
   useEffect(() => {
     return () => {
