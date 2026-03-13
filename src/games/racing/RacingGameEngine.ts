@@ -15,6 +15,8 @@ export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
   onLapUpdate?: (laps: number) => void
   onTimerUpdate?: (time: number) => void
+  onCarFinished?: (carName: string) => void
+  onCameraReady?: () => void
 }
 
 export class RacingGameEngine {
@@ -100,7 +102,8 @@ export class RacingGameEngine {
     this.renderer.domElement.style.margin = '0'
     this.renderer.domElement.style.padding = '0'
     container.style.overflow = 'hidden'
-    container.appendChild(this.renderer.domElement)
+    // Insert canvas first so React-rendered overlays (HUD, confetti) paint on top
+    container.insertBefore(this.renderer.domElement, container.firstChild)
 
     // Handle window resize and orientation changes
     const handleResize = () => {
@@ -289,6 +292,8 @@ export class RacingGameEngine {
       this.cinematicActive = false
       this.camera.position.copy(this.gameplayCameraPos)
       this.camera.lookAt(0, 0, 0)
+
+      this.callbacks.onCameraReady?.()
 
       if (this.startLights) {
         this.startLights.startSequence()

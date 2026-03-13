@@ -12,7 +12,8 @@ import {
   GameWonDialog,
   GameLostDialog,
   PausedDialog,
-  MenuScreen
+  MenuScreen,
+  FinishLineConfetti
 } from '../games/racing/components'
 
 // Check if device supports touch
@@ -54,6 +55,7 @@ export default function RacingGame() {
   const [isMuted, setIsMuted] = useState(SoundGenerator.getMuted())
   const [isExitingMenu, setIsExitingMenu] = useState(false)
   const [gameContainerVisible, setGameContainerVisible] = useState(true)
+  const [confettiCount, setConfettiCount] = useState(0)
 
   // Initialize GameManager
   useEffect(() => {
@@ -148,6 +150,12 @@ export default function RacingGame() {
           },
           onTimerUpdate: (time) => {
             setRaceTime(time)
+          },
+          onCarFinished: () => {
+            setConfettiCount((c) => c + 1)
+          },
+          onCameraReady: () => {
+            setConfettiCount((c) => c + 1)
           }
         },
         level
@@ -215,6 +223,7 @@ export default function RacingGame() {
     setRaceResult(null)
     setPlayerLaps(0)
     setRaceTime(0)
+    setConfettiCount(0)
   }
 
   const handleDpadStateChange = (state: DpadState) => {
@@ -309,6 +318,9 @@ export default function RacingGame() {
             />
           </div>
         </>
+      )}
+      {(uiState === 'playing' || uiState === 'raceComplete') && (
+        <FinishLineConfetti triggerCount={confettiCount} />
       )}
     </div>
   )

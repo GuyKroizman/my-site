@@ -99,6 +99,9 @@ export class RaceManager {
           // Record finish time
           this.finishTimes.set(car, raceTime)
 
+          // Notify that a car reached the finish line (e.g. for confetti)
+          this.callbacks.onCarFinished?.(car.name)
+
           // Track when first car finishes
           if (this.firstFinishTime === null) {
             this.firstFinishTime = raceTime
