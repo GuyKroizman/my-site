@@ -153,12 +153,12 @@ export default function RacingGame() {
             setRaceTime(time)
           },
           onCarFinished: (_name, screenPos) => {
-            setConfettiOrigin(screenPos)
-            setConfettiCount((c) => c + 1)
-          },
-          onCameraReady: (screenPos) => {
-            setConfettiOrigin(screenPos)
-            setConfettiCount((c) => c + 1)
+            setConfettiCount((prev) => {
+              if (prev === 0) {
+                setConfettiOrigin(screenPos)
+              }
+              return prev === 0 ? 1 : prev
+            })
           }
         },
         level
