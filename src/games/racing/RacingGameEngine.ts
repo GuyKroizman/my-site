@@ -221,7 +221,7 @@ export class RacingGameEngine {
   }
 
   private projectFinishLine(): { x: number; y: number } {
-    const pos = new THREE.Vector3(0, 0.5, -10).project(this.camera)
+    const pos = new THREE.Vector3(0, 0.5, -7).project(this.camera)
     return {
       x: (pos.x * 0.5 + 0.5) * window.innerWidth,
       y: (-pos.y * 0.5 + 0.5) * window.innerHeight
