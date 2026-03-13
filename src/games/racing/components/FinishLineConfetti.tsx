@@ -14,6 +14,7 @@ interface Particle {
   color: string
   w: number
   h: number
+  scale: number
   rotation: number
   rotationSpeed: number
   life: number
@@ -25,45 +26,46 @@ interface FinishLineConfettiProps {
   origin?: { x: number; y: number } | null
 }
 
-function spawnBurst(particles: Particle[], originX: number, originY: number, _w: number, h: number) {
+function spawnBurst(particles: Particle[], originX: number, originY: number) {
   const countPerSide = 80
-  const spread = h * 0.06
 
-  // Left side burst — mostly upward with slight leftward lean
+  // Left side — shoots outward from left of origin
   for (let i = 0; i < countPerSide; i++) {
-    const speed = 3 + Math.random() * 2
-    const sideways = (Math.random() - 0.5) * 3
+    const angle = Math.random() * Math.PI * 2
+    const speed = 1 + Math.random() * 5
     particles.push({
       x: originX - 10,
-      y: originY + (Math.random() - 0.5) * spread,
-      vx: -(1 + Math.random() * 2) + sideways,
-      vy: -speed,
+      y: originY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       w: 8 + Math.random() * 12,
       h: 4 + Math.random() * 6,
+      scale: 1,
       rotation: Math.random() * Math.PI * 2,
       rotationSpeed: (Math.random() - 0.5) * 0.5,
       life: 1,
-      decay: 0.004 + Math.random() * 0.004
+      decay: 0.006 + Math.random() * 0.006
     })
   }
 
-  // Right side burst — mostly upward with slight rightward lean
+  // Right side — shoots outward from right of origin
   for (let i = 0; i < countPerSide; i++) {
-    const speed = 3 + Math.random() * 2
-    const sideways = (Math.random() - 0.5) * 3
+    const angle = Math.random() * Math.PI * 2
+    const speed = 1 + Math.random() * 5
     particles.push({
       x: originX + 10,
-      y: originY + (Math.random() - 0.5) * spread,
-      vx: (1 + Math.random() * 2) + sideways,
-      vy: -speed,
+      y: originY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       w: 8 + Math.random() * 12,
       h: 4 + Math.random() * 6,
+      scale: 1,
       rotation: Math.random() * Math.PI * 2,
       rotationSpeed: (Math.random() - 0.5) * 0.5,
       life: 1,
-      decay: 0.004 + Math.random() * 0.004
+      decay: 0.006 + Math.random() * 0.006
     })
   }
 }
@@ -93,24 +95,20 @@ export function FinishLineConfetti({ triggerCount, origin }: FinishLineConfettiP
     const ox = origin?.x ?? w / 2
     const oy = origin?.y ?? h * 0.45
 
-    // Immediate burst
-    spawnBurst(particlesRef.current, ox, oy, w, h)
+    spawnBurst(particlesRef.current, ox, oy)
 
-    // Schedule 2 follow-up waves for a fuller effect
     pendingWavesRef.current = 2
     const wave1 = setTimeout(() => {
-      spawnBurst(particlesRef.current, ox, oy, w, h)
+      spawnBurst(particlesRef.current, ox, oy)
       pendingWavesRef.current--
     }, 150)
     const wave2 = setTimeout(() => {
-      spawnBurst(particlesRef.current, ox, oy, w, h)
+      spawnBurst(particlesRef.current, ox, oy)
       pendingWavesRef.current--
     }, 350)
 
     if (isAnimatingRef.current) return
     isAnimatingRef.current = true
-
-    const gravity = 0.12
 
     const tick = () => {
       if (!canvas) return
@@ -123,22 +121,28 @@ export function FinishLineConfetti({ triggerCount, origin }: FinishLineConfettiP
         const p = particles[i]
         p.x += p.vx
         p.y += p.vy
-        p.vy += gravity
-        p.vx *= 0.99
+        // Drag slows them down (simulates air resistance / falling back to surface)
+        p.vx *= 0.93
+        p.vy *= 0.93
+        // Shrink as they "fall back to the ground"
+        p.scale = Math.max(0, p.life)
         p.rotation += p.rotationSpeed
         p.life -= p.decay
 
-        if (p.life <= 0 || p.y > ch + 30) {
+        if (p.life <= 0) {
           particles.splice(i, 1)
           continue
         }
+
+        const sw = p.w * p.scale
+        const sh = p.h * p.scale
 
         ctx.save()
         ctx.globalAlpha = Math.min(1, p.life * 1.5)
         ctx.translate(p.x, p.y)
         ctx.rotate(p.rotation)
         ctx.fillStyle = p.color
-        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h)
+        ctx.fillRect(-sw / 2, -sh / 2, sw, sh)
         ctx.restore()
       }
 
