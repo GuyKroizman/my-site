@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 
 const MINE_MODEL_PATH = '/racing/models/landmine.glb'
-const COLLISION_RADIUS = 1.8
+/** Trigger only when car actually overlaps the mine (matches visual size after 2x scale). */
+const COLLISION_RADIUS = 1.2
 
 export class Mine {
   public mesh: THREE.Group
@@ -31,7 +32,7 @@ export class Mine {
           const size = new THREE.Vector3()
           box.getSize(size)
           const maxDim = Math.max(size.x, size.y, size.z, 0.001)
-          const scale = 1.2 / maxDim
+          const scale = 2.4 / maxDim
           model.scale.setScalar(scale)
           model.traverse((child) => {
             if (child instanceof THREE.Mesh) {
