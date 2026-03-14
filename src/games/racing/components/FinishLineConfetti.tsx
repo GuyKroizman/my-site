@@ -79,7 +79,11 @@ export function FinishLineConfetti({ triggerCount, origin }: FinishLineConfettiP
   const pendingWavesRef = useRef(0)
 
   useEffect(() => {
-    if (triggerCount <= 0 || triggerCount <= lastBurstRef.current) return
+    if (triggerCount <= 0) {
+      lastBurstRef.current = 0
+      return
+    }
+    if (triggerCount <= lastBurstRef.current) return
     lastBurstRef.current = triggerCount
 
     const canvas = canvasRef.current

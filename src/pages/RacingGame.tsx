@@ -133,6 +133,10 @@ export default function RacingGame() {
       return
     }
 
+    // Reset confetti so it can trigger again when the first car finishes this level
+    setConfettiCount(0)
+    setConfettiOrigin(null)
+
     // Dispose existing engine if any
     if (gameEngineRef.current) {
       gameEngineRef.current.dispose()
