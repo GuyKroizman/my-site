@@ -70,6 +70,9 @@ export default function RacingGame() {
       },
       onRaceResult: (result: RaceResult) => {
         setRaceResult(result)
+        if (!result.levelPassed && gameEngineRef.current) {
+          gameEngineRef.current.playSadFinishSound()
+        }
       },
       onGameComplete: (_won: boolean) => {
         // State is already set by onStateChange

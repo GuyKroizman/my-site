@@ -57,7 +57,15 @@ export class RacingGameEngine {
   private readonly CINEMATIC_SWEEP_DURATION: number = 2.0
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig) {
-    this.callbacks = callbacks
+    // Wrap callbacks so we play finish sound when any car crosses the line, then invoke the provided callback
+    const userCallbacks = callbacks
+    this.callbacks = {
+      ...userCallbacks,
+      onCarFinished: (carName: string, screenPos: { x: number; y: number }) => {
+        this.soundGenerator.playFinishSound()
+        userCallbacks.onCarFinished?.(carName, screenPos)
+      }
+    }
     this.currentLevelConfig = levelConfig
 
     // Ensure container is properly sized
@@ -515,6 +523,14 @@ export class RacingGameEngine {
 
   public isPausedState(): boolean {
     return this.isPaused
+  }
+
+  /**
+   * Play the sad finish sound (when the player did not advance to the next level).
+   * Called from the UI when the race result has levelPassed === false.
+   */
+  public playSadFinishSound(): void {
+    this.soundGenerator.playSadFinishSound()
   }
 
   public dispose() {

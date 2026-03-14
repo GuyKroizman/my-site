@@ -348,6 +348,49 @@ export class SoundGenerator {
   }
 
   /**
+   * Play a short cheerful sound when any car crosses the finish line.
+   */
+  playFinishSound(volume: number = 0.35): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+    try {
+      const now = ctx.currentTime
+      // Two-note ascending chime (finish line crossed)
+      this.playBeep(523, 0.12, volume) // C5
+      setTimeout(() => {
+        this.playBeep(659, 0.15, volume) // E5
+      }, 120)
+    } catch (error) {
+      console.warn('Failed to play finish sound:', error)
+    }
+  }
+
+  /**
+   * Play a short sad sound when the player finishes but does not advance to the next level.
+   */
+  playSadFinishSound(volume: number = 0.35): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+    try {
+      // Descending minor third - "sad" resolution
+      this.playBeep(392, 0.15, volume)  // G4
+      setTimeout(() => {
+        this.playBeep(330, 0.25, volume) // E4
+      }, 140)
+    } catch (error) {
+      console.warn('Failed to play sad finish sound:', error)
+    }
+  }
+
+  /**
    * Clean up audio context
    */
   dispose(): void {
