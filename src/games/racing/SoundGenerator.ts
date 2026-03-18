@@ -358,7 +358,6 @@ export class SoundGenerator {
       ctx.resume().catch(() => {})
     }
     try {
-      const now = ctx.currentTime
       // Two-note ascending chime (finish line crossed)
       this.playBeep(523, 0.12, volume) // C5
       setTimeout(() => {

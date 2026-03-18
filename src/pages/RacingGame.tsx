@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { RacingGameEngine } from '../games/racing/RacingGameEngine'
-import { VirtualDpad, DpadState } from '../games/racing/VirtualDpad'
 import { GameManager, RaceResult, GameState as ManagerGameState } from '../games/racing/GameManager'
 import { LevelConfig } from '../games/racing/levels'
 import { SoundGenerator } from '../games/racing/SoundGenerator'
+import { VirtualDriveStick } from '../games/racing/VirtualDriveStick'
+import type { TouchDriveState } from '../games/racing/input'
 import {
   Header,
   MuteButton,
@@ -236,7 +237,7 @@ export default function RacingGame() {
     setConfettiCount(0)
   }
 
-  const handleDpadStateChange = (state: DpadState) => {
+  const handleTouchDriveChange = (state: TouchDriveState) => {
     if (gameEngineRef.current) {
       gameEngineRef.current.setTouchControls(state)
     }
@@ -293,9 +294,9 @@ export default function RacingGame() {
           <PausedDialog />
         )}
 
-        {/* Virtual D-pad - only show when playing and on touch devices */}
+        {/* Virtual drive stick - only show when playing and on touch devices */}
         {uiState === 'playing' && isTouchDevice() && (
-          <VirtualDpad onStateChange={handleDpadStateChange} />
+          <VirtualDriveStick onStateChange={handleTouchDriveChange} />
         )}
       </div>
 

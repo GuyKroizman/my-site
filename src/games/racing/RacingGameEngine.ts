@@ -10,6 +10,7 @@ import { BackgroundEye } from './BackgroundEye'
 import { DecorationGrid } from './DecorationGrid'
 import { LevelConfig, CarConfig } from './levels'
 import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
+import type { TouchDriveState } from './input'
 
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
@@ -494,7 +495,7 @@ export class RacingGameEngine {
     })
   }
 
-  public setTouchControls(controls: { up: boolean; down: boolean; left: boolean; right: boolean }) {
+  public setTouchControls(controls: TouchDriveState) {
     const playerCar = this.cars.find(car => car.isPlayer)
     if (playerCar) {
       playerCar.setTouchControls(controls)

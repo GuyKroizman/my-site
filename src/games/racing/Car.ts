@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { Track } from './Track'
 import { SoundGenerator } from './SoundGenerator'
+import { NEUTRAL_TOUCH_DRIVE_STATE, type TouchDriveState } from './input'
 
 export interface CarCharacteristics {
   maxSpeed: number
@@ -47,12 +48,7 @@ export class Car {
   public launchVelocity: THREE.Vector3 | null = null
   private launchAngularVelocity: THREE.Vector3 | null = null
   private readonly gravity: number = 35
-  private touchControls: { up: boolean; down: boolean; left: boolean; right: boolean } = {
-    up: false,
-    down: false,
-    left: false,
-    right: false
-  }
+  private touchControls: TouchDriveState = { ...NEUTRAL_TOUCH_DRIVE_STATE }
   private soundGenerator: SoundGenerator
   private lastCollisionTime: number = 0
   private collisionCooldown: number = 0.2 // Minimum time between collision sounds (seconds)
@@ -61,6 +57,9 @@ export class Car {
   private static readonly TRACK_COLLISION_MARGIN = 1.6
   /** Tighter margin for inner rail so the car visually touches the rail before bouncing */
   private static readonly INNER_RAIL_MARGIN = 0.7
+  private static readonly MIN_STEER_SPEED = 0.1
+  private static readonly BRAKE_ONLY_SPEED = 0.75
+  private static readonly TOUCH_REVERSE_TRIGGER = 0.55
 
   constructor(
     x: number, 
@@ -412,7 +411,7 @@ export class Car {
     this.updateCheckpoints(track)
   }
 
-  public setTouchControls(controls: { up: boolean; down: boolean; left: boolean; right: boolean }) {
+  public setTouchControls(controls: TouchDriveState) {
     this.touchControls = controls
   }
 
@@ -423,56 +422,115 @@ export class Car {
       return
     }
 
-    // Forward movement - check both keyboard and touch
-    const isAccelerating = this.keys['ArrowUp'] || this.keys['w'] || this.keys['W'] || this.touchControls.up
-    const isBraking = this.keys['ArrowDown'] || this.keys['s'] || this.keys['S'] || this.touchControls.down
+    const keyboardThrottle = this.getKeyboardAxis(
+      ['ArrowUp', 'w', 'W'],
+      ['ArrowDown', 's', 'S']
+    )
+    const keyboardSteering = this.getKeyboardAxis(
+      ['ArrowRight', 'd', 'D'],
+      ['ArrowLeft', 'a', 'A']
+    )
 
-    if (isAccelerating) {
-      this.speed = Math.min(this.speed + this.acceleration * deltaTime, this.maxSpeed)
-    } else if (isBraking) {
-      // Reverse movement
-      this.speed = Math.max(this.speed - this.acceleration * deltaTime, -this.maxSpeed * 0.5)
-    } else {
-      // Decelerate
-      if (this.speed > 0) {
-        this.speed = Math.max(this.speed - this.acceleration * deltaTime * 2, 0)
-      } else if (this.speed < 0) {
-        this.speed = Math.min(this.speed + this.acceleration * deltaTime * 2, 0)
-      }
-    }
+    const touchThrottle = keyboardThrottle === 0 ? this.touchControls.throttle : 0
+    const touchSteering = keyboardSteering === 0 ? this.touchControls.steering : 0
+
+    this.applyThrottle(deltaTime, keyboardThrottle, touchThrottle)
 
     // Turning - direction depends on whether car is moving forward or reverse
     // When in reverse, steering is reversed (left turns right, right turns left)
     // Reduced sensitivity by using a lower multiplier
     // Check both keyboard and touch controls
+    const steeringInput = keyboardSteering !== 0 ? keyboardSteering : touchSteering
     const currentSpeed = Math.abs(this.speed)
     const isReversing = this.speed < 0
-    if (currentSpeed > 0) {
+    if (currentSpeed > Car.MIN_STEER_SPEED && steeringInput !== 0) {
       const turnMultiplier = 0.7 // Reduce overall turn sensitivity
-      const isTurningLeft = this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A'] || this.touchControls.left
-      const isTurningRight = this.keys['ArrowRight'] || this.keys['d'] || this.keys['D'] || this.touchControls.right
+      const turnAmount =
+        this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier * Math.abs(steeringInput)
       
       // When reversing, swap left and right steering
       if (isReversing) {
-        if (isTurningLeft) {
+        if (steeringInput < 0) {
           // In reverse, left input turns right (clockwise)
-          this.rotation -= this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+          this.rotation -= turnAmount
         }
-        if (isTurningRight) {
+        if (steeringInput > 0) {
           // In reverse, right input turns left (counter-clockwise)
-          this.rotation += this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+          this.rotation += turnAmount
         }
       } else {
-        if (isTurningLeft) {
+        if (steeringInput < 0) {
           // Turn left (counter-clockwise when viewed from above)
-          this.rotation += this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+          this.rotation += turnAmount
         }
-        if (isTurningRight) {
+        if (steeringInput > 0) {
           // Turn right (clockwise when viewed from above)
-          this.rotation -= this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier
+          this.rotation -= turnAmount
         }
       }
     }
+  }
+
+  private applyThrottle(deltaTime: number, keyboardThrottle: number, touchThrottle: number) {
+    if (keyboardThrottle > 0) {
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime, this.maxSpeed)
+      return
+    }
+
+    if (keyboardThrottle < 0) {
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime, -this.maxSpeed * 0.5)
+      return
+    }
+
+    if (touchThrottle > 0) {
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime * touchThrottle, this.maxSpeed)
+      return
+    }
+
+    if (touchThrottle < 0) {
+      const downwardIntent = Math.abs(touchThrottle)
+
+      if (this.speed > Car.BRAKE_ONLY_SPEED) {
+        this.speed = Math.max(this.speed - this.acceleration * deltaTime * (1 + downwardIntent), 0)
+        return
+      }
+
+      if (downwardIntent > Car.TOUCH_REVERSE_TRIGGER) {
+        const reverseStrength =
+          (downwardIntent - Car.TOUCH_REVERSE_TRIGGER) / (1 - Car.TOUCH_REVERSE_TRIGGER)
+        this.speed = Math.max(
+          this.speed - this.acceleration * deltaTime * reverseStrength,
+          -this.maxSpeed * 0.5
+        )
+        return
+      }
+
+      if (this.speed > 0) {
+        this.speed = Math.max(this.speed - this.acceleration * deltaTime * downwardIntent, 0)
+        return
+      }
+    }
+
+    this.applyNaturalDeceleration(deltaTime)
+  }
+
+  private applyNaturalDeceleration(deltaTime: number) {
+    if (this.speed > 0) {
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 2, 0)
+    } else if (this.speed < 0) {
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime * 2, 0)
+    }
+  }
+
+  private getKeyboardAxis(positiveKeys: string[], negativeKeys: string[]) {
+    const positivePressed = positiveKeys.some(key => this.keys[key])
+    const negativePressed = negativeKeys.some(key => this.keys[key])
+
+    if (positivePressed === negativePressed) {
+      return 0
+    }
+
+    return positivePressed ? 1 : -1
   }
 
   private updateAI(deltaTime: number, track: Track) {
