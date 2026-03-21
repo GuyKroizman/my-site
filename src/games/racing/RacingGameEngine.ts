@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { Bullet } from './Bullet'
 import { Car } from './Car'
 import { Track } from './Track'
 import { RaceManager } from './RaceManager'
@@ -47,6 +48,12 @@ export class RacingGameEngine {
   private backgroundTexture: THREE.Texture | null = null
   private backgroundEyes: BackgroundEye[] = []
   private decorationGrid: DecorationGrid | null = null
+  private bullets: Bullet[] = []
+  private shootCooldown: number = 0
+  private touchShoot: boolean = false
+  private spacePressed: boolean = false
+  private spaceKeyDownHandler: ((e: KeyboardEvent) => void) | null = null
+  private spaceKeyUpHandler: ((e: KeyboardEvent) => void) | null = null
 
   // Cinematic camera intro
   private cinematicActive: boolean = false
@@ -220,6 +227,21 @@ export class RacingGameEngine {
         this.currentLevelConfig.decorationRows
       )
     }
+
+    // Setup Space key for shooting
+    this.spaceKeyDownHandler = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        this.spacePressed = true
+        e.preventDefault()
+      }
+    }
+    this.spaceKeyUpHandler = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        this.spacePressed = false
+      }
+    }
+    window.addEventListener('keydown', this.spaceKeyDownHandler)
+    window.addEventListener('keyup', this.spaceKeyUpHandler)
 
     // Initialize frame time tracking
     this.lastFrameTime = performance.now() / 1000
@@ -450,6 +472,34 @@ export class RacingGameEngine {
       this.callbacks.onLapUpdate(playerCar.lapsCompleted)
     }
 
+    // Handle shooting
+    this.shootCooldown = Math.max(0, this.shootCooldown - deltaTime)
+    if ((this.spacePressed || this.touchShoot) && this.shootCooldown <= 0 && canStart && !raceComplete) {
+      this.shootBullet()
+    }
+
+    // Update bullets and check collisions with AI cars
+    const aiCars = this.cars.filter(car => !car.isPlayer)
+    for (let i = this.bullets.length - 1; i >= 0; i--) {
+      const bullet = this.bullets[i]
+      bullet.update(deltaTime)
+      let hit = false
+      if (!bullet.isExpired()) {
+        for (const car of aiCars) {
+          if (!car.isDestroyed && bullet.checkCollision(car)) {
+            car.takeDamage()
+            this.soundGenerator.playBulletImpact()
+            hit = true
+            break
+          }
+        }
+      }
+      if (hit || bullet.isExpired()) {
+        bullet.dispose(this.scene)
+        this.bullets.splice(i, 1)
+      }
+    }
+
     this.updateCinematicCamera(deltaTime)
 
     this.backgroundEyes.forEach((eye) => eye.update(deltaTime))
@@ -459,6 +509,11 @@ export class RacingGameEngine {
   }
 
   public startRace() {
+    // Clear any bullets from a previous race
+    this.bullets.forEach(b => b.dispose(this.scene))
+    this.bullets = []
+    this.shootCooldown = 0
+
     // Reset timer
     this.timerActive = false
     this.raceStartTime = 0
@@ -502,6 +557,28 @@ export class RacingGameEngine {
     }
   }
 
+  public setTouchShoot(shooting: boolean) {
+    this.touchShoot = shooting
+  }
+
+  private shootBullet() {
+    const playerCar = this.cars.find(car => car.isPlayer)
+    if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
+
+    const forward = new THREE.Vector3(
+      Math.sin(playerCar.rotation),
+      0,
+      Math.cos(playerCar.rotation)
+    )
+    const spawnPos = playerCar.position.clone().addScaledVector(forward, 1.8)
+    spawnPos.y = playerCar.position.y
+
+    const bullet = new Bullet(spawnPos, playerCar.rotation)
+    this.scene.add(bullet.mesh)
+    this.bullets.push(bullet)
+    this.shootCooldown = 0.05
+  }
+
   public pause() {
     if (!this.isPaused) {
       this.isPaused = true
@@ -541,6 +618,18 @@ export class RacingGameEngine {
       cancelAnimationFrame(this.animationId)
       this.animationId = null
     }
+
+    if (this.spaceKeyDownHandler) {
+      window.removeEventListener('keydown', this.spaceKeyDownHandler)
+      this.spaceKeyDownHandler = null
+    }
+    if (this.spaceKeyUpHandler) {
+      window.removeEventListener('keyup', this.spaceKeyUpHandler)
+      this.spaceKeyUpHandler = null
+    }
+
+    this.bullets.forEach(b => b.dispose(this.scene))
+    this.bullets = []
 
     if (this.startLights) {
       this.startLights.dispose()

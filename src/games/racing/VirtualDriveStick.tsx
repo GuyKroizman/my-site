@@ -9,6 +9,7 @@ const STEERING_CURVE_EXPONENT = 1.35
 
 interface VirtualDriveStickProps {
   onStateChange: (state: TouchDriveState) => void
+  onShoot?: (shooting: boolean) => void
 }
 
 function applyDeadzone(value: number, deadzone: number) {
@@ -67,7 +68,7 @@ function offsetToDriveState(offset: { x: number; y: number }): TouchDriveState {
   return { throttle, steering }
 }
 
-export function VirtualDriveStick({ onStateChange }: VirtualDriveStickProps) {
+export function VirtualDriveStick({ onStateChange, onShoot }: VirtualDriveStickProps) {
   const [knobOffset, setKnobOffset] = useState({ x: 0, y: 0 })
   const activePointerId = useRef<number | null>(null)
   const baseRef = useRef<HTMLDivElement>(null)
@@ -130,6 +131,7 @@ export function VirtualDriveStick({ onStateChange }: VirtualDriveStickProps) {
   }
 
   return (
+    <>
     <div
       ref={baseRef}
       className="fixed bottom-8 left-8 z-50 select-none pointer-events-auto"
@@ -168,5 +170,28 @@ export function VirtualDriveStick({ onStateChange }: VirtualDriveStickProps) {
         }}
       />
     </div>
+    <div
+      className="fixed bottom-8 right-8 z-50 select-none pointer-events-auto flex items-center justify-center"
+      style={{
+        width: 80,
+        height: 80,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, #ff6600, #cc2200)',
+        border: '3px solid rgba(255, 200, 0, 0.7)',
+        touchAction: 'none',
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 13,
+      }}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId)
+        onShoot?.(true)
+      }}
+      onPointerUp={() => onShoot?.(false)}
+      onPointerCancel={() => onShoot?.(false)}
+    >
+      FIRE
+    </div>
+    </>
   )
 }

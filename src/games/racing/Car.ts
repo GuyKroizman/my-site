@@ -27,6 +27,8 @@ export class Car {
   public lapsCompleted: number = 0 // Number of laps completed
   public finished: boolean = false
   public finishPosition: number = 0
+  public health: number = 100
+  public isDestroyed: boolean = false
   public startX: number // Store starting X position to return to finish line
   public lastCheckpoint: number = -1 // Last checkpoint passed (-1 means none)
   public checkpointPassed: boolean[] = [] // Track which checkpoints passed this lap (dynamically sized)
@@ -50,6 +52,9 @@ export class Car {
   private readonly gravity: number = 35
   private touchControls: TouchDriveState = { ...NEUTRAL_TOUCH_DRIVE_STATE }
   private soundGenerator: SoundGenerator
+  private fireMeshes: THREE.Sprite[] = []
+  private fireLight: THREE.PointLight | null = null
+  private fireTime: number = 0
   private lastCollisionTime: number = 0
   private collisionCooldown: number = 0.2 // Minimum time between collision sounds (seconds)
 
@@ -143,6 +148,10 @@ export class Car {
     if (isPlayer) {
       this.setupControls()
     }
+  }
+
+  public getBoundingBox(): THREE.Box3 {
+    return this.boundingBox
   }
 
   private setupControls() {
@@ -288,6 +297,13 @@ export class Car {
         this.mesh.rotation.y += this.launchAngularVelocity.y * deltaTime
         this.mesh.rotation.z += this.launchAngularVelocity.z * deltaTime
       }
+      return
+    }
+
+    // If destroyed by bullets, just animate fire and stay put
+    if (this.isDestroyed) {
+      this.fireTime += deltaTime
+      this.animateFire()
       return
     }
 
@@ -663,7 +679,7 @@ export class Car {
     let isAiCollision = false
 
     for (const otherCar of allCars) {
-      if (otherCar === this || otherCar.finished || otherCar.launched) continue
+      if (otherCar === this || otherCar.finished || otherCar.launched || otherCar.isDestroyed) continue
       
       if (testBox.intersectsBox(otherCar.boundingBox)) {
         collided = true
@@ -729,6 +745,81 @@ export class Car {
     }
   }
 
+  public takeDamage(): void {
+    if (this.isDestroyed) return
+    this.health--
+    if (this.health <= 0) {
+      this.destroy()
+    }
+  }
+
+  private destroy(): void {
+    this.isDestroyed = true
+    this.speed = 0
+
+    // Build a shared fire canvas texture
+    const canvas = document.createElement('canvas')
+    canvas.width = 64
+    canvas.height = 64
+    const ctx2d = canvas.getContext('2d')!
+    const gradient = ctx2d.createRadialGradient(32, 32, 0, 32, 32, 32)
+    gradient.addColorStop(0, 'rgba(255, 220, 50, 0.95)')
+    gradient.addColorStop(0.3, 'rgba(255, 120, 0, 0.85)')
+    gradient.addColorStop(0.7, 'rgba(200, 30, 0, 0.5)')
+    gradient.addColorStop(1, 'rgba(100, 0, 0, 0)')
+    ctx2d.fillStyle = gradient
+    ctx2d.fillRect(0, 0, 64, 64)
+    const texture = new THREE.CanvasTexture(canvas)
+
+    for (let i = 0; i < 6; i++) {
+      const material = new THREE.SpriteMaterial({ map: texture, transparent: true })
+      const sprite = new THREE.Sprite(material)
+      sprite.position.set(
+        (Math.random() - 0.5) * 0.8,
+        0.5 + Math.random() * 0.8,
+        (Math.random() - 0.5) * 0.8
+      )
+      const baseScale = 0.8 + Math.random() * 0.6
+      sprite.scale.set(baseScale, baseScale, 1)
+      this.mesh.add(sprite)
+      this.fireMeshes.push(sprite)
+    }
+
+    this.fireLight = new THREE.PointLight(0xff4400, 2, 6)
+    this.fireLight.position.set(0, 1.2, 0)
+    this.mesh.add(this.fireLight)
+  }
+
+  private animateFire(): void {
+    this.fireMeshes.forEach((sprite, i) => {
+      const phase = i * (Math.PI * 2 / this.fireMeshes.length)
+      const oscillation = 0.2 * Math.sin(this.fireTime * 5 + phase)
+      const baseScale = 0.8 + (i % 3) * 0.3
+      const s = baseScale + oscillation
+      sprite.scale.set(s, s, 1)
+      sprite.position.x += (Math.random() - 0.5) * 0.04
+      sprite.position.z += (Math.random() - 0.5) * 0.04
+      sprite.position.x = Math.max(-0.5, Math.min(0.5, sprite.position.x))
+      sprite.position.z = Math.max(-0.5, Math.min(0.5, sprite.position.z))
+    })
+    if (this.fireLight) {
+      this.fireLight.intensity = 1.5 + 0.5 * Math.sin(this.fireTime * 7)
+    }
+  }
+
+  private clearFireEffect(): void {
+    this.fireMeshes.forEach(sprite => {
+      this.mesh.remove(sprite)
+      sprite.material.map?.dispose()
+      sprite.material.dispose()
+    })
+    this.fireMeshes = []
+    if (this.fireLight) {
+      this.mesh.remove(this.fireLight)
+      this.fireLight = null
+    }
+  }
+
   public startRace() {
     this.finished = false
     this.lapProgress = 0
@@ -737,15 +828,15 @@ export class Car {
     this.launched = false
     this.launchVelocity = null
     this.launchAngularVelocity = null
-    // Don't give AI cars initial speed - they'll wait for green light
     this.speed = 0
+    this.health = 100
+    this.isDestroyed = false
+    this.clearFireEffect()
   }
 
   public reset(x: number, z: number) {
     this.position.set(x, 0.5, z)
-    this.startX = x // Update starting X position
-    // Cars start facing east (positive x direction) since track goes from -15 to 15 at z: -10
-    // In Three.js, rotation.y = Math.PI/2 faces +x direction
+    this.startX = x
     this.rotation = Math.PI / 2
     this.speed = 0
     this.lapProgress = 0
@@ -755,11 +846,15 @@ export class Car {
     this.launched = false
     this.launchVelocity = null
     this.launchAngularVelocity = null
+    this.health = 100
+    this.isDestroyed = false
+    this.clearFireEffect()
     this.mesh.position.copy(this.position)
     this.mesh.rotation.set(0, this.rotation, 0)
   }
 
   public dispose() {
+    this.clearFireEffect()
     this.disposeVisualObject(this.mesh)
     this.soundGenerator.dispose()
   }

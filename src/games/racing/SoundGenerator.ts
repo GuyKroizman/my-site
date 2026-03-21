@@ -390,6 +390,69 @@ export class SoundGenerator {
   }
 
   /**
+   * Play a short metallic thwack when a bullet hits a car.
+   */
+  playBulletImpact(volume: number = 0.12): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+    try {
+      const now = ctx.currentTime
+
+      // Short noise burst through bandpass — the metallic "thwack"
+      const noiseLen = Math.floor(ctx.sampleRate * 0.015)
+      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
+      const noiseData = noiseBuf.getChannelData(0)
+      for (let i = 0; i < noiseLen; i++) {
+        noiseData[i] = Math.random() * 2 - 1
+      }
+      const noiseSrc = ctx.createBufferSource()
+      noiseSrc.buffer = noiseBuf
+
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'bandpass'
+      filter.frequency.value = 800 + Math.random() * 400
+      filter.Q.value = 2
+
+      const noiseGain = ctx.createGain()
+      noiseGain.gain.setValueAtTime(volume, now)
+      noiseGain.gain.linearRampToValueAtTime(0, now + 0.015)
+
+      noiseSrc.connect(filter)
+      filter.connect(noiseGain)
+      noiseGain.connect(ctx.destination)
+      noiseSrc.start(now)
+      noiseSrc.stop(now + 0.015)
+
+      // Brief pitch-drop tone for body
+      const osc = ctx.createOscillator()
+      const oscGain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(300, now)
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.03)
+      oscGain.gain.setValueAtTime(volume * 0.5, now)
+      oscGain.gain.linearRampToValueAtTime(0, now + 0.03)
+      osc.connect(oscGain)
+      oscGain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.03)
+
+      osc.onended = () => {
+        noiseSrc.disconnect()
+        filter.disconnect()
+        noiseGain.disconnect()
+        osc.disconnect()
+        oscGain.disconnect()
+      }
+    } catch (error) {
+      console.warn('Failed to play bullet impact sound:', error)
+    }
+  }
+
+  /**
    * Clean up audio context
    */
   dispose(): void {

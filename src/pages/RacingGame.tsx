@@ -243,6 +243,12 @@ export default function RacingGame() {
     }
   }
 
+  const handleTouchShoot = useCallback((shooting: boolean) => {
+    if (gameEngineRef.current) {
+      gameEngineRef.current.setTouchShoot(shooting)
+    }
+  }, [])
+
   const handleToggleMute = () => {
     const newMutedState = SoundGenerator.toggleMute()
     setIsMuted(newMutedState)
@@ -296,7 +302,7 @@ export default function RacingGame() {
 
         {/* Virtual drive stick - only show when playing and on touch devices */}
         {uiState === 'playing' && isTouchDevice() && (
-          <VirtualDriveStick onStateChange={handleTouchDriveChange} />
+          <VirtualDriveStick onStateChange={handleTouchDriveChange} onShoot={handleTouchShoot} />
         )}
       </div>
 
