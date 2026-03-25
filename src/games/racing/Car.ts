@@ -571,12 +571,15 @@ export class Car {
     // Reduced sensitivity by using a lower multiplier
     // Check both keyboard and touch controls
     const steeringInput = keyboardSteering !== 0 ? keyboardSteering : touchSteering
+    const isTouch = keyboardSteering === 0 && touchSteering !== 0
     const currentSpeed = Math.abs(this.speed)
     const isReversing = this.speed < 0
     if (currentSpeed > Car.MIN_STEER_SPEED && steeringInput !== 0) {
-      const turnMultiplier = 0.7 // Reduce overall turn sensitivity
+      const turnMultiplier = isTouch ? 1.0 : 0.7
+      // Use a minimum speed ratio so turning works at low speeds
+      const speedRatio = Math.max(0.4, currentSpeed / this.maxSpeed)
       const turnAmount =
-        this.turnSpeed * (currentSpeed / this.maxSpeed) * turnMultiplier * Math.abs(steeringInput)
+        this.turnSpeed * speedRatio * turnMultiplier * Math.abs(steeringInput)
       
       // When reversing, swap left and right steering
       if (isReversing) {
