@@ -3,6 +3,38 @@ import { Track } from './Track'
 import { SoundGenerator } from './SoundGenerator'
 import { NEUTRAL_TOUCH_DRIVE_STATE, type TouchDriveState } from './input'
 
+/** 2D OBB overlap test using separating axis theorem on XZ plane. */
+function obbOverlap(
+  posA: THREE.Vector3, halfA: THREE.Vector3, rotA: number,
+  posB: THREE.Vector3, halfB: THREE.Vector3, rotB: number
+): boolean {
+  // Each box has two local axes on the XZ plane (right and forward)
+  const axA0x = Math.cos(rotA),  axA0z = Math.sin(rotA)   // A's local X (right)
+  const axA1x = -Math.sin(rotA), axA1z = Math.cos(rotA)   // A's local Z (forward)
+  const axB0x = Math.cos(rotB),  axB0z = Math.sin(rotB)
+  const axB1x = -Math.sin(rotB), axB1z = Math.cos(rotB)
+
+  const dx = posB.x - posA.x
+  const dz = posB.z - posA.z
+
+  const axes = [
+    [axA0x, axA0z],
+    [axA1x, axA1z],
+    [axB0x, axB0z],
+    [axB1x, axB1z],
+  ]
+
+  for (const [ax, az] of axes) {
+    const dist = Math.abs(dx * ax + dz * az)
+    const rA = halfA.x * Math.abs(axA0x * ax + axA0z * az)
+             + halfA.z * Math.abs(axA1x * ax + axA1z * az)
+    const rB = halfB.x * Math.abs(axB0x * ax + axB0z * az)
+             + halfB.z * Math.abs(axB1x * ax + axB1z * az)
+    if (dist > rA + rB) return false
+  }
+  return true
+}
+
 export interface CarCharacteristics {
   maxSpeed: number
   acceleration: number
@@ -44,6 +76,8 @@ export class Car {
   private astarRecalculateTimer: number = 0
 
   private boundingBox: THREE.Box3
+  private localHalfSize: THREE.Vector3 = new THREE.Vector3()
+  private boxHelper: THREE.LineSegments | null = null
   private keys: { [key: string]: boolean } = {}
   /** When set, car is flying from a mine explosion and ignores normal driving. */
   public launched: boolean = false
@@ -137,7 +171,17 @@ export class Car {
     this.mesh.position.copy(this.position)
     this.mesh.rotation.y = this.rotation
 
-    // Setup bounding box
+    // Compute local-space bounding half-size (with rotation 0)
+    const savedRotation = this.mesh.rotation.y
+    this.mesh.rotation.y = 0
+    this.mesh.updateMatrixWorld(true)
+    const localBox = new THREE.Box3().setFromObject(this.mesh)
+    localBox.getSize(this.localHalfSize)
+    this.localHalfSize.multiplyScalar(0.5)
+    this.mesh.rotation.y = savedRotation
+    this.mesh.updateMatrixWorld(true)
+
+    // Setup bounding box (will be updated each frame as OBB)
     this.boundingBox = new THREE.Box3().setFromObject(this.mesh)
 
     if (modelPath) {
@@ -152,6 +196,76 @@ export class Car {
 
   public getBoundingBox(): THREE.Box3 {
     return this.boundingBox
+  }
+
+  public getLocalHalfSize(): THREE.Vector3 {
+    return this.localHalfSize
+  }
+
+  private recomputeLocalHalfSize(): void {
+    const savedRotation = this.mesh.rotation.y
+    this.mesh.rotation.y = 0
+    this.mesh.updateMatrixWorld(true)
+    const localBox = new THREE.Box3().setFromObject(this.mesh)
+    localBox.getSize(this.localHalfSize)
+    this.localHalfSize.multiplyScalar(0.5)
+    this.mesh.rotation.y = savedRotation
+    this.mesh.updateMatrixWorld(true)
+  }
+
+  /** Get the four XZ corners of the oriented bounding box. */
+  public getOBBCorners(): THREE.Vector3[] {
+    const hw = this.localHalfSize.x
+    const hd = this.localHalfSize.z
+    const cos = Math.cos(this.rotation)
+    const sin = Math.sin(this.rotation)
+    const cx = this.position.x
+    const cz = this.position.z
+    const corners: THREE.Vector3[] = []
+    for (const [lx, lz] of [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]] as [number, number][]) {
+      corners.push(new THREE.Vector3(
+        cx + lx * cos - lz * sin,
+        this.position.y,
+        cz + lx * sin + lz * cos
+      ))
+    }
+    return corners
+  }
+
+  /** Check OBB-vs-OBB collision using separating axis theorem on the XZ plane. */
+  public obbIntersects(other: Car): boolean {
+    return obbOverlap(
+      this.position, this.localHalfSize, this.rotation,
+      other.position, other.localHalfSize, other.rotation
+    )
+  }
+
+  public showBoundingBoxHelper(_scene: THREE.Scene): void {
+    if (this.boxHelper) return
+    // Create a wireframe box in local space that will follow the mesh
+    const geo = new THREE.BufferGeometry()
+    const hw = this.localHalfSize.x
+    const hh = this.localHalfSize.y
+    const hd = this.localHalfSize.z
+    // 12 edges of a box
+    const verts = new Float32Array([
+      -hw,-hh,-hd,  hw,-hh,-hd,
+       hw,-hh,-hd,  hw,-hh, hd,
+       hw,-hh, hd, -hw,-hh, hd,
+      -hw,-hh, hd, -hw,-hh,-hd,
+      -hw, hh,-hd,  hw, hh,-hd,
+       hw, hh,-hd,  hw, hh, hd,
+       hw, hh, hd, -hw, hh, hd,
+      -hw, hh, hd, -hw, hh,-hd,
+      -hw,-hh,-hd, -hw, hh,-hd,
+       hw,-hh,-hd,  hw, hh,-hd,
+       hw,-hh, hd,  hw, hh, hd,
+      -hw,-hh, hd, -hw, hh, hd,
+    ])
+    geo.setAttribute('position', new THREE.BufferAttribute(verts, 3))
+    const mat = new THREE.LineBasicMaterial({ color: 0x00ff00 })
+    this.boxHelper = new THREE.LineSegments(geo, mat)
+    this.mesh.add(this.boxHelper)
   }
 
   private setupControls() {
@@ -175,7 +289,7 @@ export class Car {
           (gltf) => {
             const model = this.orientAndScaleLoadedModel(gltf.scene as THREE.Group)
             this.replaceCarVisual(model)
-            this.boundingBox.setFromObject(this.mesh)
+            this.recomputeLocalHalfSize()
           },
           undefined,
           (error) => {
@@ -190,7 +304,7 @@ export class Car {
           (fbx) => {
             const model = this.orientAndScaleLoadedModel(fbx)
             this.replaceCarVisual(model)
-            this.boundingBox.setFromObject(this.mesh)
+            this.recomputeLocalHalfSize()
           },
           undefined,
           (error) => {
@@ -419,7 +533,7 @@ export class Car {
     this.mesh.position.copy(this.position)
     this.mesh.rotation.y = this.rotation
 
-    // Update bounding box
+    // Update bounding box (still used for backward compat, but collisions use OBB)
     this.boundingBox.setFromObject(this.mesh)
 
     // Update lap progress
@@ -669,19 +783,14 @@ export class Car {
   }
 
   private checkCollisionWithRepulsion(newPosition: THREE.Vector3, allCars: Car[]): { collided: boolean; repulsion: THREE.Vector3; isAiCollision: boolean } {
-    const testBox = new THREE.Box3()
-    const tempMesh = this.mesh.clone()
-    tempMesh.position.copy(newPosition)
-    testBox.setFromObject(tempMesh)
-
     const repulsion = new THREE.Vector3(0, 0, 0)
     let collided = false
     let isAiCollision = false
 
     for (const otherCar of allCars) {
       if (otherCar === this || otherCar.finished || otherCar.launched) continue
-      
-      if (testBox.intersectsBox(otherCar.boundingBox)) {
+
+      if (obbOverlap(newPosition, this.localHalfSize, this.rotation, otherCar.position, otherCar.localHalfSize, otherCar.rotation)) {
         collided = true
         // Check if both cars are AI (neither is player)
         isAiCollision = !this.isPlayer && !otherCar.isPlayer

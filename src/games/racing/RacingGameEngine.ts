@@ -357,6 +357,7 @@ export class RacingGameEngine {
       )
       this.cars.push(car)
       this.scene.add(car.mesh)
+      car.showBoundingBoxHelper(this.scene)
       this.raceManager.addCar(car, this.track)
       // Don't give AI cars initial speed - they'll wait for green light
     })

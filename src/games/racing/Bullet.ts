@@ -35,8 +35,17 @@ export class Bullet {
   }
 
   checkCollision(car: Car): boolean {
-    const bulletBox = new THREE.Box3().setFromObject(this.mesh)
-    return bulletBox.intersectsBox(car.getBoundingBox())
+    // Transform bullet position into car's local space and check against half-extents
+    const bp = this.mesh.position
+    const cp = car.position
+    const dx = bp.x - cp.x
+    const dz = bp.z - cp.z
+    const cos = Math.cos(-car.rotation)
+    const sin = Math.sin(-car.rotation)
+    const localX = Math.abs(dx * cos - dz * sin)
+    const localZ = Math.abs(dx * sin + dz * cos)
+    const half = car.getLocalHalfSize()
+    return localX <= half.x && localZ <= half.z
   }
 
   dispose(scene: THREE.Scene): void {
