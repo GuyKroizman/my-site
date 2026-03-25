@@ -230,13 +230,12 @@ export class RacingGameEngine {
 
     // Setup Space key for shooting
     this.spaceKeyDownHandler = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'KeyX') {
         this.spacePressed = true
-        e.preventDefault()
       }
     }
     this.spaceKeyUpHandler = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'KeyX') {
         this.spacePressed = false
       }
     }
