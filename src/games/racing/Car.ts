@@ -27,7 +27,7 @@ export class Car {
   public lapsCompleted: number = 0 // Number of laps completed
   public finished: boolean = false
   public finishPosition: number = 0
-  public health: number = 100
+  public health: number = 10
   public isDestroyed: boolean = false
   public startX: number // Store starting X position to return to finish line
   public lastCheckpoint: number = -1 // Last checkpoint passed (-1 means none)
@@ -679,7 +679,7 @@ export class Car {
     let isAiCollision = false
 
     for (const otherCar of allCars) {
-      if (otherCar === this || otherCar.finished || otherCar.launched || otherCar.isDestroyed) continue
+      if (otherCar === this || otherCar.finished || otherCar.launched) continue
       
       if (testBox.intersectsBox(otherCar.boundingBox)) {
         collided = true
@@ -829,7 +829,7 @@ export class Car {
     this.launchVelocity = null
     this.launchAngularVelocity = null
     this.speed = 0
-    this.health = 100
+    this.health = 10
     this.isDestroyed = false
     this.clearFireEffect()
   }
@@ -846,7 +846,7 @@ export class Car {
     this.launched = false
     this.launchVelocity = null
     this.launchAngularVelocity = null
-    this.health = 100
+    this.health = 10
     this.isDestroyed = false
     this.clearFireEffect()
     this.mesh.position.copy(this.position)

@@ -273,70 +273,114 @@ export class SoundGenerator {
       const masterGain = ctx.createGain()
       masterGain.connect(ctx.destination)
 
-      // Layer 1: Deep low-frequency boom
+      // Layer 1: Deep saturated boom with sub-bass
       const boomOsc = ctx.createOscillator()
       const boomGain = ctx.createGain()
-      boomOsc.type = 'sine'
-      boomOsc.frequency.setValueAtTime(80, now)
-      boomOsc.frequency.exponentialRampToValueAtTime(20, now + 0.8)
+      const boomDistortion = ctx.createWaveShaper()
+      boomOsc.type = 'sawtooth'
+      boomOsc.frequency.setValueAtTime(60, now)
+      boomOsc.frequency.exponentialRampToValueAtTime(15, now + 1.2)
+      const boomCurve = new Float32Array(512)
+      for (let i = 0; i < 512; i++) {
+        const x = (i * 2) / 512 - 1
+        boomCurve[i] = Math.tanh(x * 4)
+      }
+      boomDistortion.curve = boomCurve
       boomGain.gain.setValueAtTime(volume, now)
-      boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9)
-      boomOsc.connect(boomGain)
+      boomGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2)
+      boomOsc.connect(boomDistortion)
+      boomDistortion.connect(boomGain)
       boomGain.connect(masterGain)
       boomOsc.start(now)
-      boomOsc.stop(now + 0.9)
+      boomOsc.stop(now + 1.2)
 
-      // Layer 2: Distorted mid-frequency punch
+      // Layer 2: Heavily distorted mid crunch
       const punchOsc = ctx.createOscillator()
       const punchGain = ctx.createGain()
       const distortion = ctx.createWaveShaper()
       punchOsc.type = 'sawtooth'
-      punchOsc.frequency.setValueAtTime(200, now)
-      punchOsc.frequency.exponentialRampToValueAtTime(40, now + 0.5)
-      const curve = new Float32Array(256)
-      for (let i = 0; i < 256; i++) {
-        const x = (i * 2) / 256 - 1
-        curve[i] = (Math.PI + 200) * x / (Math.PI + 200 * Math.abs(x))
+      punchOsc.frequency.setValueAtTime(250, now)
+      punchOsc.frequency.exponentialRampToValueAtTime(30, now + 0.6)
+      const curve = new Float32Array(512)
+      for (let i = 0; i < 512; i++) {
+        const x = (i * 2) / 512 - 1
+        curve[i] = Math.sign(x) * Math.pow(Math.abs(x), 0.15)
       }
       distortion.curve = curve
-      punchGain.gain.setValueAtTime(volume * 0.6, now)
-      punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+      punchGain.gain.setValueAtTime(volume * 0.7, now)
+      punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6)
       punchOsc.connect(distortion)
       distortion.connect(punchGain)
       punchGain.connect(masterGain)
       punchOsc.start(now)
-      punchOsc.stop(now + 0.5)
+      punchOsc.stop(now + 0.6)
 
-      // Layer 3: Noise burst for debris / shrapnel
-      const noiseLen = ctx.sampleRate * 1.0
+      // Layer 3: Secondary crackle oscillator for grit
+      const crackleOsc = ctx.createOscillator()
+      const crackleGain = ctx.createGain()
+      const crackleDistortion = ctx.createWaveShaper()
+      crackleOsc.type = 'square'
+      crackleOsc.frequency.setValueAtTime(150, now)
+      crackleOsc.frequency.exponentialRampToValueAtTime(20, now + 0.4)
+      const crackleCurve = new Float32Array(256)
+      for (let i = 0; i < 256; i++) {
+        const x = (i * 2) / 256 - 1
+        crackleCurve[i] = Math.sign(x) * (1 - Math.exp(-Math.abs(x) * 8))
+      }
+      crackleDistortion.curve = crackleCurve
+      crackleGain.gain.setValueAtTime(volume * 0.4, now)
+      crackleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4)
+      crackleOsc.connect(crackleDistortion)
+      crackleDistortion.connect(crackleGain)
+      crackleGain.connect(masterGain)
+      crackleOsc.start(now)
+      crackleOsc.stop(now + 0.4)
+
+      // Layer 4: Loud filtered noise for debris / shrapnel
+      const noiseLen = Math.floor(ctx.sampleRate * 1.4)
       const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
       const noiseData = noiseBuf.getChannelData(0)
       for (let i = 0; i < noiseLen; i++) {
-        noiseData[i] = Math.random() * 2 - 1
+        // Mix white noise with crackly impulses
+        const impulse = Math.random() < 0.03 ? (Math.random() * 2 - 1) * 3 : 0
+        noiseData[i] = (Math.random() * 2 - 1) + impulse
       }
       const noiseSrc = ctx.createBufferSource()
       noiseSrc.buffer = noiseBuf
+      const noiseDistortion = ctx.createWaveShaper()
+      const noiseDCurve = new Float32Array(256)
+      for (let i = 0; i < 256; i++) {
+        const x = (i * 2) / 256 - 1
+        noiseDCurve[i] = Math.tanh(x * 3)
+      }
+      noiseDistortion.curve = noiseDCurve
       const noiseFilter = ctx.createBiquadFilter()
       noiseFilter.type = 'lowpass'
-      noiseFilter.frequency.setValueAtTime(4000, now)
-      noiseFilter.frequency.exponentialRampToValueAtTime(200, now + 0.8)
+      noiseFilter.frequency.setValueAtTime(6000, now)
+      noiseFilter.frequency.exponentialRampToValueAtTime(150, now + 1.2)
       const noiseGain = ctx.createGain()
-      noiseGain.gain.setValueAtTime(volume * 0.55, now)
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.0)
-      noiseSrc.connect(noiseFilter)
+      noiseGain.gain.setValueAtTime(volume * 0.7, now)
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4)
+      noiseSrc.connect(noiseDistortion)
+      noiseDistortion.connect(noiseFilter)
       noiseFilter.connect(noiseGain)
       noiseGain.connect(masterGain)
       noiseSrc.start(now)
-      noiseSrc.stop(now + 1.0)
+      noiseSrc.stop(now + 1.4)
 
       // Cleanup
       const cleanup = () => {
         boomOsc.disconnect()
+        boomDistortion.disconnect()
         boomGain.disconnect()
         punchOsc.disconnect()
         punchGain.disconnect()
         distortion.disconnect()
+        crackleOsc.disconnect()
+        crackleDistortion.disconnect()
+        crackleGain.disconnect()
         noiseSrc.disconnect()
+        noiseDistortion.disconnect()
         noiseFilter.disconnect()
         noiseGain.disconnect()
         masterGain.disconnect()
@@ -449,6 +493,40 @@ export class SoundGenerator {
       }
     } catch (error) {
       console.warn('Failed to play bullet impact sound:', error)
+    }
+  }
+
+  /**
+   * Play a short laser-like pew sound when a bullet is fired.
+   */
+  playBulletShoot(volume: number = 0.08): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+    try {
+      const now = ctx.currentTime
+
+      const osc = ctx.createOscillator()
+      const oscGain = ctx.createGain()
+      osc.type = 'square'
+      osc.frequency.setValueAtTime(1200 + Math.random() * 200, now)
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.06)
+      oscGain.gain.setValueAtTime(volume, now)
+      oscGain.gain.linearRampToValueAtTime(0, now + 0.06)
+      osc.connect(oscGain)
+      oscGain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.06)
+
+      osc.onended = () => {
+        osc.disconnect()
+        oscGain.disconnect()
+      }
+    } catch (error) {
+      console.warn('Failed to play bullet shoot sound:', error)
     }
   }
 

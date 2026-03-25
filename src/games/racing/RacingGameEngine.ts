@@ -486,8 +486,13 @@ export class RacingGameEngine {
       if (!bullet.isExpired()) {
         for (const car of aiCars) {
           if (!car.isDestroyed && bullet.checkCollision(car)) {
+            const wasAlive = !car.isDestroyed
             car.takeDamage()
-            this.soundGenerator.playBulletImpact()
+            if (wasAlive && car.isDestroyed) {
+              this.soundGenerator.playExplosionSound(0.5)
+            } else {
+              this.soundGenerator.playBulletImpact()
+            }
             hit = true
             break
           }
@@ -575,6 +580,7 @@ export class RacingGameEngine {
     const bullet = new Bullet(spawnPos, playerCar.rotation)
     this.scene.add(bullet.mesh)
     this.bullets.push(bullet)
+    this.soundGenerator.playBulletShoot()
     this.shootCooldown = 0.05
   }
 
