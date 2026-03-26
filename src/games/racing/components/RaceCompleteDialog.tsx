@@ -7,13 +7,15 @@ interface RaceCompleteDialogProps {
   currentLevel: LevelConfig
   isLastLevel: boolean
   onProceed: () => void
+  onBackToMenu: () => void
 }
 
 export function RaceCompleteDialog({
   raceResult,
   currentLevel,
   isLastLevel,
-  onProceed
+  onProceed,
+  onBackToMenu
 }: RaceCompleteDialogProps) {
   return (
     <div className="absolute inset-0 bg-black bg-opacity-90 z-10 flex items-center justify-center px-4 py-6 overflow-y-auto">
@@ -69,16 +71,21 @@ export function RaceCompleteDialog({
                 : `You needed top ${currentLevel.winCondition.maxPosition} to advance.`
               }
             </p>
+            {!raceResult.levelPassed && (
+              <p className="text-gray-300 text-base sm:text-lg mt-2">
+                Better luck next time!
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-end">
           <button
-            onClick={onProceed}
+            onClick={raceResult.levelPassed ? onProceed : onBackToMenu}
             className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-4 sm:py-4 sm:px-6 rounded-lg transition-colors text-lg sm:text-xl whitespace-nowrap"
           >
             {raceResult.levelPassed
               ? (isLastLevel ? 'See Results' : 'Next Track')
-              : 'Continue'
+              : 'Back to Menu'
             }
           </button>
         </div>

@@ -11,7 +11,6 @@ import {
   GameHUD,
   RaceCompleteDialog,
   GameWonDialog,
-  GameLostDialog,
   PausedDialog,
   MenuScreen,
   FinishLineConfetti
@@ -38,7 +37,7 @@ const isLandscape = () => {
 }
 
 
-type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'gameWon' | 'gameLost'
+type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'gameWon'
 
 export default function RacingGame() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -279,19 +278,13 @@ export default function RacingGame() {
             currentLevel={currentLevel}
             isLastLevel={gameManagerRef.current?.isLastLevel() ?? false}
             onProceed={handleProceedAfterRace}
+            onBackToMenu={handleBackToMenu}
           />
         )}
 
         {uiState === 'gameWon' && (
           <GameWonDialog
             totalLevels={totalLevels}
-            onBackToMenu={handleBackToMenu}
-          />
-        )}
-
-        {uiState === 'gameLost' && currentLevel && (
-          <GameLostDialog
-            currentLevel={currentLevel}
             onBackToMenu={handleBackToMenu}
           />
         )}
