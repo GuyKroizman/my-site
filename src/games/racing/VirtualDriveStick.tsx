@@ -1,11 +1,12 @@
 import { useCallback, useRef, useState } from 'react'
 import { NEUTRAL_TOUCH_DRIVE_STATE, type TouchDriveState } from './input'
 
-const JOYSTICK_BASE_SIZE = 120
+const JOYSTICK_BASE_WIDTH = 150
+const JOYSTICK_BASE_HEIGHT = 120
 const JOYSTICK_KNOB_SIZE = 48
-const JOYSTICK_STICK_RADIUS = (JOYSTICK_BASE_SIZE - JOYSTICK_KNOB_SIZE) / 2
+const JOYSTICK_RADIUS_X = (JOYSTICK_BASE_WIDTH - JOYSTICK_KNOB_SIZE) / 2
+const JOYSTICK_RADIUS_Y = (JOYSTICK_BASE_HEIGHT - JOYSTICK_KNOB_SIZE) / 2
 const JOYSTICK_DEADZONE = 0.15
-const STEERING_CURVE_EXPONENT = 0.5
 
 interface VirtualDriveStickProps {
   onStateChange: (state: TouchDriveState) => void
@@ -19,14 +20,6 @@ function applyDeadzone(value: number, deadzone: number) {
   }
 
   return Math.sign(value) * ((magnitude - deadzone) / (1 - deadzone))
-}
-
-function shapeSteering(value: number) {
-  if (value === 0) {
-    return 0
-  }
-
-  return Math.sign(value) * Math.pow(Math.abs(value), STEERING_CURVE_EXPONENT)
 }
 
 function clampOffset(
@@ -44,10 +37,12 @@ function clampOffset(
   const centerY = rect.top + rect.height / 2
   let x = clientX - centerX
   let y = clientY - centerY
-  const distance = Math.hypot(x, y)
 
-  if (distance > JOYSTICK_STICK_RADIUS) {
-    const scale = JOYSTICK_STICK_RADIUS / distance
+  const nx = x / JOYSTICK_RADIUS_X
+  const ny = y / JOYSTICK_RADIUS_Y
+  const ellipseDist = nx * nx + ny * ny
+  if (ellipseDist > 1) {
+    const scale = 1 / Math.sqrt(ellipseDist)
     x *= scale
     y *= scale
   }
@@ -56,13 +51,9 @@ function clampOffset(
 }
 
 function offsetToDriveState(offset: { x: number; y: number }): TouchDriveState {
-  if (JOYSTICK_STICK_RADIUS <= 0) {
-    return NEUTRAL_TOUCH_DRIVE_STATE
-  }
-
-  const normalizedX = offset.x / JOYSTICK_STICK_RADIUS
-  const normalizedY = -offset.y / JOYSTICK_STICK_RADIUS
-  const steering = shapeSteering(applyDeadzone(normalizedX, JOYSTICK_DEADZONE))
+  const normalizedX = offset.x / JOYSTICK_RADIUS_X
+  const normalizedY = -offset.y / JOYSTICK_RADIUS_Y
+  const steering = applyDeadzone(normalizedX, JOYSTICK_DEADZONE)
   const throttle = applyDeadzone(normalizedY, JOYSTICK_DEADZONE)
 
   return { throttle, steering }
@@ -136,8 +127,8 @@ export function VirtualDriveStick({ onStateChange, onShoot }: VirtualDriveStickP
         ref={baseRef}
         className="fixed bottom-8 left-8 z-50 select-none pointer-events-auto"
         style={{
-          width: JOYSTICK_BASE_SIZE,
-          height: JOYSTICK_BASE_SIZE,
+          width: JOYSTICK_BASE_WIDTH,
+          height: JOYSTICK_BASE_HEIGHT,
           touchAction: 'none',
         }}
         onPointerDown={handlePointerDown}
@@ -148,14 +139,14 @@ export function VirtualDriveStick({ onStateChange, onShoot }: VirtualDriveStickP
         <div
           className="absolute rounded-full border-2 border-white/60 bg-sky-500/20 shadow-[0_0_24px_rgba(14,165,233,0.25)]"
           style={{
-            width: JOYSTICK_BASE_SIZE,
-            height: JOYSTICK_BASE_SIZE,
+            width: JOYSTICK_BASE_WIDTH,
+            height: JOYSTICK_BASE_HEIGHT,
             left: 0,
             top: 0,
           }}
         />
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 h-px w-[72px] -translate-x-1/2 -translate-y-1/2 bg-white/20"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-px w-[102px] -translate-x-1/2 -translate-y-1/2 bg-white/20"
         />
         <div
           className="pointer-events-none absolute left-1/2 top-1/2 w-px h-[72px] -translate-x-1/2 -translate-y-1/2 bg-white/20"
@@ -165,8 +156,8 @@ export function VirtualDriveStick({ onStateChange, onShoot }: VirtualDriveStickP
           style={{
             width: JOYSTICK_KNOB_SIZE,
             height: JOYSTICK_KNOB_SIZE,
-            left: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.x,
-            top: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.y,
+            left: JOYSTICK_BASE_WIDTH / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.x,
+            top: JOYSTICK_BASE_HEIGHT / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.y,
           }}
         />
       </div>
