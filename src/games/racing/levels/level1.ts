@@ -37,10 +37,10 @@ export const level1: LevelConfig = {
       characteristics: {
         // Balanced all-rounder - good at everything
         maxSpeed: 10,
-        acceleration: 20,
+        acceleration: 15,
         turnSpeed: 0.04,
         aiAggressiveness: 0.8,
-        pathRecalculateInterval: 0.5,
+        pathRecalculateInterval: 0.2,
         waypointLookAhead: 3
       }
     },
@@ -56,8 +56,8 @@ export const level1: LevelConfig = {
         maxSpeed: 8,
         acceleration: 20,
         turnSpeed: 0.04,
-        aiAggressiveness: 0.7,
-        pathRecalculateInterval: 0.5,
+        aiAggressiveness: 0.6,
+        pathRecalculateInterval: 0.2,
         waypointLookAhead: 3
       }
     },
