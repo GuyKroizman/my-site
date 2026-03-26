@@ -68,42 +68,9 @@ function createDust(count: number): THREE.Points {
   return new THREE.Points(geometry, material)
 }
 
-function createCabinet(color: string): THREE.Group {
-  const group = new THREE.Group()
-
-  const boxGeo = new THREE.BoxGeometry(1.8, 2.2, 0.15)
-  const boxMat = new THREE.MeshStandardMaterial({
-    color: 0x111122,
-    transparent: true,
-    opacity: 0.6,
-    metalness: 0.8,
-    roughness: 0.3,
-  })
-  const box = new THREE.Mesh(boxGeo, boxMat)
-  group.add(box)
-
-  const edgesGeo = new THREE.EdgesGeometry(boxGeo)
-  const edgesMat = new THREE.LineBasicMaterial({
-    color: new THREE.Color(color),
-    transparent: true,
-    opacity: 0.9,
-  })
-  const edges = new THREE.LineSegments(edgesGeo, edgesMat)
-  group.add(edges)
-
-  // Inner glow plane facing the camera
-  const glowGeo = new THREE.PlaneGeometry(1.6, 2.0)
-  const glowMat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(color),
-    transparent: true,
-    opacity: 0.05,
-    side: THREE.FrontSide,
-  })
-  const glow = new THREE.Mesh(glowGeo, glowMat)
-  glow.position.z = 0.08
-  group.add(glow)
-
-  return group
+// Empty group used as a 3D anchor point for positioning HTML overlays
+function createCabinetAnchor(): THREE.Group {
+  return new THREE.Group()
 }
 
 export function useArcadeScene(
@@ -161,13 +128,6 @@ export function useArcadeScene(
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100)
     camera.position.set(0, 0, 8)
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x222244, 1.5)
-    scene.add(ambientLight)
-    const pointLight = new THREE.PointLight(0xffffff, 1, 20)
-    pointLight.position.copy(camera.position)
-    scene.add(pointLight)
-
     // Starfield
     const starfield = createStarfield(starCount)
     scene.add(starfield)
@@ -181,8 +141,8 @@ export function useArcadeScene(
     scene.add(ring)
 
     const cabinets: THREE.Group[] = []
-    projects.forEach((project, i) => {
-      const cabinet = createCabinet(project.color)
+    projects.forEach((_project, i) => {
+      const cabinet = createCabinetAnchor()
       const angle = (i / projects.length) * Math.PI * 2
       cabinet.position.x = Math.sin(angle) * RING_RADIUS
       cabinet.position.z = Math.cos(angle) * RING_RADIUS
@@ -293,33 +253,36 @@ export function useArcadeScene(
       // Slow starfield rotation
       starfield.rotation.y += 0.002 * dt
 
-      // Update point light to camera
-      pointLight.position.copy(camera.position)
-
       renderer.render(scene, camera)
 
       // Project cabinet 3D positions to screen for overlay
+      // Compute distances first for z-index sorting (closer = higher z-index)
+      const overlayData: { i: number; dist: number; worldPos: THREE.Vector3 }[] = []
       cabinets.forEach((cab, i) => {
         const worldPos = new THREE.Vector3()
         cab.getWorldPosition(worldPos)
+        overlayData.push({ i, dist: worldPos.distanceTo(camera.position), worldPos })
+      })
+      // Sort far-to-near so we can assign ascending z-index
+      overlayData.sort((a, b) => b.dist - a.dist)
+
+      overlayData.forEach(({ i, dist, worldPos }, sortIdx) => {
         const projected = worldPos.clone().project(camera)
         const x = (projected.x * 0.5 + 0.5) * window.innerWidth
         const y = (-projected.y * 0.5 + 0.5) * window.innerHeight
         const el = overlayElementsRef.current[i]
         if (el) {
-          el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`
-          // Scale based on z distance - closer = bigger
-          const dist = worldPos.distanceTo(camera.position)
           const scale = Math.max(0.4, Math.min(1.2, 5 / dist))
           el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})`
-          // Fade based on whether cabinet is behind the ring (z relative to camera)
+          el.style.zIndex = String(sortIdx + 1) // closest card gets highest z-index
+          // Fade based on whether cabinet is behind the ring
           const cameraDir = new THREE.Vector3()
           camera.getWorldDirection(cameraDir)
           const toObj = worldPos.clone().sub(camera.position).normalize()
           const dot = cameraDir.dot(toObj)
           const visibility = Math.max(0, Math.min(1, (dot + 0.2) * 2))
           el.style.opacity = state.isZooming
-            ? el.style.opacity // managed by zoom animation
+            ? el.style.opacity
             : String(visibility)
         }
       })
