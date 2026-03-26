@@ -5,7 +5,7 @@ const JOYSTICK_BASE_SIZE = 120
 const JOYSTICK_KNOB_SIZE = 48
 const JOYSTICK_STICK_RADIUS = (JOYSTICK_BASE_SIZE - JOYSTICK_KNOB_SIZE) / 2
 const JOYSTICK_DEADZONE = 0.15
-const STEERING_CURVE_EXPONENT = 1
+const STEERING_CURVE_EXPONENT = 0.5
 
 interface VirtualDriveStickProps {
   onStateChange: (state: TouchDriveState) => void
