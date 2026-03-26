@@ -36,7 +36,7 @@ export const level1: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Balanced all-rounder - good at everything
-        maxSpeed: 8,
+        maxSpeed: 10,
         acceleration: 20,
         turnSpeed: 0.04,
         aiAggressiveness: 0.8,
@@ -53,7 +53,7 @@ export const level1: LevelConfig = {
       isPlayer: true,
       characteristics: {
         // Player car characteristics
-        maxSpeed: 11,
+        maxSpeed: 8,
         acceleration: 20,
         turnSpeed: 0.04,
         aiAggressiveness: 0.7,
