@@ -19,7 +19,7 @@ export const level1: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Aggressive speedster - fast but less precise on corners
-        maxSpeed: 12,
+        maxSpeed: 9,
         acceleration: 24,
         turnSpeed: 0.035,
         aiAggressiveness: 0.9,
@@ -36,7 +36,7 @@ export const level1: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Balanced all-rounder - good at everything
-        maxSpeed: 11,
+        maxSpeed: 8,
         acceleration: 20,
         turnSpeed: 0.04,
         aiAggressiveness: 0.8,
@@ -70,7 +70,7 @@ export const level1: LevelConfig = {
       isPlayer: false,
       characteristics: {
         // Careful navigator - slower top speed but great cornering
-        maxSpeed: 13,
+        maxSpeed: 10,
         acceleration: 16,
         turnSpeed: 0.045,
         aiAggressiveness: 0.7,
