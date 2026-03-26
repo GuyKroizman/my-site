@@ -105,7 +105,26 @@ code {
 .arcade-cabinet-subtitle {
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 6px;
+}
+
+.arcade-cabinet-description {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.4;
   margin-bottom: 12px;
+}
+
+.arcade-cabinet-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.arcade-cabinet-disabled:hover {
+  transform: none;
+  box-shadow:
+    0 0 15px rgba(var(--cabinet-color-rgb, 100, 100, 255), 0.15),
+    inset 0 0 20px rgba(0, 0, 0, 0.3);
 }
 
 .arcade-cabinet-button {
@@ -153,4 +172,27 @@ code {
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.35);
   margin: 0;
+}
+
+/* Mobile: scrollable grid over the starfield */
+.arcade-mobile-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 80px 16px 24px;
+  min-height: 100vh;
+  align-content: start;
+  overflow-y: auto;
+}
+
+.arcade-mobile-grid .arcade-cabinet {
+  width: auto;
+}
+
+@media (max-width: 400px) {
+  .arcade-mobile-grid {
+    grid-template-columns: 1fr;
+  }
 }

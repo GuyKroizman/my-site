@@ -45,7 +45,7 @@ export default function ProjectCabinet({ project, isMobile, isIPhone, onClick }:
 
   return (
     <div
-      className="arcade-cabinet"
+      className={`arcade-cabinet ${disabled ? 'arcade-cabinet-disabled' : ''}`}
       style={{
         '--cabinet-color': project.color,
       } as React.CSSProperties}
@@ -54,6 +54,11 @@ export default function ProjectCabinet({ project, isMobile, isIPhone, onClick }:
       <div className="arcade-cabinet-emoji">{project.emoji}</div>
       <div className="arcade-cabinet-title">{project.title}</div>
       <div className="arcade-cabinet-subtitle">{project.subtitle}</div>
+      <div className="arcade-cabinet-description"
+        {...(project.id === 'snake-bitter' ? { dir: 'rtl' } : {})}
+      >
+        {project.description}
+      </div>
       {label ? (
         <div className="arcade-cabinet-unavailable">{label}</div>
       ) : (
@@ -61,7 +66,7 @@ export default function ProjectCabinet({ project, isMobile, isIPhone, onClick }:
           className="arcade-cabinet-button"
           style={{ backgroundColor: project.color }}
         >
-          {project.id === 'snake-bitter' ? 'Read' : project.id === 'floaty' ? 'Enter VR' : 'Play'}
+          {project.id === 'snake-bitter' ? 'Read Story' : project.id === 'floaty' ? 'Enter VR' : 'Play Game'}
         </div>
       )}
     </div>
