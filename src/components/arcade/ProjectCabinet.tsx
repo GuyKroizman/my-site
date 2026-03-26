@@ -51,6 +51,9 @@ export default function ProjectCabinet({ project, isMobile, isIPhone, onClick }:
       } as React.CSSProperties}
       onClick={disabled ? undefined : onClick}
     >
+      {project.badge && (
+        <div className="arcade-cabinet-badge">{project.badge}</div>
+      )}
       <div className="arcade-cabinet-emoji">{project.emoji}</div>
       <div className="arcade-cabinet-title">{project.title}</div>
       <div className="arcade-cabinet-subtitle">{project.subtitle}</div>

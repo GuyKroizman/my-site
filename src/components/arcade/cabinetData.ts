@@ -9,6 +9,7 @@ export interface Project {
   path: string
   color: string
   availability: Availability
+  badge?: string
 }
 
 export const projects: Project[] = [
@@ -30,7 +31,8 @@ export const projects: Project[] = [
     description: 'Work in progress dungeon adventure game.',
     path: '/rogue0',
     color: '#ef4444',
-    availability: 'all',
+    availability: 'desktop',
+    badge: 'Under Construction',
   },
   {
     id: 'hoot',

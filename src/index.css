@@ -62,6 +62,7 @@ code {
 }
 
 .arcade-cabinet {
+  position: relative;
   width: 180px;
   padding: 16px;
   background: rgba(10, 10, 30, 0.85);
@@ -86,6 +87,21 @@ code {
     0 0 25px color-mix(in srgb, var(--cabinet-color) 40%, transparent),
     0 0 50px color-mix(in srgb, var(--cabinet-color) 20%, transparent),
     inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.arcade-cabinet-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #f59e0b;
+  color: #000;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
 }
 
 .arcade-cabinet-emoji {
@@ -172,27 +188,4 @@ code {
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.35);
   margin: 0;
-}
-
-/* Mobile: scrollable grid over the starfield */
-.arcade-mobile-grid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  padding: 80px 16px 24px;
-  min-height: 100vh;
-  align-content: start;
-  overflow-y: auto;
-}
-
-.arcade-mobile-grid .arcade-cabinet {
-  width: auto;
-}
-
-@media (max-width: 400px) {
-  .arcade-mobile-grid {
-    grid-template-columns: 1fr;
-  }
 }
