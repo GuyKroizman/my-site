@@ -5,7 +5,7 @@ const JOYSTICK_BASE_SIZE = 120
 const JOYSTICK_KNOB_SIZE = 48
 const JOYSTICK_STICK_RADIUS = (JOYSTICK_BASE_SIZE - JOYSTICK_KNOB_SIZE) / 2
 const JOYSTICK_DEADZONE = 0.15
-const STEERING_CURVE_EXPONENT = 1.15
+const STEERING_CURVE_EXPONENT = 1
 
 interface VirtualDriveStickProps {
   onStateChange: (state: TouchDriveState) => void
@@ -132,66 +132,66 @@ export function VirtualDriveStick({ onStateChange, onShoot }: VirtualDriveStickP
 
   return (
     <>
-    <div
-      ref={baseRef}
-      className="fixed bottom-8 left-8 z-50 select-none pointer-events-auto"
-      style={{
-        width: JOYSTICK_BASE_SIZE,
-        height: JOYSTICK_BASE_SIZE,
-        touchAction: 'none',
-      }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    >
       <div
-        className="absolute rounded-full border-2 border-white/60 bg-sky-500/20 shadow-[0_0_24px_rgba(14,165,233,0.25)]"
+        ref={baseRef}
+        className="fixed bottom-8 left-8 z-50 select-none pointer-events-auto"
         style={{
           width: JOYSTICK_BASE_SIZE,
           height: JOYSTICK_BASE_SIZE,
-          left: 0,
-          top: 0,
+          touchAction: 'none',
         }}
-      />
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        <div
+          className="absolute rounded-full border-2 border-white/60 bg-sky-500/20 shadow-[0_0_24px_rgba(14,165,233,0.25)]"
+          style={{
+            width: JOYSTICK_BASE_SIZE,
+            height: JOYSTICK_BASE_SIZE,
+            left: 0,
+            top: 0,
+          }}
+        />
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-px w-[72px] -translate-x-1/2 -translate-y-1/2 bg-white/20"
+        />
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 w-px h-[72px] -translate-x-1/2 -translate-y-1/2 bg-white/20"
+        />
+        <div
+          className="pointer-events-none absolute rounded-full border-2 border-white/90 bg-sky-400/75 shadow-lg"
+          style={{
+            width: JOYSTICK_KNOB_SIZE,
+            height: JOYSTICK_KNOB_SIZE,
+            left: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.x,
+            top: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.y,
+          }}
+        />
+      </div>
       <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-px w-[72px] -translate-x-1/2 -translate-y-1/2 bg-white/20"
-      />
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 w-px h-[72px] -translate-x-1/2 -translate-y-1/2 bg-white/20"
-      />
-      <div
-        className="pointer-events-none absolute rounded-full border-2 border-white/90 bg-sky-400/75 shadow-lg"
+        className="fixed bottom-8 right-8 z-50 select-none pointer-events-auto flex items-center justify-center"
         style={{
-          width: JOYSTICK_KNOB_SIZE,
-          height: JOYSTICK_KNOB_SIZE,
-          left: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.x,
-          top: JOYSTICK_BASE_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2 + knobOffset.y,
+          width: 80,
+          height: 80,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, #ff6600, #cc2200)',
+          border: '3px solid rgba(255, 200, 0, 0.7)',
+          touchAction: 'none',
+          color: 'white',
+          fontWeight: 'bold',
+          fontSize: 13,
         }}
-      />
-    </div>
-    <div
-      className="fixed bottom-8 right-8 z-50 select-none pointer-events-auto flex items-center justify-center"
-      style={{
-        width: 80,
-        height: 80,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, #ff6600, #cc2200)',
-        border: '3px solid rgba(255, 200, 0, 0.7)',
-        touchAction: 'none',
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 13,
-      }}
-      onPointerDown={(e) => {
-        e.currentTarget.setPointerCapture(e.pointerId)
-        onShoot?.(true)
-      }}
-      onPointerUp={() => onShoot?.(false)}
-      onPointerCancel={() => onShoot?.(false)}
-    >
-      FIRE
-    </div>
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId)
+          onShoot?.(true)
+        }}
+        onPointerUp={() => onShoot?.(false)}
+        onPointerCancel={() => onShoot?.(false)}
+      >
+        FIRE
+      </div>
     </>
   )
 }
