@@ -69,7 +69,6 @@ export class Car {
   private aiAggressiveness: number = 0.7
   private pathRecalculateInterval: number = 0.5
   private waypointLookAhead: number = 3
-  private canSeeMines: boolean = false
 
   // A* navigation state
   private astarPath: THREE.Vector3[] = []
@@ -126,10 +125,6 @@ export class Car {
       this.aiAggressiveness = characteristics.aiAggressiveness
       this.pathRecalculateInterval = characteristics.pathRecalculateInterval
       this.waypointLookAhead = characteristics.waypointLookAhead
-    }
-
-    if (!isPlayer) {
-      this.canSeeMines = Math.random() < 0.5
     }
 
     // Create car mesh with polygon style
@@ -405,7 +400,7 @@ export class Car {
     )
   }
 
-  public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false, canStart: boolean = false, minePosition: THREE.Vector3 | null = null) {
+  public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false, canStart: boolean = false) {
     // If launched by mine, apply velocity, gravity, and tumble
     if (this.launched && this.launchVelocity) {
       this.position.add(this.launchVelocity.clone().multiplyScalar(deltaTime))
@@ -447,7 +442,7 @@ export class Car {
     if (this.isPlayer) {
       this.updatePlayer(deltaTime)
     } else {
-      this.updateAI(deltaTime, track, allCars, minePosition)
+      this.updateAI(deltaTime, track)
     }
 
     // Apply movement (speed can be negative for reverse, but not for AI)
@@ -671,7 +666,7 @@ export class Car {
     return positivePressed ? 1 : -1
   }
 
-  private updateAI(deltaTime: number, track: Track, allCars: Car[], minePosition: THREE.Vector3 | null) {
+  private updateAI(deltaTime: number, track: Track) {
     // A* pathfinding-based AI navigation
     
     // Update recalculation timer
@@ -712,79 +707,6 @@ export class Car {
     const targetPoint = this.astarPath[targetIndex]
     
     this.steerTowardsTarget(deltaTime, targetPoint)
-    this.applyObstacleAvoidance(deltaTime, allCars, minePosition)
-  }
-
-  private applyObstacleAvoidance(deltaTime: number, allCars: Car[], minePosition: THREE.Vector3 | null): void {
-    const forwardX = Math.sin(this.rotation)
-    const forwardZ = Math.cos(this.rotation)
-    const rightX = Math.cos(this.rotation)
-    const rightZ = -Math.sin(this.rotation)
-
-    const CAR_RANGE = 6.0
-    const MINE_RANGE = 5.0
-    const HALF_ANGLE = 0.6
-    const AVOIDANCE_STRENGTH = 3.0
-
-    let avoidanceRotation = 0
-
-    // Avoid other cars
-    for (const other of allCars) {
-      if (other === this || other.finished || other.launched) continue
-
-      const dx = other.position.x - this.position.x
-      const dz = other.position.z - this.position.z
-      const dist = Math.sqrt(dx * dx + dz * dz)
-      if (dist > CAR_RANGE || dist < 0.1) continue
-
-      const forwardDot = dx * forwardX + dz * forwardZ
-      if (forwardDot < 0) continue
-
-      const angle = Math.acos(Math.min(1, forwardDot / dist))
-      if (angle > HALF_ANGLE) continue
-
-      const lateralDot = dx * rightX + dz * rightZ
-      const urgency = 1.0 - (dist / CAR_RANGE)
-      const centeredness = 1.0 - (angle / HALF_ANGLE)
-      const strength = urgency * centeredness * AVOIDANCE_STRENGTH
-
-      if (lateralDot >= 0) {
-        avoidanceRotation -= strength * deltaTime
-      } else {
-        avoidanceRotation += strength * deltaTime
-      }
-    }
-
-    // Avoid mine (if this car can see mines)
-    if (minePosition && this.canSeeMines) {
-      const dx = minePosition.x - this.position.x
-      const dz = minePosition.z - this.position.z
-      const dist = Math.sqrt(dx * dx + dz * dz)
-
-      if (dist < MINE_RANGE && dist > 0.1) {
-        const forwardDot = dx * forwardX + dz * forwardZ
-        if (forwardDot > 0) {
-          const angle = Math.acos(Math.min(1, forwardDot / dist))
-          if (angle < HALF_ANGLE) {
-            const lateralDot = dx * rightX + dz * rightZ
-            const urgency = 1.0 - (dist / MINE_RANGE)
-            const strength = urgency * AVOIDANCE_STRENGTH * 1.5
-
-            if (lateralDot >= 0) {
-              avoidanceRotation -= strength * deltaTime
-            } else {
-              avoidanceRotation += strength * deltaTime
-            }
-          }
-        }
-      }
-    }
-
-    this.rotation += avoidanceRotation
-
-    if (Math.abs(avoidanceRotation) > 0.02) {
-      this.speed *= 0.95
-    }
   }
 
   private recalculateAStarPath(track: Track) {

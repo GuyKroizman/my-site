@@ -429,9 +429,8 @@ export class RacingGameEngine {
       }
     }
 
-    const minePos = this.mine?.getPosition() ?? null
     this.cars.forEach(car => {
-      car.update(deltaTime, this.track, this.cars, raceComplete, canStart, minePos)
+      car.update(deltaTime, this.track, this.cars, raceComplete, canStart)
     })
 
     // Check car–mine collision (only one mine per level; first collision destroys it)
