@@ -26,3 +26,130 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Floating Arcade Scene */
+.arcade-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #07070f;
+  overflow: hidden;
+}
+
+.arcade-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.arcade-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.arcade-card-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  will-change: transform, opacity;
+  transition: opacity 0.1s linear;
+}
+
+.arcade-cabinet {
+  width: 180px;
+  padding: 16px;
+  background: rgba(10, 10, 30, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  box-shadow:
+    0 0 15px rgba(var(--cabinet-color-rgb, 100, 100, 255), 0.15),
+    inset 0 0 20px rgba(0, 0, 0, 0.3);
+  border-color: var(--cabinet-color, #666);
+  border-width: 1px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.arcade-cabinet:hover {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 25px color-mix(in srgb, var(--cabinet-color) 40%, transparent),
+    0 0 50px color-mix(in srgb, var(--cabinet-color) 20%, transparent),
+    inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.arcade-cabinet-emoji {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+}
+
+.arcade-cabinet-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.arcade-cabinet-subtitle {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 12px;
+}
+
+.arcade-cabinet-button {
+  padding: 6px 16px;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: filter 0.2s ease;
+}
+
+.arcade-cabinet:hover .arcade-cabinet-button {
+  filter: brightness(1.2);
+}
+
+.arcade-cabinet-unavailable {
+  padding: 6px 16px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.arcade-title {
+  position: absolute;
+  top: 24px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.arcade-title h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 0 20px rgba(100, 140, 255, 0.4);
+  margin: 0 0 4px 0;
+}
+
+.arcade-title p {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+}
