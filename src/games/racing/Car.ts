@@ -611,7 +611,7 @@ export class Car {
     }
 
     if (keyboardThrottle < 0) {
-      this.speed = Math.max(this.speed - this.acceleration * deltaTime, -this.maxSpeed * 0.5)
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime, -this.maxSpeed)
       return
     }
 
@@ -633,7 +633,7 @@ export class Car {
           (downwardIntent - Car.TOUCH_REVERSE_TRIGGER) / (1 - Car.TOUCH_REVERSE_TRIGGER)
         this.speed = Math.max(
           this.speed - this.acceleration * deltaTime * reverseStrength,
-          -this.maxSpeed * 0.5
+          -this.maxSpeed
         )
         return
       }
