@@ -3,6 +3,7 @@ export type Availability = 'all' | 'desktop' | 'mobile' | 'mobile-no-iphone' | '
 export interface Project {
   id: string
   emoji: string
+  iconImage?: string
   title: string
   subtitle: string
   description: string
@@ -47,6 +48,7 @@ export const projects: Project[] = [
   {
     id: 'racing',
     emoji: '\u{1F3CE}\uFE0F',
+    iconImage: '/racing/woman_and_dog_watching_sunset.png',
     title: 'Racing Game',
     subtitle: '3D Polygon Racing',
     description: 'Race against AI opponents on a 3D track.',

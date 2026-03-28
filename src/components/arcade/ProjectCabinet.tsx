@@ -54,7 +54,21 @@ export default function ProjectCabinet({ project, isMobile, isIPhone, onClick }:
       {project.badge && (
         <div className="arcade-cabinet-badge">{project.badge}</div>
       )}
-      <div className="arcade-cabinet-emoji">{project.emoji}</div>
+      <div className="arcade-cabinet-emoji">
+        {project.iconImage ? (
+          <div style={{
+            width: '2.5rem',
+            height: '2.5rem',
+            backgroundImage: `url(${project.iconImage})`,
+            backgroundSize: '200% 200%',
+            backgroundPosition: '0% 100%',
+            borderRadius: '4px',
+            margin: '0 auto',
+          }} />
+        ) : (
+          project.emoji
+        )}
+      </div>
       <div className="arcade-cabinet-title">{project.title}</div>
       <div className="arcade-cabinet-subtitle">{project.subtitle}</div>
       <div className="arcade-cabinet-description"
