@@ -49,21 +49,65 @@ function createStarfield(count: number): THREE.Points {
   return new THREE.Points(geometry, material)
 }
 
-function createDust(count: number): THREE.Points {
+function createSoftParticleTexture(): THREE.CanvasTexture {
+  const size = 64
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
+  gradient.addColorStop(0, 'rgba(255,255,255,1)')
+  gradient.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, size, size)
+  return new THREE.CanvasTexture(canvas)
+}
+
+function createNebulaCloud(
+  center: THREE.Vector3,
+  color: THREE.Color,
+  count: number,
+  spread: number,
+  texture: THREE.CanvasTexture,
+  isMobile: boolean,
+): THREE.Points {
   const positions = new Float32Array(count * 3)
+  const colors = new Float32Array(count * 3)
   for (let i = 0; i < count; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 15
-    positions[i * 3 + 1] = (Math.random() - 0.5) * 15
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 15
+    const u1 = Math.random() || 1e-10
+    const u2 = Math.random()
+    const mag = Math.sqrt(-2 * Math.log(u1))
+    const gx = mag * Math.cos(2 * Math.PI * u2)
+    const u3 = Math.random() || 1e-10
+    const u4 = Math.random()
+    const mag2 = Math.sqrt(-2 * Math.log(u3))
+    const gy = mag2 * Math.cos(2 * Math.PI * u4)
+    const u5 = Math.random() || 1e-10
+    const u6 = Math.random()
+    const mag3 = Math.sqrt(-2 * Math.log(u5))
+    const gz = mag3 * Math.cos(2 * Math.PI * u6)
+
+    positions[i * 3] = center.x + gx * spread
+    positions[i * 3 + 1] = center.y + gy * spread
+    positions[i * 3 + 2] = center.z + gz * spread
+
+    const variation = 0.8 + Math.random() * 0.4
+    colors[i * 3] = Math.min(1, color.r * variation)
+    colors[i * 3 + 1] = Math.min(1, color.g * variation)
+    colors[i * 3 + 2] = Math.min(1, color.b * variation)
   }
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
   const material = new THREE.PointsMaterial({
-    color: 0x8888ff,
-    size: 0.04,
-    sizeAttenuation: true,
+    map: texture,
+    vertexColors: true,
+    size: isMobile ? 3.0 : 6.0,
     transparent: true,
-    opacity: 0.3,
+    opacity: 0.08,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    sizeAttenuation: true,
   })
   return new THREE.Points(geometry, material)
 }
@@ -113,7 +157,6 @@ export function useArcadeScene(
     state.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
     const starCount = state.isMobile ? 800 : 1500
-    const dustCount = state.isMobile ? 100 : 200
     const dpr = Math.min(window.devicePixelRatio, state.isMobile ? 2 : 3)
 
     // Renderer
@@ -132,9 +175,20 @@ export function useArcadeScene(
     const starfield = createStarfield(starCount)
     scene.add(starfield)
 
-    // Dust
-    const dust = createDust(dustCount)
-    scene.add(dust)
+    // Nebula clouds
+    const nebulaTexture = createSoftParticleTexture()
+    const mobileFactor = state.isMobile ? 0.6 : 1
+    const cloudConfigs = [
+      { center: new THREE.Vector3(-4, 1, 2), color: new THREE.Color('#00ddff'), count: Math.round(500 * mobileFactor), spread: 4 },
+      { center: new THREE.Vector3(4, -1, 0), color: new THREE.Color('#dd00dd'), count: Math.round(600 * mobileFactor), spread: 4 },
+      { center: new THREE.Vector3(0, -3, 1), color: new THREE.Color('#ff9900'), count: Math.round(400 * mobileFactor), spread: 3 },
+    ]
+    const nebulaClouds: THREE.Points[] = []
+    cloudConfigs.forEach((cfg) => {
+      const cloud = createNebulaCloud(cfg.center, cfg.color, cfg.count, cfg.spread, nebulaTexture, state.isMobile)
+      scene.add(cloud)
+      nebulaClouds.push(cloud)
+    })
 
     // Cabinets
     const ring = new THREE.Group()
@@ -241,14 +295,11 @@ export function useArcadeScene(
         }
       }
 
-      // Drift dust particles
-      const dustPositions = dust.geometry.attributes.position as THREE.BufferAttribute
-      for (let i = 0; i < dustCount; i++) {
-        dustPositions.setX(i, dustPositions.getX(i) + (Math.random() - 0.5) * 0.005)
-        dustPositions.setY(i, dustPositions.getY(i) + (Math.random() - 0.5) * 0.005)
-        dustPositions.setZ(i, dustPositions.getZ(i) + (Math.random() - 0.5) * 0.005)
-      }
-      dustPositions.needsUpdate = true
+      // Nebula cloud rotation and breathing
+      nebulaClouds.forEach((cloud, idx) => {
+        cloud.rotation.y += 0.015 * dt
+        cloud.scale.setScalar(1 + 0.08 * Math.sin(now * 0.001 * 0.4 + idx * 2))
+      })
 
       // Slow starfield rotation
       starfield.rotation.y += 0.002 * dt
@@ -298,6 +349,7 @@ export function useArcadeScene(
       canvas.removeEventListener('touchmove', handleTouchMove)
       canvas.removeEventListener('touchend', handleTouchEnd)
       renderer.dispose()
+      nebulaTexture.dispose()
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
           obj.geometry.dispose()
