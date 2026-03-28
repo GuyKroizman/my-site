@@ -75,6 +75,11 @@ export class Car {
   private astarPathIndex: number = 0
   private astarRecalculateTimer: number = 0
 
+  // Lane offset state — each AI car gets a fixed offset to spread across the track
+  private currentLaneOffset: number = 0
+  private static nextAiIndex: number = 0
+  public static resetAiIndex() { Car.nextAiIndex = 0 }
+
   private boundingBox: THREE.Box3
   private localHalfSize: THREE.Vector3 = new THREE.Vector3()
   private boxHelper: THREE.LineSegments | null = null
@@ -116,6 +121,14 @@ export class Car {
     this.name = name
     this.isPlayer = isPlayer
     this.soundGenerator = new SoundGenerator()
+
+    // Assign each AI car a different base lane offset so they spread across the track
+    if (!isPlayer) {
+      // Inner (1.5), middle (0.0), outer (-1.5) — moderate spread, safe from rails
+      const offsets = [1.5, 0.0, -1.5]
+      this.currentLaneOffset = offsets[Car.nextAiIndex % offsets.length]
+      Car.nextAiIndex++
+    }
 
     // Apply characteristics if provided
     if (characteristics) {
@@ -442,7 +455,7 @@ export class Car {
     if (this.isPlayer) {
       this.updatePlayer(deltaTime)
     } else {
-      this.updateAI(deltaTime, track)
+      this.updateAI(deltaTime, track, allCars)
     }
 
     // Apply movement (speed can be negative for reverse, but not for AI)
@@ -666,18 +679,18 @@ export class Car {
     return positivePressed ? 1 : -1
   }
 
-  private updateAI(deltaTime: number, track: Track) {
+  private updateAI(deltaTime: number, track: Track, _allCars: Car[]) {
     // A* pathfinding-based AI navigation
-    
+
     // Update recalculation timer
     this.astarRecalculateTimer += deltaTime
-    
+
     // Recalculate path periodically or if we've reached the end
-    const needsRecalculation = 
+    const needsRecalculation =
       this.astarRecalculateTimer >= this.pathRecalculateInterval ||
       this.astarPath.length === 0 ||
       this.astarPathIndex >= this.astarPath.length - 1
-    
+
     if (needsRecalculation) {
       this.astarRecalculateTimer = 0
       this.recalculateAStarPath(track)
@@ -714,7 +727,7 @@ export class Car {
     const checkpointCount = track.getCheckpointCount()
     const nextCheckpointId = (this.lastCheckpoint + 1) % checkpointCount
     const goalPoint = track.getNextCheckpointCenter(nextCheckpointId)
-    
+
     // Find path using A*
     const path = track.findPath(
       this.position.x,
@@ -722,8 +735,40 @@ export class Car {
       goalPoint.x,
       goalPoint.z
     )
-    
+
     if (path.length > 0) {
+      // Offset every waypoint perpendicular to the path direction based on current lane
+      if (this.currentLaneOffset !== 0 && path.length >= 2) {
+        for (let i = 0; i < path.length; i++) {
+          const wp = path[i]
+          // Compute path direction at this waypoint
+          const prev = path[Math.max(0, i - 1)]
+          const next = path[Math.min(path.length - 1, i + 1)]
+          const dx = next.x - prev.x
+          const dz = next.z - prev.z
+          const segLen = Math.sqrt(dx * dx + dz * dz)
+          if (segLen < 0.01) continue
+
+          // Perpendicular: (-dz, dx) or (dz, -dx). Pick the one pointing toward center.
+          const perpX = -dz / segLen
+          const perpZ = dx / segLen
+          // Dot with "toward center" to check if this perp points inward
+          const dotToCenter = perpX * (-wp.x) + perpZ * (-wp.z)
+          const sign = dotToCenter >= 0 ? 1 : -1
+          // positive laneOffset = inner, so use sign; negative = outer, flip
+          wp.x += sign * perpX * this.currentLaneOffset
+          wp.z += sign * perpZ * this.currentLaneOffset
+
+          // Clamp: if offset pushed waypoint off-track, pull it back (2.0 margin keeps car away from rails)
+          if (track.isInsideInnerArea(wp, 2.0)) {
+            const { clamped } = track.clampPositionToInnerBounds(wp, 2.0)
+            wp.copy(clamped)
+          } else if (track.isOutsideOuterBorder(wp, 2.0)) {
+            const { clamped } = track.clampPositionToOuterBounds(wp, 2.0)
+            wp.copy(clamped)
+          }
+        }
+      }
       this.astarPath = path
       this.astarPathIndex = 0
     }

@@ -341,6 +341,7 @@ export class RacingGameEngine {
   }
 
   private createCars() {
+    Car.resetAiIndex()
     // Use car configurations from the current level
     const carConfigs = this.currentLevelConfig.cars
 
