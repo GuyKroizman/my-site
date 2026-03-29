@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { RaceResult } from '../GameManager'
 import { LevelConfig } from '../levels'
 import { formatTime } from '../utils'
@@ -17,9 +18,36 @@ export function RaceCompleteDialog({
   onProceed,
   onBackToMenu
 }: RaceCompleteDialogProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const leftPanelRef = useRef<HTMLDivElement>(null)
+  const rightPanelRef = useRef<HTMLDivElement>(null)
+
+  const handleBackToMenu = () => {
+    const left = leftPanelRef.current
+    const right = rightPanelRef.current
+    const container = containerRef.current
+    if (!left || !right || !container) { onBackToMenu(); return }
+
+    // Slide panels out
+    left.style.animation = 'slideOutLeft 0.5s ease-in forwards'
+    right.style.animation = 'slideOutRight 0.5s ease-in forwards'
+
+    // After panels are gone, fade the image to black
+    setTimeout(() => {
+      container.style.transition = 'opacity 0.8s ease-out'
+      container.style.opacity = '0'
+    }, 500)
+
+    // Navigate after everything fades
+    setTimeout(() => {
+      onBackToMenu()
+    }, 1300)
+  }
+
   if (!raceResult.levelPassed) {
     return (
       <div
+        ref={containerRef}
         className="absolute inset-0 z-10 flex items-center justify-center px-4 py-4 overflow-y-auto bg-black"
         style={{
           backgroundImage: 'url(/racing/woman_lost.png)',
@@ -31,12 +59,15 @@ export function RaceCompleteDialog({
         <style>{`
           @keyframes slideFromLeft { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: translateX(0); } }
           @keyframes slideFromRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+          @keyframes slideOutLeft { to { opacity: 0; transform: translateX(-60px); } }
+          @keyframes slideOutRight { to { opacity: 0; transform: translateX(60px); } }
         `}</style>
         <div className="absolute inset-0 bg-black/40" />
         <div className="max-w-4xl w-full grid grid-cols-[minmax(0,1fr)_auto] gap-4 items-center relative">
           <div
+            ref={leftPanelRef}
             className="min-w-0 bg-black/60 backdrop-blur-sm rounded-lg p-4"
-            style={{ animation: 'slideFromLeft 0.6s ease-out 1s both' }}
+            style={{ animation: 'slideFromLeft 0.6s ease-out 2s both' }}
           >
             <h2 className="text-xl font-bold text-white mb-1">Race Complete!</h2>
             <p className="text-gray-400 mb-3 text-base">
@@ -89,11 +120,12 @@ export function RaceCompleteDialog({
             </div>
           </div>
           <div
+            ref={rightPanelRef}
             className="flex items-center justify-end bg-black/60 backdrop-blur-sm rounded-lg p-4"
-            style={{ animation: 'slideFromRight 0.6s ease-out 1.15s both' }}
+            style={{ animation: 'slideFromRight 0.6s ease-out 2.3s both' }}
           >
             <button
-              onClick={onBackToMenu}
+              onClick={handleBackToMenu}
               className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2 px-3 rounded-lg transition-colors text-base whitespace-nowrap"
             >
               Back to Menu
