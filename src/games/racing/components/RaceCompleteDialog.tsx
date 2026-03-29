@@ -32,10 +32,13 @@ export function RaceCompleteDialog({
     left.style.animation = 'slideOutLeft 0.5s ease-in forwards'
     right.style.animation = 'slideOutRight 0.5s ease-in forwards'
 
-    // After panels are gone, fade the image to black
+    // After panels are gone, fade the image to black by covering with black overlay
     setTimeout(() => {
-      container.style.transition = 'opacity 0.8s ease-out'
-      container.style.opacity = '0'
+      const overlay = container.querySelector('[data-fade-overlay]') as HTMLDivElement
+      if (overlay) {
+        overlay.style.transition = 'opacity 0.8s ease-out'
+        overlay.style.opacity = '1'
+      }
     }, 500)
 
     // Navigate after everything fades
@@ -63,6 +66,7 @@ export function RaceCompleteDialog({
           @keyframes slideOutRight { to { opacity: 0; transform: translateX(60px); } }
         `}</style>
         <div className="absolute inset-0 bg-black/40" />
+        <div data-fade-overlay className="absolute inset-0 bg-black opacity-0 pointer-events-none" />
         <div className="max-w-4xl w-full grid grid-cols-[minmax(0,1fr)_auto] gap-4 items-center relative">
           <div
             ref={leftPanelRef}
