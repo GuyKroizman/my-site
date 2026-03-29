@@ -44,6 +44,7 @@ export default function RacingGame() {
   const gameEngineRef = useRef<RacingGameEngine | null>(null)
   const gameManagerRef = useRef<GameManager | null>(null)
   const [uiState, setUiState] = useState<UIState>('menu')
+  const [dismissingLoseScreen, setDismissingLoseScreen] = useState(false)
   const [raceResult, setRaceResult] = useState<RaceResult | null>(null)
   const [currentLevel, setCurrentLevel] = useState<LevelConfig | null>(null)
   const [totalLevels, setTotalLevels] = useState(0)
@@ -236,6 +237,27 @@ export default function RacingGame() {
     setConfettiCount(0)
   }
 
+  // Two-phase dismiss: switch to menu first (so it renders behind), keep overlay alive
+  const handleLoseScreenBackToMenu = () => {
+    setDismissingLoseScreen(true)
+    // Dispose game engine and switch to menu state
+    if (gameEngineRef.current) {
+      gameEngineRef.current.dispose()
+      gameEngineRef.current = null
+    }
+    if (gameManagerRef.current) {
+      gameManagerRef.current.returnToMenu()
+    }
+    setPlayerLaps(0)
+    setRaceTime(0)
+    setConfettiCount(0)
+  }
+
+  const handleLoseScreenDismissComplete = () => {
+    setDismissingLoseScreen(false)
+    setRaceResult(null)
+  }
+
   const handleTouchDriveChange = (state: TouchDriveState) => {
     if (gameEngineRef.current) {
       gameEngineRef.current.setTouchControls(state)
@@ -272,13 +294,14 @@ export default function RacingGame() {
           />
         )}
 
-        {uiState === 'raceComplete' && raceResult && currentLevel && (
+        {(uiState === 'raceComplete' || dismissingLoseScreen) && raceResult && currentLevel && (
           <RaceCompleteDialog
             raceResult={raceResult}
             currentLevel={currentLevel}
             isLastLevel={gameManagerRef.current?.isLastLevel() ?? false}
             onProceed={handleProceedAfterRace}
-            onBackToMenu={handleBackToMenu}
+            onBackToMenu={handleLoseScreenBackToMenu}
+            onDismissComplete={handleLoseScreenDismissComplete}
           />
         )}
 

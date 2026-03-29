@@ -9,6 +9,7 @@ interface RaceCompleteDialogProps {
   isLastLevel: boolean
   onProceed: () => void
   onBackToMenu: () => void
+  onDismissComplete?: () => void
 }
 
 export function RaceCompleteDialog({
@@ -16,7 +17,8 @@ export function RaceCompleteDialog({
   currentLevel,
   isLastLevel,
   onProceed,
-  onBackToMenu
+  onBackToMenu,
+  onDismissComplete
 }: RaceCompleteDialogProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const leftPanelRef = useRef<HTMLDivElement>(null)
@@ -32,19 +34,19 @@ export function RaceCompleteDialog({
     left.style.animation = 'slideOutLeft 0.5s ease-in forwards'
     right.style.animation = 'slideOutRight 0.5s ease-in forwards'
 
-    // After panels are gone, fade the image to black by covering with black overlay
+    // Switch to menu state (menu renders behind this overlay)
+    onBackToMenu()
+
+    // After panels are gone, fade the entire overlay to transparent, revealing the menu
     setTimeout(() => {
-      const overlay = container.querySelector('[data-fade-overlay]') as HTMLDivElement
-      if (overlay) {
-        overlay.style.transition = 'opacity 0.8s ease-out'
-        overlay.style.opacity = '1'
-      }
+      container.style.transition = 'opacity 2s ease-out'
+      container.style.opacity = '0'
     }, 500)
 
-    // Navigate after everything fades
+    // Cleanup: unmount the overlay
     setTimeout(() => {
-      onBackToMenu()
-    }, 1300)
+      onDismissComplete?.()
+    }, 2500)
   }
 
   if (!raceResult.levelPassed) {
@@ -66,7 +68,6 @@ export function RaceCompleteDialog({
           @keyframes slideOutRight { to { opacity: 0; transform: translateX(60px); } }
         `}</style>
         <div className="absolute inset-0 bg-black/40" />
-        <div data-fade-overlay className="absolute inset-0 bg-black opacity-0 pointer-events-none" />
         <div className="max-w-4xl w-full grid grid-cols-[minmax(0,1fr)_auto] gap-4 items-center relative">
           <div
             ref={leftPanelRef}
