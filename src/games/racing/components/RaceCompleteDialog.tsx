@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useState } from 'react'
 import { RaceResult } from '../GameManager'
 import { LevelConfig } from '../levels'
 import { formatTime } from '../utils'
@@ -20,39 +20,21 @@ export function RaceCompleteDialog({
   onBackToMenu,
   onDismissComplete
 }: RaceCompleteDialogProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const leftPanelRef = useRef<HTMLDivElement>(null)
-  const rightPanelRef = useRef<HTMLDivElement>(null)
+  const [dismissing, setDismissing] = useState(false)
 
   const handleBackToMenu = () => {
-    const left = leftPanelRef.current
-    const right = rightPanelRef.current
-    const container = containerRef.current
-    if (!left || !right || !container) { onBackToMenu(); return }
-
-    // Slide panels out
-    left.style.animation = 'slideOutLeft 0.5s ease-in forwards'
-    right.style.animation = 'slideOutRight 0.5s ease-in forwards'
-
-    // Switch to menu state (menu renders behind this overlay)
+    setDismissing(true)
     onBackToMenu()
 
-    // After panels are gone, fade the entire overlay to transparent, revealing the menu
-    setTimeout(() => {
-      container.style.transition = 'opacity 2s ease-out'
-      container.style.opacity = '0'
-    }, 500)
-
-    // Cleanup: unmount the overlay
+    // After panels slide out, unmount
     setTimeout(() => {
       onDismissComplete?.()
-    }, 2500)
+    }, 500)
   }
 
   if (!raceResult.levelPassed) {
     return (
       <div
-        ref={containerRef}
         className="absolute inset-0 z-10 flex items-center justify-center px-4 py-4 overflow-y-auto bg-black"
         style={{
           backgroundImage: 'url(/racing/woman_lost.png)',
@@ -70,9 +52,8 @@ export function RaceCompleteDialog({
         <div className="absolute inset-0 bg-black/40" />
         <div className="max-w-4xl w-full grid grid-cols-[minmax(0,1fr)_auto] gap-4 items-center relative">
           <div
-            ref={leftPanelRef}
             className="min-w-0 bg-black/60 backdrop-blur-sm rounded-lg p-4"
-            style={{ animation: 'slideFromLeft 0.6s ease-out 2s both' }}
+            style={{ animation: dismissing ? 'slideOutLeft 0.5s ease-in forwards' : 'slideFromLeft 0.6s ease-out 2s both' }}
           >
             <h2 className="text-xl font-bold text-white mb-1">Race Complete!</h2>
             <p className="text-gray-400 mb-3 text-base">
@@ -125,9 +106,8 @@ export function RaceCompleteDialog({
             </div>
           </div>
           <div
-            ref={rightPanelRef}
             className="flex items-center justify-end bg-black/60 backdrop-blur-sm rounded-lg p-4"
-            style={{ animation: 'slideFromRight 0.6s ease-out 2.3s both' }}
+            style={{ animation: dismissing ? 'slideOutRight 0.5s ease-in forwards' : 'slideFromRight 0.6s ease-out 2.3s both' }}
           >
             <button
               onClick={handleBackToMenu}
