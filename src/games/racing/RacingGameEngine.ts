@@ -9,6 +9,7 @@ import { SoundGenerator } from './SoundGenerator'
 import { PlayerArrow } from './PlayerArrow'
 import { BackgroundEye } from './BackgroundEye'
 import { DecorationGrid } from './DecorationGrid'
+import { TimerBillboard } from './TimerBillboard'
 import { LevelConfig, CarConfig } from './levels'
 import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
 import type { TouchDriveState } from './input'
@@ -48,6 +49,7 @@ export class RacingGameEngine {
   private backgroundTexture: THREE.Texture | null = null
   private backgroundEyes: BackgroundEye[] = []
   private decorationGrid: DecorationGrid | null = null
+  private timerBillboard: TimerBillboard | null = null
   private bullets: Bullet[] = []
   private shootCooldown: number = 0
   private touchShoot: boolean = false
@@ -161,10 +163,11 @@ export class RacingGameEngine {
 
     // Create start lights
     this.startLights = new StartLights(this.scene, () => {
-      // Start lights sequence complete - race can begin
-      this.timerActive = true
-      this.raceStartTime = performance.now() / 1000 // Convert to seconds
+      // Start lights sequence complete
     })
+
+    // Create timer billboard
+    this.timerBillboard = new TimerBillboard(this.scene)
 
     // Setup lighting (brighter so car models are more visible)
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.95)
@@ -413,10 +416,19 @@ export class RacingGameEngine {
       if (this.callbacks.onTimerUpdate) {
         this.callbacks.onTimerUpdate(elapsedTime)
       }
+      if (this.timerBillboard) {
+        this.timerBillboard.update(elapsedTime)
+      }
     }
 
     // Update cars - pass start lights state
     const canStart = this.startLights ? this.startLights.isGreen() : false
+
+    // Start timer the moment cars can go
+    if (canStart && !this.timerActive) {
+      this.timerActive = true
+      this.raceStartTime = performance.now() / 1000
+    }
 
     // Update player arrow (show during countdown, hide once race starts)
     if (this.playerArrow) {
@@ -650,6 +662,10 @@ export class RacingGameEngine {
     if (this.playerArrow) {
       this.playerArrow.dispose()
       this.playerArrow = null
+    }
+    if (this.timerBillboard) {
+      this.timerBillboard.dispose()
+      this.timerBillboard = null
     }
     if (this.decorationGrid) {
       this.decorationGrid.destroy()

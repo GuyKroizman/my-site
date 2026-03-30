@@ -50,7 +50,6 @@ export default function RacingGame() {
   const [totalLevels, setTotalLevels] = useState(0)
   const [playerLaps, setPlayerLaps] = useState(0)
   const [hideHeader, setHideHeader] = useState(isMobileLandscape())
-  const [raceTime, setRaceTime] = useState(0)
   const [requiredLaps, setRequiredLaps] = useState(4)
   const [isPortraitMode, setIsPortraitMode] = useState(isPortrait())
   const [isMuted, setIsMuted] = useState(SoundGenerator.getMuted())
@@ -157,9 +156,7 @@ export default function RacingGame() {
           onLapUpdate: (laps) => {
             setPlayerLaps(laps)
           },
-          onTimerUpdate: (time) => {
-            setRaceTime(time)
-          },
+          onTimerUpdate: () => {},
           onCarFinished: (_name, screenPos) => {
             setConfettiCount((prev) => {
               if (prev === 0) {
@@ -233,7 +230,6 @@ export default function RacingGame() {
     }
     setRaceResult(null)
     setPlayerLaps(0)
-    setRaceTime(0)
     setConfettiCount(0)
   }
 
@@ -249,7 +245,6 @@ export default function RacingGame() {
       gameManagerRef.current.returnToMenu()
     }
     setPlayerLaps(0)
-    setRaceTime(0)
     setConfettiCount(0)
   }
 
@@ -290,7 +285,6 @@ export default function RacingGame() {
           <GameHUD
             playerLaps={playerLaps}
             requiredLaps={requiredLaps}
-            raceTime={raceTime}
           />
         )}
 
