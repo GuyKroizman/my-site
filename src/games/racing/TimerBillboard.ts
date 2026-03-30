@@ -57,11 +57,9 @@ export class TimerBillboard {
 
     // Position next to the track, angled toward camera
     // Camera is at (0, 25, 26) looking at origin
-    this.group.position.set(24, 0, -6)
-    // Stand upright with a slight tilt back so text is visible from above
-    this.group.rotation.x = -Math.PI / 8
+    this.group.position.set(27, 0, -6)
     // Turn slightly toward center of track
-    this.group.rotation.y = Math.PI * 0.08
+    this.group.rotation.y = -Math.PI / 2
 
     this.scene.add(this.group)
 
