@@ -4,7 +4,7 @@ import type { Car } from './Car'
 export class Bullet {
   public mesh: THREE.Mesh
   private velocity: THREE.Vector3
-  private lifetime: number = 0.4
+  private lifetime: number = 0.2
 
   constructor(position: THREE.Vector3, rotationY: number) {
     const geometry = new THREE.BoxGeometry(0.06, 0.06, 0.2)
