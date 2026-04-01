@@ -9,6 +9,15 @@ export class SoundGenerator {
   private activeCrashSounds: number = 0
   private maxConcurrentCrashSounds: number = 3
 
+  // Pre-generated explosion sound data
+  private explosionNoiseBuffers: AudioBuffer[] = []
+  private boomCurve: Float32Array | null = null
+  private punchCurve: Float32Array | null = null
+  private crackleCurve: Float32Array | null = null
+  private noiseDCurve: Float32Array | null = null
+  private activeExplosionSounds: number = 0
+  private maxConcurrentExplosionSounds: number = 3
+
   /**
    * Toggle mute state for all SoundGenerator instances
    */
@@ -41,8 +50,8 @@ export class SoundGenerator {
       if (AudioContextClass) {
         try {
           this.audioContext = new AudioContextClass()
-          // Pre-generate crash sound buffers for efficiency
-          this.preGenerateCrashBuffers()
+          // Pre-generate sound buffers for efficiency
+          this.preGenerateBuffers()
         } catch (error) {
           console.warn('Failed to create AudioContext:', error)
           return null
@@ -53,26 +62,63 @@ export class SoundGenerator {
   }
 
   /**
-   * Pre-generate multiple crash sound buffers for variety and efficiency
-   * Creates 10 variations so crashes have more variety in the noise content
+   * Pre-generate all sound buffers (crash + explosion) for efficiency.
+   * Called once when AudioContext is first created.
    */
-  private preGenerateCrashBuffers(): void {
+  private preGenerateBuffers(): void {
     const ctx = this.audioContext
     if (!ctx) return
 
-    const bufferSize = ctx.sampleRate * 0.5 // 0.5 seconds duration
-    const numVariations = 10
-
-    for (let v = 0; v < numVariations; v++) {
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+    // --- Crash buffers (10 variations) ---
+    const crashBufSize = ctx.sampleRate * 0.5
+    for (let v = 0; v < 10; v++) {
+      const buffer = ctx.createBuffer(1, crashBufSize, ctx.sampleRate)
       const data = buffer.getChannelData(0)
-
-      // Fill buffer with random noise
-      for (let i = 0; i < bufferSize; i++) {
+      for (let i = 0; i < crashBufSize; i++) {
         data[i] = Math.random() * 2 - 1
       }
-
       this.crashBuffers.push(buffer)
+    }
+
+    // --- Explosion buffers & distortion curves ---
+    // Noise buffers (3 variations for variety)
+    const noiseLen = Math.floor(ctx.sampleRate * 1.4)
+    for (let v = 0; v < 3; v++) {
+      const buffer = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < noiseLen; i++) {
+        const impulse = Math.random() < 0.03 ? (Math.random() * 2 - 1) * 3 : 0
+        data[i] = (Math.random() * 2 - 1) + impulse
+      }
+      this.explosionNoiseBuffers.push(buffer)
+    }
+
+    // Boom distortion curve
+    this.boomCurve = new Float32Array(512)
+    for (let i = 0; i < 512; i++) {
+      const x = (i * 2) / 512 - 1
+      this.boomCurve[i] = Math.tanh(x * 4)
+    }
+
+    // Punch distortion curve
+    this.punchCurve = new Float32Array(512)
+    for (let i = 0; i < 512; i++) {
+      const x = (i * 2) / 512 - 1
+      this.punchCurve[i] = Math.sign(x) * Math.pow(Math.abs(x), 0.15)
+    }
+
+    // Crackle distortion curve
+    this.crackleCurve = new Float32Array(256)
+    for (let i = 0; i < 256; i++) {
+      const x = (i * 2) / 256 - 1
+      this.crackleCurve[i] = Math.sign(x) * (1 - Math.exp(-Math.abs(x) * 8))
+    }
+
+    // Noise distortion curve
+    this.noiseDCurve = new Float32Array(256)
+    for (let i = 0; i < 256; i++) {
+      const x = (i * 2) / 256 - 1
+      this.noiseDCurve[i] = Math.tanh(x * 3)
     }
   }
 
@@ -258,11 +304,14 @@ export class SoundGenerator {
 
   /**
    * Play a mine explosion sound - deep boom with rumble and debris.
+   * Uses pre-generated buffers and distortion curves for performance.
    */
   playExplosionSound(volume: number = 0.9): void {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
+
+    if (this.activeExplosionSounds >= this.maxConcurrentExplosionSounds) return
 
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {})
@@ -280,12 +329,7 @@ export class SoundGenerator {
       boomOsc.type = 'sawtooth'
       boomOsc.frequency.setValueAtTime(60, now)
       boomOsc.frequency.exponentialRampToValueAtTime(15, now + 1.2)
-      const boomCurve = new Float32Array(512)
-      for (let i = 0; i < 512; i++) {
-        const x = (i * 2) / 512 - 1
-        boomCurve[i] = Math.tanh(x * 4)
-      }
-      boomDistortion.curve = boomCurve
+      boomDistortion.curve = this.boomCurve as unknown as Float32Array<ArrayBuffer>
       boomGain.gain.setValueAtTime(volume, now)
       boomGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2)
       boomOsc.connect(boomDistortion)
@@ -301,12 +345,7 @@ export class SoundGenerator {
       punchOsc.type = 'sawtooth'
       punchOsc.frequency.setValueAtTime(250, now)
       punchOsc.frequency.exponentialRampToValueAtTime(30, now + 0.6)
-      const curve = new Float32Array(512)
-      for (let i = 0; i < 512; i++) {
-        const x = (i * 2) / 512 - 1
-        curve[i] = Math.sign(x) * Math.pow(Math.abs(x), 0.15)
-      }
-      distortion.curve = curve
+      distortion.curve = this.punchCurve as unknown as Float32Array<ArrayBuffer>
       punchGain.gain.setValueAtTime(volume * 0.7, now)
       punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6)
       punchOsc.connect(distortion)
@@ -322,12 +361,7 @@ export class SoundGenerator {
       crackleOsc.type = 'square'
       crackleOsc.frequency.setValueAtTime(150, now)
       crackleOsc.frequency.exponentialRampToValueAtTime(20, now + 0.4)
-      const crackleCurve = new Float32Array(256)
-      for (let i = 0; i < 256; i++) {
-        const x = (i * 2) / 256 - 1
-        crackleCurve[i] = Math.sign(x) * (1 - Math.exp(-Math.abs(x) * 8))
-      }
-      crackleDistortion.curve = crackleCurve
+      crackleDistortion.curve = this.crackleCurve as unknown as Float32Array<ArrayBuffer>
       crackleGain.gain.setValueAtTime(volume * 0.4, now)
       crackleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4)
       crackleOsc.connect(crackleDistortion)
@@ -336,24 +370,12 @@ export class SoundGenerator {
       crackleOsc.start(now)
       crackleOsc.stop(now + 0.4)
 
-      // Layer 4: Loud filtered noise for debris / shrapnel
-      const noiseLen = Math.floor(ctx.sampleRate * 1.4)
-      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
-      const noiseData = noiseBuf.getChannelData(0)
-      for (let i = 0; i < noiseLen; i++) {
-        // Mix white noise with crackly impulses
-        const impulse = Math.random() < 0.03 ? (Math.random() * 2 - 1) * 3 : 0
-        noiseData[i] = (Math.random() * 2 - 1) + impulse
-      }
+      // Layer 4: Pre-generated noise for debris / shrapnel
+      const noiseBuf = this.explosionNoiseBuffers[Math.floor(Math.random() * this.explosionNoiseBuffers.length)]
       const noiseSrc = ctx.createBufferSource()
       noiseSrc.buffer = noiseBuf
       const noiseDistortion = ctx.createWaveShaper()
-      const noiseDCurve = new Float32Array(256)
-      for (let i = 0; i < 256; i++) {
-        const x = (i * 2) / 256 - 1
-        noiseDCurve[i] = Math.tanh(x * 3)
-      }
-      noiseDistortion.curve = noiseDCurve
+      noiseDistortion.curve = this.noiseDCurve as unknown as Float32Array<ArrayBuffer>
       const noiseFilter = ctx.createBiquadFilter()
       noiseFilter.type = 'lowpass'
       noiseFilter.frequency.setValueAtTime(6000, now)
@@ -368,8 +390,9 @@ export class SoundGenerator {
       noiseSrc.start(now)
       noiseSrc.stop(now + 1.4)
 
-      // Cleanup
+      this.activeExplosionSounds++
       const cleanup = () => {
+        this.activeExplosionSounds--
         boomOsc.disconnect()
         boomDistortion.disconnect()
         boomGain.disconnect()
@@ -388,6 +411,7 @@ export class SoundGenerator {
       noiseSrc.onended = cleanup
     } catch (error) {
       console.warn('Failed to play explosion sound:', error)
+      this.activeExplosionSounds--
     }
   }
 
@@ -697,5 +721,11 @@ export class SoundGenerator {
     }
     this.crashBuffers = []
     this.activeCrashSounds = 0
+    this.explosionNoiseBuffers = []
+    this.boomCurve = null
+    this.punchCurve = null
+    this.crackleCurve = null
+    this.noiseDCurve = null
+    this.activeExplosionSounds = 0
   }
 }

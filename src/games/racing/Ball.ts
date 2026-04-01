@@ -12,7 +12,7 @@ const CAR_HIT_MULTIPLIER = 5.0 // how much car speed translates to ball impulse
 const WALL_BOUNCE_FACTOR = 0.7 // energy kept on wall bounce
 const MIN_BOUNCE_VELOCITY = 0.5 // below this, stop bouncing
 
-const FUSE_DURATION = 7        // seconds from activation to explosion
+const FUSE_DURATION = 10        // seconds from activation to explosion
 const LAUNCH_RADIUS = 6        // cars within this distance get launched off-screen
 const SHOCKWAVE_RADIUS = 20    // cars within this distance get pushed
 const SHOCKWAVE_STRENGTH = 14  // max push strength for shockwave
@@ -26,6 +26,15 @@ export interface BallExplosionResult {
   exploded: boolean
   playerLaunched: boolean
   explosionPosition: THREE.Vector3 | null
+}
+
+// Shared geometry for explosion visuals (created once, reused)
+let sharedExplosionGeometry: THREE.SphereGeometry | null = null
+function getExplosionGeometry(): THREE.SphereGeometry {
+  if (!sharedExplosionGeometry) {
+    sharedExplosionGeometry = new THREE.SphereGeometry(1, 16, 12)
+  }
+  return sharedExplosionGeometry
 }
 
 export class Ball {
@@ -79,11 +88,11 @@ export class Ball {
     }
   }
 
-  /** Force immediate detonation (chain reaction from nearby explosion). */
+  /** Force near-immediate detonation (chain reaction from nearby explosion). Staggered to avoid all-at-once frame spike. */
   public triggerImmediateDetonation(): void {
     if (!this.exploded) {
       this.activated = true
-      this.activatedTimer = FUSE_DURATION // will detonate on next update
+      this.activatedTimer = FUSE_DURATION - 0.1 - Math.random() * 0.4 // stagger over ~0.5s
     }
   }
 
@@ -238,8 +247,8 @@ export class Ball {
   }
 
   private spawnExplosionVisual(): void {
-    // Expanding fireball sphere
-    const geo = new THREE.SphereGeometry(1, 16, 12)
+    // Expanding fireball sphere (shared geometry for performance)
+    const geo = getExplosionGeometry()
     const mat = new THREE.MeshBasicMaterial({
       color: 0xff4400,
       transparent: true,
@@ -282,8 +291,8 @@ export class Ball {
   private cleanupExplosionVisual(): void {
     if (this.explosionMesh) {
       this.scene.remove(this.explosionMesh)
-      this.explosionMesh.geometry.dispose()
-      ;(this.explosionMesh.material as THREE.Material).dispose()
+        // Don't dispose geometry — it's shared across all explosions
+        ; (this.explosionMesh.material as THREE.Material).dispose()
       this.explosionMesh = null
     }
     if (this.explosionLight) {
