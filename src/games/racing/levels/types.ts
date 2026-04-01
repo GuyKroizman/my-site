@@ -24,6 +24,13 @@ export type GroundTheme =
   | 'dirt'       // brown dirt
   | 'autumn'     // orange/rust autumn grass
 
+export interface BallDropConfig {
+  dropTime: number  // seconds after race start to drop the ball
+  x?: number        // optional X position (random on track if omitted)
+  y?: number        // optional drop height (defaults to 15 if omitted)
+  z?: number        // optional Z position (random on track if omitted)
+}
+
 export interface LevelConfig {
   id: number
   name: string // e.g., "Beginner's Oval"
@@ -35,4 +42,6 @@ export interface LevelConfig {
   groundTheme?: GroundTheme
   /** Optional 80×60 grid: 60 strings, each up to 80 chars. Space = empty; other chars map via DECORATION_MODELS. */
   decorationRows?: string[]
+  /** Ball drops during the race. Each entry spawns a ball at the configured time. */
+  ballDrops?: BallDropConfig[]
 }

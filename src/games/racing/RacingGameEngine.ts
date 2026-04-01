@@ -10,7 +10,8 @@ import { PlayerArrow } from './PlayerArrow'
 import { BackgroundEye } from './BackgroundEye'
 import { DecorationGrid } from './DecorationGrid'
 import { TimerBillboard } from './TimerBillboard'
-import { LevelConfig, CarConfig } from './levels'
+import { Ball, DEFAULT_DROP_HEIGHT } from './Ball'
+import { LevelConfig, CarConfig, BallDropConfig } from './levels'
 import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
 import type { TouchDriveState } from './input'
 
@@ -50,6 +51,8 @@ export class RacingGameEngine {
   private backgroundEyes: BackgroundEye[] = []
   private decorationGrid: DecorationGrid | null = null
   private timerBillboard: TimerBillboard | null = null
+  private balls: Ball[] = []
+  private pendingBallDrops: BallDropConfig[] = []
   private bullets: Bullet[] = []
   private shootCooldown: number = 0
   private touchShoot: boolean = false
@@ -197,6 +200,9 @@ export class RacingGameEngine {
       const minePos = this.track.getRandomPointOnTrack()
       this.mine = new Mine(this.scene, minePos.x, minePos.z)
     }
+
+    // Initialize pending ball drops from level config
+    this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
 
     if (this.currentLevelConfig.id === 1) {
       this.backgroundEyes.push(
@@ -463,6 +469,23 @@ export class RacingGameEngine {
       }
     }
 
+    // Spawn pending ball drops based on elapsed race time
+    if (this.timerActive && !raceComplete) {
+      const elapsed = performance.now() / 1000 - this.raceStartTime - this.totalPauseTime
+      for (let i = this.pendingBallDrops.length - 1; i >= 0; i--) {
+        const drop = this.pendingBallDrops[i]
+        if (elapsed >= drop.dropTime) {
+          this.spawnBall(drop)
+          this.pendingBallDrops.splice(i, 1)
+        }
+      }
+    }
+
+    // Update balls
+    for (const ball of this.balls) {
+      ball.update(deltaTime, this.cars, this.track)
+    }
+
     // End race 3 seconds after player hit a mine
     if (this.playerMineHitTime !== null && !raceComplete) {
       const elapsed = performance.now() / 1000 - this.playerMineHitTime
@@ -527,10 +550,13 @@ export class RacingGameEngine {
   }
 
   public startRace() {
-    // Clear any bullets from a previous race
+    // Clear any bullets and balls from a previous race
     this.bullets.forEach(b => b.dispose(this.scene))
     this.bullets = []
     this.shootCooldown = 0
+    this.balls.forEach(b => b.dispose())
+    this.balls = []
+    this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
 
     // Reset timer
     this.timerActive = false
@@ -577,6 +603,21 @@ export class RacingGameEngine {
 
   public setTouchShoot(shooting: boolean) {
     this.touchShoot = shooting
+  }
+
+  private spawnBall(drop: BallDropConfig) {
+    let x: number, z: number
+    if (drop.x !== undefined && drop.z !== undefined) {
+      x = drop.x
+      z = drop.z
+    } else {
+      const pos = this.track.getRandomPointOnTrack()
+      x = pos.x
+      z = pos.z
+    }
+    const y = drop.y ?? DEFAULT_DROP_HEIGHT
+    const ball = new Ball(this.scene, x, y, z, this.soundGenerator)
+    this.balls.push(ball)
   }
 
   private shootBullet() {
@@ -649,6 +690,8 @@ export class RacingGameEngine {
 
     this.bullets.forEach(b => b.dispose(this.scene))
     this.bullets = []
+    this.balls.forEach(b => b.dispose())
+    this.balls = []
 
     if (this.startLights) {
       this.startLights.dispose()

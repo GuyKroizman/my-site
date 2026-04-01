@@ -78,5 +78,10 @@ export const level4: LevelConfig = {
         waypointLookAhead: 5
       }
     }
-  ]
+  ],
+  ballDrops: [
+    { dropTime: 2 },
+    { dropTime: 10 },
+    { dropTime: 18 },
+  ],
 }

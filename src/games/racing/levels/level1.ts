@@ -79,6 +79,9 @@ export const level1: LevelConfig = {
       }
     }
   ],
+  ballDrops: [
+    { dropTime: 10 },
+  ],
   // 80×60 grid: row 0 = minZ. Space = empty. p = Plant, m = Mushroom (see decorationConfig.ts)
   decorationRows: (() => {
     const rows = Array.from({ length: 60 }, () => '')

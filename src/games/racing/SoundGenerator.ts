@@ -531,6 +531,133 @@ export class SoundGenerator {
   }
 
   /**
+   * Play a short rubbery bounce when the ball hits the ground.
+   */
+  playBallBounce(volume: number = 0.15): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    try {
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(150, now)
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.08)
+      gain.gain.setValueAtTime(volume, now)
+      gain.gain.linearRampToValueAtTime(0, now + 0.08)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.08)
+      osc.onended = () => { osc.disconnect(); gain.disconnect() }
+    } catch (e) {
+      console.warn('Failed to play ball bounce sound:', e)
+    }
+  }
+
+  /**
+   * Play a brief hollow knock when the ball hits a track wall.
+   */
+  playBallWallHit(volume: number = 0.12): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    try {
+      const now = ctx.currentTime
+
+      // Tone component
+      const osc = ctx.createOscillator()
+      const oscGain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(300, now)
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.06)
+      oscGain.gain.setValueAtTime(volume, now)
+      oscGain.gain.linearRampToValueAtTime(0, now + 0.06)
+      osc.connect(oscGain)
+      oscGain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.06)
+
+      // Tiny noise burst
+      const noiseLen = Math.floor(ctx.sampleRate * 0.01)
+      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
+      const data = noiseBuf.getChannelData(0)
+      for (let i = 0; i < noiseLen; i++) data[i] = Math.random() * 2 - 1
+      const noiseSrc = ctx.createBufferSource()
+      noiseSrc.buffer = noiseBuf
+      const noiseGain = ctx.createGain()
+      noiseGain.gain.setValueAtTime(volume * 0.5, now)
+      noiseGain.gain.linearRampToValueAtTime(0, now + 0.01)
+      noiseSrc.connect(noiseGain)
+      noiseGain.connect(ctx.destination)
+      noiseSrc.start(now)
+      noiseSrc.stop(now + 0.01)
+
+      osc.onended = () => {
+        osc.disconnect(); oscGain.disconnect()
+        noiseSrc.disconnect(); noiseGain.disconnect()
+      }
+    } catch (e) {
+      console.warn('Failed to play ball wall hit sound:', e)
+    }
+  }
+
+  /**
+   * Play a punchy kick when a car hits the ball.
+   */
+  playBallCarHit(volume: number = 0.2): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    try {
+      const now = ctx.currentTime
+
+      // Sine sweep for body
+      const osc = ctx.createOscillator()
+      const oscGain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(200, now)
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.1)
+      oscGain.gain.setValueAtTime(volume, now)
+      oscGain.gain.linearRampToValueAtTime(0, now + 0.1)
+      osc.connect(oscGain)
+      oscGain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.1)
+
+      // Short noise burst for impact
+      const noiseLen = Math.floor(ctx.sampleRate * 0.02)
+      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
+      const data = noiseBuf.getChannelData(0)
+      for (let i = 0; i < noiseLen; i++) data[i] = Math.random() * 2 - 1
+      const noiseSrc = ctx.createBufferSource()
+      noiseSrc.buffer = noiseBuf
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.value = 1500
+      const noiseGain = ctx.createGain()
+      noiseGain.gain.setValueAtTime(volume * 0.6, now)
+      noiseGain.gain.linearRampToValueAtTime(0, now + 0.02)
+      noiseSrc.connect(filter)
+      filter.connect(noiseGain)
+      noiseGain.connect(ctx.destination)
+      noiseSrc.start(now)
+      noiseSrc.stop(now + 0.02)
+
+      osc.onended = () => {
+        osc.disconnect(); oscGain.disconnect()
+        noiseSrc.disconnect(); filter.disconnect(); noiseGain.disconnect()
+      }
+    } catch (e) {
+      console.warn('Failed to play ball car hit sound:', e)
+    }
+  }
+
+  /**
    * Clean up audio context
    */
   dispose(): void {
