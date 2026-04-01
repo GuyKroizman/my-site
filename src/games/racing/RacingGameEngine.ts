@@ -60,6 +60,11 @@ export class RacingGameEngine {
   private spaceKeyDownHandler: ((e: KeyboardEvent) => void) | null = null
   private spaceKeyUpHandler: ((e: KeyboardEvent) => void) | null = null
 
+  // Camera shake
+  private shakeTimer: number = 0
+  private shakeDuration: number = 0
+  private shakeIntensity: number = 0
+
   // Cinematic camera intro
   private cinematicActive: boolean = false
   private cinematicTimer: number = 0
@@ -481,7 +486,8 @@ export class RacingGameEngine {
       }
     }
 
-    // Update balls and handle explosions
+    // Update balls and handle explosions + chain reactions
+    const newlyExplodedPositions: THREE.Vector3[] = []
     for (let i = this.balls.length - 1; i >= 0; i--) {
       const ball = this.balls[i]
       const result = ball.update(deltaTime, this.cars, this.track)
@@ -489,8 +495,31 @@ export class RacingGameEngine {
         if (result.playerLaunched && this.playerMineHitTime === null) {
           this.playerMineHitTime = performance.now() / 1000
         }
+        if (result.explosionPosition) {
+          newlyExplodedPositions.push(result.explosionPosition)
+          this.triggerCameraShake(0.5, 0.6)
+        }
+      }
+      // Remove balls whose explosion animation has finished
+      if (ball.exploded && !ball.isExplosionAnimating) {
         ball.dispose()
         this.balls.splice(i, 1)
+      }
+    }
+    // Chain reactions: exploding balls trigger nearby balls
+    if (newlyExplodedPositions.length > 0) {
+      for (const ball of this.balls) {
+        if (ball.exploded) continue
+        for (const pos of newlyExplodedPositions) {
+          if (ball.isInChainReactionRange(pos)) {
+            if (ball.activated) {
+              ball.triggerImmediateDetonation()
+            } else {
+              ball.triggerActivation()
+            }
+            break
+          }
+        }
       }
     }
 
@@ -553,8 +582,16 @@ export class RacingGameEngine {
 
     this.backgroundEyes.forEach((eye) => eye.update(deltaTime))
 
+    // Apply camera shake
+    this.updateCameraShake(deltaTime)
+
     // Render
     this.renderer.render(this.scene, this.camera)
+
+    // Restore camera position after render so shake doesn't accumulate
+    if (this.shakeTimer > 0 && !this.cinematicActive) {
+      this.camera.position.copy(this.gameplayCameraPos)
+    }
   }
 
   public startRace() {
@@ -611,6 +648,22 @@ export class RacingGameEngine {
 
   public setTouchShoot(shooting: boolean) {
     this.touchShoot = shooting
+  }
+
+  private triggerCameraShake(duration: number, intensity: number) {
+    this.shakeDuration = duration
+    this.shakeTimer = duration
+    this.shakeIntensity = intensity
+  }
+
+  private updateCameraShake(deltaTime: number) {
+    if (this.shakeTimer <= 0 || this.cinematicActive) return
+    this.shakeTimer -= deltaTime
+    const t = Math.max(0, this.shakeTimer / this.shakeDuration)
+    const magnitude = this.shakeIntensity * t
+    this.camera.position.x = this.gameplayCameraPos.x + (Math.random() - 0.5) * 2 * magnitude
+    this.camera.position.y = this.gameplayCameraPos.y + (Math.random() - 0.5) * 2 * magnitude
+    this.camera.position.z = this.gameplayCameraPos.z + (Math.random() - 0.5) * 2 * magnitude
   }
 
   private spawnBall(drop: BallDropConfig) {

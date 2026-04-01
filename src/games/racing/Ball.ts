@@ -8,18 +8,24 @@ export const DEFAULT_DROP_HEIGHT = 15
 const GRAVITY = 25
 const BOUNCE_FACTOR = 0.6
 const XZ_DRAG = 0.97          // per-frame at 60fps
-const CAR_HIT_MULTIPLIER = 3.6 // how much car speed translates to ball impulse
+const CAR_HIT_MULTIPLIER = 5.0 // how much car speed translates to ball impulse
 const WALL_BOUNCE_FACTOR = 0.7 // energy kept on wall bounce
 const MIN_BOUNCE_VELOCITY = 0.5 // below this, stop bouncing
 
 const FUSE_DURATION = 7        // seconds from activation to explosion
-const LAUNCH_RADIUS = 3        // cars within this distance get launched off-screen
-const SHOCKWAVE_RADIUS = 12    // cars within this distance get pushed
-const SHOCKWAVE_STRENGTH = 8   // max push strength for shockwave
+const LAUNCH_RADIUS = 6        // cars within this distance get launched off-screen
+const SHOCKWAVE_RADIUS = 20    // cars within this distance get pushed
+const SHOCKWAVE_STRENGTH = 14  // max push strength for shockwave
+const CHAIN_REACTION_RADIUS = 15 // other balls within this radius get triggered
+
+// Explosion visual
+const EXPLOSION_DURATION = 0.8 // seconds the fireball expands
+const EXPLOSION_MAX_RADIUS = 10
 
 export interface BallExplosionResult {
   exploded: boolean
   playerLaunched: boolean
+  explosionPosition: THREE.Vector3 | null
 }
 
 export class Ball {
@@ -33,14 +39,22 @@ export class Ball {
   private collidedCars: Set<Car> = new Set()
 
   // Bomb state
-  private activated: boolean = false
+  public activated: boolean = false
   private activatedTimer: number = 0
   private flashAccumulator: number = 0
   private flashOn: boolean = false
   public exploded: boolean = false
   private material: THREE.MeshStandardMaterial
 
+  // Explosion visual
+  private explosionMesh: THREE.Mesh | null = null
+  private explosionLight: THREE.PointLight | null = null
+  private explosionTimer: number = 0
+  private explosionActive: boolean = false
+  private scene: THREE.Scene
+
   constructor(scene: THREE.Scene, x: number, y: number, z: number, soundGenerator: SoundGenerator) {
+    this.scene = scene
     this.soundGenerator = soundGenerator
     this.position = new THREE.Vector3(x, y, z)
 
@@ -57,8 +71,35 @@ export class Ball {
     scene.add(this.mesh)
   }
 
+  /** Force-activate this ball (e.g. from a chain reaction). */
+  public triggerActivation(): void {
+    if (!this.activated && !this.exploded) {
+      this.activated = true
+      this.activatedTimer = 0
+    }
+  }
+
+  /** Force immediate detonation (chain reaction from nearby explosion). */
+  public triggerImmediateDetonation(): void {
+    if (!this.exploded) {
+      this.activated = true
+      this.activatedTimer = FUSE_DURATION // will detonate on next update
+    }
+  }
+
   update(deltaTime: number, cars: Car[], track: Track): BallExplosionResult {
-    const result: BallExplosionResult = { exploded: false, playerLaunched: false }
+    const result: BallExplosionResult = { exploded: false, playerLaunched: false, explosionPosition: null }
+
+    // Update explosion visual if active (ball already detonated, waiting for visual to finish)
+    if (this.explosionActive) {
+      this.explosionTimer += deltaTime
+      this.updateExplosionVisual()
+      if (this.explosionTimer >= EXPLOSION_DURATION) {
+        this.cleanupExplosionVisual()
+      }
+      // Don't process physics — ball is gone
+      return result
+    }
 
     // --- Bomb fuse ---
     if (this.activated) {
@@ -143,15 +184,18 @@ export class Ball {
 
   private updateFlash(deltaTime: number): void {
     const progress = Math.min(this.activatedTimer / FUSE_DURATION, 1)
-    // Flash interval: starts at 0.5s, decreases toward 0.05s
-    const flashInterval = Math.max(0.05, 0.5 * (1 - progress))
+    // Flash interval: starts at 0.5s, decreases toward 0.04s
+    const flashInterval = Math.max(0.04, 0.5 * (1 - progress * progress))
     this.flashAccumulator += deltaTime
 
     if (this.flashAccumulator >= flashInterval) {
       this.flashAccumulator = 0
       this.flashOn = !this.flashOn
       this.material.emissive.setHex(this.flashOn ? 0xff0000 : 0x000000)
-      this.material.emissiveIntensity = this.flashOn ? 0.8 + progress * 0.5 : 0
+      this.material.emissiveIntensity = this.flashOn ? 0.8 + progress * 1.2 : 0
+      // Scale up slightly as it's about to blow
+      const scale = 1 + progress * 0.3
+      this.mesh.scale.setScalar(scale)
       this.soundGenerator.playBombTick(progress)
     }
   }
@@ -179,6 +223,80 @@ export class Ball {
     }
 
     result.exploded = true
+    result.explosionPosition = this.position.clone()
+
+    // Hide the ball mesh and spawn explosion visual
+    this.mesh.visible = false
+    this.spawnExplosionVisual()
+  }
+
+  /** Check if another ball is within chain reaction range. */
+  public isInChainReactionRange(otherPosition: THREE.Vector3): boolean {
+    const dx = otherPosition.x - this.position.x
+    const dz = otherPosition.z - this.position.z
+    return dx * dx + dz * dz < CHAIN_REACTION_RADIUS * CHAIN_REACTION_RADIUS
+  }
+
+  private spawnExplosionVisual(): void {
+    // Expanding fireball sphere
+    const geo = new THREE.SphereGeometry(1, 16, 12)
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xff4400,
+      transparent: true,
+      opacity: 0.9,
+    })
+    this.explosionMesh = new THREE.Mesh(geo, mat)
+    this.explosionMesh.position.copy(this.position)
+    this.explosionMesh.position.y = BALL_RADIUS
+    this.scene.add(this.explosionMesh)
+
+    // Bright point light for flash
+    this.explosionLight = new THREE.PointLight(0xff6600, 15, 30)
+    this.explosionLight.position.copy(this.position)
+    this.explosionLight.position.y = 3
+    this.scene.add(this.explosionLight)
+
+    this.explosionTimer = 0
+    this.explosionActive = true
+  }
+
+  private updateExplosionVisual(): void {
+    const t = this.explosionTimer / EXPLOSION_DURATION
+    if (this.explosionMesh) {
+      const scale = EXPLOSION_MAX_RADIUS * t
+      this.explosionMesh.scale.setScalar(scale)
+      const mat = this.explosionMesh.material as THREE.MeshBasicMaterial
+      // Fade from orange-red to transparent
+      mat.opacity = 0.9 * (1 - t)
+      // Color shift: orange → red → dark
+      const r = 1.0
+      const g = Math.max(0, 0.3 * (1 - t * 2))
+      const b = 0
+      mat.color.setRGB(r, g, b)
+    }
+    if (this.explosionLight) {
+      this.explosionLight.intensity = 15 * (1 - t)
+    }
+  }
+
+  private cleanupExplosionVisual(): void {
+    if (this.explosionMesh) {
+      this.scene.remove(this.explosionMesh)
+      this.explosionMesh.geometry.dispose()
+      ;(this.explosionMesh.material as THREE.Material).dispose()
+      this.explosionMesh = null
+    }
+    if (this.explosionLight) {
+      this.scene.remove(this.explosionLight)
+      this.explosionLight.dispose()
+      this.explosionLight = null
+    }
+    this.explosionActive = false
+  }
+
+  /** Returns true if the explosion visual is still playing. */
+  public get isExplosionAnimating(): boolean {
+    return this.explosionActive
   }
 
   /**
@@ -241,8 +359,9 @@ export class Ball {
   }
 
   dispose(): void {
+    this.cleanupExplosionVisual()
     this.mesh.geometry.dispose()
     this.material.dispose()
-    this.mesh.parent?.remove(this.mesh)
+    this.scene.remove(this.mesh)
   }
 }

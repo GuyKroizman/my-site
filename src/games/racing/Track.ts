@@ -860,13 +860,41 @@ export class Track {
   /**
    * Returns a random point on the track center path (for placing mines etc.).
    * Avoids the start/finish area.
+   * Samples uniformly by arc length so positions are evenly distributed.
    */
   public getRandomPointOnTrack(): THREE.Vector3 {
-    const skip = 8
-    const from = skip
-    const to = Math.max(from, this.path.length - 1 - skip)
-    const i = from + Math.floor(Math.random() * (to - from + 1))
-    const p = this.path[i]
+    // Build cumulative arc-length table
+    const cumLen: number[] = [0]
+    for (let i = 1; i < this.path.length; i++) {
+      const dx = this.path[i].x - this.path[i - 1].x
+      const dz = this.path[i].z - this.path[i - 1].z
+      cumLen.push(cumLen[i - 1] + Math.sqrt(dx * dx + dz * dz))
+    }
+    const totalLen = cumLen[cumLen.length - 1]
+
+    // Skip the first/last 15% of arc length to avoid start/finish area
+    const skipFraction = 0.15
+    const minLen = totalLen * skipFraction
+    const maxLen = totalLen * (1 - skipFraction)
+    const targetLen = minLen + Math.random() * (maxLen - minLen)
+
+    // Find the segment containing targetLen and interpolate
+    for (let i = 1; i < cumLen.length; i++) {
+      if (cumLen[i] >= targetLen) {
+        const segLen = cumLen[i] - cumLen[i - 1]
+        const t = segLen > 0 ? (targetLen - cumLen[i - 1]) / segLen : 0
+        const p0 = this.path[i - 1]
+        const p1 = this.path[i]
+        return new THREE.Vector3(
+          p0.x + (p1.x - p0.x) * t,
+          0,
+          p0.z + (p1.z - p0.z) * t
+        )
+      }
+    }
+
+    // Fallback
+    const p = this.path[Math.floor(this.path.length / 2)]
     return new THREE.Vector3(p.x, p.y, p.z)
   }
 
