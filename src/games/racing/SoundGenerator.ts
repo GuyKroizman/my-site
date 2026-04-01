@@ -531,6 +531,34 @@ export class SoundGenerator {
   }
 
   /**
+   * Play a short tick for the bomb countdown. Pitch and volume increase as progress (0→1) increases.
+   */
+  playBombTick(progress: number, volume: number = 0.15): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    try {
+      const now = ctx.currentTime
+      const freq = 800 + progress * 600 // 800→1400 Hz
+      const vol = volume + progress * 0.15
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(vol, now)
+      gain.gain.linearRampToValueAtTime(0, now + 0.03)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.03)
+      osc.onended = () => { osc.disconnect(); gain.disconnect() }
+    } catch (e) {
+      console.warn('Failed to play bomb tick:', e)
+    }
+  }
+
+  /**
    * Play a short rubbery bounce when the ball hits the ground.
    */
   playBallBounce(volume: number = 0.15): void {

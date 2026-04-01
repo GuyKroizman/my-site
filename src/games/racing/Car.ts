@@ -413,6 +413,18 @@ export class Car {
     )
   }
 
+  /** Apply an XZ shockwave push without launching the car. Reduces speed. */
+  public applyShockwavePush(origin: THREE.Vector3, strength: number) {
+    const dir = new THREE.Vector3()
+    dir.subVectors(this.position, origin)
+    dir.y = 0
+    if (dir.lengthSq() < 0.01) dir.set(1, 0, 0)
+    else dir.normalize()
+    this.position.x += dir.x * strength
+    this.position.z += dir.z * strength
+    this.speed *= 0.5
+  }
+
   public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false, canStart: boolean = false) {
     // If launched by mine, apply velocity, gravity, and tumble
     if (this.launched && this.launchVelocity) {

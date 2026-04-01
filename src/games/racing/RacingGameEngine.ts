@@ -481,9 +481,17 @@ export class RacingGameEngine {
       }
     }
 
-    // Update balls
-    for (const ball of this.balls) {
-      ball.update(deltaTime, this.cars, this.track)
+    // Update balls and handle explosions
+    for (let i = this.balls.length - 1; i >= 0; i--) {
+      const ball = this.balls[i]
+      const result = ball.update(deltaTime, this.cars, this.track)
+      if (result.exploded) {
+        if (result.playerLaunched && this.playerMineHitTime === null) {
+          this.playerMineHitTime = performance.now() / 1000
+        }
+        ball.dispose()
+        this.balls.splice(i, 1)
+      }
     }
 
     // End race 3 seconds after player hit a mine

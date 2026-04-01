@@ -12,6 +12,16 @@ const CAR_HIT_MULTIPLIER = 3.6 // how much car speed translates to ball impulse
 const WALL_BOUNCE_FACTOR = 0.7 // energy kept on wall bounce
 const MIN_BOUNCE_VELOCITY = 0.5 // below this, stop bouncing
 
+const FUSE_DURATION = 7        // seconds from activation to explosion
+const LAUNCH_RADIUS = 3        // cars within this distance get launched off-screen
+const SHOCKWAVE_RADIUS = 12    // cars within this distance get pushed
+const SHOCKWAVE_STRENGTH = 8   // max push strength for shockwave
+
+export interface BallExplosionResult {
+  exploded: boolean
+  playerLaunched: boolean
+}
+
 export class Ball {
   public position: THREE.Vector3
   public mesh: THREE.Mesh
@@ -22,24 +32,44 @@ export class Ball {
   private soundGenerator: SoundGenerator
   private collidedCars: Set<Car> = new Set()
 
+  // Bomb state
+  private activated: boolean = false
+  private activatedTimer: number = 0
+  private flashAccumulator: number = 0
+  private flashOn: boolean = false
+  public exploded: boolean = false
+  private material: THREE.MeshStandardMaterial
+
   constructor(scene: THREE.Scene, x: number, y: number, z: number, soundGenerator: SoundGenerator) {
     this.soundGenerator = soundGenerator
     this.position = new THREE.Vector3(x, y, z)
 
     const geometry = new THREE.SphereGeometry(BALL_RADIUS, 16, 12)
-    const material = new THREE.MeshStandardMaterial({
+    this.material = new THREE.MeshStandardMaterial({
       color: 0xff6600,
       roughness: 0.4,
       metalness: 0.1,
     })
-    this.mesh = new THREE.Mesh(geometry, material)
+    this.mesh = new THREE.Mesh(geometry, this.material)
     this.mesh.castShadow = true
     this.mesh.receiveShadow = true
     this.mesh.position.copy(this.position)
     scene.add(this.mesh)
   }
 
-  update(deltaTime: number, cars: Car[], track: Track): void {
+  update(deltaTime: number, cars: Car[], track: Track): BallExplosionResult {
+    const result: BallExplosionResult = { exploded: false, playerLaunched: false }
+
+    // --- Bomb fuse ---
+    if (this.activated) {
+      this.activatedTimer += deltaTime
+      if (this.activatedTimer >= FUSE_DURATION) {
+        this.detonate(cars, result)
+        return result
+      }
+      this.updateFlash(deltaTime)
+    }
+
     // --- Y-axis physics (gravity + ground bounce) ---
     this.velocityY -= GRAVITY * deltaTime
     this.position.y += this.velocityY * deltaTime
@@ -95,6 +125,11 @@ export class Ball {
         if (!this.collidedCars.has(car)) {
           this.applyCarImpulse(car)
           this.soundGenerator.playBallCarHit(Math.min(0.2, car.speed * 0.02))
+          // Activate bomb on first ever hit
+          if (!this.activated) {
+            this.activated = true
+            this.activatedTimer = 0
+          }
         }
       }
     }
@@ -102,6 +137,48 @@ export class Ball {
 
     // Sync mesh
     this.mesh.position.copy(this.position)
+
+    return result
+  }
+
+  private updateFlash(deltaTime: number): void {
+    const progress = Math.min(this.activatedTimer / FUSE_DURATION, 1)
+    // Flash interval: starts at 0.5s, decreases toward 0.05s
+    const flashInterval = Math.max(0.05, 0.5 * (1 - progress))
+    this.flashAccumulator += deltaTime
+
+    if (this.flashAccumulator >= flashInterval) {
+      this.flashAccumulator = 0
+      this.flashOn = !this.flashOn
+      this.material.emissive.setHex(this.flashOn ? 0xff0000 : 0x000000)
+      this.material.emissiveIntensity = this.flashOn ? 0.8 + progress * 0.5 : 0
+      this.soundGenerator.playBombTick(progress)
+    }
+  }
+
+  private detonate(cars: Car[], result: BallExplosionResult): void {
+    this.exploded = true
+    this.soundGenerator.playExplosionSound()
+
+    for (const car of cars) {
+      if (car.launched || car.finished || car.isDestroyed) continue
+
+      const dx = car.position.x - this.position.x
+      const dz = car.position.z - this.position.z
+      const dist = Math.sqrt(dx * dx + dz * dz)
+
+      if (dist < LAUNCH_RADIUS) {
+        // Very close — launch off screen (same as mine)
+        car.applyExplosionForce(this.position)
+        if (car.isPlayer) result.playerLaunched = true
+      } else if (dist < SHOCKWAVE_RADIUS) {
+        // Medium range — XZ push
+        const falloff = 1 - dist / SHOCKWAVE_RADIUS
+        car.applyShockwavePush(this.position, SHOCKWAVE_STRENGTH * falloff)
+      }
+    }
+
+    result.exploded = true
   }
 
   /**
@@ -165,11 +242,7 @@ export class Ball {
 
   dispose(): void {
     this.mesh.geometry.dispose()
-    if (Array.isArray(this.mesh.material)) {
-      this.mesh.material.forEach(m => m.dispose())
-    } else {
-      this.mesh.material.dispose()
-    }
+    this.material.dispose()
     this.mesh.parent?.remove(this.mesh)
   }
 }
