@@ -512,38 +512,40 @@ export class RacingGameEngine {
       }
     }
 
-    // Update balls and handle explosions + chain reactions
-    const newlyExplodedPositions: THREE.Vector3[] = []
-    for (let i = this.balls.length - 1; i >= 0; i--) {
-      const ball = this.balls[i]
-      const result = ball.update(deltaTime, this.cars, this.track)
-      if (result.exploded) {
-        if (result.playerLaunched && this.playerMineHitTime === null) {
-          this.playerMineHitTime = performance.now() / 1000
+    // Update balls and handle explosions + chain reactions (skip after race ends)
+    if (!raceComplete) {
+      const newlyExplodedPositions: THREE.Vector3[] = []
+      for (let i = this.balls.length - 1; i >= 0; i--) {
+        const ball = this.balls[i]
+        const result = ball.update(deltaTime, this.cars, this.track)
+        if (result.exploded) {
+          if (result.playerLaunched && this.playerMineHitTime === null) {
+            this.playerMineHitTime = performance.now() / 1000
+          }
+          if (result.explosionPosition) {
+            newlyExplodedPositions.push(result.explosionPosition)
+            this.triggerCameraShake(0.5, 0.6)
+          }
         }
-        if (result.explosionPosition) {
-          newlyExplodedPositions.push(result.explosionPosition)
-          this.triggerCameraShake(0.5, 0.6)
+        // Remove balls whose explosion animation has finished
+        if (ball.exploded && !ball.isExplosionAnimating) {
+          ball.dispose()
+          this.balls.splice(i, 1)
         }
       }
-      // Remove balls whose explosion animation has finished
-      if (ball.exploded && !ball.isExplosionAnimating) {
-        ball.dispose()
-        this.balls.splice(i, 1)
-      }
-    }
-    // Chain reactions: exploding balls trigger nearby balls
-    if (newlyExplodedPositions.length > 0) {
-      for (const ball of this.balls) {
-        if (ball.exploded) continue
-        for (const pos of newlyExplodedPositions) {
-          if (ball.isInChainReactionRange(pos)) {
-            if (ball.activated) {
-              ball.triggerImmediateDetonation()
-            } else {
-              ball.triggerActivation()
+      // Chain reactions: exploding balls trigger nearby balls
+      if (newlyExplodedPositions.length > 0) {
+        for (const ball of this.balls) {
+          if (ball.exploded) continue
+          for (const pos of newlyExplodedPositions) {
+            if (ball.isInChainReactionRange(pos)) {
+              if (ball.activated) {
+                ball.triggerImmediateDetonation()
+              } else {
+                ball.triggerActivation()
+              }
+              break
             }
-            break
           }
         }
       }
