@@ -46,7 +46,8 @@ export default function ArcadeScene() {
         ))}
       </div>
       <div className="arcade-title">
-        <h1>Welcome to My Site</h1>
+        <h1>Welcome</h1>
+        <p>My name is Guy Kroizman</p>
         <p>Click a project to explore</p>
       </div>
     </div>
