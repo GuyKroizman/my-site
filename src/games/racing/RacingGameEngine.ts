@@ -14,6 +14,8 @@ import { Ball, DEFAULT_DROP_HEIGHT } from './Ball'
 import { LevelConfig, CarConfig, BallDropConfig } from './levels'
 import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
 import type { TouchDriveState } from './input'
+import type { PlayerUpgrades } from './upgrades'
+import { DEFAULT_PLAYER_UPGRADES } from './upgrades'
 
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
@@ -60,6 +62,19 @@ export class RacingGameEngine {
   private spaceKeyDownHandler: ((e: KeyboardEvent) => void) | null = null
   private spaceKeyUpHandler: ((e: KeyboardEvent) => void) | null = null
 
+  // Player upgrades
+  private playerUpgrades: PlayerUpgrades
+  private playerMines: Mine[] = []
+
+  // Turbo boost state
+  private turboBoostActive: boolean = false
+  private turboBoostTimer: number = 0
+  private turboBoostCooldown: number = 0
+  private readonly TURBO_BOOST_DURATION: number = 1.0
+  private readonly TURBO_BOOST_COOLDOWN: number = 3.0
+  private readonly TURBO_BOOST_MULTIPLIER: number = 1.5
+  private playerBaseMaxSpeed: number = 0
+
   // Camera shake
   private shakeTimer: number = 0
   private shakeDuration: number = 0
@@ -74,7 +89,7 @@ export class RacingGameEngine {
   private readonly CINEMATIC_HOLD_DURATION: number = 0.5
   private readonly CINEMATIC_SWEEP_DURATION: number = 2.0
 
-  constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig) {
+  constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig, upgrades?: PlayerUpgrades) {
     // Wrap callbacks so we play finish sound when any car crosses the line, then invoke the provided callback
     const userCallbacks = callbacks
     this.callbacks = {
@@ -85,6 +100,7 @@ export class RacingGameEngine {
       }
     }
     this.currentLevelConfig = levelConfig
+    this.playerUpgrades = upgrades ?? { ...DEFAULT_PLAYER_UPGRADES, selectedIds: new Set() }
 
     // Ensure container is properly sized
     if (container.clientWidth === 0 || container.clientHeight === 0) {
@@ -193,6 +209,15 @@ export class RacingGameEngine {
 
     // Create cars
     this.createCars()
+
+    // Apply player upgrades to player car
+    const playerCar = this.cars.find(car => car.isPlayer)
+    if (playerCar) {
+      playerCar.maxSpeed *= this.playerUpgrades.speedMultiplier
+      playerCar.turnSpeed *= this.playerUpgrades.turnSpeedMultiplier
+      playerCar.hasRam = this.playerUpgrades.hasRam
+      this.playerBaseMaxSpeed = playerCar.maxSpeed
+    }
 
     // Initialize cinematic camera intro
     this.initCinematicCamera()
@@ -554,10 +579,54 @@ export class RacingGameEngine {
       this.callbacks.onLapUpdate(playerCar.lapsCompleted)
     }
 
-    // Handle shooting
+    // Handle shooting / fire button actions
     this.shootCooldown = Math.max(0, this.shootCooldown - deltaTime)
-    if ((this.spacePressed || this.touchShoot) && this.shootCooldown <= 0 && canStart && !raceComplete) {
-      this.shootBullet()
+    const hasWeapon = this.playerUpgrades.hasGun || this.playerUpgrades.hasMines || this.playerUpgrades.hasTurboBoost
+    if (hasWeapon && (this.spacePressed || this.touchShoot) && this.shootCooldown <= 0 && canStart && !raceComplete) {
+      if (this.playerUpgrades.hasGun) {
+        this.shootBullet()
+      } else if (this.playerUpgrades.hasMines) {
+        this.dropPlayerMine()
+      } else if (this.playerUpgrades.hasTurboBoost) {
+        this.activateTurboBoost()
+      }
+    }
+
+    // Update turbo boost
+    if (this.turboBoostActive) {
+      this.turboBoostTimer -= deltaTime
+      if (this.turboBoostTimer <= 0) {
+        this.turboBoostActive = false
+        const pc = this.cars.find(car => car.isPlayer)
+        if (pc) pc.maxSpeed = this.playerBaseMaxSpeed
+        this.turboBoostCooldown = this.TURBO_BOOST_COOLDOWN
+      }
+    }
+    if (this.turboBoostCooldown > 0) {
+      this.turboBoostCooldown = Math.max(0, this.turboBoostCooldown - deltaTime)
+    }
+
+    // Check player-dropped mine collisions
+    for (let i = this.playerMines.length - 1; i >= 0; i--) {
+      const mine = this.playerMines[i]
+      if (!mine.isActive()) continue
+      let mineHit = false
+      for (const car of this.cars) {
+        if (car.launched || car.finished) continue
+        if (mine.collidesWith(car.position)) {
+          car.applyExplosionForce(mine.getPosition())
+          this.soundGenerator.playExplosionSound()
+          if (car.isPlayer) {
+            this.playerMineHitTime = performance.now() / 1000
+          }
+          mineHit = true
+          break
+        }
+      }
+      if (mineHit) {
+        mine.destroy()
+        this.playerMines.splice(i, 1)
+      }
     }
 
     // Update bullets and check collisions with AI cars
@@ -604,12 +673,17 @@ export class RacingGameEngine {
   }
 
   public startRace() {
-    // Clear any bullets and balls from a previous race
+    // Clear any bullets, balls, and player mines from a previous race
     this.bullets.forEach(b => b.dispose(this.scene))
     this.bullets = []
     this.shootCooldown = 0
     this.balls.forEach(b => b.dispose())
     this.balls = []
+    this.playerMines.forEach(m => m.destroy())
+    this.playerMines = []
+    this.turboBoostActive = false
+    this.turboBoostTimer = 0
+    this.turboBoostCooldown = 0
     this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
 
     // Reset timer
@@ -709,6 +783,32 @@ export class RacingGameEngine {
     this.shootCooldown = 0.05
   }
 
+  private dropPlayerMine() {
+    const playerCar = this.cars.find(car => car.isPlayer)
+    if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
+
+    const backward = new THREE.Vector3(
+      -Math.sin(playerCar.rotation),
+      0,
+      -Math.cos(playerCar.rotation)
+    )
+    const spawnPos = playerCar.position.clone().addScaledVector(backward, 2.0)
+    const mine = new Mine(this.scene, spawnPos.x, spawnPos.z, 2.0)
+    this.playerMines.push(mine)
+    this.shootCooldown = 1.5
+  }
+
+  private activateTurboBoost() {
+    if (this.turboBoostActive || this.turboBoostCooldown > 0) return
+    const playerCar = this.cars.find(car => car.isPlayer)
+    if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
+
+    this.turboBoostActive = true
+    this.turboBoostTimer = this.TURBO_BOOST_DURATION
+    playerCar.maxSpeed = this.playerBaseMaxSpeed * this.TURBO_BOOST_MULTIPLIER
+    this.shootCooldown = this.TURBO_BOOST_DURATION + this.TURBO_BOOST_COOLDOWN
+  }
+
   public pause() {
     if (!this.isPaused) {
       this.isPaused = true
@@ -772,6 +872,8 @@ export class RacingGameEngine {
       this.mine.destroy()
       this.mine = null
     }
+    this.playerMines.forEach(m => m.destroy())
+    this.playerMines = []
     if (this.playerArrow) {
       this.playerArrow.dispose()
       this.playerArrow = null

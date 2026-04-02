@@ -104,6 +104,7 @@ export class Car {
   private healthBarCanvas: HTMLCanvasElement | null = null
   private healthBarTexture: THREE.CanvasTexture | null = null
   private lastDrawnHealth: number = -1
+  public hasRam: boolean = false
   private lastCollisionTime: number = 0
   private collisionCooldown: number = 0.2 // Minimum time between collision sounds (seconds)
 
@@ -881,17 +882,27 @@ export class Car {
         collided = true
         // Check if both cars are AI (neither is player)
         isAiCollision = !this.isPlayer && !otherCar.isPlayer
-        
+
         // Calculate repulsion vector to push cars apart
         const toOther = new THREE.Vector3()
         toOther.subVectors(this.position, otherCar.position)
         toOther.y = 0 // Keep on ground plane
-        
+
         const distance = toOther.length()
         if (distance > 0.01) { // Avoid division by zero
           toOther.normalize()
           // Push cars apart - stronger push when closer together
-          const pushStrength = Math.max(0.4, 1.0 - distance) * 0.5
+          let pushStrength = Math.max(0.4, 1.0 - distance) * 0.5
+
+          if (this.isPlayer && this.hasRam) {
+            // Ram: push other car harder, self barely bounces
+            const pushToOther = toOther.clone().multiplyScalar(-pushStrength * 2)
+            otherCar.pushVelocityX += pushToOther.x * 8
+            otherCar.pushVelocityZ += pushToOther.z * 8
+            otherCar.takeDamageAmount(10)
+            pushStrength *= 0.5
+          }
+
           toOther.multiplyScalar(pushStrength)
           repulsion.add(toOther)
         } else {

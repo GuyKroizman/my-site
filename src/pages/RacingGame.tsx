@@ -5,6 +5,7 @@ import { LevelConfig } from '../games/racing/levels'
 import { SoundGenerator } from '../games/racing/SoundGenerator'
 import { VirtualDriveStick } from '../games/racing/VirtualDriveStick'
 import type { TouchDriveState } from '../games/racing/input'
+import type { UpgradeOption, UpgradeId } from '../games/racing/upgrades'
 import {
   Header,
   MuteButton,
@@ -13,7 +14,8 @@ import {
   GameWonDialog,
   PausedDialog,
   MenuScreen,
-  FinishLineConfetti
+  FinishLineConfetti,
+  UpgradeSelectionScreen
 } from '../games/racing/components'
 
 // Check if device supports touch
@@ -37,7 +39,7 @@ const isLandscape = () => {
 }
 
 
-type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'gameWon'
+type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'upgradeSelection' | 'gameWon'
 
 export default function RacingGame() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -57,6 +59,7 @@ export default function RacingGame() {
   const [gameContainerVisible, setGameContainerVisible] = useState(true)
   const [confettiCount, setConfettiCount] = useState(0)
   const [confettiOrigin, setConfettiOrigin] = useState<{ x: number; y: number } | null>(null)
+  const [upgradeOptions, setUpgradeOptions] = useState<UpgradeOption[]>([])
 
   // Initialize GameManager
   useEffect(() => {
@@ -76,6 +79,9 @@ export default function RacingGame() {
       },
       onGameComplete: (_won: boolean) => {
         // State is already set by onStateChange
+      },
+      onUpgradeSelection: (options: UpgradeOption[]) => {
+        setUpgradeOptions(options)
       }
     })
     gameManagerRef.current = manager
@@ -143,7 +149,10 @@ export default function RacingGame() {
       gameEngineRef.current = null
     }
 
-    // Create game engine with level config
+    // Get player upgrades from game manager
+    const upgrades = gameManagerRef.current?.getPlayerUpgrades()
+
+    // Create game engine with level config and player upgrades
     try {
       const engine = new RacingGameEngine(
         containerRef.current,
@@ -166,7 +175,8 @@ export default function RacingGame() {
             })
           }
         },
-        level
+        level,
+        upgrades
       )
       gameEngineRef.current = engine
       engine.startRace()
@@ -216,6 +226,12 @@ export default function RacingGame() {
   const handleProceedAfterRace = () => {
     if (gameManagerRef.current) {
       gameManagerRef.current.proceedAfterRace()
+    }
+  }
+
+  const handleUpgradeSelect = (upgradeId: UpgradeId) => {
+    if (gameManagerRef.current) {
+      gameManagerRef.current.selectUpgrade(upgradeId)
     }
   }
 
@@ -270,6 +286,11 @@ export default function RacingGame() {
     setIsMuted(newMutedState)
   }
 
+  // Determine fire button visibility and label based on player upgrades
+  const upgrades = gameManagerRef.current?.getPlayerUpgrades()
+  const showFireButton = !!(upgrades?.hasGun || upgrades?.hasMines || upgrades?.hasTurboBoost)
+  const fireButtonLabel = upgrades?.hasGun ? 'FIRE' : upgrades?.hasMines ? 'MINE' : upgrades?.hasTurboBoost ? 'BOOST' : 'FIRE'
+
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
       <Header hideHeader={hideHeader} />
@@ -299,6 +320,13 @@ export default function RacingGame() {
           />
         )}
 
+        {uiState === 'upgradeSelection' && (
+          <UpgradeSelectionScreen
+            options={upgradeOptions}
+            onSelect={handleUpgradeSelect}
+          />
+        )}
+
         {uiState === 'gameWon' && (
           <GameWonDialog
             totalLevels={totalLevels}
@@ -312,7 +340,12 @@ export default function RacingGame() {
 
         {/* Virtual drive stick - only show when playing and on touch devices */}
         {uiState === 'playing' && isTouchDevice() && (
-          <VirtualDriveStick onStateChange={handleTouchDriveChange} onShoot={handleTouchShoot} />
+          <VirtualDriveStick
+            onStateChange={handleTouchDriveChange}
+            onShoot={handleTouchShoot}
+            showFireButton={showFireButton}
+            fireButtonLabel={fireButtonLabel}
+          />
         )}
       </div>
 

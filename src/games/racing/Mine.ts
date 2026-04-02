@@ -10,14 +10,23 @@ export class Mine {
 
   private scene: THREE.Scene
   private collisionRadius: number = COLLISION_RADIUS
+  private createdAt: number
+  private activationDelay: number
 
-  constructor(scene: THREE.Scene, x: number, z: number) {
+  constructor(scene: THREE.Scene, x: number, z: number, activationDelay: number = 0) {
     this.scene = scene
     this.position = new THREE.Vector3(x, 0, z)
+    this.createdAt = performance.now() / 1000
+    this.activationDelay = activationDelay
     this.mesh = new THREE.Group()
     this.mesh.position.copy(this.position)
     scene.add(this.mesh)
     void this.loadModel()
+  }
+
+  public isActive(): boolean {
+    const elapsed = performance.now() / 1000 - this.createdAt
+    return elapsed >= this.activationDelay
   }
 
   private async loadModel(): Promise<void> {

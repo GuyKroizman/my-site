@@ -1,6 +1,7 @@
 import { levels, getTotalLevels, LevelConfig } from './levels'
+import { UpgradeId, UpgradeOption, PlayerUpgrades, DEFAULT_PLAYER_UPGRADES, applyUpgrade, selectThreeOptions } from './upgrades'
 
-export type GameState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'gameWon'
+export type GameState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'upgradeSelection' | 'gameWon'
 
 export interface RaceResult {
   winner: string
@@ -16,6 +17,7 @@ export interface GameManagerCallbacks {
   onLevelChange: (level: LevelConfig) => void
   onRaceResult: (result: RaceResult) => void
   onGameComplete: (won: boolean) => void
+  onUpgradeSelection: (options: UpgradeOption[]) => void
 }
 
 export class GameManager {
@@ -24,6 +26,7 @@ export class GameManager {
   private callbacks: GameManagerCallbacks
   private lastRaceResult: RaceResult | null = null
   private playerWonFirstPlace: boolean = false
+  private playerUpgrades: PlayerUpgrades = { ...DEFAULT_PLAYER_UPGRADES, selectedIds: new Set() }
 
   constructor(callbacks: GameManagerCallbacks) {
     this.callbacks = callbacks
@@ -49,23 +52,28 @@ export class GameManager {
     return this.lastRaceResult
   }
 
+  public getPlayerUpgrades(): PlayerUpgrades {
+    return this.playerUpgrades
+  }
+
   public startGame(): void {
     this.currentLevelIndex = 0
     this.playerWonFirstPlace = false
     this.state = 'playing'
     this.lastRaceResult = null
+    this.playerUpgrades = { ...DEFAULT_PLAYER_UPGRADES, selectedIds: new Set() }
     this.callbacks.onStateChange(this.state)
     this.callbacks.onLevelChange(this.getCurrentLevel())
   }
 
-  public handleRaceComplete(results: { 
+  public handleRaceComplete(results: {
     winner: string
     second: string
     third: string
     times: { [name: string]: number }
   }): void {
     const currentLevel = this.getCurrentLevel()
-    
+
     // Determine player's position
     let playerPosition = 4 // Default to last if not found
     if (results.winner === 'Player') {
@@ -125,14 +133,13 @@ export class GameManager {
     if (!this.lastRaceResult) return
 
     if (this.lastRaceResult.levelPassed) {
-      // Check if there are more levels
       if (this.currentLevelIndex < levels.length - 1) {
-        // Move to next level
-        this.currentLevelIndex++
-        this.state = 'playing'
+        // Show upgrade selection before next level
+        const options = selectThreeOptions(this.playerUpgrades)
+        this.state = 'upgradeSelection'
         this.lastRaceResult = null
         this.callbacks.onStateChange(this.state)
-        this.callbacks.onLevelChange(this.getLevelWithGridPosition())
+        this.callbacks.onUpgradeSelection(options)
       } else {
         // All levels completed - game won!
         this.state = 'gameWon'
@@ -140,6 +147,14 @@ export class GameManager {
         this.callbacks.onGameComplete(true)
       }
     }
+  }
+
+  public selectUpgrade(upgradeId: UpgradeId): void {
+    this.playerUpgrades = applyUpgrade(this.playerUpgrades, upgradeId)
+    this.currentLevelIndex++
+    this.state = 'playing'
+    this.callbacks.onStateChange(this.state)
+    this.callbacks.onLevelChange(this.getLevelWithGridPosition())
   }
 
   public returnToMenu(): void {
