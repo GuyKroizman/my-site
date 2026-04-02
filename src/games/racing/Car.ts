@@ -1084,6 +1084,7 @@ export class Car {
     })
     this.healthBarSprite = new THREE.Sprite(material)
     this.healthBarSprite.scale.set(2.5, 0.3, 1)
+    this.healthBarSprite.visible = false
     // Don't add to mesh group (rotation would fight the billboard).
     // Position is updated manually each frame in updateHealthBar().
     this.drawHealthBar()
