@@ -221,13 +221,15 @@ export class Ball {
       const dist = Math.sqrt(dx * dx + dz * dz)
 
       if (dist < LAUNCH_RADIUS) {
-        // Very close — launch off screen (same as mine)
+        // Very close — launch off screen and instant kill
         car.applyExplosionForce(this.position)
+        car.takeDamageAmount(100)
         if (car.isPlayer) result.playerLaunched = true
       } else if (dist < SHOCKWAVE_RADIUS) {
-        // Medium range — XZ push
+        // Medium range — XZ push + proximity damage
         const falloff = 1 - dist / SHOCKWAVE_RADIUS
         car.applyShockwavePush(this.position, SHOCKWAVE_STRENGTH * falloff)
+        car.takeDamageAmount(Math.ceil(80 * falloff))
       }
     }
 

@@ -59,7 +59,7 @@ export class Car {
   public lapsCompleted: number = 0 // Number of laps completed
   public finished: boolean = false
   public finishPosition: number = 0
-  public health: number = 10
+  public health: number = 100
   public isDestroyed: boolean = false
   public startX: number // Store starting X position to return to finish line
   public lastCheckpoint: number = -1 // Last checkpoint passed (-1 means none)
@@ -84,6 +84,10 @@ export class Car {
   private localHalfSize: THREE.Vector3 = new THREE.Vector3()
   private boxHelper: THREE.LineSegments | null = null
   private keys: { [key: string]: boolean } = {}
+  // Shockwave push velocity (decays over time for visible slide effect)
+  private pushVelocityX: number = 0
+  private pushVelocityZ: number = 0
+
   /** When set, car is flying from a mine explosion and ignores normal driving. */
   public launched: boolean = false
   public launchVelocity: THREE.Vector3 | null = null
@@ -413,15 +417,15 @@ export class Car {
     )
   }
 
-  /** Apply an XZ shockwave push without launching the car. Reduces speed. */
+  /** Apply an XZ shockwave push without launching the car. Adds velocity for visible slide. */
   public applyShockwavePush(origin: THREE.Vector3, strength: number) {
     const dir = new THREE.Vector3()
     dir.subVectors(this.position, origin)
     dir.y = 0
     if (dir.lengthSq() < 0.01) dir.set(1, 0, 0)
     else dir.normalize()
-    this.position.x += dir.x * strength
-    this.position.z += dir.z * strength
+    this.pushVelocityX += dir.x * strength * 3
+    this.pushVelocityZ += dir.z * strength * 3
     this.speed *= 0.5
   }
 
@@ -481,6 +485,16 @@ export class Car {
     )
 
     const newPosition = this.position.clone().add(direction.multiplyScalar(moveDistance))
+
+    // Apply shockwave push velocity
+    newPosition.x += this.pushVelocityX * deltaTime
+    newPosition.z += this.pushVelocityZ * deltaTime
+    // Decay push velocity
+    const pushDrag = Math.pow(0.92, deltaTime * 60)
+    this.pushVelocityX *= pushDrag
+    this.pushVelocityZ *= pushDrag
+    if (Math.abs(this.pushVelocityX) < 0.1) this.pushVelocityX = 0
+    if (Math.abs(this.pushVelocityZ) < 0.1) this.pushVelocityZ = 0
 
     // Wall collision: slide along the rail instead of stopping dead
     let positionAfterWall: THREE.Vector3
@@ -915,9 +929,14 @@ export class Car {
   }
 
   public takeDamage(): void {
+    this.takeDamageAmount(10)
+  }
+
+  public takeDamageAmount(amount: number): void {
     if (this.isDestroyed) return
-    this.health--
+    this.health -= amount
     if (this.health <= 0) {
+      this.health = 0
       this.destroy()
     }
   }
@@ -997,8 +1016,10 @@ export class Car {
     this.launched = false
     this.launchVelocity = null
     this.launchAngularVelocity = null
+    this.pushVelocityX = 0
+    this.pushVelocityZ = 0
     this.speed = 0
-    this.health = 10
+    this.health = 100
     this.isDestroyed = false
     this.clearFireEffect()
   }
@@ -1015,7 +1036,9 @@ export class Car {
     this.launched = false
     this.launchVelocity = null
     this.launchAngularVelocity = null
-    this.health = 10
+    this.pushVelocityX = 0
+    this.pushVelocityZ = 0
+    this.health = 100
     this.isDestroyed = false
     this.clearFireEffect()
     this.mesh.position.copy(this.position)

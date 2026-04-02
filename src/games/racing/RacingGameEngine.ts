@@ -523,7 +523,15 @@ export class RacingGameEngine {
       }
     }
 
-    // End race 3 seconds after player hit a mine
+    // End race 3 seconds after player car is destroyed (by explosions, bullets, etc.)
+    if (this.playerMineHitTime === null && !raceComplete) {
+      const playerCar = this.cars.find(car => car.isPlayer)
+      if (playerCar && playerCar.isDestroyed) {
+        this.playerMineHitTime = performance.now() / 1000
+      }
+    }
+
+    // End race 3 seconds after player hit a mine or was destroyed
     if (this.playerMineHitTime !== null && !raceComplete) {
       const elapsed = performance.now() / 1000 - this.playerMineHitTime
       if (elapsed >= 3) {
