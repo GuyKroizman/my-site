@@ -1315,7 +1315,7 @@ export class Track {
 
     const insideX = clamped.x > minX && clamped.x < maxX
     const insideZ = clamped.z > minZ && clamped.z < maxZ
-    if (!insideX && !insideZ) return { clamped, normals }
+    if (!insideX || !insideZ) return { clamped, normals }
 
     // Only push to the single nearest edge to avoid teleporting to a corner
     const distToMinX = clamped.x - minX
