@@ -970,7 +970,7 @@ export class Car {
     if (this.health <= 0) {
       this.health = 0
       this.destroy()
-    } else if (this.health <= 20 && !this.isDamaged) {
+    } else if (this.health <= 20 && !this.isDamaged && !this.isPlayer) {
       this.applyDamagedState()
     }
   }
