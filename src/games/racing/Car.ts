@@ -456,6 +456,7 @@ export class Car {
     if (this.isDestroyed) {
       this.fireTime += deltaTime
       this.animateFire()
+      this.updateHealthBar()
       return
     }
 
