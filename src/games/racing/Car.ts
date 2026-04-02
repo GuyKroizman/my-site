@@ -9,9 +9,9 @@ function obbOverlap(
   posB: THREE.Vector3, halfB: THREE.Vector3, rotB: number
 ): boolean {
   // Each box has two local axes on the XZ plane (right and forward)
-  const axA0x = Math.cos(rotA),  axA0z = Math.sin(rotA)   // A's local X (right)
+  const axA0x = Math.cos(rotA), axA0z = Math.sin(rotA)   // A's local X (right)
   const axA1x = -Math.sin(rotA), axA1z = Math.cos(rotA)   // A's local Z (forward)
-  const axB0x = Math.cos(rotB),  axB0z = Math.sin(rotB)
+  const axB0x = Math.cos(rotB), axB0z = Math.sin(rotB)
   const axB1x = -Math.sin(rotB), axB1z = Math.cos(rotB)
 
   const dx = posB.x - posA.x
@@ -27,9 +27,9 @@ function obbOverlap(
   for (const [ax, az] of axes) {
     const dist = Math.abs(dx * ax + dz * az)
     const rA = halfA.x * Math.abs(axA0x * ax + axA0z * az)
-             + halfA.z * Math.abs(axA1x * ax + axA1z * az)
+      + halfA.z * Math.abs(axA1x * ax + axA1z * az)
     const rB = halfB.x * Math.abs(axB0x * ax + axB0z * az)
-             + halfB.z * Math.abs(axB1x * ax + axB1z * az)
+      + halfB.z * Math.abs(axB1x * ax + axB1z * az)
     if (dist > rA + rB) return false
   }
   return true
@@ -118,11 +118,11 @@ export class Car {
   private static readonly TOUCH_REVERSE_TRIGGER = 0.55
 
   constructor(
-    x: number, 
-    y: number, 
-    z: number, 
-    color: number, 
-    name: string, 
+    x: number,
+    y: number,
+    z: number,
+    color: number,
+    name: string,
     isPlayer: boolean,
     characteristics?: CarCharacteristics,
     modelPath?: string
@@ -174,7 +174,7 @@ export class Car {
     // Wheels (simple boxes)
     const wheelGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3)
     const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 })
-    
+
     const wheelPositions = [
       { x: -0.5, y: -0.3, z: 0.7 },
       { x: 0.5, y: -0.3, z: 0.7 },
@@ -192,7 +192,7 @@ export class Car {
     // Cars start facing east (positive x direction) since track goes from -15 to 15 at z: -10
     // In Three.js, rotation.y = Math.PI/2 faces +x direction
     this.rotation = Math.PI / 2
-    
+
     this.mesh.position.copy(this.position)
     this.mesh.rotation.y = this.rotation
 
@@ -277,18 +277,18 @@ export class Car {
     const hd = this.localHalfSize.z
     // 12 edges of a box
     const verts = new Float32Array([
-      -hw,-hh,-hd,  hw,-hh,-hd,
-       hw,-hh,-hd,  hw,-hh, hd,
-       hw,-hh, hd, -hw,-hh, hd,
-      -hw,-hh, hd, -hw,-hh,-hd,
-      -hw, hh,-hd,  hw, hh,-hd,
-       hw, hh,-hd,  hw, hh, hd,
-       hw, hh, hd, -hw, hh, hd,
-      -hw, hh, hd, -hw, hh,-hd,
-      -hw,-hh,-hd, -hw, hh,-hd,
-       hw,-hh,-hd,  hw, hh,-hd,
-       hw,-hh, hd,  hw, hh, hd,
-      -hw,-hh, hd, -hw, hh, hd,
+      -hw, -hh, -hd, hw, -hh, -hd,
+      hw, -hh, -hd, hw, -hh, hd,
+      hw, -hh, hd, -hw, -hh, hd,
+      -hw, -hh, hd, -hw, -hh, -hd,
+      -hw, hh, -hd, hw, hh, -hd,
+      hw, hh, -hd, hw, hh, hd,
+      hw, hh, hd, -hw, hh, hd,
+      -hw, hh, hd, -hw, hh, -hd,
+      -hw, -hh, -hd, -hw, hh, -hd,
+      hw, -hh, -hd, hw, hh, -hd,
+      hw, -hh, hd, hw, hh, hd,
+      -hw, -hh, hd, -hw, hh, hd,
     ])
     geo.setAttribute('position', new THREE.BufferAttribute(verts, 3))
     const mat = new THREE.LineBasicMaterial({ color: 0x00ff00 })
@@ -559,17 +559,17 @@ export class Car {
         this.soundGenerator.playCrashSound(volume)
         this.lastCollisionTime = currentTime
       }
-      
+
       // Apply repulsion to push cars apart
       this.position.add(collisionResult.repulsion)
-      
+
       // Still allow some movement in the original direction, but reduced
       const reducedMovement = direction.clone().multiplyScalar(moveDistance * 0.3)
       this.position.add(reducedMovement)
-      
+
       // Reduce speed when colliding, but don't stop completely
       this.speed *= 0.8
-      
+
       // Add slight random rotation to help cars slide past each other
       const rotationAmount = 0.015
       if (Math.random() > 0.5) {
@@ -641,7 +641,7 @@ export class Car {
       const speedRatio = Math.max(0.5, currentSpeed / this.maxSpeed)
       const turnAmount =
         this.turnSpeed * speedRatio * turnMultiplier * Math.abs(steeringInput)
-      
+
       // When reversing, swap left and right steering
       if (isReversing) {
         if (steeringInput < 0) {
@@ -743,18 +743,18 @@ export class Car {
       this.astarRecalculateTimer = 0
       this.recalculateAStarPath(track)
     }
-    
+
     // If we still don't have a path, just accelerate forward
     if (this.astarPath.length === 0) {
       this.speed = Math.min(this.speed + this.acceleration * deltaTime * 0.5, this.maxSpeed * 0.5)
       return
     }
-    
+
     // Advance path index if we're close to current waypoint
     while (this.astarPathIndex < this.astarPath.length - 1) {
       const currentWaypoint = this.astarPath[this.astarPathIndex]
       const distToWaypoint = this.position.distanceTo(currentWaypoint)
-      
+
       if (distToWaypoint < 2.0) {
         // Move to next waypoint
         this.astarPathIndex++
@@ -762,11 +762,11 @@ export class Car {
         break
       }
     }
-    
+
     // Get target point - look ahead based on car's waypointLookAhead characteristic
     const targetIndex = Math.min(this.astarPathIndex + this.waypointLookAhead, this.astarPath.length - 1)
     const targetPoint = this.astarPath[targetIndex]
-    
+
     this.steerTowardsTarget(deltaTime, targetPoint)
   }
 
@@ -827,19 +827,19 @@ export class Car {
     const direction = new THREE.Vector3()
     direction.subVectors(targetPoint, this.position)
     direction.y = 0
-    
+
     const distanceToTarget = direction.length()
     if (distanceToTarget < 0.5) {
       // Very close to target, just maintain speed
       this.speed = Math.min(this.speed + this.acceleration * deltaTime * 0.5, this.maxSpeed * 0.8)
       return
     }
-    
+
     direction.normalize()
 
     // Calculate target rotation
     const targetRotation = Math.atan2(direction.x, direction.z)
-    
+
     // Calculate angle difference
     let angleDiff = targetRotation - this.rotation
     // Normalize angle difference to [-PI, PI]
@@ -851,7 +851,7 @@ export class Car {
     const turnRate = 4.0 * deltaTime
     const turnAmount = Math.max(-turnRate, Math.min(turnRate, angleDiff))
     this.rotation += turnAmount
-    
+
     // Normalize rotation to [0, 2*PI]
     while (this.rotation > Math.PI * 2) this.rotation -= Math.PI * 2
     while (this.rotation < 0) this.rotation += Math.PI * 2
@@ -860,7 +860,7 @@ export class Car {
     const absAngleDiff = Math.abs(angleDiff)
     const targetSpeedMultiplier = this.aiAggressiveness
     const maxTargetSpeed = this.maxSpeed * targetSpeedMultiplier
-    
+
     if (absAngleDiff > Math.PI / 4) {
       // Sharp turn (>45°) - slow down
       this.speed = Math.max(this.speed - this.acceleration * deltaTime * 1.5, this.maxSpeed * 0.4 * targetSpeedMultiplier)
@@ -871,7 +871,7 @@ export class Car {
       // Straight or gentle turn - accelerate towards max speed
       this.speed = Math.min(this.speed + this.acceleration * deltaTime, maxTargetSpeed)
     }
-    
+
     // Ensure AI cars never go backwards
     if (!this.isPlayer) {
       this.speed = Math.max(0, this.speed)
@@ -937,22 +937,22 @@ export class Car {
   public updateCheckpoints(track: Track) {
     // Check if car is in any checkpoint
     const checkpointCount = track.getCheckpointCount()
-    
+
     // Initialize checkpointPassed array if needed (supports dynamic checkpoint counts)
     if (this.checkpointPassed.length !== checkpointCount) {
       this.checkpointPassed = new Array(checkpointCount).fill(false)
     }
-    
+
     for (let i = 0; i < checkpointCount; i++) {
       if (track.isInCheckpoint(this.position, i)) {
         // Check if this is the next expected checkpoint
         const expectedNext = (this.lastCheckpoint + 1) % checkpointCount
-        
+
         if (i === expectedNext || (this.lastCheckpoint === -1 && i === 0)) {
           // Car passed the next checkpoint in sequence
           this.lastCheckpoint = i
           this.checkpointPassed[i] = true
-          
+
           // Note: Lap completion is handled by RaceManager
           // It will check if checkpoint 0 was just passed and all others were already passed
         }
@@ -961,7 +961,7 @@ export class Car {
   }
 
   public takeDamage(): void {
-    this.takeDamageAmount(10)
+    this.takeDamageAmount(7)
   }
 
   public takeDamageAmount(amount: number): void {

@@ -4,10 +4,10 @@ import type { Car } from './Car'
 export class Bullet {
   public mesh: THREE.Mesh
   private velocity: THREE.Vector3
-  private lifetime: number = 0.2
+  private lifetime: number = 0.1
 
   constructor(position: THREE.Vector3, rotationY: number) {
-    const geometry = new THREE.BoxGeometry(0.06, 0.06, 0.2)
+    const geometry = new THREE.BoxGeometry(0.08, 0.08, 0.4)
     const material = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       emissive: 0xffff88,
@@ -51,6 +51,6 @@ export class Bullet {
   dispose(scene: THREE.Scene): void {
     scene.remove(this.mesh)
     this.mesh.geometry.dispose()
-    ;(this.mesh.material as THREE.Material).dispose()
+      ; (this.mesh.material as THREE.Material).dispose()
   }
 }
