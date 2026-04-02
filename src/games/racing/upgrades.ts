@@ -101,6 +101,25 @@ export function getAvailableOptions(current: PlayerUpgrades): UpgradeOption[] {
   return UPGRADE_POOL.filter(opt => opt.repeatable || !current.selectedIds.has(opt.id))
 }
 
+const FIRE_BUTTON_WEAPONS: UpgradeId[] = ['gun', 'mines', 'turbo_boost']
+
+export function getFireButtonWeapons(upgrades: PlayerUpgrades): UpgradeId[] {
+  const weapons: UpgradeId[] = []
+  if (upgrades.hasGun) weapons.push('gun')
+  if (upgrades.hasMines) weapons.push('mines')
+  if (upgrades.hasTurboBoost) weapons.push('turbo_boost')
+  return weapons
+}
+
+export function getWeaponIcon(id: UpgradeId): string {
+  const option = UPGRADE_POOL.find(o => o.id === id)
+  return option?.icon ?? ''
+}
+
+export function isFireButtonWeapon(id: UpgradeId): boolean {
+  return FIRE_BUTTON_WEAPONS.includes(id)
+}
+
 export function selectThreeOptions(current: PlayerUpgrades): UpgradeOption[] {
   const available = getAvailableOptions(current)
   const nonNothing = available.filter(o => o.id !== 'nothing')

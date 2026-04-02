@@ -12,7 +12,10 @@ interface VirtualDriveStickProps {
   onStateChange: (state: TouchDriveState) => void
   onShoot?: (shooting: boolean) => void
   showFireButton?: boolean
-  fireButtonLabel?: string
+  fireButtonIcon?: string
+  onRotateWeapon?: () => void
+  showRotateButton?: boolean
+  rotateButtonIcon?: string
 }
 
 function applyDeadzone(value: number, deadzone: number) {
@@ -61,7 +64,15 @@ function offsetToDriveState(offset: { x: number; y: number }): TouchDriveState {
   return { throttle, steering }
 }
 
-export function VirtualDriveStick({ onStateChange, onShoot, showFireButton = true, fireButtonLabel = 'FIRE' }: VirtualDriveStickProps) {
+export function VirtualDriveStick({
+  onStateChange,
+  onShoot,
+  showFireButton = true,
+  fireButtonIcon = '',
+  onRotateWeapon,
+  showRotateButton = false,
+  rotateButtonIcon = '',
+}: VirtualDriveStickProps) {
   const [knobOffset, setKnobOffset] = useState({ x: 0, y: 0 })
   const activePointerId = useRef<number | null>(null)
   const baseRef = useRef<HTMLDivElement>(null)
@@ -164,28 +175,54 @@ export function VirtualDriveStick({ onStateChange, onShoot, showFireButton = tru
         />
       </div>
       {showFireButton && (
-        <div
-          className="fixed bottom-8 right-8 z-50 select-none pointer-events-auto flex items-center justify-center"
-          style={{
-            width: 80,
-            height: 80,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, #ff6600, #cc2200)',
-            border: '3px solid rgba(255, 200, 0, 0.7)',
-            touchAction: 'none',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: 13,
-          }}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId)
-            onShoot?.(true)
-          }}
-          onPointerUp={() => onShoot?.(false)}
-          onPointerCancel={() => onShoot?.(false)}
-        >
-          {fireButtonLabel}
-        </div>
+        <>
+          {showRotateButton && (
+            <div
+              className="fixed z-50 select-none pointer-events-auto flex items-center justify-center"
+              style={{
+                width: 44,
+                height: 44,
+                bottom: 'calc(2rem + 88px)',
+                right: 'calc(2rem + 18px)',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, #555, #333)',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                touchAction: 'none',
+                fontSize: 20,
+              }}
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId)
+                onRotateWeapon?.()
+              }}
+              onPointerUp={() => {}}
+              onPointerCancel={() => {}}
+            >
+              {rotateButtonIcon}
+            </div>
+          )}
+          <div
+            className="fixed bottom-8 right-8 z-50 select-none pointer-events-auto flex items-center justify-center"
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, #ff6600, #cc2200)',
+              border: '3px solid rgba(255, 200, 0, 0.7)',
+              touchAction: 'none',
+              color: 'white',
+              fontWeight: 'bold',
+              fontSize: 28,
+            }}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId)
+              onShoot?.(true)
+            }}
+            onPointerUp={() => onShoot?.(false)}
+            onPointerCancel={() => onShoot?.(false)}
+          >
+            {fireButtonIcon}
+          </div>
+        </>
       )}
     </>
   )

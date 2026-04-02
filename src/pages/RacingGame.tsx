@@ -60,6 +60,9 @@ export default function RacingGame() {
   const [confettiCount, setConfettiCount] = useState(0)
   const [confettiOrigin, setConfettiOrigin] = useState<{ x: number; y: number } | null>(null)
   const [upgradeOptions, setUpgradeOptions] = useState<UpgradeOption[]>([])
+  const [activeWeaponIcon, setActiveWeaponIcon] = useState('')
+  const [nextWeaponIcon, setNextWeaponIcon] = useState('')
+  const [fireWeaponCount, setFireWeaponCount] = useState(0)
 
   // Initialize GameManager
   useEffect(() => {
@@ -173,6 +176,10 @@ export default function RacingGame() {
               }
               return prev === 0 ? 1 : prev
             })
+          },
+          onWeaponRotated: (activeIcon, nextIcon) => {
+            setActiveWeaponIcon(activeIcon)
+            setNextWeaponIcon(nextIcon)
           }
         },
         level,
@@ -180,6 +187,11 @@ export default function RacingGame() {
       )
       gameEngineRef.current = engine
       engine.startRace()
+
+      // Set initial weapon UI state
+      setActiveWeaponIcon(engine.getActiveWeaponIcon())
+      setNextWeaponIcon(engine.getNextWeaponIcon())
+      setFireWeaponCount(engine.getFireWeaponCount())
     } catch (error) {
       console.error('Error creating game engine:', error)
     }
@@ -235,6 +247,12 @@ export default function RacingGame() {
     }
   }
 
+  const handleRotateWeapon = useCallback(() => {
+    if (gameEngineRef.current) {
+      gameEngineRef.current.rotateWeapon()
+    }
+  }, [])
+
   const handleBackToMenu = () => {
     // Dispose game engine when returning to menu
     if (gameEngineRef.current) {
@@ -286,10 +304,8 @@ export default function RacingGame() {
     setIsMuted(newMutedState)
   }
 
-  // Determine fire button visibility and label based on player upgrades
-  const upgrades = gameManagerRef.current?.getPlayerUpgrades()
-  const showFireButton = !!(upgrades?.hasGun || upgrades?.hasMines || upgrades?.hasTurboBoost)
-  const fireButtonLabel = upgrades?.hasGun ? 'FIRE' : upgrades?.hasMines ? 'MINE' : upgrades?.hasTurboBoost ? 'BOOST' : 'FIRE'
+  // Determine fire button visibility based on player upgrades
+  const showFireButton = fireWeaponCount > 0
 
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
@@ -344,7 +360,10 @@ export default function RacingGame() {
             onStateChange={handleTouchDriveChange}
             onShoot={handleTouchShoot}
             showFireButton={showFireButton}
-            fireButtonLabel={fireButtonLabel}
+            fireButtonIcon={activeWeaponIcon}
+            onRotateWeapon={handleRotateWeapon}
+            showRotateButton={fireWeaponCount > 1}
+            rotateButtonIcon={nextWeaponIcon}
           />
         )}
       </div>

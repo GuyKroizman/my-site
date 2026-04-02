@@ -14,8 +14,8 @@ import { Ball, DEFAULT_DROP_HEIGHT } from './Ball'
 import { LevelConfig, CarConfig, BallDropConfig } from './levels'
 import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
 import type { TouchDriveState } from './input'
-import type { PlayerUpgrades } from './upgrades'
-import { DEFAULT_PLAYER_UPGRADES } from './upgrades'
+import type { PlayerUpgrades, UpgradeId } from './upgrades'
+import { DEFAULT_PLAYER_UPGRADES, getFireButtonWeapons, getWeaponIcon } from './upgrades'
 
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
@@ -23,6 +23,7 @@ export interface RacingGameCallbacks {
   onTimerUpdate?: (time: number) => void
   onCarFinished?: (carName: string, screenPos: { x: number; y: number }) => void
   onCameraReady?: (screenPos: { x: number; y: number }) => void
+  onWeaponRotated?: (activeIcon: string, nextIcon: string) => void
 }
 
 export class RacingGameEngine {
@@ -62,9 +63,11 @@ export class RacingGameEngine {
   private spaceKeyDownHandler: ((e: KeyboardEvent) => void) | null = null
   private spaceKeyUpHandler: ((e: KeyboardEvent) => void) | null = null
 
-  // Player upgrades
+  // Player upgrades & weapon switching
   private playerUpgrades: PlayerUpgrades
   private playerMines: Mine[] = []
+  private fireWeapons: UpgradeId[] = []
+  private activeWeaponIndex: number = 0
 
   // Turbo boost state
   private turboBoostActive: boolean = false
@@ -219,6 +222,10 @@ export class RacingGameEngine {
       this.playerBaseMaxSpeed = playerCar.maxSpeed
     }
 
+    // Build fire-button weapon list for weapon switching
+    this.fireWeapons = getFireButtonWeapons(this.playerUpgrades)
+    this.activeWeaponIndex = 0
+
     // Initialize cinematic camera intro
     this.initCinematicCamera()
 
@@ -267,10 +274,13 @@ export class RacingGameEngine {
       )
     }
 
-    // Setup Space key for shooting
+    // Setup keys for shooting (X) and weapon switching (Z)
     this.spaceKeyDownHandler = (e: KeyboardEvent) => {
       if (e.code === 'KeyX') {
         this.spacePressed = true
+      }
+      if (e.code === 'KeyZ') {
+        this.rotateWeapon()
       }
     }
     this.spaceKeyUpHandler = (e: KeyboardEvent) => {
@@ -581,16 +591,14 @@ export class RacingGameEngine {
       this.callbacks.onLapUpdate(playerCar.lapsCompleted)
     }
 
-    // Handle shooting / fire button actions
+    // Handle shooting / fire button actions based on active weapon
     this.shootCooldown = Math.max(0, this.shootCooldown - deltaTime)
-    const hasWeapon = this.playerUpgrades.hasGun || this.playerUpgrades.hasMines || this.playerUpgrades.hasTurboBoost
-    if (hasWeapon && (this.spacePressed || this.touchShoot) && this.shootCooldown <= 0 && canStart && !raceComplete) {
-      if (this.playerUpgrades.hasGun) {
-        this.shootBullet()
-      } else if (this.playerUpgrades.hasMines) {
-        this.dropPlayerMine()
-      } else if (this.playerUpgrades.hasTurboBoost) {
-        this.activateTurboBoost()
+    if (this.fireWeapons.length > 0 && (this.spacePressed || this.touchShoot) && this.shootCooldown <= 0 && canStart && !raceComplete) {
+      const activeWeapon = this.fireWeapons[this.activeWeaponIndex]
+      switch (activeWeapon) {
+        case 'gun': this.shootBullet(); break
+        case 'mines': this.dropPlayerMine(); break
+        case 'turbo_boost': this.activateTurboBoost(); break
       }
     }
 
@@ -733,6 +741,29 @@ export class RacingGameEngine {
 
   public setTouchShoot(shooting: boolean) {
     this.touchShoot = shooting
+  }
+
+  public rotateWeapon(): void {
+    if (this.fireWeapons.length <= 1) return
+    this.activeWeaponIndex = (this.activeWeaponIndex + 1) % this.fireWeapons.length
+    this.soundGenerator.playWeaponSwitch()
+    const activeIcon = getWeaponIcon(this.fireWeapons[this.activeWeaponIndex])
+    const nextIcon = getWeaponIcon(this.fireWeapons[(this.activeWeaponIndex + 1) % this.fireWeapons.length])
+    this.callbacks.onWeaponRotated?.(activeIcon, nextIcon)
+  }
+
+  public getActiveWeaponIcon(): string {
+    if (this.fireWeapons.length === 0) return ''
+    return getWeaponIcon(this.fireWeapons[this.activeWeaponIndex])
+  }
+
+  public getNextWeaponIcon(): string {
+    if (this.fireWeapons.length <= 1) return ''
+    return getWeaponIcon(this.fireWeapons[(this.activeWeaponIndex + 1) % this.fireWeapons.length])
+  }
+
+  public getFireWeaponCount(): number {
+    return this.fireWeapons.length
   }
 
   private triggerCameraShake(duration: number, intensity: number) {

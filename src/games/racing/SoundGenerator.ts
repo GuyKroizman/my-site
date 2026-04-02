@@ -25,6 +25,9 @@ export class SoundGenerator {
   // Pre-generated mine drop sound data
   private mineDropNoiseBuffer: AudioBuffer | null = null
 
+  // Pre-generated weapon switch click
+  private weaponSwitchBuffer: AudioBuffer | null = null
+
   /**
    * Toggle mute state for all SoundGenerator instances
    */
@@ -158,6 +161,17 @@ export class SoundGenerator {
       mineDropData[i] = (Math.random() * 2 - 1) * env
     }
     this.mineDropNoiseBuffer = mineDropBuffer
+
+    // --- Weapon switch click buffer ---
+    const switchLen = Math.floor(ctx.sampleRate * 0.03)
+    const switchBuffer = ctx.createBuffer(1, switchLen, ctx.sampleRate)
+    const switchData = switchBuffer.getChannelData(0)
+    for (let i = 0; i < switchLen; i++) {
+      const t = i / switchLen
+      const env = t < 0.1 ? t / 0.1 : Math.exp(-t * 40)
+      switchData[i] = (Math.random() * 2 - 1) * env
+    }
+    this.weaponSwitchBuffer = switchBuffer
   }
 
   /**
@@ -884,6 +898,57 @@ export class SoundGenerator {
   }
 
   /**
+   * Play a short click/pop for weapon switching.
+   */
+  playWeaponSwitch(volume: number = 0.15): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    try {
+      const now = ctx.currentTime
+
+      // Brief tone pip
+      const osc = ctx.createOscillator()
+      const oscGain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(1800, now)
+      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.04)
+      oscGain.gain.setValueAtTime(volume, now)
+      oscGain.gain.linearRampToValueAtTime(0, now + 0.04)
+      osc.connect(oscGain)
+      oscGain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.04)
+
+      // Noise click from pre-generated buffer
+      if (this.weaponSwitchBuffer) {
+        const noiseSrc = ctx.createBufferSource()
+        noiseSrc.buffer = this.weaponSwitchBuffer
+        const filter = ctx.createBiquadFilter()
+        filter.type = 'highpass'
+        filter.frequency.value = 3000
+        const noiseGain = ctx.createGain()
+        noiseGain.gain.setValueAtTime(volume * 0.5, now)
+        noiseGain.gain.linearRampToValueAtTime(0, now + 0.025)
+        noiseSrc.connect(filter)
+        filter.connect(noiseGain)
+        noiseGain.connect(ctx.destination)
+        noiseSrc.start(now)
+        noiseSrc.stop(now + 0.025)
+
+        noiseSrc.onended = () => {
+          noiseSrc.disconnect(); filter.disconnect(); noiseGain.disconnect()
+        }
+      }
+
+      osc.onended = () => { osc.disconnect(); oscGain.disconnect() }
+    } catch (e) {
+      console.warn('Failed to play weapon switch sound:', e)
+    }
+  }
+
+  /**
    * Clean up audio context
    */
   dispose(): void {
@@ -904,5 +969,6 @@ export class SoundGenerator {
     this.turboNoiseBuffer = null
     this.turboCurve = null
     this.mineDropNoiseBuffer = null
+    this.weaponSwitchBuffer = null
   }
 }
