@@ -18,6 +18,13 @@ export class SoundGenerator {
   private activeExplosionSounds: number = 0
   private maxConcurrentExplosionSounds: number = 3
 
+  // Pre-generated turbo boost sound data
+  private turboNoiseBuffer: AudioBuffer | null = null
+  private turboCurve: Float32Array | null = null
+
+  // Pre-generated mine drop sound data
+  private mineDropNoiseBuffer: AudioBuffer | null = null
+
   /**
    * Toggle mute state for all SoundGenerator instances
    */
@@ -120,6 +127,37 @@ export class SoundGenerator {
       const x = (i * 2) / 256 - 1
       this.noiseDCurve[i] = Math.tanh(x * 3)
     }
+
+    // --- Turbo boost buffer: shaped noise for whoosh ---
+    const turboLen = Math.floor(ctx.sampleRate * 0.8)
+    const turboBuffer = ctx.createBuffer(1, turboLen, ctx.sampleRate)
+    const turboData = turboBuffer.getChannelData(0)
+    for (let i = 0; i < turboLen; i++) {
+      const t = i / turboLen
+      // Envelope: quick attack, sustain, then fade
+      const env = t < 0.05 ? t / 0.05 : t < 0.6 ? 1.0 : 1.0 - (t - 0.6) / 0.4
+      turboData[i] = (Math.random() * 2 - 1) * env
+    }
+    this.turboNoiseBuffer = turboBuffer
+
+    // Turbo distortion curve — mild saturation for a breathy whoosh
+    this.turboCurve = new Float32Array(256)
+    for (let i = 0; i < 256; i++) {
+      const x = (i * 2) / 256 - 1
+      this.turboCurve[i] = Math.tanh(x * 2)
+    }
+
+    // --- Mine drop buffer: short metallic clunk noise ---
+    const mineDropLen = Math.floor(ctx.sampleRate * 0.15)
+    const mineDropBuffer = ctx.createBuffer(1, mineDropLen, ctx.sampleRate)
+    const mineDropData = mineDropBuffer.getChannelData(0)
+    for (let i = 0; i < mineDropLen; i++) {
+      const t = i / mineDropLen
+      // Sharp attack, fast decay
+      const env = t < 0.02 ? t / 0.02 : Math.exp(-t * 20)
+      mineDropData[i] = (Math.random() * 2 - 1) * env
+    }
+    this.mineDropNoiseBuffer = mineDropBuffer
   }
 
   /**
@@ -710,6 +748,142 @@ export class SoundGenerator {
   }
 
   /**
+   * Play a rushing whoosh sound for the turbo boost activation.
+   * Uses pre-generated noise buffer filtered to sound like a jet burst.
+   */
+  playTurboBoost(volume: number = 0.25): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    try {
+      const now = ctx.currentTime
+
+      // Layer 1: Filtered noise whoosh (pre-generated buffer)
+      if (this.turboNoiseBuffer) {
+        const noiseSrc = ctx.createBufferSource()
+        noiseSrc.buffer = this.turboNoiseBuffer
+
+        const bandpass = ctx.createBiquadFilter()
+        bandpass.type = 'bandpass'
+        bandpass.frequency.setValueAtTime(2000, now)
+        bandpass.frequency.exponentialRampToValueAtTime(800, now + 0.6)
+        bandpass.Q.value = 1.5
+
+        const distortion = ctx.createWaveShaper()
+        distortion.curve = this.turboCurve as unknown as Float32Array<ArrayBuffer>
+
+        const noiseGain = ctx.createGain()
+        noiseGain.gain.setValueAtTime(volume, now)
+        noiseGain.gain.linearRampToValueAtTime(volume * 0.6, now + 0.3)
+        noiseGain.gain.linearRampToValueAtTime(0, now + 0.7)
+
+        noiseSrc.connect(bandpass)
+        bandpass.connect(distortion)
+        distortion.connect(noiseGain)
+        noiseGain.connect(ctx.destination)
+        noiseSrc.start(now)
+        noiseSrc.stop(now + 0.7)
+
+        noiseSrc.onended = () => {
+          noiseSrc.disconnect(); bandpass.disconnect()
+          distortion.disconnect(); noiseGain.disconnect()
+        }
+      }
+
+      // Layer 2: Rising tone sweep for the "acceleration" feel
+      const osc = ctx.createOscillator()
+      const oscGain = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(120, now)
+      osc.frequency.exponentialRampToValueAtTime(400, now + 0.15)
+      osc.frequency.exponentialRampToValueAtTime(250, now + 0.5)
+      oscGain.gain.setValueAtTime(volume * 0.3, now)
+      oscGain.gain.linearRampToValueAtTime(volume * 0.15, now + 0.3)
+      oscGain.gain.linearRampToValueAtTime(0, now + 0.5)
+      osc.connect(oscGain)
+      oscGain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.5)
+
+      osc.onended = () => { osc.disconnect(); oscGain.disconnect() }
+    } catch (e) {
+      console.warn('Failed to play turbo boost sound:', e)
+    }
+  }
+
+  /**
+   * Play a metallic clunk/thud for dropping a mine behind the car.
+   * Uses pre-generated noise buffer for the impact texture.
+   */
+  playMineDrop(volume: number = 0.2): void {
+    if (SoundGenerator.isMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    try {
+      const now = ctx.currentTime
+
+      // Layer 1: Low thud tone — heavy metallic object hitting ground
+      const osc = ctx.createOscillator()
+      const oscGain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(180, now)
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.12)
+      oscGain.gain.setValueAtTime(volume, now)
+      oscGain.gain.linearRampToValueAtTime(0, now + 0.12)
+      osc.connect(oscGain)
+      oscGain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.12)
+
+      // Layer 2: Metallic noise burst (pre-generated buffer)
+      if (this.mineDropNoiseBuffer) {
+        const noiseSrc = ctx.createBufferSource()
+        noiseSrc.buffer = this.mineDropNoiseBuffer
+
+        const filter = ctx.createBiquadFilter()
+        filter.type = 'bandpass'
+        filter.frequency.value = 1200 + Math.random() * 600
+        filter.Q.value = 2
+
+        const noiseGain = ctx.createGain()
+        noiseGain.gain.setValueAtTime(volume * 0.7, now)
+        noiseGain.gain.linearRampToValueAtTime(0, now + 0.1)
+
+        noiseSrc.connect(filter)
+        filter.connect(noiseGain)
+        noiseGain.connect(ctx.destination)
+        noiseSrc.start(now)
+        noiseSrc.stop(now + 0.1)
+
+        noiseSrc.onended = () => {
+          noiseSrc.disconnect(); filter.disconnect(); noiseGain.disconnect()
+        }
+      }
+
+      // Layer 3: Brief click for the "release" mechanism
+      const click = ctx.createOscillator()
+      const clickGain = ctx.createGain()
+      click.type = 'square'
+      click.frequency.value = 2500
+      clickGain.gain.setValueAtTime(volume * 0.15, now)
+      clickGain.gain.linearRampToValueAtTime(0, now + 0.008)
+      click.connect(clickGain)
+      clickGain.connect(ctx.destination)
+      click.start(now)
+      click.stop(now + 0.008)
+
+      osc.onended = () => {
+        osc.disconnect(); oscGain.disconnect()
+        click.disconnect(); clickGain.disconnect()
+      }
+    } catch (e) {
+      console.warn('Failed to play mine drop sound:', e)
+    }
+  }
+
+  /**
    * Clean up audio context
    */
   dispose(): void {
@@ -727,5 +901,8 @@ export class SoundGenerator {
     this.crackleCurve = null
     this.noiseDCurve = null
     this.activeExplosionSounds = 0
+    this.turboNoiseBuffer = null
+    this.turboCurve = null
+    this.mineDropNoiseBuffer = null
   }
 }

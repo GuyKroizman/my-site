@@ -795,6 +795,7 @@ export class RacingGameEngine {
     const spawnPos = playerCar.position.clone().addScaledVector(backward, 2.0)
     const mine = new Mine(this.scene, spawnPos.x, spawnPos.z, 2.0)
     this.playerMines.push(mine)
+    this.soundGenerator.playMineDrop()
     this.shootCooldown = 1.5
   }
 
@@ -806,6 +807,7 @@ export class RacingGameEngine {
     this.turboBoostActive = true
     this.turboBoostTimer = this.TURBO_BOOST_DURATION
     playerCar.maxSpeed = this.playerBaseMaxSpeed * this.TURBO_BOOST_MULTIPLIER
+    this.soundGenerator.playTurboBoost()
     this.shootCooldown = this.TURBO_BOOST_DURATION + this.TURBO_BOOST_COOLDOWN
   }
 
