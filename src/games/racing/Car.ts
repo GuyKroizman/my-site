@@ -98,6 +98,12 @@ export class Car {
   private fireMeshes: THREE.Sprite[] = []
   private fireLight: THREE.PointLight | null = null
   private fireTime: number = 0
+
+  // Health bar
+  private healthBarSprite: THREE.Sprite | null = null
+  private healthBarCanvas: HTMLCanvasElement | null = null
+  private healthBarTexture: THREE.CanvasTexture | null = null
+  private lastDrawnHealth: number = -1
   private lastCollisionTime: number = 0
   private collisionCooldown: number = 0.2 // Minimum time between collision sounds (seconds)
 
@@ -204,6 +210,9 @@ export class Car {
     if (modelPath) {
       void this.loadCustomModel(modelPath)
     }
+
+    // Create health bar sprite (always faces camera)
+    this.createHealthBar()
 
     // Setup keyboard controls for player
     if (isPlayer) {
@@ -571,6 +580,9 @@ export class Car {
     // Update mesh position and rotation
     this.mesh.position.copy(this.position)
     this.mesh.rotation.y = this.rotation
+
+    // Update health bar
+    this.updateHealthBar()
 
     // Update bounding box (still used for backward compat, but collisions use OBB)
     this.boundingBox.setFromObject(this.mesh)
@@ -1045,8 +1057,79 @@ export class Car {
     this.mesh.rotation.set(0, this.rotation, 0)
   }
 
+  private createHealthBar(): void {
+    this.healthBarCanvas = document.createElement('canvas')
+    this.healthBarCanvas.width = 64
+    this.healthBarCanvas.height = 8
+    this.healthBarTexture = new THREE.CanvasTexture(this.healthBarCanvas)
+    this.healthBarTexture.minFilter = THREE.LinearFilter
+
+    const material = new THREE.SpriteMaterial({
+      map: this.healthBarTexture,
+      transparent: true,
+      depthTest: false,
+      sizeAttenuation: true,
+    })
+    this.healthBarSprite = new THREE.Sprite(material)
+    this.healthBarSprite.scale.set(2.5, 0.3, 1)
+    // Don't add to mesh group (rotation would fight the billboard).
+    // Position is updated manually each frame in updateHealthBar().
+    this.drawHealthBar()
+  }
+
+  /** Must be called after the car is added to the scene, to add the health bar sprite too. */
+  public addHealthBarToScene(scene: THREE.Scene): void {
+    if (this.healthBarSprite) {
+      scene.add(this.healthBarSprite)
+    }
+  }
+
+  private drawHealthBar(): void {
+    if (!this.healthBarCanvas || !this.healthBarTexture) return
+    if (this.lastDrawnHealth === this.health) return
+    this.lastDrawnHealth = this.health
+
+    const ctx = this.healthBarCanvas.getContext('2d')!
+    const w = this.healthBarCanvas.width
+    const h = this.healthBarCanvas.height
+    const ratio = Math.max(0, this.health / 100)
+
+    ctx.clearRect(0, 0, w, h)
+
+    // Background (dark)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
+    ctx.fillRect(0, 0, w, h)
+
+    // Health fill (green → yellow → red)
+    if (ratio > 0.5) {
+      ctx.fillStyle = '#22cc22'
+    } else if (ratio > 0.25) {
+      ctx.fillStyle = '#cccc22'
+    } else {
+      ctx.fillStyle = '#cc2222'
+    }
+    ctx.fillRect(1, 1, (w - 2) * ratio, h - 2)
+
+    this.healthBarTexture.needsUpdate = true
+  }
+
+  private updateHealthBar(): void {
+    this.drawHealthBar()
+    if (this.healthBarSprite) {
+      this.healthBarSprite.visible = this.health < 100 && !this.isDestroyed
+      this.healthBarSprite.position.set(this.position.x, this.position.y + 1.8, this.position.z)
+    }
+  }
+
   public dispose() {
     this.clearFireEffect()
+    if (this.healthBarSprite) {
+      this.healthBarSprite.parent?.remove(this.healthBarSprite)
+      this.healthBarSprite.material.dispose()
+    }
+    if (this.healthBarTexture) {
+      this.healthBarTexture.dispose()
+    }
     this.disposeVisualObject(this.mesh)
     this.soundGenerator.dispose()
   }
