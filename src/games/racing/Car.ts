@@ -450,6 +450,7 @@ export class Car {
         this.mesh.rotation.y += this.launchAngularVelocity.y * deltaTime
         this.mesh.rotation.z += this.launchAngularVelocity.z * deltaTime
       }
+      this.updateHealthBar()
       return
     }
 
@@ -1129,7 +1130,7 @@ export class Car {
   private updateHealthBar(): void {
     this.drawHealthBar()
     if (this.healthBarSprite) {
-      this.healthBarSprite.visible = this.health < 100 && !this.isDestroyed
+      this.healthBarSprite.visible = this.health < 100 && !this.isDestroyed && !this.launched
       this.healthBarSprite.position.set(this.position.x, this.position.y + 1.8, this.position.z)
     }
   }
