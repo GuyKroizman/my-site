@@ -98,6 +98,7 @@ export class Car {
   private fireMeshes: THREE.Sprite[] = []
   private fireLight: THREE.PointLight | null = null
   private fireTime: number = 0
+  private isDamaged: boolean = false
 
   // Health bar
   private healthBarSprite: THREE.Sprite | null = null
@@ -584,6 +585,12 @@ export class Car {
     this.mesh.position.copy(this.position)
     this.mesh.rotation.y = this.rotation
 
+    // Animate damaged fire
+    if (this.isDamaged) {
+      this.fireTime += deltaTime
+      this.animateFire()
+    }
+
     // Update health bar
     this.updateHealthBar()
 
@@ -963,14 +970,31 @@ export class Car {
     if (this.health <= 0) {
       this.health = 0
       this.destroy()
+    } else if (this.health <= 20 && !this.isDamaged) {
+      this.applyDamagedState()
     }
+  }
+
+  private applyDamagedState(): void {
+    this.isDamaged = true
+    this.maxSpeed *= 0.3
+
+    this.addFireEffect(3, 0.5, 0.4, 1.0, 4)
   }
 
   private destroy(): void {
     this.isDestroyed = true
     this.speed = 0
 
-    // Build a shared fire canvas texture
+    // If already showing damaged fire, clear it before adding full fire
+    if (this.isDamaged) {
+      this.clearFireEffect()
+    }
+
+    this.addFireEffect(6, 0.8, 0.8, 2, 6)
+  }
+
+  private addFireEffect(count: number, spreadXZ: number, baseScale: number, lightIntensity: number, lightDistance: number): void {
     const canvas = document.createElement('canvas')
     canvas.width = 64
     canvas.height = 64
@@ -984,21 +1008,21 @@ export class Car {
     ctx2d.fillRect(0, 0, 64, 64)
     const texture = new THREE.CanvasTexture(canvas)
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < count; i++) {
       const material = new THREE.SpriteMaterial({ map: texture, transparent: true })
       const sprite = new THREE.Sprite(material)
       sprite.position.set(
-        (Math.random() - 0.5) * 0.8,
-        0.5 + Math.random() * 0.8,
-        (Math.random() - 0.5) * 0.8
+        (Math.random() - 0.5) * spreadXZ,
+        0.5 + Math.random() * spreadXZ,
+        (Math.random() - 0.5) * spreadXZ
       )
-      const baseScale = 0.8 + Math.random() * 0.6
-      sprite.scale.set(baseScale, baseScale, 1)
+      const s = baseScale + Math.random() * (baseScale * 0.75)
+      sprite.scale.set(s, s, 1)
       this.mesh.add(sprite)
       this.fireMeshes.push(sprite)
     }
 
-    this.fireLight = new THREE.PointLight(0xff4400, 2, 6)
+    this.fireLight = new THREE.PointLight(0xff4400, lightIntensity, lightDistance)
     this.fireLight.position.set(0, 1.2, 0)
     this.mesh.add(this.fireLight)
   }
@@ -1046,6 +1070,7 @@ export class Car {
     this.speed = 0
     this.health = 100
     this.isDestroyed = false
+    this.isDamaged = false
     this.clearFireEffect()
   }
 
@@ -1065,6 +1090,7 @@ export class Car {
     this.pushVelocityZ = 0
     this.health = 100
     this.isDestroyed = false
+    this.isDamaged = false
     this.clearFireEffect()
     this.mesh.position.copy(this.position)
     this.mesh.rotation.set(0, this.rotation, 0)
