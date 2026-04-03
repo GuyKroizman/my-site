@@ -83,4 +83,9 @@ export const level2: LevelConfig = {
     { dropTime: 5 },
     { dropTime: 20 },
   ],
+  decorationRows: (() => {
+    const rows = Array.from({ length: 60 }, () => '')
+    rows[29] = `${' '.repeat(39)}w`
+    return rows
+  })(),
 }

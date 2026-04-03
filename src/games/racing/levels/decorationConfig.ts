@@ -35,5 +35,6 @@ export const DECORATION_MODELS: Record<string, DecorationModelConfig> = {
   m: { path: '/racing/models/Mushroom.glb', scale: 8, rotation: 0 },
   d: { path: '/racing/models/mushroom_dude.glb', scale: 14, rotation: { z: Math.PI / 2 }, position: { y: 0.5 } },
   t: { path: '/racing/models/trees.glb', scale: 18, position: { x: -140 } },
-  r: { path: '/racing/models/Rock Large.glb', scale: 10 }
+  r: { path: '/racing/models/Rock Large.glb', scale: 10 },
+  w: { path: '/racing/models/twisted_red_tree.glb', scale: 7, position: { x: 0.625, z: 2 / 3 } }
 }
