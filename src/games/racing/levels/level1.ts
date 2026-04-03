@@ -84,13 +84,13 @@ export const level1: LevelConfig = {
     { dropTime: 1 },
     { dropTime: 2 },
   ],
-  // 80×60 grid: row 0 = minZ. Space = empty. p = Plant, m = Mushroom (see decorationConfig.ts)
+  // 80×60 grid: row 0 = minZ. Space = empty. p = Plant, m = Mushroom, t = Trees (see decorationConfig.ts)
   decorationRows: (() => {
     const rows = Array.from({ length: 60 }, () => '')
-    // Infield: plants and mushrooms near center (rows 27–31, cols ~36–48)
+    // Infield: plants, mushrooms, and trees near center and outer edges
     const pad = (n: number) => ' '.repeat(n)
     rows[0] = '                                                                               p'
-    rows[6] = '    m           d                                                               '
+    rows[6] = '    m     t     d                                                               '
     rows[31] = pad(36) + 'p            '
     rows[40] = pad(57) + 'm'
     return rows

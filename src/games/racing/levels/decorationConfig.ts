@@ -33,5 +33,6 @@ export interface DecorationModelConfig {
 export const DECORATION_MODELS: Record<string, DecorationModelConfig> = {
   p: { path: '/racing/models/Plant.glb', scale: 4 },
   m: { path: '/racing/models/Mushroom.glb', scale: 8, rotation: 0 },
-  d: { path: '/racing/models/mushroom_dude.glb', scale: 14, rotation: { z: Math.PI / 2 }, position: { y: 0.5 } }
+  d: { path: '/racing/models/mushroom_dude.glb', scale: 14, rotation: { z: Math.PI / 2 }, position: { y: 0.5 } },
+  t: { path: '/racing/models/trees.glb', scale: 18, position: { x: -140 } }
 }
