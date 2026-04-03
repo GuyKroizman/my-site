@@ -254,20 +254,26 @@ export class Track {
 
   private createGrassBladeGeometry(height: number, width: number): THREE.BufferGeometry {
     const halfWidth = width / 2
+    const topWidth = width * 0.78
+    const halfTopWidth = topWidth / 2
     const positions = new Float32Array([
       -halfWidth, 0, 0,
       halfWidth, 0, 0,
-      0, height, 0,
+      -halfTopWidth, height, 0,
+      -halfTopWidth, height, 0,
+      halfWidth, 0, 0,
+      halfTopWidth, height, 0,
     ])
-    const indices = [0, 1, 2]
-    const colors = new Float32Array(9)
-    const bottom = new THREE.Color(0x2f6d24)
-    const top = new THREE.Color(0x7fc34a)
+    const colors = new Float32Array(18)
+    const stem = new THREE.Color(0x10110c)
+    const frontTop = new THREE.Color(0x4f8f2e)
+    const backTop = new THREE.Color(0x86d04f)
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
       const y = positions[i * 3 + 1]
       const t = THREE.MathUtils.clamp(y / height, 0, 1)
-      const color = bottom.clone().lerp(top, t)
+      const topColor = i < 3 ? frontTop : backTop
+      const color = stem.clone().lerp(topColor, Math.pow(t, 0.85))
       colors[i * 3] = color.r
       colors[i * 3 + 1] = color.g
       colors[i * 3 + 2] = color.b
@@ -276,9 +282,7 @@ export class Track {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    geometry.setIndex(indices)
     geometry.computeVertexNormals()
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     return geometry
   }
 
@@ -310,7 +314,7 @@ export class Track {
     const bladeMaterial = new THREE.MeshStandardMaterial({
       flatShading: true,
       vertexColors: true,
-      side: THREE.DoubleSide
+      side: THREE.FrontSide
     })
 
     const placements: Array<{ x: number; z: number; y: number; scale: number; rotation: number; color: THREE.Color }> = []
