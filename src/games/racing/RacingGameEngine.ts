@@ -501,7 +501,7 @@ export class RacingGameEngine {
     })
 
     // Check car–mine collision (only one mine per level; first collision destroys it)
-    if (this.mine && !raceComplete) {
+    if (this.mine && !raceComplete && canStart && this.mine.isActive()) {
       for (const car of this.cars) {
         if (car.launched || car.finished) continue
         if (this.mine.collidesWith(car.position)) {
