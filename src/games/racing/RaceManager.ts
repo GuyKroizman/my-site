@@ -90,8 +90,8 @@ export class RaceManager {
 
         // Car completed a lap
         car.lapsCompleted++
-        if (car.isPlayer) {
-          this.callbacks.onLapComplete?.(car.lapsCompleted)
+        if (car.isPlayer && car.lapsCompleted < this.requiredLaps) {
+          this.callbacks.onLapComplete?.(car.lapsCompleted + 1)
         }
         
         // Reset checkpoint tracking for next lap
