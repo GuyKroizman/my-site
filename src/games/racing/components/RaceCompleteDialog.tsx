@@ -22,6 +22,8 @@ export function RaceCompleteDialog({
 }: RaceCompleteDialogProps) {
   const [dismissing, setDismissing] = useState(false)
 
+  const getDisplayName = (name: string) => name === 'Player' ? 'You' : name
+
   const handleBackToMenu = () => {
     setDismissing(true)
     onBackToMenu()
@@ -63,7 +65,7 @@ export function RaceCompleteDialog({
             {/* Race Results */}
             <div className="space-y-1 mb-3">
               <div className="text-lg text-yellow-400 font-semibold">
-                1st: {raceResult.winner}
+                1st: {getDisplayName(raceResult.winner)}
                 {raceResult.times[raceResult.winner] !== undefined && (
                   <span className="text-sm text-yellow-300 ml-2">
                     ({formatTime(raceResult.times[raceResult.winner])}s)
@@ -72,7 +74,7 @@ export function RaceCompleteDialog({
               </div>
               {raceResult.second !== 'Unknown' && (
                 <div className="text-base text-gray-300 font-semibold">
-                  2nd: {raceResult.second}
+                  2nd: {getDisplayName(raceResult.second)}
                   {raceResult.times[raceResult.second] !== undefined && (
                     <span className="text-xs text-gray-200 ml-2">
                       ({formatTime(raceResult.times[raceResult.second])}s)
@@ -82,7 +84,7 @@ export function RaceCompleteDialog({
               )}
               {raceResult.third !== 'Unknown' && (
                 <div className="text-base text-gray-400 font-semibold">
-                  3rd: {raceResult.third}
+                  3rd: {getDisplayName(raceResult.third)}
                   {raceResult.times[raceResult.third] !== undefined && (
                     <span className="text-xs text-gray-300 ml-2">
                       ({formatTime(raceResult.times[raceResult.third])}s)
@@ -133,7 +135,7 @@ export function RaceCompleteDialog({
           {/* Race Results */}
           <div className="space-y-1 mb-3">
             <div className="text-lg text-yellow-400 font-semibold">
-              1st: {raceResult.winner}
+              1st: {getDisplayName(raceResult.winner)}
               {raceResult.times[raceResult.winner] !== undefined && (
                 <span className="text-sm text-yellow-300 ml-2">
                   ({formatTime(raceResult.times[raceResult.winner])}s)
@@ -142,7 +144,7 @@ export function RaceCompleteDialog({
             </div>
             {raceResult.second !== 'Unknown' && (
               <div className="text-base text-gray-300 font-semibold">
-                2nd: {raceResult.second}
+                2nd: {getDisplayName(raceResult.second)}
                 {raceResult.times[raceResult.second] !== undefined && (
                   <span className="text-xs text-gray-200 ml-2">
                     ({formatTime(raceResult.times[raceResult.second])}s)
@@ -152,7 +154,7 @@ export function RaceCompleteDialog({
             )}
             {raceResult.third !== 'Unknown' && (
               <div className="text-base text-gray-400 font-semibold">
-                3rd: {raceResult.third}
+                3rd: {getDisplayName(raceResult.third)}
                 {raceResult.times[raceResult.third] !== undefined && (
                   <span className="text-xs text-gray-300 ml-2">
                     ({formatTime(raceResult.times[raceResult.third])}s)
