@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import PF from 'pathfinding'
-import type { GroundTheme } from './levels/types'
+import type { GroundCoverStyle, GroundTheme } from './levels/types'
 
 export interface Checkpoint {
   id: number
@@ -21,6 +21,11 @@ export interface CheckpointConfig {
   // Optional: rotation angle in radians (0 = aligned with X axis, positive = counterclockwise)
   // If not provided, checkpoint will be axis-aligned
   rotation?: number
+}
+
+export interface TrackGroundOptions {
+  theme?: GroundTheme
+  coverStyle?: GroundCoverStyle
 }
 
 export class Track {
@@ -44,10 +49,12 @@ export class Track {
   private navGridOffsetZ: number = 0 // World Z coordinate of grid origin
 
   private groundTheme: GroundTheme = 'grass'
+  private groundCoverStyle: GroundCoverStyle = 'texture'
 
-  constructor(scene: THREE.Scene, checkpointConfigs?: CheckpointConfig[], groundTheme?: GroundTheme) {
+  constructor(scene: THREE.Scene, checkpointConfigs?: CheckpointConfig[], groundOptions?: TrackGroundOptions) {
     this.trackMesh = new THREE.Group()
-    if (groundTheme) this.groundTheme = groundTheme
+    if (groundOptions?.theme) this.groundTheme = groundOptions.theme
+    if (groundOptions?.coverStyle) this.groundCoverStyle = groundOptions.coverStyle
     this.createRectangularTrack()
 
     // Create checkpoints - use provided configs or default rectangular track checkpoints
@@ -108,6 +115,10 @@ export class Track {
     },
   }
 
+  private getGroundPalette() {
+    return Track.GROUND_PALETTES[this.groundTheme]
+  }
+
   private createGrassTexture(): THREE.CanvasTexture {
     const size = 32
     const canvas = document.createElement('canvas')
@@ -115,7 +126,7 @@ export class Track {
     canvas.height = size
     const ctx = canvas.getContext('2d')!
 
-    const pal = Track.GROUND_PALETTES[this.groundTheme]
+    const pal = this.getGroundPalette()
     const { base: baseColors, accent: accentColors, dirt: dirtColors } = pal
 
     for (let y = 0; y < size; y++) {
@@ -141,6 +152,315 @@ export class Track {
     texture.magFilter = THREE.NearestFilter
     texture.minFilter = THREE.NearestFilter
     return texture
+  }
+
+  private createSolidGroundMaterial(color: THREE.ColorRepresentation): THREE.MeshStandardMaterial {
+    return new THREE.MeshStandardMaterial({
+      color,
+      flatShading: true
+    })
+  }
+
+  private createInfieldShape(minX: number, maxX: number, minZ: number, maxZ: number, radius: number): THREE.Shape {
+    const shape = new THREE.Shape()
+    shape.moveTo(minX, minZ + radius)
+    shape.absarc(minX + radius, minZ + radius, radius, Math.PI, Math.PI * 1.5, false)
+    shape.lineTo(maxX - radius, minZ)
+    shape.absarc(maxX - radius, minZ + radius, radius, Math.PI * 1.5, 0, false)
+    shape.lineTo(maxX, maxZ - radius)
+    shape.absarc(maxX - radius, maxZ - radius, radius, 0, Math.PI / 2, false)
+    shape.lineTo(minX + radius, maxZ)
+    shape.absarc(minX + radius, maxZ - radius, radius, Math.PI / 2, Math.PI, false)
+    shape.lineTo(minX, minZ + radius)
+    return shape
+  }
+
+  private addTexturedGround(
+    innerMinX: number,
+    innerMaxX: number,
+    innerMinZ: number,
+    innerMaxZ: number,
+    radius: number
+  ): void {
+    const grassTexture = this.createGrassTexture()
+    const infieldShape = this.createInfieldShape(innerMinX, innerMaxX, innerMinZ, innerMaxZ, radius)
+    const infieldGeometry = new THREE.ShapeGeometry(infieldShape, 32)
+    const tileWorldSize = 8.33
+    const infieldTexture = grassTexture.clone()
+    infieldTexture.needsUpdate = true
+    infieldTexture.repeat.set(1 / tileWorldSize, 1 / tileWorldSize)
+    const infieldMaterial = new THREE.MeshStandardMaterial({
+      map: infieldTexture,
+      flatShading: true
+    })
+    const infieldPlane = new THREE.Mesh(infieldGeometry, infieldMaterial)
+    infieldPlane.rotation.x = -Math.PI / 2
+    infieldPlane.position.y = 0.02
+    infieldPlane.receiveShadow = true
+    this.trackMesh.add(infieldPlane)
+
+    const groundSize = 500
+    const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize)
+    const groundTexture = grassTexture.clone()
+    groundTexture.needsUpdate = true
+    groundTexture.repeat.set(groundSize / tileWorldSize, groundSize / tileWorldSize)
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      map: groundTexture,
+      flatShading: true
+    })
+    const groundPlane = new THREE.Mesh(groundGeometry, groundMaterial)
+    groundPlane.rotation.x = -Math.PI / 2
+    groundPlane.position.y = 0
+    groundPlane.receiveShadow = true
+    this.trackMesh.add(groundPlane)
+  }
+
+  private pointInsideRoundedRect(
+    x: number,
+    z: number,
+    minX: number,
+    maxX: number,
+    minZ: number,
+    maxZ: number,
+    radius: number
+  ): boolean {
+    if (x < minX || x > maxX || z < minZ || z > maxZ) {
+      return false
+    }
+
+    const effectiveRadius = Math.max(
+      0,
+      Math.min(radius, (maxX - minX) / 2, (maxZ - minZ) / 2)
+    )
+    if (effectiveRadius === 0) {
+      return true
+    }
+
+    const clampedX = THREE.MathUtils.clamp(x, minX + effectiveRadius, maxX - effectiveRadius)
+    const clampedZ = THREE.MathUtils.clamp(z, minZ + effectiveRadius, maxZ - effectiveRadius)
+    const dx = x - clampedX
+    const dz = z - clampedZ
+    return dx * dx + dz * dz <= effectiveRadius * effectiveRadius
+  }
+
+  private hash2D(x: number, z: number, seed: number): number {
+    const value = Math.sin(x * 127.1 + z * 311.7 + seed * 74.7) * 43758.5453123
+    return value - Math.floor(value)
+  }
+
+  private positiveModulo(value: number, modulus: number): number {
+    return ((value % modulus) + modulus) % modulus
+  }
+
+  private createGrassBladeGeometry(height: number, width: number): THREE.BufferGeometry {
+    const halfWidth = width / 2
+    const positions = new Float32Array([
+      -halfWidth, 0, 0,
+      halfWidth, 0, 0,
+      0, height, 0,
+    ])
+    const indices = [0, 1, 2]
+    const colors = new Float32Array(9)
+    const bottom = new THREE.Color(0x2f6d24)
+    const top = new THREE.Color(0x7fc34a)
+
+    for (let i = 0; i < 3; i++) {
+      const y = positions[i * 3 + 1]
+      const t = THREE.MathUtils.clamp(y / height, 0, 1)
+      const color = bottom.clone().lerp(top, t)
+      colors[i * 3] = color.r
+      colors[i * 3 + 1] = color.g
+      colors[i * 3 + 2] = color.b
+    }
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geometry.setIndex(indices)
+    geometry.computeVertexNormals()
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    return geometry
+  }
+
+  private addTuftGrass(
+    outerMinX: number,
+    outerMaxX: number,
+    outerMinZ: number,
+    outerMaxZ: number,
+    innerMinX: number,
+    innerMaxX: number,
+    innerMinZ: number,
+    innerMaxZ: number,
+    radius: number
+  ): void {
+    const palette = this.getGroundPalette()
+    const groundBase = new THREE.Color(`rgb(${palette.base[0].join(',')})`)
+    const backgroundGround = new THREE.Mesh(
+      new THREE.PlaneGeometry(500, 500),
+      this.createSolidGroundMaterial(groundBase)
+    )
+    backgroundGround.rotation.x = -Math.PI / 2
+    backgroundGround.position.y = 0
+    backgroundGround.receiveShadow = true
+    this.trackMesh.add(backgroundGround)
+
+    const bladeHeight = 0.58
+    const bladeWidth = 0.2
+    const bladeGeometry = this.createGrassBladeGeometry(bladeHeight, bladeWidth)
+    const bladeMaterial = new THREE.MeshStandardMaterial({
+      flatShading: true,
+      vertexColors: true,
+      side: THREE.DoubleSide
+    })
+
+    const placements: Array<{ x: number; z: number; y: number; scale: number; rotation: number; color: THREE.Color }> = []
+    const sideBand = 28
+    const frontBand = 34
+    const backBand = 8
+    const outerPatchMinX = outerMinX - sideBand
+    const outerPatchMaxX = outerMaxX + sideBand
+    const outerPatchMinZ = outerMinZ - frontBand
+    const outerPatchMaxZ = outerMaxZ + backBand
+    const outerPatchRadius = radius + sideBand
+    const infieldMargin = 1.05
+    const outerClearMargin = 1.35
+    const fadeBand = 8
+
+    const scatterLayers = [
+      { spacing: 0.72, offsetX: 0.13, offsetZ: 0.31, jitter: 0.62, minFill: 0.998, scaleMin: 0.72, scaleRange: 0.42, seed: 0, rotation: -0.34 },
+      { spacing: 0.82, offsetX: 0.61, offsetZ: 0.18, jitter: 0.54, minFill: 0.992, scaleMin: 0.48, scaleRange: 0.22, seed: 20, rotation: 0.49 },
+      { spacing: 0.58, offsetX: 0.27, offsetZ: 0.74, jitter: 0.46, minFill: 0.982, scaleMin: 0.26, scaleRange: 0.13, seed: 40, rotation: -0.92 },
+      { spacing: 0.48, offsetX: 0.44, offsetZ: 0.57, jitter: 0.34, minFill: 0.94, scaleMin: 0.14, scaleRange: 0.08, seed: 60, rotation: 0.88 }
+    ]
+
+    for (const layer of scatterLayers) {
+      for (let gx = Math.floor(outerPatchMinX / layer.spacing); gx <= Math.ceil(outerPatchMaxX / layer.spacing); gx++) {
+        for (let gz = Math.floor(outerPatchMinZ / layer.spacing); gz <= Math.ceil(outerPatchMaxZ / layer.spacing); gz++) {
+          const localX = (gx + layer.offsetX) * layer.spacing
+          const localZ = (gz + layer.offsetZ) * layer.spacing
+          const cos = Math.cos(layer.rotation)
+          const sin = Math.sin(layer.rotation)
+          const baseX = localX * cos - localZ * sin
+          const baseZ = localX * sin + localZ * cos
+          const jitterX = (this.hash2D(gx, gz, layer.seed + 1) - 0.5) * layer.spacing * layer.jitter
+          const jitterZ = (this.hash2D(gx, gz, layer.seed + 2) - 0.5) * layer.spacing * layer.jitter
+          const x = baseX + jitterX
+          const z = baseZ + jitterZ
+
+          const inOuterPatch = this.pointInsideRoundedRect(
+            x,
+            z,
+            outerPatchMinX,
+            outerPatchMaxX,
+            outerPatchMinZ,
+            outerPatchMaxZ,
+            outerPatchRadius
+          )
+          if (!inOuterPatch) continue
+
+          const inRoadOrBorder = this.pointInsideRoundedRect(
+            x,
+            z,
+            outerMinX - outerClearMargin,
+            outerMaxX + outerClearMargin,
+            outerMinZ - outerClearMargin,
+            outerMaxZ + outerClearMargin,
+            radius + outerClearMargin
+          ) && !this.pointInsideRoundedRect(
+            x,
+            z,
+            innerMinX + infieldMargin,
+            innerMaxX - infieldMargin,
+            innerMinZ + infieldMargin,
+            innerMaxZ - infieldMargin,
+            Math.max(0, radius - infieldMargin)
+          )
+          if (inRoadOrBorder) continue
+
+          const inInfield = this.pointInsideRoundedRect(
+            x,
+            z,
+            innerMinX + infieldMargin,
+            innerMaxX - infieldMargin,
+            innerMinZ + infieldMargin,
+            innerMaxZ - infieldMargin,
+            Math.max(0, radius - infieldMargin)
+          )
+          const inTrackside = this.pointInsideRoundedRect(
+            x,
+            z,
+            outerPatchMinX,
+            outerPatchMaxX,
+            outerPatchMinZ,
+            outerPatchMaxZ,
+            outerPatchRadius
+          ) && !this.pointInsideRoundedRect(
+            x,
+            z,
+            outerMinX - outerClearMargin,
+            outerMaxX + outerClearMargin,
+            outerMinZ - outerClearMargin,
+            outerMaxZ + outerClearMargin,
+            radius + outerClearMargin
+          )
+          if (!inInfield && !inTrackside) continue
+
+          const edgeDistance = Math.min(
+            x - outerPatchMinX,
+            outerPatchMaxX - x,
+            z - outerPatchMinZ,
+            outerPatchMaxZ - z
+          )
+          const edgeChance = THREE.MathUtils.clamp(edgeDistance / fadeBand, 0, 1)
+          const fillChance = THREE.MathUtils.lerp(layer.minFill, 1, edgeChance)
+          if (this.hash2D(gx, gz, layer.seed + 3) > fillChance) continue
+
+          const accentMix = this.hash2D(gx, gz, layer.seed + 4)
+          const baseColor = new THREE.Color(
+            `rgb(${palette.base[this.positiveModulo(gx + gz, palette.base.length)].join(',')})`
+          )
+          const accentColor = new THREE.Color(
+            `rgb(${palette.accent[this.positiveModulo(gx * 3 + gz * 5, palette.accent.length)].join(',')})`
+          )
+          const color = baseColor.lerp(accentColor, accentMix * 0.35)
+
+          placements.push({
+            x,
+            z,
+            y: 0.03,
+            scale: layer.scaleMin + this.hash2D(gx, gz, layer.seed + 5) * layer.scaleRange,
+            rotation: this.hash2D(gx, gz, layer.seed + 6) * Math.PI,
+            color
+          })
+        }
+      }
+    }
+
+    const bladeAngles = [0, Math.PI / 3, (Math.PI * 2) / 3]
+    const grassMesh = new THREE.InstancedMesh(bladeGeometry, bladeMaterial, placements.length * bladeAngles.length)
+    grassMesh.instanceMatrix.setUsage(THREE.StaticDrawUsage)
+    grassMesh.castShadow = false
+    grassMesh.receiveShadow = false
+
+    const dummy = new THREE.Object3D()
+    let instanceIndex = 0
+    for (const placement of placements) {
+      for (const angle of bladeAngles) {
+        dummy.position.set(placement.x, placement.y, placement.z)
+        dummy.rotation.set(
+          (this.hash2D(instanceIndex, bladeAngles.length, 7) - 0.5) * 0.08,
+          placement.rotation + angle,
+          (this.hash2D(instanceIndex, bladeAngles.length, 8) - 0.5) * 0.08
+        )
+        dummy.scale.setScalar(placement.scale)
+        dummy.updateMatrix()
+        grassMesh.setMatrixAt(instanceIndex, dummy.matrix)
+        grassMesh.setColorAt(instanceIndex, placement.color)
+        instanceIndex += 1
+      }
+    }
+
+    this.trackMesh.add(grassMesh)
   }
 
   private createRectangularTrack() {
@@ -319,52 +639,27 @@ export class Track {
     trackSurface.castShadow = true
     this.trackMesh.add(trackSurface)
 
-    const grassTexture = this.createGrassTexture()
-
-    // Infield plane: fill the hole so the middle is not see-through
-    const infieldShape = new THREE.Shape()
-    infieldShape.moveTo(innerMinX, innerMinZ + radius)
-    infieldShape.absarc(innerMinX + radius, innerMinZ + radius, radius, Math.PI, Math.PI * 1.5, false)
-    infieldShape.lineTo(innerMaxX - radius, innerMinZ)
-    infieldShape.absarc(innerMaxX - radius, innerMinZ + radius, radius, Math.PI * 1.5, 0, false)
-    infieldShape.lineTo(innerMaxX, innerMaxZ - radius)
-    infieldShape.absarc(innerMaxX - radius, innerMaxZ - radius, radius, 0, Math.PI / 2, false)
-    infieldShape.lineTo(innerMinX + radius, innerMaxZ)
-    infieldShape.absarc(innerMinX + radius, innerMaxZ - radius, radius, Math.PI / 2, Math.PI, false)
-    infieldShape.lineTo(innerMinX, innerMinZ + radius)
-    const infieldGeometry = new THREE.ShapeGeometry(infieldShape, 32)
-    // ShapeGeometry UVs use raw shape coordinates (roughly -9..9, -4..4),
-    // so repeat must be 1/tileSize to match the ground plane density.
-    const tileWorldSize = 8.33
-    const infieldTexture = grassTexture.clone()
-    infieldTexture.needsUpdate = true
-    infieldTexture.repeat.set(1 / tileWorldSize, 1 / tileWorldSize)
-    const infieldMaterial = new THREE.MeshStandardMaterial({
-      map: infieldTexture,
-      flatShading: true
-    })
-    const infieldPlane = new THREE.Mesh(infieldGeometry, infieldMaterial)
-    infieldPlane.rotation.x = -Math.PI / 2
-    infieldPlane.position.y = 0.02
-    infieldPlane.receiveShadow = true
-    this.trackMesh.add(infieldPlane)
-
-    // Large ground plane around the track so no edge is visible
-    const groundSize = 500
-    const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize)
-    // PlaneGeometry UVs are 0..1, so repeat = worldSize / tileSize
-    const groundTexture = grassTexture.clone()
-    groundTexture.needsUpdate = true
-    groundTexture.repeat.set(groundSize / tileWorldSize, groundSize / tileWorldSize)
-    const groundMaterial = new THREE.MeshStandardMaterial({
-      map: groundTexture,
-      flatShading: true
-    })
-    const groundPlane = new THREE.Mesh(groundGeometry, groundMaterial)
-    groundPlane.rotation.x = -Math.PI / 2
-    groundPlane.position.y = 0
-    groundPlane.receiveShadow = true
-    this.trackMesh.add(groundPlane)
+    if (this.groundCoverStyle === 'grassTufts') {
+      this.addTuftGrass(
+        outerMinX,
+        outerMaxX,
+        outerMinZ,
+        outerMaxZ,
+        innerMinX,
+        innerMaxX,
+        innerMinZ,
+        innerMaxZ,
+        radius
+      )
+    } else {
+      this.addTexturedGround(
+        innerMinX,
+        innerMaxX,
+        innerMinZ,
+        innerMaxZ,
+        radius
+      )
+    }
 
     // Add lane divider stripes (center line)
     this.addLaneDividers()

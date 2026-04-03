@@ -188,7 +188,10 @@ export class RacingGameEngine {
     })
 
     // Create track (with level-specific ground/grass theme)
-    this.track = new Track(this.scene, undefined, this.currentLevelConfig.groundTheme)
+    this.track = new Track(this.scene, undefined, {
+      theme: this.currentLevelConfig.groundTheme,
+      coverStyle: this.currentLevelConfig.groundCoverStyle
+    })
 
     // Create navigation grid for A* pathfinding
     this.track.createNavigationGrid(1.0)

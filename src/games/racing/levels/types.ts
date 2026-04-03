@@ -24,6 +24,10 @@ export type GroundTheme =
   | 'dirt'       // brown dirt
   | 'autumn'     // orange/rust autumn grass
 
+export type GroundCoverStyle =
+  | 'texture'
+  | 'grassTufts'
+
 export interface BallDropConfig {
   dropTime: number  // seconds after race start to drop the ball
   x?: number        // optional X position (random on track if omitted)
@@ -40,6 +44,8 @@ export interface LevelConfig {
   requiredLaps: number
   /** Ground/grass theme for this level. Defaults to 'grass' if omitted. */
   groundTheme?: GroundTheme
+  /** How the off-track ground is rendered. Defaults to 'texture' if omitted. */
+  groundCoverStyle?: GroundCoverStyle
   /** Optional 80×60 grid: 60 strings, each up to 80 chars. Space = empty; other chars map via DECORATION_MODELS. */
   decorationRows?: string[]
   /** Ball drops during the race. Each entry spawns a ball at the configured time. */
