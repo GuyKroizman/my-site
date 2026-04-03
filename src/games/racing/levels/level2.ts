@@ -85,8 +85,9 @@ export const level2: LevelConfig = {
   ],
   decorationRows: (() => {
     const rows = Array.from({ length: 60 }, () => '')
-    rows[29] = `${' '.repeat(38)}g w g`
+    rows[14] = `${' '.repeat(20)}k`
     rows[20] = `${' '.repeat(58)}s`
+    rows[29] = `${' '.repeat(38)}g w g`
     return rows
   })(),
 }

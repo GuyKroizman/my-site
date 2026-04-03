@@ -8,6 +8,7 @@ import { Mine } from './Mine'
 import { SoundGenerator } from './SoundGenerator'
 import { PlayerArrow } from './PlayerArrow'
 import { BackgroundEye } from './BackgroundEye'
+import { AmbientWolf } from './AmbientWolf'
 import { DecorationGrid } from './DecorationGrid'
 import { TimerBillboard } from './TimerBillboard'
 import { Ball, DEFAULT_DROP_HEIGHT } from './Ball'
@@ -56,6 +57,7 @@ export class RacingGameEngine {
   private playerArrow: PlayerArrow | null = null
   private playerMineHitTime: number | null = null
   private backgroundEyes: BackgroundEye[] = []
+  private ambientWolf: AmbientWolf | null = null
   private decorationGrid: DecorationGrid | null = null
   private timerBillboard: TimerBillboard | null = null
   private lapDigitDropEffect: LapDigitDropEffect
@@ -276,6 +278,10 @@ export class RacingGameEngine {
           }
         })
       )
+    }
+
+    if (this.currentLevelConfig.id === 2) {
+      this.ambientWolf = new AmbientWolf(this.scene, { x: -24, y: 0.5, z: -19 })
     }
 
     if (this.currentLevelConfig.decorationRows?.length) {
@@ -691,6 +697,7 @@ export class RacingGameEngine {
     this.updateCinematicCamera(deltaTime)
 
     this.backgroundEyes.forEach((eye) => eye.update(deltaTime))
+    this.ambientWolf?.update(deltaTime)
     this.lapDigitDropEffect.update(deltaTime)
 
     // Apply camera shake
@@ -1009,6 +1016,8 @@ export class RacingGameEngine {
     this.track.dispose()
     this.backgroundEyes.forEach((eye) => eye.dispose())
     this.backgroundEyes = []
+    this.ambientWolf?.dispose()
+    this.ambientWolf = null
     this.scene.background = null
 
     if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentNode) {

@@ -129,6 +129,34 @@ export class Track {
     const pal = this.getGroundPalette()
     const { base: baseColors, accent: accentColors, dirt: dirtColors } = pal
 
+    if (this.groundTheme === 'dry') {
+      ctx.fillStyle = 'rgb(146,126,54)'
+      ctx.fillRect(0, 0, size, size)
+
+      for (let i = 0; i < 85; i++) {
+        const x = Math.floor(Math.random() * size)
+        const y = Math.floor(Math.random() * size)
+        const patchSize = Math.random() < 0.7 ? 2 : 3
+        const colorSet = Math.random() < 0.18
+          ? dirtColors
+          : Math.random() < 0.55
+            ? accentColors
+            : baseColors
+        const color = colorSet[Math.floor(Math.random() * colorSet.length)]
+        const v = 0.96 + Math.random() * 0.08
+        ctx.fillStyle = `rgb(${Math.floor(color[0] * v)},${Math.floor(color[1] * v)},${Math.floor(color[2] * v)})`
+        ctx.fillRect(x, y, patchSize, patchSize)
+      }
+
+      for (let i = 0; i < 45; i++) {
+        const x = Math.floor(Math.random() * size)
+        const y = Math.floor(Math.random() * size)
+        const color = accentColors[Math.floor(Math.random() * accentColors.length)]
+        const v = 1.02 + Math.random() * 0.06
+        ctx.fillStyle = `rgb(${Math.min(255, Math.floor(color[0] * v))},${Math.min(255, Math.floor(color[1] * v))},${Math.min(255, Math.floor(color[2] * v))})`
+        ctx.fillRect(x, y, 1, 1)
+      }
+    } else {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const r = Math.random()
@@ -144,6 +172,7 @@ export class Track {
         ctx.fillStyle = `rgb(${Math.floor(color[0] * v)},${Math.floor(color[1] * v)},${Math.floor(color[2] * v)})`
         ctx.fillRect(x, y, 1, 1)
       }
+    }
     }
 
     const texture = new THREE.CanvasTexture(canvas)

@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { LevelConfig } from './levels'
 import { DECORATION_MODELS } from './levels/decorationConfig'
 
@@ -9,14 +10,21 @@ const textureLoader = new THREE.TextureLoader()
 const gltfLoader = new GLTFLoader()
 const fbxLoader = new FBXLoader()
 
-const modelCache = new Map<string, Promise<THREE.Group>>()
+const modelCache = new Map<string, Promise<CachedModelAsset>>()
 const textureCache = new Map<string, Promise<THREE.Texture>>()
-const resolvedModels = new Map<string, THREE.Group>()
+const resolvedModels = new Map<string, CachedModelAsset>()
 const resolvedTextures = new Map<string, THREE.Texture>()
 
 const SKYBOX_TEXTURE_PATH = '/racing/sunset-skybox.png'
 const EYE_MODEL_PATH = '/racing/eye.glb'
 const MINE_MODEL_PATH = '/racing/models/landmine.glb'
+const WOLF_MODEL_PATH = '/racing/models/wolf.glb'
+
+interface CachedModelAsset {
+  scene: THREE.Group
+  animations: THREE.AnimationClip[]
+  cloneScene: () => THREE.Group
+}
 
 export interface RacingLevelAssets {
   modelPaths: string[]
@@ -29,22 +37,30 @@ function markSharedAsset(root: THREE.Object3D): void {
   })
 }
 
-function cloneSharedModel(model: THREE.Group): THREE.Group {
-  const clone = model.clone(true)
+function cloneSharedModel(asset: CachedModelAsset): THREE.Group {
+  const clone = asset.cloneScene()
   markSharedAsset(clone)
   return clone
 }
 
-async function loadModel(path: string): Promise<THREE.Group> {
+async function loadModel(path: string): Promise<CachedModelAsset> {
   if (path.toLowerCase().endsWith('.glb') || path.toLowerCase().endsWith('.gltf')) {
     const gltf = await gltfLoader.loadAsync(path)
     markSharedAsset(gltf.scene)
-    return gltf.scene
+    return {
+      scene: gltf.scene,
+      animations: gltf.animations.map((clip) => clip.clone()),
+      cloneScene: () => cloneSkeleton(gltf.scene) as THREE.Group,
+    }
   }
 
   const model = await fbxLoader.loadAsync(path)
   markSharedAsset(model)
-  return model
+  return {
+    scene: model,
+    animations: [],
+    cloneScene: () => model.clone(true),
+  }
 }
 
 async function loadTexture(path: string): Promise<THREE.Texture> {
@@ -89,6 +105,10 @@ export function getLevelAssetPaths(level: LevelConfig): RacingLevelAssets {
     modelPaths.add(MINE_MODEL_PATH)
   }
 
+  if (level.id === 2) {
+    modelPaths.add(WOLF_MODEL_PATH)
+  }
+
   return {
     modelPaths: [...modelPaths],
     texturePaths: [...texturePaths],
@@ -107,9 +127,9 @@ export async function preloadModel(path: string): Promise<void> {
   if (!modelCache.has(path)) {
     modelCache.set(
       path,
-      loadModel(path).then((model) => {
-        resolvedModels.set(path, model)
-        return model
+      loadModel(path).then((asset) => {
+        resolvedModels.set(path, asset)
+        return asset
       })
     )
   }
@@ -132,12 +152,24 @@ export async function preloadTexture(path: string): Promise<void> {
 }
 
 export function getCachedModelClone(path: string): THREE.Group | null {
-  const cachedModel = resolvedModels.get(path)
-  if (!cachedModel) {
+  const cachedAsset = resolvedModels.get(path)
+  if (!cachedAsset) {
     return null
   }
 
-  return cloneSharedModel(cachedModel)
+  return cloneSharedModel(cachedAsset)
+}
+
+export function getCachedAnimatedModelClone(path: string): { scene: THREE.Group; animations: THREE.AnimationClip[] } | null {
+  const cachedAsset = resolvedModels.get(path)
+  if (!cachedAsset) {
+    return null
+  }
+
+  return {
+    scene: cloneSharedModel(cachedAsset),
+    animations: cachedAsset.animations.map((clip) => clip.clone()),
+  }
 }
 
 export function getCachedTexture(path: string): THREE.Texture | null {
@@ -157,4 +189,5 @@ export const RACING_SHARED_ASSET_PATHS = {
   skyboxTexture: SKYBOX_TEXTURE_PATH,
   eyeModel: EYE_MODEL_PATH,
   mineModel: MINE_MODEL_PATH,
+  wolfModel: WOLF_MODEL_PATH,
 }
