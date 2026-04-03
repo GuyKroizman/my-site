@@ -3,6 +3,13 @@ import { Car } from './Car'
 import { Track } from './Track'
 import { SoundGenerator } from './SoundGenerator'
 
+type BallShaderUniforms = {
+  uTime: { value: number }
+  uFuseProgress: { value: number }
+  uActivated: { value: number }
+  uPulse: { value: number }
+}
+
 const BALL_RADIUS = 1.8
 export const DEFAULT_DROP_HEIGHT = 15
 const GRAVITY = 25
@@ -13,6 +20,7 @@ const WALL_BOUNCE_FACTOR = 0.7 // energy kept on wall bounce
 const MIN_BOUNCE_VELOCITY = 0.5 // below this, stop bouncing
 const BALL_COLLISION_RESTITUTION = 0.2
 const BALL_COLLISION_EPSILON = 0.05
+const FUSE_PULSE_DECAY = 2.4
 
 const FUSE_DURATION = 10        // seconds from activation to explosion
 const LAUNCH_RADIUS = 6        // cars within this distance get launched off-screen
@@ -39,6 +47,78 @@ function getExplosionGeometry(): THREE.SphereGeometry {
   return sharedExplosionGeometry
 }
 
+function createMagmaBallMaterial(): {
+  material: THREE.MeshStandardMaterial
+  uniforms: BallShaderUniforms
+} {
+  const uniforms: BallShaderUniforms = {
+    uTime: { value: 0 },
+    uFuseProgress: { value: 0 },
+    uActivated: { value: 0 },
+    uPulse: { value: 0 },
+  }
+
+  const material = new THREE.MeshStandardMaterial({
+    color: 0xff6600,
+    roughness: 0.82,
+    metalness: 0.08,
+    emissive: 0x240400,
+    emissiveIntensity: 0.18,
+  })
+
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uniforms.uTime
+    shader.uniforms.uFuseProgress = uniforms.uFuseProgress
+    shader.uniforms.uActivated = uniforms.uActivated
+    shader.uniforms.uPulse = uniforms.uPulse
+
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+varying vec3 vDangerPos;
+varying vec3 vDangerNormal;`
+      )
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+vDangerPos = transformed;
+vDangerNormal = normalize(normal);`
+      )
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+uniform float uTime;
+uniform float uFuseProgress;
+uniform float uActivated;
+uniform float uPulse;
+varying vec3 vDangerPos;
+varying vec3 vDangerNormal;`
+      )
+      .replace(
+        'vec4 diffuseColor = vec4( diffuse, opacity );',
+        `float topMask = smoothstep(0.05, 1.0, vDangerNormal.y * 0.5 + 0.5);
+float crackA = abs(sin(vDangerPos.x * 6.4 + sin(vDangerPos.z * 3.1 + uTime * 1.2) * 1.4));
+float crackB = abs(cos(vDangerPos.z * 7.2 - sin(vDangerPos.x * 2.7 - uTime * 0.9) * 1.1));
+float crackMask = 1.0 - smoothstep(0.16, 0.3, min(crackA, crackB));
+float fuseHeat = mix(0.22, 1.0, uFuseProgress);
+float fusePulse = max(uPulse, uActivated * (0.25 + 0.75 * (0.5 + 0.5 * sin(uTime * mix(2.0, 14.0, uFuseProgress)))));
+vec3 shellColor = mix(vec3(0.07, 0.06, 0.06), vec3(0.22, 0.08, 0.02), topMask * 0.22);
+vec3 crackColor = mix(vec3(0.85, 0.16, 0.02), vec3(1.0, 0.82, 0.18), fuseHeat);
+vec3 hazardColor = mix(shellColor, crackColor, crackMask * (0.38 + fuseHeat * 0.55));
+hazardColor += crackMask * fusePulse * 0.12;
+hazardColor += topMask * 0.04;
+vec4 diffuseColor = vec4(hazardColor, opacity);`
+      )
+  }
+
+  material.customProgramCacheKey = () => 'ball-magma-v1'
+
+  return { material, uniforms }
+}
+
 export class Ball {
   public position: THREE.Vector3
   public mesh: THREE.Mesh
@@ -56,6 +136,7 @@ export class Ball {
   private flashOn: boolean = false
   public exploded: boolean = false
   private material: THREE.MeshStandardMaterial
+  private shaderUniforms: BallShaderUniforms
 
   // Explosion visual
   private explosionMesh: THREE.Mesh | null = null
@@ -70,11 +151,9 @@ export class Ball {
     this.position = new THREE.Vector3(x, y, z)
 
     const geometry = new THREE.SphereGeometry(BALL_RADIUS, 16, 12)
-    this.material = new THREE.MeshStandardMaterial({
-      color: 0xff6600,
-      roughness: 0.4,
-      metalness: 0.1,
-    })
+    const ballMaterial = createMagmaBallMaterial()
+    this.material = ballMaterial.material
+    this.shaderUniforms = ballMaterial.uniforms
     this.mesh = new THREE.Mesh(geometry, this.material)
     this.mesh.castShadow = true
     this.mesh.receiveShadow = true
@@ -104,6 +183,7 @@ export class Ball {
 
   update(deltaTime: number, cars: Car[], track: Track): BallExplosionResult {
     const result: BallExplosionResult = { exploded: false, playerLaunched: false, explosionPosition: null }
+    this.updateMaterialState(deltaTime)
 
     // Update explosion visual if active (ball already detonated, waiting for visual to finish)
     if (this.explosionActive) {
@@ -268,13 +348,31 @@ export class Ball {
     if (this.flashAccumulator >= flashInterval) {
       this.flashAccumulator = 0
       this.flashOn = !this.flashOn
-      this.material.emissive.setHex(this.flashOn ? 0xff0000 : 0x000000)
-      this.material.emissiveIntensity = this.flashOn ? 0.8 + progress * 1.2 : 0
+      this.shaderUniforms.uPulse.value = this.flashOn ? 1 : 0.35 + progress * 0.45
       // Scale up slightly as it's about to blow
       const scale = 1 + progress * 0.3
       this.mesh.scale.setScalar(scale)
       this.soundGenerator.playBombTick(progress)
     }
+  }
+
+  private updateMaterialState(deltaTime: number): void {
+    this.shaderUniforms.uTime.value += deltaTime
+
+    const progress = this.activated ? Math.min(this.activatedTimer / FUSE_DURATION, 1) : 0
+    this.shaderUniforms.uFuseProgress.value = progress
+    this.shaderUniforms.uActivated.value = this.activated ? 1 : 0
+    this.shaderUniforms.uPulse.value = Math.max(0, this.shaderUniforms.uPulse.value - deltaTime * FUSE_PULSE_DECAY)
+
+    if (!this.activated) {
+      this.material.emissive.setRGB(0.15, 0.03, 0)
+      this.material.emissiveIntensity = 0.18
+      return
+    }
+
+    const glow = 0.35 + progress * 0.9 + this.shaderUniforms.uPulse.value * (0.7 + progress * 0.8)
+    this.material.emissive.setRGB(0.95, 0.14 + progress * 0.12, 0.02)
+    this.material.emissiveIntensity = glow
   }
 
   private detonate(cars: Car[], result: BallExplosionResult): void {
