@@ -45,6 +45,7 @@ export default function RacingGame() {
   const containerRef = useRef<HTMLDivElement>(null)
   const gameEngineRef = useRef<RacingGameEngine | null>(null)
   const gameManagerRef = useRef<GameManager | null>(null)
+  const confettiTriggeredRef = useRef(false)
   const [uiState, setUiState] = useState<UIState>('menu')
   const [dismissingLoseScreen, setDismissingLoseScreen] = useState(false)
   const [raceResult, setRaceResult] = useState<RaceResult | null>(null)
@@ -57,7 +58,7 @@ export default function RacingGame() {
   const [isMuted, setIsMuted] = useState(SoundGenerator.getMuted())
   const [isExitingMenu, setIsExitingMenu] = useState(false)
   const [gameContainerVisible, setGameContainerVisible] = useState(true)
-  const [confettiCount, setConfettiCount] = useState(0)
+  const [confettiBurstId, setConfettiBurstId] = useState(0)
   const [confettiOrigin, setConfettiOrigin] = useState<{ x: number; y: number } | null>(null)
   const [upgradeOptions, setUpgradeOptions] = useState<UpgradeOption[]>([])
   const [activeWeaponIcon, setActiveWeaponIcon] = useState('')
@@ -143,7 +144,7 @@ export default function RacingGame() {
     }
 
     // Reset confetti so it can trigger again when the first car finishes this level
-    setConfettiCount(0)
+    confettiTriggeredRef.current = false
     setConfettiOrigin(null)
 
     // Dispose existing engine if any
@@ -170,12 +171,10 @@ export default function RacingGame() {
           },
           onTimerUpdate: () => {},
           onCarFinished: (_name, screenPos) => {
-            setConfettiCount((prev) => {
-              if (prev === 0) {
-                setConfettiOrigin(screenPos)
-              }
-              return prev === 0 ? 1 : prev
-            })
+            if (confettiTriggeredRef.current) return
+            confettiTriggeredRef.current = true
+            setConfettiOrigin(screenPos)
+            setConfettiBurstId((prev) => prev + 1)
           },
           onWeaponRotated: (activeIcon, nextIcon) => {
             setActiveWeaponIcon(activeIcon)
@@ -264,7 +263,8 @@ export default function RacingGame() {
     }
     setRaceResult(null)
     setPlayerLaps(0)
-    setConfettiCount(0)
+    confettiTriggeredRef.current = false
+    setConfettiOrigin(null)
   }
 
   // Two-phase dismiss: switch to menu first (so it renders behind), keep overlay alive
@@ -279,7 +279,8 @@ export default function RacingGame() {
       gameManagerRef.current.returnToMenu()
     }
     setPlayerLaps(0)
-    setConfettiCount(0)
+    confettiTriggeredRef.current = false
+    setConfettiOrigin(null)
   }
 
   const handleLoseScreenDismissComplete = () => {
@@ -398,9 +399,7 @@ export default function RacingGame() {
           </div>
         </>
       )}
-      {(uiState === 'playing' || uiState === 'raceComplete') && (
-        <FinishLineConfetti triggerCount={confettiCount} origin={confettiOrigin} />
-      )}
+      <FinishLineConfetti triggerCount={confettiBurstId} origin={confettiOrigin} />
     </div>
   )
 }
