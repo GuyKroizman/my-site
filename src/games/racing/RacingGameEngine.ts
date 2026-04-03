@@ -17,6 +17,9 @@ import type { TouchDriveState } from './input'
 import type { PlayerUpgrades, UpgradeId } from './upgrades'
 import { DEFAULT_PLAYER_UPGRADES, getFireButtonWeapons, getWeaponIcon } from './upgrades'
 
+const BALL_SPAWN_MAX_ATTEMPTS = 8
+const BALL_SPAWN_MARGIN = 0.2
+
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
   onLapUpdate?: (laps: number) => void
@@ -550,6 +553,7 @@ export class RacingGameEngine {
           this.balls.splice(i, 1)
         }
       }
+      this.resolveBallCollisions()
       // Chain reactions: exploding balls trigger nearby balls
       if (newlyExplodedPositions.length > 0) {
         for (const ball of this.balls) {
@@ -796,13 +800,65 @@ export class RacingGameEngine {
       x = drop.x
       z = drop.z
     } else {
-      const pos = this.track.getRandomPointOnTrack()
+      const pos = this.findBallSpawnPoint()
       x = pos.x
       z = pos.z
     }
     const y = drop.y ?? DEFAULT_DROP_HEIGHT
     const ball = new Ball(this.scene, x, y, z, this.soundGenerator)
     this.balls.push(ball)
+  }
+
+  private findBallSpawnPoint(): THREE.Vector3 {
+    let bestCandidate = this.track.getRandomPointOnTrack()
+    let bestDistance = -Infinity
+
+    for (let attempt = 0; attempt < BALL_SPAWN_MAX_ATTEMPTS; attempt++) {
+      const candidate = this.track.getRandomPointOnTrack()
+      const nearestDistance = this.getNearestLiveBallDistance(candidate)
+      if (nearestDistance > bestDistance) {
+        bestCandidate = candidate
+        bestDistance = nearestDistance
+      }
+      if (nearestDistance >= this.getBallSpawnClearance()) {
+        return candidate
+      }
+    }
+
+    return bestCandidate
+  }
+
+  private getNearestLiveBallDistance(position: THREE.Vector3): number {
+    let nearestDistance = Infinity
+
+    for (const ball of this.balls) {
+      if (ball.exploded) continue
+      const distance = position.distanceTo(ball.position)
+      nearestDistance = Math.min(nearestDistance, distance)
+    }
+
+    return nearestDistance
+  }
+
+  private getBallSpawnClearance(): number {
+    return this.balls.length > 0 ? this.balls[0].getRadius() * 2 + BALL_SPAWN_MARGIN : 0
+  }
+
+  private resolveBallCollisions(): void {
+    const activeBalls = this.balls.filter(ball => !ball.exploded)
+    if (activeBalls.length < 2) return
+
+    for (let pass = 0; pass < activeBalls.length; pass++) {
+      let changed = false
+      for (let i = 0; i < activeBalls.length; i++) {
+        for (let j = i + 1; j < activeBalls.length; j++) {
+          if (activeBalls[i].resolveCollisionWithBall(activeBalls[j], this.track)) {
+            changed = true
+          }
+        }
+      }
+      if (!changed) break
+    }
   }
 
   private shootBullet() {

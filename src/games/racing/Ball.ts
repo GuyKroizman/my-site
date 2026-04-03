@@ -11,6 +11,8 @@ const XZ_DRAG = 0.97          // per-frame at 60fps
 const CAR_HIT_MULTIPLIER = 5.0 // how much car speed translates to ball impulse
 const WALL_BOUNCE_FACTOR = 0.7 // energy kept on wall bounce
 const MIN_BOUNCE_VELOCITY = 0.5 // below this, stop bouncing
+const BALL_COLLISION_RESTITUTION = 0.2
+const BALL_COLLISION_EPSILON = 0.05
 
 const FUSE_DURATION = 10        // seconds from activation to explosion
 const LAUNCH_RADIUS = 6        // cars within this distance get launched off-screen
@@ -96,6 +98,10 @@ export class Ball {
     }
   }
 
+  public getRadius(): number {
+    return BALL_RADIUS
+  }
+
   update(deltaTime: number, cars: Car[], track: Track): BallExplosionResult {
     const result: BallExplosionResult = { exploded: false, playerLaunched: false, explosionPosition: null }
 
@@ -144,25 +150,7 @@ export class Ball {
     this.velocityX *= drag
     this.velocityZ *= drag
 
-    // Clamp to outer track bounds
-    const outerResult = track.clampPositionToOuterBounds(this.position, BALL_RADIUS)
-    if (outerResult.normals.length > 0) {
-      this.position.copy(outerResult.clamped)
-      for (const normal of outerResult.normals) {
-        this.reflectVelocity(normal)
-      }
-      this.soundGenerator.playBallWallHit(Math.min(0.12, this.xzSpeed() * 0.015))
-    }
-
-    // Clamp to inner track bounds (push out of infield)
-    const innerResult = track.clampPositionToInnerBounds(this.position, BALL_RADIUS)
-    if (innerResult.normals.length > 0) {
-      this.position.copy(innerResult.clamped)
-      for (const normal of innerResult.normals) {
-        this.reflectVelocity(normal)
-      }
-      this.soundGenerator.playBallWallHit(Math.min(0.12, this.xzSpeed() * 0.015))
-    }
+    this.clampToTrack(track)
 
     // --- Car collision ---
     const newCollided = new Set<Car>()
@@ -185,10 +173,90 @@ export class Ball {
     }
     this.collidedCars = newCollided
 
-    // Sync mesh
-    this.mesh.position.copy(this.position)
+    this.syncMesh()
 
     return result
+  }
+
+  public clampToTrack(track: Track): void {
+    const outerResult = track.clampPositionToOuterBounds(this.position, BALL_RADIUS)
+    if (outerResult.normals.length > 0) {
+      this.position.copy(outerResult.clamped)
+      for (const normal of outerResult.normals) {
+        this.reflectVelocity(normal)
+      }
+      this.soundGenerator.playBallWallHit(Math.min(0.12, this.xzSpeed() * 0.015))
+    }
+
+    const innerResult = track.clampPositionToInnerBounds(this.position, BALL_RADIUS)
+    if (innerResult.normals.length > 0) {
+      this.position.copy(innerResult.clamped)
+      for (const normal of innerResult.normals) {
+        this.reflectVelocity(normal)
+      }
+      this.soundGenerator.playBallWallHit(Math.min(0.12, this.xzSpeed() * 0.015))
+    }
+  }
+
+  public syncMesh(): void {
+    this.mesh.position.copy(this.position)
+  }
+
+  public resolveCollisionWithBall(other: Ball, track: Track): boolean {
+    if (this.exploded || other.exploded || this === other) return false
+
+    const separation = new THREE.Vector3().subVectors(other.position, this.position)
+    const minDistance = this.getRadius() + other.getRadius()
+    const distanceSq = separation.lengthSq()
+    if (distanceSq >= minDistance * minDistance) return false
+
+    let normal = separation.clone()
+    let distance = Math.sqrt(distanceSq)
+    if (distance <= 1e-6) {
+      const relativeVelocity = new THREE.Vector3(
+        other.velocityX - this.velocityX,
+        other.velocityY - this.velocityY,
+        other.velocityZ - this.velocityZ
+      )
+      if (relativeVelocity.lengthSq() > 1e-6) {
+        normal.copy(relativeVelocity).normalize()
+      } else {
+        normal.set(1, 0, 0)
+      }
+      distance = 0
+    } else {
+      normal.divideScalar(distance)
+    }
+
+    const overlap = minDistance - distance
+    const correction = normal.clone().multiplyScalar((overlap + BALL_COLLISION_EPSILON) * 0.5)
+    this.position.addScaledVector(correction, -1)
+    other.position.add(correction)
+
+    const relativeVelocity = new THREE.Vector3(
+      other.velocityX - this.velocityX,
+      other.velocityY - this.velocityY,
+      other.velocityZ - this.velocityZ
+    )
+    const velocityAlongNormal = relativeVelocity.dot(normal)
+
+    if (velocityAlongNormal < 0) {
+      const impulse = -(1 + BALL_COLLISION_RESTITUTION) * velocityAlongNormal / 2
+      const impulseVector = normal.clone().multiplyScalar(impulse)
+      this.velocityX -= impulseVector.x
+      this.velocityY -= impulseVector.y
+      this.velocityZ -= impulseVector.z
+      other.velocityX += impulseVector.x
+      other.velocityY += impulseVector.y
+      other.velocityZ += impulseVector.z
+    }
+
+    this.clampToTrack(track)
+    other.clampToTrack(track)
+    this.syncMesh()
+    other.syncMesh()
+
+    return true
   }
 
   private updateFlash(deltaTime: number): void {
