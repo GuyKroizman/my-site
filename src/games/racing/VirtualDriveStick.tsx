@@ -138,10 +138,11 @@ export function VirtualDriveStick({
     <>
       <div
         ref={baseRef}
-        className="fixed bottom-8 left-8 z-50 select-none pointer-events-auto"
+        className="fixed bottom-8 z-50 select-none pointer-events-auto"
         style={{
           width: JOYSTICK_BASE_WIDTH,
           height: JOYSTICK_BASE_HEIGHT,
+          left: 'max(env(safe-area-inset-left, 0px), 4px)',
           touchAction: 'none',
         }}
         onPointerDown={handlePointerDown}
