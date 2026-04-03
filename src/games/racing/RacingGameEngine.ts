@@ -8,6 +8,7 @@ import { Mine } from './Mine'
 import { SoundGenerator } from './SoundGenerator'
 import { PlayerArrow } from './PlayerArrow'
 import { BackgroundEye } from './BackgroundEye'
+import { AmbientBunny } from './AmbientBunny'
 import { AmbientWolf } from './AmbientWolf'
 import { DecorationGrid } from './DecorationGrid'
 import { TimerBillboard } from './TimerBillboard'
@@ -57,7 +58,9 @@ export class RacingGameEngine {
   private playerArrow: PlayerArrow | null = null
   private playerMineHitTime: number | null = null
   private backgroundEyes: BackgroundEye[] = []
+  private ambientBunny: AmbientBunny | null = null
   private ambientWolf: AmbientWolf | null = null
+  private ambientOuterWolf: AmbientWolf | null = null
   private decorationGrid: DecorationGrid | null = null
   private timerBillboard: TimerBillboard | null = null
   private lapDigitDropEffect: LapDigitDropEffect
@@ -281,7 +284,13 @@ export class RacingGameEngine {
     }
 
     if (this.currentLevelConfig.id === 2) {
-      this.ambientWolf = new AmbientWolf(this.scene, { x: -24, y: 0.5, z: -19 })
+      const ambientOrbitCenter = { x: -24, y: 0.5, z: -19 }
+      this.ambientWolf = new AmbientWolf(this.scene, ambientOrbitCenter)
+      this.ambientOuterWolf = new AmbientWolf(this.scene, ambientOrbitCenter, {
+        radius: 4.6,
+        startAngle: 0.28,
+      })
+      this.ambientBunny = new AmbientBunny(this.scene, ambientOrbitCenter)
     }
 
     if (this.currentLevelConfig.decorationRows?.length) {
@@ -697,6 +706,8 @@ export class RacingGameEngine {
     this.updateCinematicCamera(deltaTime)
 
     this.backgroundEyes.forEach((eye) => eye.update(deltaTime))
+    this.ambientBunny?.update(deltaTime)
+    this.ambientOuterWolf?.update(deltaTime)
     this.ambientWolf?.update(deltaTime)
     this.lapDigitDropEffect.update(deltaTime)
 
@@ -1016,6 +1027,10 @@ export class RacingGameEngine {
     this.track.dispose()
     this.backgroundEyes.forEach((eye) => eye.dispose())
     this.backgroundEyes = []
+    this.ambientBunny?.dispose()
+    this.ambientBunny = null
+    this.ambientOuterWolf?.dispose()
+    this.ambientOuterWolf = null
     this.ambientWolf?.dispose()
     this.ambientWolf = null
     this.scene.background = null

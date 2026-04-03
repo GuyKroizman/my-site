@@ -1,43 +1,25 @@
 import * as THREE from 'three'
 import { getCachedAnimatedModelClone, isSharedAssetObject, RACING_SHARED_ASSET_PATHS } from './assets'
+import { type AmbientWolfCenter, ORBIT_RADIUS, ORBIT_SPEED } from './AmbientWolf'
 
-export interface AmbientWolfCenter {
-  x: number
-  y: number
-  z: number
-}
-
-export const ORBIT_RADIUS = 4
-export const ORBIT_SPEED = 0.95
 const BASE_SCALE = 120
-const START_ANGLE = 0
+const START_ANGLE = -Math.PI / 2
 const HEADING_OFFSET = 0
 
-export interface AmbientWolfOptions {
-  radius?: number
-  angularSpeed?: number
-  startAngle?: number
-}
-
-export class AmbientWolf {
+export class AmbientBunny {
   public mesh: THREE.Group
   private mixer: THREE.AnimationMixer | null = null
-  private angle: number
+  private angle = START_ANGLE
   private readonly center: AmbientWolfCenter
-  private readonly radius: number
-  private readonly angularSpeed: number
 
-  constructor(scene: THREE.Scene, center: AmbientWolfCenter, options: AmbientWolfOptions = {}) {
+  constructor(scene: THREE.Scene, center: AmbientWolfCenter) {
     this.center = center
-    this.radius = options.radius ?? ORBIT_RADIUS
-    this.angularSpeed = options.angularSpeed ?? ORBIT_SPEED
-    this.angle = options.startAngle ?? START_ANGLE
     this.mesh = new THREE.Group()
     scene.add(this.mesh)
 
-    const loaded = getCachedAnimatedModelClone(RACING_SHARED_ASSET_PATHS.wolfModel)
+    const loaded = getCachedAnimatedModelClone(RACING_SHARED_ASSET_PATHS.bunnyModel)
     if (!loaded) {
-      console.warn('Missing preloaded ambient wolf model')
+      console.warn('Missing preloaded ambient bunny model')
       return
     }
 
@@ -57,15 +39,16 @@ export class AmbientWolf {
     this.mesh.add(model)
     this.mixer = new THREE.AnimationMixer(model)
 
-    const gallopClip = animations.find((clip) => clip.name === 'Gallop')
-      ?? animations.find((clip) => clip.name.endsWith('|Gallop'))
+    const runClip = animations.find((clip) => clip.name === 'CharacterArmature|Run')
+      ?? animations.find((clip) => clip.name.endsWith('|Run'))
+      ?? animations.find((clip) => clip.name === 'Run')
 
-    if (gallopClip) {
-      const action = this.mixer.clipAction(gallopClip)
+    if (runClip) {
+      const action = this.mixer.clipAction(runClip)
       action.setLoop(THREE.LoopRepeat, Infinity)
       action.play()
     } else {
-      console.warn('Ambient wolf missing Gallop animation clip')
+      console.warn('Ambient bunny missing Run animation clip')
     }
 
     this.updateTransform()
@@ -73,15 +56,15 @@ export class AmbientWolf {
 
   public update(deltaTime: number): void {
     this.mixer?.update(deltaTime)
-    this.angle -= this.angularSpeed * deltaTime
+    this.angle -= ORBIT_SPEED * deltaTime
     this.updateTransform()
   }
 
   private updateTransform(): void {
     this.mesh.position.set(
-      this.center.x + Math.cos(this.angle) * this.radius,
+      this.center.x + Math.cos(this.angle) * ORBIT_RADIUS,
       this.center.y,
-      this.center.z + Math.sin(this.angle) * this.radius
+      this.center.z + Math.sin(this.angle) * ORBIT_RADIUS
     )
 
     const tangentX = Math.sin(this.angle)

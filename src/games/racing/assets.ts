@@ -19,6 +19,7 @@ const SKYBOX_TEXTURE_PATH = '/racing/sunset-skybox.png'
 const EYE_MODEL_PATH = '/racing/eye.glb'
 const MINE_MODEL_PATH = '/racing/models/landmine.glb'
 const WOLF_MODEL_PATH = '/racing/models/wolf.glb'
+const BUNNY_MODEL_PATH = '/racing/models/bunny.glb'
 
 interface CachedModelAsset {
   scene: THREE.Group
@@ -107,6 +108,7 @@ export function getLevelAssetPaths(level: LevelConfig): RacingLevelAssets {
 
   if (level.id === 2) {
     modelPaths.add(WOLF_MODEL_PATH)
+    modelPaths.add(BUNNY_MODEL_PATH)
   }
 
   return {
@@ -190,4 +192,5 @@ export const RACING_SHARED_ASSET_PATHS = {
   eyeModel: EYE_MODEL_PATH,
   mineModel: MINE_MODEL_PATH,
   wolfModel: WOLF_MODEL_PATH,
+  bunnyModel: BUNNY_MODEL_PATH,
 }
