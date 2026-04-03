@@ -62,6 +62,7 @@ export class RacingGameEngine {
   private spacePressed: boolean = false
   private spaceKeyDownHandler: ((e: KeyboardEvent) => void) | null = null
   private spaceKeyUpHandler: ((e: KeyboardEvent) => void) | null = null
+  private levelMineArmed: boolean = false
 
   // Player upgrades & weapon switching
   private playerUpgrades: PlayerUpgrades
@@ -237,7 +238,7 @@ export class RacingGameEngine {
     // Spawn mine on levels 2 and above (one per level, random position on track)
     if (this.currentLevelConfig.id >= 2) {
       const minePos = this.track.getRandomPointOnTrack()
-      this.mine = new Mine(this.scene, minePos.x, minePos.z)
+      this.mine = new Mine(this.scene, minePos.x, minePos.z, 2.0, false)
     }
 
     // Initialize pending ball drops from level config
@@ -477,6 +478,10 @@ export class RacingGameEngine {
     if (canStart && !this.timerActive) {
       this.timerActive = true
       this.raceStartTime = performance.now() / 1000
+      if (this.mine && !this.levelMineArmed) {
+        this.mine.startActivationCountdown()
+        this.levelMineArmed = true
+      }
     }
 
     // Update player arrow (show during countdown, hide once race starts)
@@ -697,6 +702,7 @@ export class RacingGameEngine {
     this.turboBoostTimer = 0
     this.turboBoostCooldown = 0
     this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
+    this.levelMineArmed = false
 
     // Reset timer
     this.timerActive = false
