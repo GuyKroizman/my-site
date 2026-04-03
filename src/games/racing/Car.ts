@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { Track } from './Track'
 import { SoundGenerator } from './SoundGenerator'
 import { NEUTRAL_TOUCH_DRIVE_STATE, type TouchDriveState } from './input'
+import { getCachedModelClone, isSharedAssetObject } from './assets'
 
 /** 2D OBB overlap test using separating axis theorem on XZ plane. */
 function obbOverlap(
@@ -210,7 +211,7 @@ export class Car {
     this.boundingBox = new THREE.Box3().setFromObject(this.mesh)
 
     if (modelPath) {
-      void this.loadCustomModel(modelPath)
+      this.applyCachedModel(modelPath)
     }
 
     // Create health bar sprite (always faces camera)
@@ -306,43 +307,16 @@ export class Car {
     })
   }
 
-  private async loadCustomModel(modelPath: string): Promise<void> {
-    const isGlb = modelPath.toLowerCase().endsWith('.glb') || modelPath.toLowerCase().endsWith('.gltf')
-    try {
-      if (isGlb) {
-        const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
-        const loader = new GLTFLoader()
-        loader.load(
-          modelPath,
-          (gltf) => {
-            const model = this.orientAndScaleLoadedModel(gltf.scene as THREE.Group)
-            this.replaceCarVisual(model)
-            this.recomputeLocalHalfSize()
-          },
-          undefined,
-          (error) => {
-            console.warn(`Failed to load car model "${modelPath}"`, error)
-          }
-        )
-      } else {
-        const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js')
-        const loader = new FBXLoader()
-        loader.load(
-          modelPath,
-          (fbx) => {
-            const model = this.orientAndScaleLoadedModel(fbx)
-            this.replaceCarVisual(model)
-            this.recomputeLocalHalfSize()
-          },
-          undefined,
-          (error) => {
-            console.warn(`Failed to load car model "${modelPath}"`, error)
-          }
-        )
-      }
-    } catch (error) {
-      console.warn(`Failed to initialize loader for "${modelPath}"`, error)
+  private applyCachedModel(modelPath: string): void {
+    const cachedModel = getCachedModelClone(modelPath)
+    if (!cachedModel) {
+      console.warn(`Missing preloaded car model "${modelPath}", keeping fallback geometry`)
+      return
     }
+
+    const model = this.orientAndScaleLoadedModel(cachedModel)
+    this.replaceCarVisual(model)
+    this.recomputeLocalHalfSize()
   }
 
   private orientAndScaleLoadedModel(model: THREE.Group): THREE.Group {
@@ -390,7 +364,15 @@ export class Car {
   }
 
   private disposeVisualObject(object: THREE.Object3D) {
+    if (isSharedAssetObject(object)) {
+      return
+    }
+
     object.traverse((child) => {
+      if (isSharedAssetObject(child)) {
+        return
+      }
+
       if (child instanceof THREE.Mesh) {
         child.geometry.dispose()
         if (Array.isArray(child.material)) {

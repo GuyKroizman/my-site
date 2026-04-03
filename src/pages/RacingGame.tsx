@@ -45,6 +45,7 @@ export default function RacingGame() {
   const gameEngineRef = useRef<RacingGameEngine | null>(null)
   const gameManagerRef = useRef<GameManager | null>(null)
   const confettiTriggeredRef = useRef(false)
+  const raceLoadRequestRef = useRef(0)
   const [uiState, setUiState] = useState<UIState>('menu')
   const [dismissingLoseScreen, setDismissingLoseScreen] = useState(false)
   const [raceResult, setRaceResult] = useState<RaceResult | null>(null)
@@ -61,6 +62,7 @@ export default function RacingGame() {
   const [activeWeaponIcon, setActiveWeaponIcon] = useState('')
   const [nextWeaponIcon, setNextWeaponIcon] = useState('')
   const [fireWeaponCount, setFireWeaponCount] = useState(0)
+  const [isRaceLoading, setIsRaceLoading] = useState(false)
 
   // Initialize GameManager
   useEffect(() => {
@@ -125,6 +127,7 @@ export default function RacingGame() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      raceLoadRequestRef.current += 1
       if (gameEngineRef.current) {
         gameEngineRef.current.dispose()
         gameEngineRef.current = null
@@ -132,12 +135,15 @@ export default function RacingGame() {
     }
   }, [])
 
-  const createAndStartRace = useCallback((level: LevelConfig) => {
+  const createAndStartRace = useCallback(async (level: LevelConfig) => {
     // Ensure container exists
     if (!containerRef.current) {
       console.error('Container ref is not available')
       return
     }
+
+    const requestId = ++raceLoadRequestRef.current
+    setIsRaceLoading(true)
 
     // Reset confetti so it can trigger again when the first car finishes this level
     confettiTriggeredRef.current = false
@@ -154,6 +160,11 @@ export default function RacingGame() {
 
     // Create game engine with level config and player upgrades
     try {
+      await RacingGameEngine.preloadLevelAssets(level)
+      if (raceLoadRequestRef.current !== requestId) {
+        return
+      }
+
       const engine = new RacingGameEngine(
         containerRef.current,
         {
@@ -180,6 +191,12 @@ export default function RacingGame() {
         level,
         upgrades
       )
+      await engine.initialize()
+      if (raceLoadRequestRef.current !== requestId) {
+        engine.dispose()
+        return
+      }
+
       gameEngineRef.current = engine
       engine.startRace()
 
@@ -187,8 +204,13 @@ export default function RacingGame() {
       setActiveWeaponIcon(engine.getActiveWeaponIcon())
       setNextWeaponIcon(engine.getNextWeaponIcon())
       setFireWeaponCount(engine.getFireWeaponCount())
+      setGameContainerVisible(true)
     } catch (error) {
       console.error('Error creating game engine:', error)
+    } finally {
+      if (raceLoadRequestRef.current === requestId) {
+        setIsRaceLoading(false)
+      }
     }
   }, [])
 
@@ -203,17 +225,17 @@ export default function RacingGame() {
         }
         return
       }
-      createAndStartRace(currentLevel)
+      void createAndStartRace(currentLevel)
     }
   }, [uiState, currentLevel, createAndStartRace])
 
   // Fade in game container when transitioning from menu to playing
   useEffect(() => {
-    if (uiState === 'playing' && !gameContainerVisible) {
+    if (uiState === 'playing' && !gameContainerVisible && !isRaceLoading) {
       const id = requestAnimationFrame(() => setGameContainerVisible(true))
       return () => cancelAnimationFrame(id)
     }
-  }, [uiState, gameContainerVisible])
+  }, [uiState, gameContainerVisible, isRaceLoading])
 
   const handleStartGame = () => {
     // Only allow starting game if in landscape mode
@@ -226,6 +248,7 @@ export default function RacingGame() {
   const handleMenuTransitionEnd = (e: React.TransitionEvent) => {
     if (e.propertyName !== 'opacity' || !isExitingMenu) return
     setGameContainerVisible(false)
+    setIsRaceLoading(true)
     gameManagerRef.current?.startGame()
     setIsExitingMenu(false)
   }
@@ -249,6 +272,8 @@ export default function RacingGame() {
   }, [])
 
   const handleBackToMenu = () => {
+    raceLoadRequestRef.current += 1
+    setIsRaceLoading(false)
     // Dispose game engine when returning to menu
     if (gameEngineRef.current) {
       gameEngineRef.current.dispose()
@@ -265,6 +290,8 @@ export default function RacingGame() {
   // Two-phase dismiss: switch to menu first (so it renders behind), keep overlay alive
   const handleLoseScreenBackToMenu = () => {
     setDismissingLoseScreen(true)
+    raceLoadRequestRef.current += 1
+    setIsRaceLoading(false)
     // Dispose game engine and switch to menu state
     if (gameEngineRef.current) {
       gameEngineRef.current.dispose()
@@ -309,7 +336,7 @@ export default function RacingGame() {
       {/* Game container - always exists, menu overlays it */}
       <div
         ref={containerRef}
-        className={`${uiState !== 'menu' && !isExitingMenu ? 'flex-1' : ''} w-full relative overflow-hidden transition-opacity duration-300 ease-out ${uiState === 'playing' && !gameContainerVisible ? 'opacity-0' : 'opacity-100'}`}
+        className={`${uiState !== 'menu' && !isExitingMenu ? 'flex-1' : ''} w-full relative overflow-hidden transition-opacity duration-300 ease-out ${uiState === 'playing' && !gameContainerVisible && !isRaceLoading ? 'opacity-0' : 'opacity-100'}`}
       >
         <MuteButton isMuted={isMuted} onToggle={handleToggleMute} />
 
@@ -353,6 +380,15 @@ export default function RacingGame() {
             showRotateButton={fireWeaponCount > 1}
             rotateButtonIcon={nextWeaponIcon}
           />
+        )}
+
+        {uiState === 'playing' && isRaceLoading && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-gray-900/90">
+            <div className="text-center">
+              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-white"></div>
+              <p className="text-sm font-medium uppercase tracking-[0.3em] text-gray-300">Loading race assets</p>
+            </div>
+          </div>
         )}
       </div>
 

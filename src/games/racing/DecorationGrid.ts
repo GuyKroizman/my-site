@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { DecorationModelConfig } from './levels/decorationConfig'
+import { getCachedModelClone, isSharedAssetObject } from './assets'
 
 const GRID_COLS = 80
 const GRID_ROWS = 60
@@ -66,46 +67,34 @@ export class DecorationGrid {
     }
     this.group.add(mesh)
 
-    void this.loadModel(config.path, config.scale ?? 1, mesh)
-  }
-
-  private async loadModel(
-    path: string,
-    scaleMultiplier: number,
-    parent: THREE.Group
-  ): Promise<void> {
-    try {
-      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
-      const loader = new GLTFLoader()
-      loader.load(
-        path,
-        (gltf) => {
-          const model = gltf.scene as THREE.Group
-          const box = new THREE.Box3().setFromObject(model)
-          const size = new THREE.Vector3()
-          box.getSize(size)
-          const maxDim = Math.max(size.x, size.y, size.z, 0.001)
-          const scale = (1 / maxDim) * scaleMultiplier
-          model.scale.setScalar(scale)
-          model.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-              child.castShadow = true
-              child.receiveShadow = true
-            }
-          })
-          parent.add(model)
-        },
-        undefined,
-        (err) => console.warn('Failed to load decoration model', path, err)
-      )
-    } catch (e) {
-      console.warn('Decoration model loader error', path, e)
+    const model = getCachedModelClone(config.path)
+    if (!model) {
+      console.warn('Missing preloaded decoration model', config.path)
+      return
     }
+
+    const box = new THREE.Box3().setFromObject(model)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001)
+    const scale = (1 / maxDim) * (config.scale ?? 1)
+    model.scale.setScalar(scale)
+    model.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+    mesh.add(model)
   }
 
   public destroy(): void {
     this.scene.remove(this.group)
     this.group.traverse((child) => {
+      if (isSharedAssetObject(child)) {
+        return
+      }
+
       if (child instanceof THREE.Mesh) {
         child.geometry?.dispose()
         if (Array.isArray(child.material)) {

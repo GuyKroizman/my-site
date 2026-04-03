@@ -1,6 +1,6 @@
 import * as THREE from 'three'
+import { getCachedModelClone, isSharedAssetObject, RACING_SHARED_ASSET_PATHS } from './assets'
 
-const MINE_MODEL_PATH = '/racing/models/landmine.glb'
 /** Trigger only when car actually overlaps the mine (matches visual size after 2x scale). */
 const COLLISION_RADIUS = 1.2
 
@@ -21,7 +21,25 @@ export class Mine {
     this.mesh = new THREE.Group()
     this.mesh.position.copy(this.position)
     scene.add(this.mesh)
-    void this.loadModel()
+    const model = getCachedModelClone(RACING_SHARED_ASSET_PATHS.mineModel)
+    if (!model) {
+      console.warn('Missing preloaded mine model')
+      return
+    }
+
+    const box = new THREE.Box3().setFromObject(model)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001)
+    const scale = 2.4 / maxDim
+    model.scale.setScalar(scale)
+    model.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+    this.mesh.add(model)
   }
 
   public isActive(): boolean {
@@ -35,36 +53,6 @@ export class Mine {
   public startActivationCountdown(): void {
     if (this.activationStartTime !== null) return
     this.activationStartTime = performance.now() / 1000
-  }
-
-  private async loadModel(): Promise<void> {
-    try {
-      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
-      const loader = new GLTFLoader()
-      loader.load(
-        MINE_MODEL_PATH,
-        (gltf) => {
-          const model = gltf.scene as THREE.Group
-          const box = new THREE.Box3().setFromObject(model)
-          const size = new THREE.Vector3()
-          box.getSize(size)
-          const maxDim = Math.max(size.x, size.y, size.z, 0.001)
-          const scale = 2.4 / maxDim
-          model.scale.setScalar(scale)
-          model.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-              child.castShadow = true
-              child.receiveShadow = true
-            }
-          })
-          this.mesh.add(model)
-        },
-        undefined,
-        (err) => console.warn('Failed to load mine model', err)
-      )
-    } catch (e) {
-      console.warn('Mine loader error', e)
-    }
   }
 
   public getPosition(): THREE.Vector3 {
@@ -86,6 +74,10 @@ export class Mine {
   public destroy(): void {
     this.scene.remove(this.mesh)
     this.mesh.traverse((child) => {
+      if (isSharedAssetObject(child)) {
+        return
+      }
+
       if (child instanceof THREE.Mesh) {
         child.geometry?.dispose()
         if (Array.isArray(child.material)) {

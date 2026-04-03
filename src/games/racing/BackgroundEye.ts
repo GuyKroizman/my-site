@@ -1,6 +1,6 @@
 import * as THREE from 'three'
+import { getCachedModelClone, isSharedAssetObject, RACING_SHARED_ASSET_PATHS } from './assets'
 
-const EYE_MODEL_PATH = '/racing/eye.glb'
 const PUPIL_LOOK_DEGREES = 20
 const PUPIL_LOOK_RAD = (PUPIL_LOOK_DEGREES * Math.PI) / 180
 const STROLL_LOOK_DEGREES = 40
@@ -84,54 +84,42 @@ export class BackgroundEye {
     this.mesh.rotation.y = 0
     this.mesh.rotation.z = 0
     scene.add(this.mesh)
-    void this.loadModel()
+    const model = getCachedModelClone(RACING_SHARED_ASSET_PATHS.eyeModel)
+    if (!model) {
+      console.warn('Missing preloaded background eye model')
+      return
+    }
+
+    const box = new THREE.Box3().setFromObject(model)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001)
+    const baseScale = DEFAULT_BASE_SCALE / maxDim
+    const scale = baseScale * this.scaleMultiplier
+    model.scale.setScalar(scale)
+    model.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = false
+        child.receiveShadow = true
+      }
+    })
+    this.pupil = findByName(model, 'pupil') ?? model.getObjectByName('pupil') ?? null
+    if (this.pupil) {
+      if (this.hasStroll) {
+        this.pupil.rotation.y = -STROLL_LOOK_RAD
+        this.isHolding = true
+      } else {
+        this.pickNewLook()
+        this.isHolding = false
+      }
+    }
+    this.mesh.add(model)
   }
 
   private pickNewLook(): void {
     this.targetY = THREE.MathUtils.lerp(-PUPIL_LOOK_RAD, PUPIL_LOOK_RAD, Math.random())
     this.holdDuration = THREE.MathUtils.lerp(HOLD_DURATION_MIN, HOLD_DURATION_MAX, Math.random())
     this.moveSpeed = THREE.MathUtils.lerp(MOVE_SPEED_MIN, MOVE_SPEED_MAX, Math.random())
-  }
-
-  private async loadModel(): Promise<void> {
-    try {
-      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
-      const loader = new GLTFLoader()
-      loader.load(
-        EYE_MODEL_PATH,
-        (gltf) => {
-          const model = gltf.scene as THREE.Group
-          const box = new THREE.Box3().setFromObject(model)
-          const size = new THREE.Vector3()
-          box.getSize(size)
-          const maxDim = Math.max(size.x, size.y, size.z, 0.001)
-          const baseScale = DEFAULT_BASE_SCALE / maxDim
-          const scale = baseScale * this.scaleMultiplier
-          model.scale.setScalar(scale)
-          model.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-              child.castShadow = false
-              child.receiveShadow = true
-            }
-          })
-          this.pupil = findByName(model, 'pupil') ?? model.getObjectByName('pupil') ?? null
-          if (this.pupil) {
-            if (this.hasStroll) {
-              this.pupil.rotation.y = -STROLL_LOOK_RAD
-              this.isHolding = true
-            } else {
-              this.pickNewLook()
-              this.isHolding = false
-            }
-          }
-          this.mesh.add(model)
-        },
-        undefined,
-        (err) => console.warn('Failed to load background eye model', err)
-      )
-    } catch (e) {
-      console.warn('BackgroundEye loader error', e)
-    }
   }
 
   public update(deltaTime: number): void {
@@ -195,6 +183,10 @@ export class BackgroundEye {
   public dispose(): void {
     this.mesh.parent?.remove(this.mesh)
     this.mesh.traverse((child) => {
+      if (isSharedAssetObject(child)) {
+        return
+      }
+
       if (child instanceof THREE.Mesh) {
         child.geometry?.dispose()
         if (Array.isArray(child.material)) {

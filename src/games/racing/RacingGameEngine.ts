@@ -17,6 +17,7 @@ import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
 import type { TouchDriveState } from './input'
 import type { PlayerUpgrades, UpgradeId } from './upgrades'
 import { DEFAULT_PLAYER_UPGRADES, getFireButtonWeapons, getWeaponIcon } from './upgrades'
+import { getCachedTexture, preloadRacingLevelAssets, RACING_SHARED_ASSET_PATHS } from './assets'
 
 const BALL_SPAWN_MAX_ATTEMPTS = 8
 const BALL_SPAWN_MARGIN = 0.2
@@ -54,7 +55,6 @@ export class RacingGameEngine {
   private soundGenerator: SoundGenerator = new SoundGenerator()
   private playerArrow: PlayerArrow | null = null
   private playerMineHitTime: number | null = null
-  private backgroundTexture: THREE.Texture | null = null
   private backgroundEyes: BackgroundEye[] = []
   private decorationGrid: DecorationGrid | null = null
   private timerBillboard: TimerBillboard | null = null
@@ -121,14 +121,15 @@ export class RacingGameEngine {
     this.scene.background = new THREE.Color(0x87ceeb)
     this.scene.backgroundRotation.set(0, 0, 0)
     if (levelConfig.id === 1) {
-      const loader = new THREE.TextureLoader()
-      loader.load('/racing/sunset-skybox.png', (texture) => {
+      const texture = getCachedTexture(RACING_SHARED_ASSET_PATHS.skyboxTexture)
+      if (texture) {
         texture.mapping = THREE.EquirectangularReflectionMapping
         texture.colorSpace = THREE.SRGBColorSpace
         this.scene.background = texture
         this.scene.backgroundRotation.set(0, Math.PI, 0)
-        this.backgroundTexture = texture
-      })
+      } else {
+        console.warn('Missing preloaded racing skybox texture')
+      }
     }
 
     // Camera setup - top-down, slightly angled
@@ -300,11 +301,22 @@ export class RacingGameEngine {
     window.addEventListener('keydown', this.spaceKeyDownHandler)
     window.addEventListener('keyup', this.spaceKeyUpHandler)
 
-    // Initialize frame time tracking
+  }
+
+  public static preloadLevelAssets(level: LevelConfig): Promise<void> {
+    return preloadRacingLevelAssets(level)
+  }
+
+  public async initialize(): Promise<void> {
+    if (typeof this.renderer.compileAsync === 'function') {
+      await this.renderer.compileAsync(this.scene, this.camera)
+    } else {
+      this.renderer.compile(this.scene, this.camera)
+    }
+
+    this.renderer.render(this.scene, this.camera)
     this.lastFrameTime = performance.now() / 1000
     this.lastRenderTime = performance.now()
-
-    // Start render loop
     this.animate()
   }
 
@@ -417,7 +429,6 @@ export class RacingGameEngine {
       this.cars.push(car)
       this.scene.add(car.mesh)
       car.addHealthBarToScene(this.scene)
-      car.showBoundingBoxHelper(this.scene)
       this.raceManager.addCar(car, this.track)
       // Don't give AI cars initial speed - they'll wait for green light
     })
@@ -993,10 +1004,6 @@ export class RacingGameEngine {
     this.cars.forEach(car => car.dispose())
     this.cars = []
     this.track.dispose()
-    if (this.backgroundTexture) {
-      this.backgroundTexture.dispose()
-      this.backgroundTexture = null
-    }
     this.backgroundEyes.forEach((eye) => eye.dispose())
     this.backgroundEyes = []
     this.scene.background = null
