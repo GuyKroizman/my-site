@@ -113,12 +113,14 @@ export class RacingGameEngine {
     // Scene setup
     this.scene = new THREE.Scene()
     this.scene.background = new THREE.Color(0x87ceeb)
+    this.scene.backgroundRotation.set(0, 0, 0)
     if (levelConfig.id === 1) {
       const loader = new THREE.TextureLoader()
       loader.load('/racing/sunset-skybox.png', (texture) => {
         texture.mapping = THREE.EquirectangularReflectionMapping
         texture.colorSpace = THREE.SRGBColorSpace
         this.scene.background = texture
+        this.scene.backgroundRotation.set(0, Math.PI, 0)
         this.backgroundTexture = texture
       })
     }
