@@ -11,6 +11,7 @@ import { BackgroundEye } from './BackgroundEye'
 import { DecorationGrid } from './DecorationGrid'
 import { TimerBillboard } from './TimerBillboard'
 import { Ball, DEFAULT_DROP_HEIGHT } from './Ball'
+import { LapDigitDropEffect } from './LapDigitDropEffect'
 import { LevelConfig, CarConfig, BallDropConfig } from './levels'
 import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
 import type { TouchDriveState } from './input'
@@ -22,7 +23,7 @@ const BALL_SPAWN_MARGIN = 0.2
 
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
-  onLapUpdate?: (laps: number) => void
+  onLapComplete?: (laps: number) => void
   onTimerUpdate?: (time: number) => void
   onCarFinished?: (carName: string, screenPos: { x: number; y: number }) => void
   onCameraReady?: (screenPos: { x: number; y: number }) => void
@@ -57,6 +58,7 @@ export class RacingGameEngine {
   private backgroundEyes: BackgroundEye[] = []
   private decorationGrid: DecorationGrid | null = null
   private timerBillboard: TimerBillboard | null = null
+  private lapDigitDropEffect: LapDigitDropEffect
   private balls: Ball[] = []
   private pendingBallDrops: BallDropConfig[] = []
   private bullets: Bullet[] = []
@@ -201,6 +203,7 @@ export class RacingGameEngine {
 
     // Create timer billboard
     this.timerBillboard = new TimerBillboard(this.scene)
+    this.lapDigitDropEffect = new LapDigitDropEffect(this.scene)
 
     // Setup lighting (brighter so car models are more visible)
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.95)
@@ -596,12 +599,6 @@ export class RacingGameEngine {
       this.raceManager.update(deltaTime, this.track, elapsedRaceTime)
     }
 
-    // Update lap counter for player
-    const playerCar = this.cars.find(car => car.isPlayer)
-    if (playerCar && this.callbacks.onLapUpdate) {
-      this.callbacks.onLapUpdate(playerCar.lapsCompleted)
-    }
-
     // Handle shooting / fire button actions based on active weapon
     this.shootCooldown = Math.max(0, this.shootCooldown - deltaTime)
     if (this.fireWeapons.length > 0 && (this.spacePressed || this.touchShoot) && this.shootCooldown <= 0 && canStart && !raceComplete) {
@@ -680,6 +677,7 @@ export class RacingGameEngine {
     this.updateCinematicCamera(deltaTime)
 
     this.backgroundEyes.forEach((eye) => eye.update(deltaTime))
+    this.lapDigitDropEffect.update(deltaTime)
 
     // Apply camera shake
     this.updateCameraShake(deltaTime)
@@ -707,6 +705,7 @@ export class RacingGameEngine {
     this.turboBoostCooldown = 0
     this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
     this.levelMineArmed = false
+    this.lapDigitDropEffect.clear()
 
     // Reset timer
     this.timerActive = false
@@ -776,6 +775,10 @@ export class RacingGameEngine {
 
   public getFireWeaponCount(): number {
     return this.fireWeapons.length
+  }
+
+  public spawnLapDigit(lapNumber: number): void {
+    this.lapDigitDropEffect.spawnDigit(lapNumber)
   }
 
   private triggerCameraShake(duration: number, intensity: number) {
@@ -985,6 +988,7 @@ export class RacingGameEngine {
       this.decorationGrid.destroy()
       this.decorationGrid = null
     }
+    this.lapDigitDropEffect.dispose()
     this.soundGenerator.dispose()
     this.cars.forEach(car => car.dispose())
     this.cars = []

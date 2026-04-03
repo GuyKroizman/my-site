@@ -1,6 +1,5 @@
 export { Header } from './Header'
 export { MuteButton } from './MuteButton'
-export { GameHUD } from './GameHUD'
 export { RaceCompleteDialog } from './RaceCompleteDialog'
 export { GameWonDialog } from './GameWonDialog'
 export { PausedDialog } from './PausedDialog'

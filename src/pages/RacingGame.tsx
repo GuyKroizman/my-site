@@ -9,7 +9,6 @@ import type { UpgradeOption, UpgradeId } from '../games/racing/upgrades'
 import {
   Header,
   MuteButton,
-  GameHUD,
   RaceCompleteDialog,
   GameWonDialog,
   PausedDialog,
@@ -51,9 +50,7 @@ export default function RacingGame() {
   const [raceResult, setRaceResult] = useState<RaceResult | null>(null)
   const [currentLevel, setCurrentLevel] = useState<LevelConfig | null>(null)
   const [totalLevels, setTotalLevels] = useState(0)
-  const [playerLaps, setPlayerLaps] = useState(0)
   const [hideHeader, setHideHeader] = useState(isMobileLandscape())
-  const [requiredLaps, setRequiredLaps] = useState(4)
   const [isPortraitMode, setIsPortraitMode] = useState(isPortrait())
   const [isMuted, setIsMuted] = useState(SoundGenerator.getMuted())
   const [isExitingMenu, setIsExitingMenu] = useState(false)
@@ -73,7 +70,6 @@ export default function RacingGame() {
       },
       onLevelChange: (level: LevelConfig) => {
         setCurrentLevel(level)
-        setRequiredLaps(level.requiredLaps)
       },
       onRaceResult: (result: RaceResult) => {
         setRaceResult(result)
@@ -166,8 +162,8 @@ export default function RacingGame() {
               gameManagerRef.current.handleRaceComplete(results)
             }
           },
-          onLapUpdate: (laps) => {
-            setPlayerLaps(laps)
+          onLapComplete: (laps) => {
+            engine.spawnLapDigit(laps)
           },
           onTimerUpdate: () => {},
           onCarFinished: (_name, screenPos) => {
@@ -262,7 +258,6 @@ export default function RacingGame() {
       gameManagerRef.current.returnToMenu()
     }
     setRaceResult(null)
-    setPlayerLaps(0)
     confettiTriggeredRef.current = false
     setConfettiOrigin(null)
   }
@@ -278,7 +273,6 @@ export default function RacingGame() {
     if (gameManagerRef.current) {
       gameManagerRef.current.returnToMenu()
     }
-    setPlayerLaps(0)
     confettiTriggeredRef.current = false
     setConfettiOrigin(null)
   }
@@ -318,13 +312,6 @@ export default function RacingGame() {
         className={`${uiState !== 'menu' && !isExitingMenu ? 'flex-1' : ''} w-full relative overflow-hidden transition-opacity duration-300 ease-out ${uiState === 'playing' && !gameContainerVisible ? 'opacity-0' : 'opacity-100'}`}
       >
         <MuteButton isMuted={isMuted} onToggle={handleToggleMute} />
-
-        {uiState === 'playing' && currentLevel && (
-          <GameHUD
-            playerLaps={playerLaps}
-            requiredLaps={requiredLaps}
-          />
-        )}
 
         {(uiState === 'raceComplete' || dismissingLoseScreen) && raceResult && currentLevel && (
           <RaceCompleteDialog
