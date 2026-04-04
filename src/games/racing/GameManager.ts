@@ -1,6 +1,8 @@
 import { levels, getTotalLevels, LevelConfig } from './levels'
 import { UpgradeId, UpgradeOption, PlayerUpgrades, DEFAULT_PLAYER_UPGRADES, applyUpgrade, selectThreeOptions } from './upgrades'
 
+const DEFAULT_START_LEVEL_INDEX = 0
+
 export type GameState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'upgradeSelection' | 'gameWon'
 
 export interface RaceResult {
@@ -21,7 +23,7 @@ export interface GameManagerCallbacks {
 }
 
 export class GameManager {
-  private currentLevelIndex: number = 0
+  private currentLevelIndex: number = DEFAULT_START_LEVEL_INDEX
   private state: GameState = 'menu'
   private callbacks: GameManagerCallbacks
   private lastRaceResult: RaceResult | null = null
@@ -57,7 +59,7 @@ export class GameManager {
   }
 
   public startGame(): void {
-    this.currentLevelIndex = 0
+    this.currentLevelIndex = DEFAULT_START_LEVEL_INDEX
     this.playerWonFirstPlace = false
     this.state = 'playing'
     this.lastRaceResult = null
@@ -158,7 +160,7 @@ export class GameManager {
   }
 
   public returnToMenu(): void {
-    this.currentLevelIndex = 0
+    this.currentLevelIndex = DEFAULT_START_LEVEL_INDEX
     this.state = 'menu'
     this.lastRaceResult = null
     this.callbacks.onStateChange(this.state)
