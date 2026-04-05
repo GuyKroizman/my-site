@@ -1,4 +1,4 @@
-export type UpgradeId = 'gun' | 'mines' | 'turbo_boost' | 'tire_upgrade' | 'ram' | 'nothing'
+export type UpgradeId = 'gun' | 'mines' | 'turbo_boost' | 'glue_trap' | 'ram' | 'nothing'
 
 export interface UpgradeOption {
   id: UpgradeId
@@ -12,10 +12,9 @@ export interface PlayerUpgrades {
   hasGun: boolean
   hasMines: boolean
   hasTurboBoost: boolean
-  hasTireUpgrade: boolean
+  hasGlueTrap: boolean
   hasRam: boolean
   speedMultiplier: number
-  turnSpeedMultiplier: number
   selectedIds: Set<UpgradeId>
 }
 
@@ -23,10 +22,9 @@ export const DEFAULT_PLAYER_UPGRADES: PlayerUpgrades = {
   hasGun: false,
   hasMines: false,
   hasTurboBoost: false,
-  hasTireUpgrade: false,
+  hasGlueTrap: false,
   hasRam: false,
   speedMultiplier: 1.0,
-  turnSpeedMultiplier: 1.0,
   selectedIds: new Set(),
 }
 
@@ -53,10 +51,10 @@ export const UPGRADE_POOL: UpgradeOption[] = [
     repeatable: false,
   },
   {
-    id: 'tire_upgrade',
-    name: 'Tire Upgrade',
-    description: 'Better cornering. Turn speed +20%.',
-    icon: '\u{1F6DE}',
+    id: 'glue_trap',
+    name: 'Glue Trap',
+    description: 'Fire drops glue behind your car. First car to touch it slows 20% for 5 seconds.',
+    icon: '\u{1F7E2}',
     repeatable: false,
   },
   {
@@ -88,8 +86,8 @@ export function applyUpgrade(current: PlayerUpgrades, upgradeId: UpgradeId): Pla
       return { ...current, hasMines: true, selectedIds: newSelectedIds }
     case 'turbo_boost':
       return { ...current, hasTurboBoost: true, selectedIds: newSelectedIds }
-    case 'tire_upgrade':
-      return { ...current, hasTireUpgrade: true, turnSpeedMultiplier: current.turnSpeedMultiplier * 1.2, selectedIds: newSelectedIds }
+    case 'glue_trap':
+      return { ...current, hasGlueTrap: true, selectedIds: newSelectedIds }
     case 'ram':
       return { ...current, hasRam: true, selectedIds: newSelectedIds }
     case 'nothing':
@@ -101,13 +99,14 @@ export function getAvailableOptions(current: PlayerUpgrades): UpgradeOption[] {
   return UPGRADE_POOL.filter(opt => opt.repeatable || !current.selectedIds.has(opt.id))
 }
 
-const FIRE_BUTTON_WEAPONS: UpgradeId[] = ['gun', 'mines', 'turbo_boost']
+const FIRE_BUTTON_WEAPONS: UpgradeId[] = ['gun', 'mines', 'turbo_boost', 'glue_trap']
 
 export function getFireButtonWeapons(upgrades: PlayerUpgrades): UpgradeId[] {
   const weapons: UpgradeId[] = []
   if (upgrades.hasGun) weapons.push('gun')
   if (upgrades.hasMines) weapons.push('mines')
   if (upgrades.hasTurboBoost) weapons.push('turbo_boost')
+  if (upgrades.hasGlueTrap) weapons.push('glue_trap')
   return weapons
 }
 

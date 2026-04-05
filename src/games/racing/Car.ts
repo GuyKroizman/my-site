@@ -100,6 +100,10 @@ export class Car {
   private fireLight: THREE.PointLight | null = null
   private fireTime: number = 0
   private isDamaged: boolean = false
+  private damageSpeedMultiplier: number = 1
+  private turboBoostMultiplier: number = 1
+  private glueSlowMultiplier: number = 1
+  private glueSlowTimer: number = 0
 
   // Health bar
   private healthBarSprite: THREE.Sprite | null = null
@@ -422,7 +426,42 @@ export class Car {
     this.speed *= 0.5
   }
 
+  public applyPermanentSpeedMultiplier(multiplier: number) {
+    this.maxSpeed *= multiplier
+  }
+
+  public applyPermanentTurnMultiplier(multiplier: number) {
+    this.turnSpeed *= multiplier
+  }
+
+  public setTurboBoostMultiplier(multiplier: number) {
+    this.turboBoostMultiplier = multiplier
+  }
+
+  public applyGlueSlow(duration: number, multiplier: number) {
+    this.glueSlowTimer = duration
+    this.glueSlowMultiplier = multiplier
+    this.speed *= multiplier
+  }
+
+  public clearTemporarySpeedEffects() {
+    this.turboBoostMultiplier = 1
+    this.glueSlowMultiplier = 1
+    this.glueSlowTimer = 0
+  }
+
+  private getEffectiveMaxSpeed(): number {
+    return this.maxSpeed * this.damageSpeedMultiplier * this.turboBoostMultiplier * this.glueSlowMultiplier
+  }
+
   public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false, canStart: boolean = false) {
+    if (this.glueSlowTimer > 0) {
+      this.glueSlowTimer = Math.max(0, this.glueSlowTimer - deltaTime)
+      if (this.glueSlowTimer === 0) {
+        this.glueSlowMultiplier = 1
+      }
+    }
+
     // If launched by mine, apply velocity, gravity, and tumble
     if (this.launched && this.launchVelocity) {
       this.position.add(this.launchVelocity.clone().multiplyScalar(deltaTime))
@@ -617,10 +656,11 @@ export class Car {
     const isTouch = keyboardSteering === 0 && touchSteering !== 0
     const currentSpeed = Math.abs(this.speed)
     const isReversing = this.speed < 0
+    const effectiveMaxSpeed = this.getEffectiveMaxSpeed()
     if (currentSpeed > Car.MIN_STEER_SPEED && steeringInput !== 0) {
       const turnMultiplier = isTouch ? 1.35 : 0.7
       // Use a minimum speed ratio so turning works at low speeds
-      const speedRatio = Math.max(0.5, currentSpeed / this.maxSpeed)
+      const speedRatio = Math.max(0.5, currentSpeed / effectiveMaxSpeed)
       const turnAmount =
         this.turnSpeed * speedRatio * turnMultiplier * Math.abs(steeringInput)
 
@@ -648,18 +688,20 @@ export class Car {
   }
 
   private applyThrottle(deltaTime: number, keyboardThrottle: number, touchThrottle: number) {
+    const effectiveMaxSpeed = this.getEffectiveMaxSpeed()
+
     if (keyboardThrottle > 0) {
-      this.speed = Math.min(this.speed + this.acceleration * deltaTime, this.maxSpeed)
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime, effectiveMaxSpeed)
       return
     }
 
     if (keyboardThrottle < 0) {
-      this.speed = Math.max(this.speed - this.acceleration * deltaTime, -this.maxSpeed)
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime, -effectiveMaxSpeed)
       return
     }
 
     if (touchThrottle > 0) {
-      this.speed = Math.min(this.speed + this.acceleration * deltaTime * touchThrottle, this.maxSpeed)
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime * touchThrottle, effectiveMaxSpeed)
       return
     }
 
@@ -676,7 +718,7 @@ export class Car {
           (downwardIntent - Car.TOUCH_REVERSE_TRIGGER) / (1 - Car.TOUCH_REVERSE_TRIGGER)
         this.speed = Math.max(
           this.speed - this.acceleration * deltaTime * reverseStrength,
-          -this.maxSpeed
+          -effectiveMaxSpeed
         )
         return
       }
@@ -727,8 +769,9 @@ export class Car {
     }
 
     // If we still don't have a path, just accelerate forward
+    const effectiveMaxSpeed = this.getEffectiveMaxSpeed()
     if (this.astarPath.length === 0) {
-      this.speed = Math.min(this.speed + this.acceleration * deltaTime * 0.5, this.maxSpeed * 0.5)
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime * 0.5, effectiveMaxSpeed * 0.5)
       return
     }
 
@@ -811,9 +854,10 @@ export class Car {
     direction.y = 0
 
     const distanceToTarget = direction.length()
+    const effectiveMaxSpeed = this.getEffectiveMaxSpeed()
     if (distanceToTarget < 0.5) {
       // Very close to target, just maintain speed
-      this.speed = Math.min(this.speed + this.acceleration * deltaTime * 0.5, this.maxSpeed * 0.8)
+      this.speed = Math.min(this.speed + this.acceleration * deltaTime * 0.5, effectiveMaxSpeed * 0.8)
       return
     }
 
@@ -841,14 +885,14 @@ export class Car {
     // Speed control based on turn angle
     const absAngleDiff = Math.abs(angleDiff)
     const targetSpeedMultiplier = this.aiAggressiveness
-    const maxTargetSpeed = this.maxSpeed * targetSpeedMultiplier
+    const maxTargetSpeed = effectiveMaxSpeed * targetSpeedMultiplier
 
     if (absAngleDiff > Math.PI / 4) {
       // Sharp turn (>45°) - slow down
-      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 1.5, this.maxSpeed * 0.4 * targetSpeedMultiplier)
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 1.5, effectiveMaxSpeed * 0.4 * targetSpeedMultiplier)
     } else if (absAngleDiff > Math.PI / 8) {
       // Moderate turn (>22.5°) - slow down slightly
-      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 0.3, this.maxSpeed * 0.7 * targetSpeedMultiplier)
+      this.speed = Math.max(this.speed - this.acceleration * deltaTime * 0.3, effectiveMaxSpeed * 0.7 * targetSpeedMultiplier)
     } else {
       // Straight or gentle turn - accelerate towards max speed
       this.speed = Math.min(this.speed + this.acceleration * deltaTime, maxTargetSpeed)
@@ -959,7 +1003,7 @@ export class Car {
 
   private applyDamagedState(): void {
     this.isDamaged = true
-    this.maxSpeed *= 0.3
+    this.damageSpeedMultiplier = 0.3
 
     this.addFireEffect(3, 0.5, 0.4, 1.0, 4)
   }
@@ -1050,9 +1094,11 @@ export class Car {
     this.pushVelocityX = 0
     this.pushVelocityZ = 0
     this.speed = 0
+    this.clearTemporarySpeedEffects()
     this.health = 100
     this.isDestroyed = false
     this.isDamaged = false
+    this.damageSpeedMultiplier = 1
     this.clearFireEffect()
   }
 
@@ -1070,9 +1116,11 @@ export class Car {
     this.launchAngularVelocity = null
     this.pushVelocityX = 0
     this.pushVelocityZ = 0
+    this.clearTemporarySpeedEffects()
     this.health = 100
     this.isDestroyed = false
     this.isDamaged = false
+    this.damageSpeedMultiplier = 1
     this.clearFireEffect()
     this.mesh.position.copy(this.position)
     this.mesh.rotation.set(0, this.rotation, 0)

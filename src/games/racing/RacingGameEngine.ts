@@ -12,6 +12,7 @@ import { AmbientBunny } from './AmbientBunny'
 import { AmbientWolf } from './AmbientWolf'
 import { DecorationGrid } from './DecorationGrid'
 import { TimerBillboard } from './TimerBillboard'
+import { GluePuddle } from './GluePuddle'
 import { Ball, DEFAULT_DROP_HEIGHT } from './Ball'
 import { LapDigitDropEffect } from './LapDigitDropEffect'
 import { LevelConfig, CarConfig, BallDropConfig } from './levels'
@@ -23,6 +24,9 @@ import { getCachedTexture, preloadRacingLevelAssets, RACING_SHARED_ASSET_PATHS }
 
 const BALL_SPAWN_MAX_ATTEMPTS = 8
 const BALL_SPAWN_MARGIN = 0.2
+const PLAYER_DEFAULT_TURN_MULTIPLIER = 1.2
+const GLUE_SLOW_DURATION = 5
+const GLUE_SLOW_MULTIPLIER = 0.8
 
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
@@ -86,6 +90,7 @@ export class RacingGameEngine {
   // Player upgrades & weapon switching
   private playerUpgrades: PlayerUpgrades
   private playerMines: Mine[] = []
+  private playerGluePuddles: GluePuddle[] = []
   private fireWeapons: UpgradeId[] = []
   private activeWeaponIndex: number = 0
   private lastFireWeaponUiStateSignature: string | null = null
@@ -97,7 +102,6 @@ export class RacingGameEngine {
   private readonly TURBO_BOOST_DURATION: number = 1.0
   private readonly TURBO_BOOST_COOLDOWN: number = 3.0
   private readonly TURBO_BOOST_MULTIPLIER: number = 1.5
-  private playerBaseMaxSpeed: number = 0
 
   // Camera shake
   private shakeTimer: number = 0
@@ -244,10 +248,9 @@ export class RacingGameEngine {
     // Apply player upgrades to player car
     const playerCar = this.cars.find(car => car.isPlayer)
     if (playerCar) {
-      playerCar.maxSpeed *= this.playerUpgrades.speedMultiplier
-      playerCar.turnSpeed *= this.playerUpgrades.turnSpeedMultiplier
+      playerCar.applyPermanentSpeedMultiplier(this.playerUpgrades.speedMultiplier)
+      playerCar.applyPermanentTurnMultiplier(PLAYER_DEFAULT_TURN_MULTIPLIER)
       playerCar.hasRam = this.playerUpgrades.hasRam
-      this.playerBaseMaxSpeed = playerCar.maxSpeed
     }
 
     // Build fire-button weapon list for weapon switching
@@ -647,6 +650,7 @@ export class RacingGameEngine {
         case 'gun': this.shootBullet(); break
         case 'mines': this.dropPlayerMine(); break
         case 'turbo_boost': this.activateTurboBoost(); break
+        case 'glue_trap': this.dropPlayerGluePuddle(); break
       }
     }
 
@@ -658,7 +662,7 @@ export class RacingGameEngine {
       if (this.turboBoostTimer <= 0) {
         this.turboBoostActive = false
         const pc = this.cars.find(car => car.isPlayer)
-        if (pc) pc.maxSpeed = this.playerBaseMaxSpeed
+        if (pc) pc.setTurboBoostMultiplier(1)
         this.turboBoostCooldown = this.TURBO_BOOST_COOLDOWN
       }
     }
@@ -690,6 +694,23 @@ export class RacingGameEngine {
       if (mineHit) {
         mine.destroy()
         this.playerMines.splice(i, 1)
+      }
+    }
+
+    for (let i = this.playerGluePuddles.length - 1; i >= 0; i--) {
+      const puddle = this.playerGluePuddles[i]
+      let puddleHit = false
+      for (const car of this.cars) {
+        if (car.launched || car.finished) continue
+        if (puddle.collidesWith(car.position)) {
+          car.applyGlueSlow(GLUE_SLOW_DURATION, GLUE_SLOW_MULTIPLIER)
+          puddleHit = true
+          break
+        }
+      }
+      if (puddleHit) {
+        puddle.destroy()
+        this.playerGluePuddles.splice(i, 1)
       }
     }
 
@@ -749,6 +770,8 @@ export class RacingGameEngine {
     this.balls = []
     this.playerMines.forEach(m => m.destroy())
     this.playerMines = []
+    this.playerGluePuddles.forEach(p => p.destroy())
+    this.playerGluePuddles = []
     this.turboBoostActive = false
     this.turboBoostTimer = 0
     this.turboBoostCooldown = 0
@@ -952,6 +975,22 @@ export class RacingGameEngine {
     this.shootCooldown = 1.5
   }
 
+  private dropPlayerGluePuddle() {
+    const playerCar = this.cars.find(car => car.isPlayer)
+    if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
+
+    const backward = new THREE.Vector3(
+      -Math.sin(playerCar.rotation),
+      0,
+      -Math.cos(playerCar.rotation)
+    )
+    const spawnPos = playerCar.position.clone().addScaledVector(backward, 2.6)
+    const puddle = new GluePuddle(this.scene, spawnPos.x, spawnPos.z)
+    this.playerGluePuddles.push(puddle)
+    this.soundGenerator.playMineDrop()
+    this.shootCooldown = 1.5
+  }
+
   private activateTurboBoost() {
     if (this.turboBoostActive || this.turboBoostCooldown > 0) return
     const playerCar = this.cars.find(car => car.isPlayer)
@@ -959,7 +998,7 @@ export class RacingGameEngine {
 
     this.turboBoostActive = true
     this.turboBoostTimer = this.TURBO_BOOST_DURATION
-    playerCar.maxSpeed = this.playerBaseMaxSpeed * this.TURBO_BOOST_MULTIPLIER
+    playerCar.setTurboBoostMultiplier(this.TURBO_BOOST_MULTIPLIER)
     this.soundGenerator.playTurboBoost()
     this.shootCooldown = this.TURBO_BOOST_DURATION + this.TURBO_BOOST_COOLDOWN
     this.emitFireWeaponUiState(true)
@@ -1095,6 +1134,8 @@ export class RacingGameEngine {
     }
     this.playerMines.forEach(m => m.destroy())
     this.playerMines = []
+    this.playerGluePuddles.forEach(p => p.destroy())
+    this.playerGluePuddles = []
     if (this.playerArrow) {
       this.playerArrow.dispose()
       this.playerArrow = null
