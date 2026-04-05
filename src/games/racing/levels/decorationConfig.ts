@@ -31,6 +31,9 @@ export interface DecorationModelConfig {
 
 /** Character key → model config. Used by all levels; decoration grid rows reference these keys. */
 export const DECORATION_MODELS: Record<string, DecorationModelConfig> = {
+  '1': { path: '/racing/models/tree1.glb', scale: 10 },
+  '2': { path: '/racing/models/tree2.glb', scale: 10 },
+  '3': { path: '/racing/models/tree3.glb', scale: 10 },
   p: { path: '/racing/models/Plant.glb', scale: 4 },
   m: { path: '/racing/models/Mushroom.glb', scale: 8, rotation: 0 },
   d: { path: '/racing/models/mushroom_dude.glb', scale: 14, rotation: { z: Math.PI / 2 }, position: { y: 0.5 } },
