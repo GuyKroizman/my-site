@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { NEUTRAL_TOUCH_DRIVE_STATE, type TouchDriveState } from './input'
+import type { UpgradeId } from './upgrades'
 
 const JOYSTICK_BASE_WIDTH = 150
 const JOYSTICK_BASE_HEIGHT = 120
@@ -13,6 +14,9 @@ interface VirtualDriveStickProps {
   onShoot?: (shooting: boolean) => void
   showFireButton?: boolean
   fireButtonIcon?: string
+  activeWeaponId?: UpgradeId | null
+  turboState?: 'hidden' | 'ready' | 'active' | 'cooldown'
+  turboCooldownProgress?: number
   onRotateWeapon?: () => void
   showRotateButton?: boolean
   rotateButtonIcon?: string
@@ -69,13 +73,47 @@ export function VirtualDriveStick({
   onShoot,
   showFireButton = true,
   fireButtonIcon = '',
+  activeWeaponId = null,
+  turboState = 'hidden',
+  turboCooldownProgress = 1,
   onRotateWeapon,
   showRotateButton = false,
   rotateButtonIcon = '',
 }: VirtualDriveStickProps) {
   const [knobOffset, setKnobOffset] = useState({ x: 0, y: 0 })
+  const [showTurboReadyPulse, setShowTurboReadyPulse] = useState(false)
   const activePointerId = useRef<number | null>(null)
   const baseRef = useRef<HTMLDivElement>(null)
+  const previousTurboStateRef = useRef(turboState)
+
+  useEffect(() => {
+    const wasReady = previousTurboStateRef.current === 'ready'
+    const isReady = turboState === 'ready'
+    previousTurboStateRef.current = turboState
+
+    if (activeWeaponId !== 'turbo_boost' || !isReady || wasReady) {
+      return
+    }
+
+    setShowTurboReadyPulse(true)
+    const timeoutId = window.setTimeout(() => {
+      setShowTurboReadyPulse(false)
+    }, 420)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [activeWeaponId, turboState])
+
+  const isTurboSelected = activeWeaponId === 'turbo_boost'
+  const turboProgress = Math.max(0, Math.min(1, turboCooldownProgress))
+  const turboProgressDegrees = turboProgress * 360
+  const fireButtonOpacity = isTurboSelected && turboState !== 'ready' ? 0.7 : 1
+  const turboRingBackground = turboState === 'cooldown'
+    ? `conic-gradient(from -90deg, rgba(250, 204, 21, 0.95) 0deg ${turboProgressDegrees}deg, rgba(255, 255, 255, 0.16) ${turboProgressDegrees}deg 360deg)`
+    : turboState === 'active'
+      ? 'conic-gradient(from -90deg, rgba(253, 224, 71, 0.85) 0deg 360deg)'
+      : 'conic-gradient(from -90deg, rgba(250, 204, 21, 0.92) 0deg 360deg)'
 
   const emitState = useCallback(
     (offset: { x: number; y: number }) => {
@@ -202,17 +240,11 @@ export function VirtualDriveStick({
             </div>
           )}
           <div
-            className="fixed bottom-8 right-8 z-50 select-none pointer-events-auto flex items-center justify-center"
+            className="fixed bottom-8 right-8 z-50 select-none pointer-events-auto"
             style={{
               width: 80,
               height: 80,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, #ff6600, #cc2200)',
-              border: '3px solid rgba(255, 200, 0, 0.7)',
               touchAction: 'none',
-              color: 'white',
-              fontWeight: 'bold',
-              fontSize: 28,
             }}
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId)
@@ -221,7 +253,40 @@ export function VirtualDriveStick({
             onPointerUp={() => onShoot?.(false)}
             onPointerCancel={() => onShoot?.(false)}
           >
-            {fireButtonIcon}
+            {isTurboSelected && (
+              <div
+                className="pointer-events-none absolute inset-0 rounded-full transition-transform duration-300 ease-out"
+                style={{
+                  background: turboRingBackground,
+                  opacity: turboState === 'active' ? 0.95 : 1,
+                  transform: showTurboReadyPulse ? 'scale(1.14)' : 'scale(1)',
+                  boxShadow: showTurboReadyPulse ? '0 0 28px rgba(250, 204, 21, 0.85)' : '0 0 14px rgba(250, 204, 21, 0.35)',
+                }}
+              />
+            )}
+            <div
+              className="pointer-events-none absolute inset-[6px] rounded-full bg-gray-950/60"
+            />
+            <div
+              className="absolute inset-0 flex items-center justify-center rounded-full transition-all duration-200"
+              style={{
+                background: turboState === 'active'
+                  ? 'radial-gradient(circle, #fde047, #ea580c)'
+                  : 'radial-gradient(circle, #ff6600, #cc2200)',
+                border: isTurboSelected
+                  ? '3px solid rgba(250, 204, 21, 0.9)'
+                  : '3px solid rgba(255, 200, 0, 0.7)',
+                color: 'white',
+                fontWeight: 'bold',
+                fontSize: 28,
+                opacity: fireButtonOpacity,
+                boxShadow: turboState === 'active'
+                  ? '0 0 24px rgba(251, 191, 36, 0.75)'
+                  : undefined,
+              }}
+            >
+              {fireButtonIcon}
+            </div>
           </div>
         </>
       )}

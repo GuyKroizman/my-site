@@ -943,7 +943,7 @@ export class Car {
   }
 
   public takeDamage(): void {
-    this.takeDamageAmount(2)
+    this.takeDamageAmount(3)
   }
 
   public takeDamageAmount(amount: number): void {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { RacingGameEngine } from '../games/racing/RacingGameEngine'
+import { FireWeaponUiState, RacingGameEngine } from '../games/racing/RacingGameEngine'
 import { GameManager, RaceResult, GameState as ManagerGameState } from '../games/racing/GameManager'
 import { LevelConfig } from '../games/racing/levels'
 import { SoundGenerator } from '../games/racing/SoundGenerator'
@@ -40,6 +40,15 @@ const isLandscape = () => {
 
 type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'upgradeSelection' | 'gameWon'
 
+const EMPTY_FIRE_WEAPON_UI_STATE: FireWeaponUiState = {
+  activeWeaponId: null,
+  activeWeaponIcon: '',
+  nextWeaponIcon: '',
+  fireWeaponCount: 0,
+  turboState: 'hidden',
+  turboCooldownProgress: 1,
+}
+
 export default function RacingGame() {
   const containerRef = useRef<HTMLDivElement>(null)
   const gameEngineRef = useRef<RacingGameEngine | null>(null)
@@ -59,9 +68,7 @@ export default function RacingGame() {
   const [confettiBurstId, setConfettiBurstId] = useState(0)
   const [confettiOrigin, setConfettiOrigin] = useState<{ x: number; y: number } | null>(null)
   const [upgradeOptions, setUpgradeOptions] = useState<UpgradeOption[]>([])
-  const [activeWeaponIcon, setActiveWeaponIcon] = useState('')
-  const [nextWeaponIcon, setNextWeaponIcon] = useState('')
-  const [fireWeaponCount, setFireWeaponCount] = useState(0)
+  const [fireWeaponUiState, setFireWeaponUiState] = useState<FireWeaponUiState>(EMPTY_FIRE_WEAPON_UI_STATE)
   const [isRaceLoading, setIsRaceLoading] = useState(false)
 
   // Initialize GameManager
@@ -183,9 +190,8 @@ export default function RacingGame() {
             setConfettiOrigin(screenPos)
             setConfettiBurstId((prev) => prev + 1)
           },
-          onWeaponRotated: (activeIcon, nextIcon) => {
-            setActiveWeaponIcon(activeIcon)
-            setNextWeaponIcon(nextIcon)
+          onWeaponUiStateChange: (state) => {
+            setFireWeaponUiState(state)
           }
         },
         level,
@@ -201,9 +207,7 @@ export default function RacingGame() {
       engine.startRace()
 
       // Set initial weapon UI state
-      setActiveWeaponIcon(engine.getActiveWeaponIcon())
-      setNextWeaponIcon(engine.getNextWeaponIcon())
-      setFireWeaponCount(engine.getFireWeaponCount())
+      setFireWeaponUiState(engine.getFireWeaponUiState())
       setGameContainerVisible(true)
     } catch (error) {
       console.error('Error creating game engine:', error)
@@ -283,6 +287,7 @@ export default function RacingGame() {
       gameManagerRef.current.returnToMenu()
     }
     setRaceResult(null)
+    setFireWeaponUiState(EMPTY_FIRE_WEAPON_UI_STATE)
     confettiTriggeredRef.current = false
     setConfettiOrigin(null)
   }
@@ -300,6 +305,7 @@ export default function RacingGame() {
     if (gameManagerRef.current) {
       gameManagerRef.current.returnToMenu()
     }
+    setFireWeaponUiState(EMPTY_FIRE_WEAPON_UI_STATE)
     confettiTriggeredRef.current = false
     setConfettiOrigin(null)
   }
@@ -327,7 +333,7 @@ export default function RacingGame() {
   }
 
   // Determine fire button visibility based on player upgrades
-  const showFireButton = fireWeaponCount > 0
+  const showFireButton = fireWeaponUiState.fireWeaponCount > 0
 
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
@@ -375,10 +381,13 @@ export default function RacingGame() {
             onStateChange={handleTouchDriveChange}
             onShoot={handleTouchShoot}
             showFireButton={showFireButton}
-            fireButtonIcon={activeWeaponIcon}
+            fireButtonIcon={fireWeaponUiState.activeWeaponIcon}
+            activeWeaponId={fireWeaponUiState.activeWeaponId}
+            turboState={fireWeaponUiState.turboState}
+            turboCooldownProgress={fireWeaponUiState.turboCooldownProgress}
             onRotateWeapon={handleRotateWeapon}
-            showRotateButton={fireWeaponCount > 1}
-            rotateButtonIcon={nextWeaponIcon}
+            showRotateButton={fireWeaponUiState.fireWeaponCount > 1}
+            rotateButtonIcon={fireWeaponUiState.nextWeaponIcon}
           />
         )}
 

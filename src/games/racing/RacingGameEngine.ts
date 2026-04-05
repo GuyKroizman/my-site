@@ -30,7 +30,16 @@ export interface RacingGameCallbacks {
   onTimerUpdate?: (time: number) => void
   onCarFinished?: (carName: string, screenPos: { x: number; y: number }) => void
   onCameraReady?: (screenPos: { x: number; y: number }) => void
-  onWeaponRotated?: (activeIcon: string, nextIcon: string) => void
+  onWeaponUiStateChange?: (state: FireWeaponUiState) => void
+}
+
+export interface FireWeaponUiState {
+  activeWeaponId: UpgradeId | null
+  activeWeaponIcon: string
+  nextWeaponIcon: string
+  fireWeaponCount: number
+  turboState: 'hidden' | 'ready' | 'active' | 'cooldown'
+  turboCooldownProgress: number
 }
 
 export class RacingGameEngine {
@@ -79,6 +88,7 @@ export class RacingGameEngine {
   private playerMines: Mine[] = []
   private fireWeapons: UpgradeId[] = []
   private activeWeaponIndex: number = 0
+  private lastFireWeaponUiStateSignature: string | null = null
 
   // Turbo boost state
   private turboBoostActive: boolean = false
@@ -243,6 +253,7 @@ export class RacingGameEngine {
     // Build fire-button weapon list for weapon switching
     this.fireWeapons = getFireButtonWeapons(this.playerUpgrades)
     this.activeWeaponIndex = 0
+    this.emitFireWeaponUiState(true)
 
     // Initialize cinematic camera intro
     this.initCinematicCamera()
@@ -640,8 +651,10 @@ export class RacingGameEngine {
     }
 
     // Update turbo boost
+    let turboStateChanged = false
     if (this.turboBoostActive) {
       this.turboBoostTimer -= deltaTime
+      turboStateChanged = true
       if (this.turboBoostTimer <= 0) {
         this.turboBoostActive = false
         const pc = this.cars.find(car => car.isPlayer)
@@ -651,6 +664,10 @@ export class RacingGameEngine {
     }
     if (this.turboBoostCooldown > 0) {
       this.turboBoostCooldown = Math.max(0, this.turboBoostCooldown - deltaTime)
+      turboStateChanged = true
+    }
+    if (turboStateChanged) {
+      this.emitFireWeaponUiState()
     }
 
     // Check player-dropped mine collisions
@@ -735,6 +752,7 @@ export class RacingGameEngine {
     this.turboBoostActive = false
     this.turboBoostTimer = 0
     this.turboBoostCooldown = 0
+    this.lastFireWeaponUiStateSignature = null
     this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
     this.levelMineArmed = false
     this.lapDigitDropEffect.clear()
@@ -763,6 +781,7 @@ export class RacingGameEngine {
     // Race manager will start when lights complete
     this.raceManager.startRace(this.track)
     this.cars.forEach(car => car.startRace())
+    this.emitFireWeaponUiState(true)
   }
 
   public reset() {
@@ -790,9 +809,7 @@ export class RacingGameEngine {
     if (this.fireWeapons.length <= 1) return
     this.activeWeaponIndex = (this.activeWeaponIndex + 1) % this.fireWeapons.length
     this.soundGenerator.playWeaponSwitch()
-    const activeIcon = getWeaponIcon(this.fireWeapons[this.activeWeaponIndex])
-    const nextIcon = getWeaponIcon(this.fireWeapons[(this.activeWeaponIndex + 1) % this.fireWeapons.length])
-    this.callbacks.onWeaponRotated?.(activeIcon, nextIcon)
+    this.emitFireWeaponUiState(true)
   }
 
   public getActiveWeaponIcon(): string {
@@ -807,6 +824,10 @@ export class RacingGameEngine {
 
   public getFireWeaponCount(): number {
     return this.fireWeapons.length
+  }
+
+  public getFireWeaponUiState(): FireWeaponUiState {
+    return this.buildFireWeaponUiState()
   }
 
   public spawnLapDigit(lapNumber: number): void {
@@ -941,6 +962,72 @@ export class RacingGameEngine {
     playerCar.maxSpeed = this.playerBaseMaxSpeed * this.TURBO_BOOST_MULTIPLIER
     this.soundGenerator.playTurboBoost()
     this.shootCooldown = this.TURBO_BOOST_DURATION + this.TURBO_BOOST_COOLDOWN
+    this.emitFireWeaponUiState(true)
+  }
+
+  private buildFireWeaponUiState(): FireWeaponUiState {
+    const activeWeaponId = this.fireWeapons.length > 0 ? this.fireWeapons[this.activeWeaponIndex] : null
+    const nextWeaponIcon = this.fireWeapons.length > 1
+      ? getWeaponIcon(this.fireWeapons[(this.activeWeaponIndex + 1) % this.fireWeapons.length])
+      : ''
+
+    if (activeWeaponId !== 'turbo_boost') {
+      return {
+        activeWeaponId,
+        activeWeaponIcon: activeWeaponId ? getWeaponIcon(activeWeaponId) : '',
+        nextWeaponIcon,
+        fireWeaponCount: this.fireWeapons.length,
+        turboState: 'hidden',
+        turboCooldownProgress: 1,
+      }
+    }
+
+    if (this.turboBoostActive) {
+      return {
+        activeWeaponId,
+        activeWeaponIcon: getWeaponIcon(activeWeaponId),
+        nextWeaponIcon,
+        fireWeaponCount: this.fireWeapons.length,
+        turboState: 'active',
+        turboCooldownProgress: 0,
+      }
+    }
+
+    if (this.turboBoostCooldown > 0) {
+      const turboCooldownProgress = 1 - (this.turboBoostCooldown / this.TURBO_BOOST_COOLDOWN)
+      return {
+        activeWeaponId,
+        activeWeaponIcon: getWeaponIcon(activeWeaponId),
+        nextWeaponIcon,
+        fireWeaponCount: this.fireWeapons.length,
+        turboState: 'cooldown',
+        turboCooldownProgress: Math.max(0, Math.min(1, turboCooldownProgress)),
+      }
+    }
+
+    return {
+      activeWeaponId,
+      activeWeaponIcon: getWeaponIcon(activeWeaponId),
+      nextWeaponIcon,
+      fireWeaponCount: this.fireWeapons.length,
+      turboState: 'ready',
+      turboCooldownProgress: 1,
+    }
+  }
+
+  private emitFireWeaponUiState(force = false): void {
+    const state = this.buildFireWeaponUiState()
+    const signature = JSON.stringify({
+      ...state,
+      turboCooldownProgress: Number(state.turboCooldownProgress.toFixed(2)),
+    })
+
+    if (!force && signature === this.lastFireWeaponUiStateSignature) {
+      return
+    }
+
+    this.lastFireWeaponUiStateSignature = signature
+    this.callbacks.onWeaponUiStateChange?.(state)
   }
 
   public pause() {
