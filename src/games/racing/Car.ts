@@ -85,6 +85,8 @@ export class Car {
   private localHalfSize: THREE.Vector3 = new THREE.Vector3()
   private boxHelper: THREE.LineSegments | null = null
   private keys: { [key: string]: boolean } = {}
+  private keyDownHandler: ((e: KeyboardEvent) => void) | null = null
+  private keyUpHandler: ((e: KeyboardEvent) => void) | null = null
   // Shockwave push velocity (decays over time for visible slide effect)
   private pushVelocityX: number = 0
   private pushVelocityZ: number = 0
@@ -302,13 +304,16 @@ export class Car {
   }
 
   private setupControls() {
-    window.addEventListener('keydown', (e) => {
+    this.keyDownHandler = (e: KeyboardEvent) => {
       this.keys[e.key] = true
-    })
+    }
 
-    window.addEventListener('keyup', (e) => {
+    this.keyUpHandler = (e: KeyboardEvent) => {
       this.keys[e.key] = false
-    })
+    }
+
+    window.addEventListener('keydown', this.keyDownHandler)
+    window.addEventListener('keyup', this.keyUpHandler)
   }
 
   private applyCachedModel(modelPath: string): void {
@@ -1192,6 +1197,15 @@ export class Car {
   }
 
   public dispose() {
+    if (this.keyDownHandler) {
+      window.removeEventListener('keydown', this.keyDownHandler)
+      this.keyDownHandler = null
+    }
+    if (this.keyUpHandler) {
+      window.removeEventListener('keyup', this.keyUpHandler)
+      this.keyUpHandler = null
+    }
+
     this.clearFireEffect()
     if (this.healthBarSprite) {
       this.healthBarSprite.parent?.remove(this.healthBarSprite)

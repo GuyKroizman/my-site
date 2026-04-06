@@ -4,6 +4,7 @@ import { GameManager, RaceResult, GameState as ManagerGameState } from '../games
 import { LevelConfig } from '../games/racing/levels'
 import { SoundGenerator } from '../games/racing/SoundGenerator'
 import { VirtualDriveStick } from '../games/racing/VirtualDriveStick'
+import { isMobileLandscape, isPortrait, isTouchDevice, isLandscape } from '../games/racing/device'
 import type { TouchDriveState } from '../games/racing/input'
 import type { UpgradeOption, UpgradeId } from '../games/racing/upgrades'
 import {
@@ -16,27 +17,6 @@ import {
   FinishLineConfetti,
   UpgradeSelectionScreen
 } from '../games/racing/components'
-
-// Check if device supports touch
-const isTouchDevice = () => {
-  return 'ontouchstart' in window || navigator.maxTouchPoints > 0
-}
-
-// Check if mobile device in landscape mode
-const isMobileLandscape = () => {
-  return isTouchDevice() && window.innerWidth > window.innerHeight
-}
-
-// Check if device is in portrait mode
-const isPortrait = () => {
-  return window.innerHeight > window.innerWidth
-}
-
-// Check if device is in landscape mode
-const isLandscape = () => {
-  return window.innerWidth > window.innerHeight
-}
-
 
 type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'upgradeSelection' | 'gameWon'
 
@@ -140,6 +120,28 @@ export default function RacingGame() {
         gameEngineRef.current = null
       }
     }
+  }, [])
+
+  const disposeGameEngine = useCallback(() => {
+    raceLoadRequestRef.current += 1
+    setIsRaceLoading(false)
+
+    if (!gameEngineRef.current) {
+      return
+    }
+
+    gameEngineRef.current.dispose()
+    gameEngineRef.current = null
+  }, [])
+
+  const resetRaceUi = useCallback((options?: { clearRaceResult?: boolean }) => {
+    if (options?.clearRaceResult) {
+      setRaceResult(null)
+    }
+
+    setFireWeaponUiState(EMPTY_FIRE_WEAPON_UI_STATE)
+    confettiTriggeredRef.current = false
+    setConfettiOrigin(null)
   }, [])
 
   const createAndStartRace = useCallback(async (level: LevelConfig) => {
@@ -276,38 +278,17 @@ export default function RacingGame() {
   }, [])
 
   const handleBackToMenu = () => {
-    raceLoadRequestRef.current += 1
-    setIsRaceLoading(false)
-    // Dispose game engine when returning to menu
-    if (gameEngineRef.current) {
-      gameEngineRef.current.dispose()
-      gameEngineRef.current = null
-    }
-    if (gameManagerRef.current) {
-      gameManagerRef.current.returnToMenu()
-    }
-    setRaceResult(null)
-    setFireWeaponUiState(EMPTY_FIRE_WEAPON_UI_STATE)
-    confettiTriggeredRef.current = false
-    setConfettiOrigin(null)
+    disposeGameEngine()
+    gameManagerRef.current?.returnToMenu()
+    resetRaceUi({ clearRaceResult: true })
   }
 
   // Two-phase dismiss: switch to menu first (so it renders behind), keep overlay alive
   const handleLoseScreenBackToMenu = () => {
     setDismissingLoseScreen(true)
-    raceLoadRequestRef.current += 1
-    setIsRaceLoading(false)
-    // Dispose game engine and switch to menu state
-    if (gameEngineRef.current) {
-      gameEngineRef.current.dispose()
-      gameEngineRef.current = null
-    }
-    if (gameManagerRef.current) {
-      gameManagerRef.current.returnToMenu()
-    }
-    setFireWeaponUiState(EMPTY_FIRE_WEAPON_UI_STATE)
-    confettiTriggeredRef.current = false
-    setConfettiOrigin(null)
+    disposeGameEngine()
+    gameManagerRef.current?.returnToMenu()
+    resetRaceUi()
   }
 
   const handleLoseScreenDismissComplete = () => {

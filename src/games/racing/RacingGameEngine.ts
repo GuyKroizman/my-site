@@ -85,6 +85,9 @@ export class RacingGameEngine {
   private spacePressed: boolean = false
   private spaceKeyDownHandler: ((e: KeyboardEvent) => void) | null = null
   private spaceKeyUpHandler: ((e: KeyboardEvent) => void) | null = null
+  private resizeHandler: (() => void) | null = null
+  private orientationChangeHandler: (() => void) | null = null
+  private orientationResizeTimeoutId: number | null = null
   private levelMineArmed: boolean = false
 
   // Player upgrades & weapon switching
@@ -179,7 +182,7 @@ export class RacingGameEngine {
     container.insertBefore(this.renderer.domElement, container.firstChild)
 
     // Handle window resize and orientation changes
-    const handleResize = () => {
+    this.resizeHandler = () => {
       // Use requestAnimationFrame to ensure layout is complete
       requestAnimationFrame(() => {
         const newWidth = Math.max(container.clientWidth || window.innerWidth, 1)
@@ -198,13 +201,20 @@ export class RacingGameEngine {
     }
 
     // Initial resize to ensure proper sizing
-    handleResize()
+    this.resizeHandler()
 
-    window.addEventListener('resize', handleResize)
-    window.addEventListener('orientationchange', () => {
+    window.addEventListener('resize', this.resizeHandler)
+    this.orientationChangeHandler = () => {
       // Delay to allow orientation change to complete
-      setTimeout(handleResize, 100)
-    })
+      if (this.orientationResizeTimeoutId !== null) {
+        window.clearTimeout(this.orientationResizeTimeoutId)
+      }
+      this.orientationResizeTimeoutId = window.setTimeout(() => {
+        this.resizeHandler?.()
+        this.orientationResizeTimeoutId = null
+      }, 100)
+    }
+    window.addEventListener('orientationchange', this.orientationChangeHandler)
 
     // Create track (with level-specific ground/grass theme)
     this.track = new Track(this.scene, undefined, {
@@ -1116,6 +1126,18 @@ export class RacingGameEngine {
     if (this.spaceKeyUpHandler) {
       window.removeEventListener('keyup', this.spaceKeyUpHandler)
       this.spaceKeyUpHandler = null
+    }
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler)
+      this.resizeHandler = null
+    }
+    if (this.orientationChangeHandler) {
+      window.removeEventListener('orientationchange', this.orientationChangeHandler)
+      this.orientationChangeHandler = null
+    }
+    if (this.orientationResizeTimeoutId !== null) {
+      window.clearTimeout(this.orientationResizeTimeoutId)
+      this.orientationResizeTimeoutId = null
     }
 
     this.bullets.forEach(b => b.dispose(this.scene))
