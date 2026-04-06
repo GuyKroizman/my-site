@@ -13,6 +13,7 @@ export default class Dwarf extends BasicHero {
     this.movementPoints = 2;
     this.actionPoints = 2;
     this.healthPoints = 35;
+    this.maxHealthPoints = 35;
     this.tile = 9 * 49 + 29;
 
     this.items.push(new Axe(context));

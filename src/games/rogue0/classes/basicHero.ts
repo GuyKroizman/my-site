@@ -1,9 +1,8 @@
 // TypeScript errors after site migration - ignoring for game functionality
 // @ts-nocheck
 import type { EntityType } from "../entity";
-import { Entity } from "../entity";
+import { Entity, removeEntity } from "../entity";
 import type { GameContext } from "../context";
-import { context } from "../context";
 import dungeon from "../dungeon";
 
 const UI_HIGHLIGHT_BACKGROUND_COLOR = "#646059";
@@ -23,6 +22,8 @@ export default class BasicHero extends Entity {
   UIStatsText?: Phaser.GameObjects.Text;
   UIScene?: Phaser.Scene;
   UIItems?: Phaser.GameObjects.Rectangle[] = [];
+  UIX: number = 0;
+  UIY: number = 0;
 
   constructor(context: GameContext) {
     super();
@@ -53,12 +54,33 @@ export default class BasicHero extends Entity {
     }
 
     // update item display
+    this.ensureInventorySlots(Math.max(10, this.items.length));
     this.refreshUI();
+  }
+
+  addItem(item: Entity) {
+    if (!this.context.entities.includes(item)) {
+      this.context.entities.push(item);
+    }
+    item.context = this.context;
+    item.x = undefined;
+    item.y = undefined;
+    item.sprite = undefined;
+    this.items.push(item);
   }
 
   toggleItem(context: GameContext, itemNumber: number) {
     const item = this.items[itemNumber];
     if (item) {
+      if (item.consumable) {
+        if (item.active || this.actionPoints <= 0) {
+          return;
+        }
+        item.equip();
+        this.actionPoints -= 1;
+        return;
+      }
+
       if (item.weapon) {
         this.items.forEach(i => i.active = i.weapon ? false : i.active);
       }
@@ -66,31 +88,29 @@ export default class BasicHero extends Entity {
 
       if (item.active) {
         dungeon.log(context, `${this.name} equips ${item.name}: ${item.description}.`);
-        item.equip(itemNumber);
+        item.equip();
       }
     }
   }
 
-  removeItem(itemNumber: number) {
-    const item = this.items[itemNumber];
-
-    if (item) {
-      this.items.forEach(i => {
-        i.UISprite?.destroy();
-        delete i.UISprite;
-      });
-      this.items = this.items.filter(i => i !== item);
-      this.refreshUI();
-    }
-  }
-
-  removeItemByProperty(property: string, value: any) {
+  removeItem(item: Entity) {
     this.items.forEach(i => {
       i.UISprite?.destroy();
       delete i.UISprite;
     });
-    // @ts-ignore
-    this.items = this.items.filter(i => i[property] !== value);
+    this.items = this.items.filter(i => i !== item);
+    this.refreshUI();
+  }
+
+  removeItemsByProperty(property: string, value: any) {
+    const removedItems = this.items.filter((item) => item[property] === value);
+
+    this.items.forEach(i => {
+      i.UISprite?.destroy();
+      delete i.UISprite;
+    });
+    this.items = this.items.filter((item) => item[property] !== value);
+    removedItems.forEach((item) => removeEntity(this.context, item));
     this.refreshUI();
   }
 
@@ -213,9 +233,9 @@ export default class BasicHero extends Entity {
 
         // Check if entity at destination is an item
         if (entity && entity.type == "item" && this.actionPoints > 0) {
-          this.items.push(entity);
+          this.addItem(entity);
           dungeon.itemPicked(entity);
-          dungeon.log(context, `${this.name} picked ${entity.name}: ${entity.description}`);
+          dungeon.log(this.context, `${this.name} picked ${entity.name}: ${entity.description}`);
           this.actionPoints -= 1;
         } else {
           newX = oldX;
@@ -226,7 +246,7 @@ export default class BasicHero extends Entity {
 
 
       if (newX !== oldX || newY !== oldY) {
-        dungeon.moveEntityTo(context, this, newX, newY);
+        dungeon.moveEntityTo(this.context, this, newX, newY);
       }
     }
   }
@@ -260,6 +280,8 @@ export default class BasicHero extends Entity {
     y: number
   }) {
     this.UIScene = scene;
+    this.UIX = x;
+    this.UIY = y;
     let accumulatedHeight = 0;
     // Character sprite and name
     this.UISprite = scene.add.sprite(x, y, "tiles", this.tile).setOrigin(0);
@@ -287,12 +309,11 @@ export default class BasicHero extends Entity {
     accumulatedHeight += this.UIStatsText.height + this.UISprite.height;
 
     // Inventory screen
-    let itemsPerRow = 5;
-    let rows = 2;
+    let rows = Math.max(2, Math.ceil(Math.max(10, this.items.length) / 5));
     this.UIItems = [];
 
     for (let row = 1; row <= rows; row++) {
-      for (let cell = 1; cell <= itemsPerRow; cell++) {
+      for (let cell = 1; cell <= 5; cell++) {
         let rx = x + (25 * cell);
         let ry = y + 50 + (25 * row);
         this.UIItems.push(
@@ -301,15 +322,34 @@ export default class BasicHero extends Entity {
       }
     }
 
-    accumulatedHeight += 90;
+    accumulatedHeight += 40 + rows * 25;
 
     // Separator
-    scene.add.line(x + 5, y + 120, 0, 10, 175, 10, 0xcfc6b8).setOrigin(0);
+    scene.add.line(x + 5, y + accumulatedHeight - 20, 0, 10, 175, 10, 0xcfc6b8).setOrigin(0);
 
     return accumulatedHeight;
   }
 
+  ensureInventorySlots(count: number) {
+    if (!this.UIScene || !this.UIItems) {
+      return;
+    }
+
+    while (this.UIItems.length < count) {
+      const slotIndex = this.UIItems.length;
+      const row = Math.floor(slotIndex / 5) + 1;
+      const cell = (slotIndex % 5) + 1;
+      const rx = this.UIX + (25 * cell);
+      const ry = this.UIY + 50 + (25 * row);
+      this.UIItems.push(
+        this.UIScene.add.rectangle(rx, ry, 20, 20, 0xcfc6b8, 0.3).setOrigin(0)
+      );
+    }
+  }
+
   refreshUI() {
+    this.ensureInventorySlots(Math.max(10, this.items.length));
+
     for (let i = 0; i < this.items.length; i++) {
       let item = this.items[i];
       if (!item.UISprite) {
@@ -334,7 +374,7 @@ export default class BasicHero extends Entity {
     return 0;
   }
 
-  equip(itemNumber: number): void {
+  equip(): void {
   }
 
   range(): number {

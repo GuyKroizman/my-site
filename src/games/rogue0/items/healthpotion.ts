@@ -1,7 +1,6 @@
 // TypeScript errors after site migration - ignoring for game functionality
 // @ts-nocheck
 import type { GameContext } from "../context";
-import { context } from "../context";
 import { Entity, removeEntity } from "../entity";
 import dungeon from "../dungeon";
 
@@ -12,20 +11,24 @@ export default class HealthPotion extends Entity {
     this.name = "Health Potion";
     this.description = "A potion that restores health."
     this.weapon = false;
+    this.consumable = true;
 
     this.init(context, x, y);
   }
 
-  equip(itemNumber: number) {
+  equip() {
     if (!this.context.player) {
       return;
     }
     const points = Phaser.Math.Between(3, 5)
 
-    dungeon.log(context, `A warm feeling when drinking the potion as it restores ${points} health points.`)
+    dungeon.log(this.context, `A warm feeling when drinking the potion as it restores ${points} health points.`)
 
-    this.context.player.healthPoints  += points;
-    this.context.player.removeItem(itemNumber);
+    this.context.player.healthPoints = Math.min(
+      this.context.player.maxHealthPoints,
+      this.context.player.healthPoints + points
+    );
+    this.context.player.removeItem(this);
     removeEntity(this.context, this);
   }
 

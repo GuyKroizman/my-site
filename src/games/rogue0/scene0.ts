@@ -47,6 +47,7 @@ export class Scene0 extends Phaser.Scene {
     let player = new classes.Wizard(this.context, 15, 15);
     this.context.entities.push(player);
     this.context.player = player;
+    this.context.entities.push(...player.items);
 
     this.context.entities.push(new Skeleton(this.context, 76, 10));
     this.context.entities.push(new Skeleton(this.context, 20, 20));

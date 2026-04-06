@@ -22,6 +22,7 @@ export abstract class Entity {
   attackTile: number = 11 * 49 + 11;
   active: boolean = false;
   tint: number | undefined = undefined;
+  consumable: boolean = false;
 
   init(context: GameContext, x?: number, y?: number) {
 
@@ -31,14 +32,14 @@ export abstract class Entity {
 
     // x, y are not provided if the entity is an item carried (equipped) by the player
     // (not on the map)
-    if (this.x && this.y) {
+    if (this.x !== undefined && this.y !== undefined) {
       this.sprite = createSprite(context, this.x, this.y, this.tile, this.tint);
     } else {
       this.sprite = undefined;
     }
   }
 
-  abstract equip(itemNumber: number): void;
+  abstract equip(): void;
 
   abstract refresh(): void;
 
@@ -61,9 +62,16 @@ export abstract class Entity {
 
 export function removeEntity(context: GameContext, entity: Entity) {
   const victimIndexInEntities = context.entities.findIndex((e) => e === entity);
+  if (victimIndexInEntities === -1) {
+    return;
+  }
+
   context.entities.splice(victimIndexInEntities, 1);
 
   entity.sprite?.destroy();
+  entity.sprite = undefined;
+  entity.x = undefined;
+  entity.y = undefined;
 
   entity.onDestroy();
 }

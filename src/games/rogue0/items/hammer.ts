@@ -14,7 +14,7 @@ export default class Hammer extends Entity {
     this.init(context, x, y);
 }
 
-    equip(itemNumber: number) {
+    equip() {
     }
 
     damage() {

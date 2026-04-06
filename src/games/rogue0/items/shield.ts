@@ -13,7 +13,7 @@ export default class Shield extends Entity {
     this.init(context, x, y);
   }
 
-  equip(itemNumber: number) {
+  equip() {
   }
 
 
@@ -32,11 +32,11 @@ export default class Shield extends Entity {
   }
 
   attack(): number {
-    return 1;
+    return 0;
   }
 
   protection(): number {
-    return 0;
+    return 1;
   }
 
   range(): number {

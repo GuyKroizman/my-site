@@ -12,6 +12,7 @@ export default class Warrior extends BasicHero {
     this.name = "Warrior"
     this.movementPoints = 3
     this.actionPoints = 2
+    this.maxHealthPoints = 30
 
     this.items.push(new Sword(context))
     this.toggleItem(context, 0)

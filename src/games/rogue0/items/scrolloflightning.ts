@@ -18,7 +18,7 @@ export default class ScrollOfLightning extends Entity {
     this.init(context, x, y);
   }
 
-  equip(itemNumber: number) {
+  equip() {
   }
 
   damage() {
@@ -31,7 +31,7 @@ export default class ScrollOfLightning extends Entity {
   refresh() {
   }
   isOver(): boolean {
-    return false;
+    return true;
   }
 
   attack(): number {

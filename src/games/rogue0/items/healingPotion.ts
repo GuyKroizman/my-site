@@ -14,15 +14,16 @@ export default class HealingPotion extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
+    this.consumable = true;
     this.init(context, x, y);
   }
 
-  equip(itemNumber: number) {
+  equip() {
     if (!this.context.player) {
       return;
     }
     dungeon.log(this.context, `You drink the potion and feel refreshed.`);
-    this.context.player.removeItem(itemNumber);
+    this.context.player.removeItem(this);
     this.context.player.healthPoints  = this.context.player.maxHealthPoints;
     removeEntity(this.context, this);
   }

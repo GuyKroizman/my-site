@@ -62,15 +62,22 @@ let dungeon = {
 
   removeEntity: function(context: GameContext, entity: Entity) {
     const entityIndex = context.entities.findIndex((e) => e === entity);
+    if (entityIndex === -1) {
+      return;
+    }
     context.entities.splice(entityIndex, 1);
-    entity.sprite!.destroy();
+    entity.sprite?.destroy();
     entity.sprite = undefined;
+    entity.x = undefined;
+    entity.y = undefined;
     entity.onDestroy();
   },
 
   itemPicked: function(entity: Entity) {
     entity.sprite!.destroy();
     entity.sprite = undefined;
+    entity.x = undefined;
+    entity.y = undefined;
   },
 
   distanceBetweenEntities: function(entity1: Entity, entity2: Entity) {
@@ -134,17 +141,19 @@ let dungeon = {
         targets: attacker.sprite,
         onComplete: () => {
           attacker.sprite!.x = context.map?.tileToWorldX(attacker.x!)!;
-          attacker.sprite!.y = context.map?.tileToWorldX(attacker.y!)!;
+          attacker.sprite!.y = context.map?.tileToWorldY(attacker.y!)!;
           attacker.moving = false;
           attacker.tweens -= 1;
 
-          let damage = attacker.attack();
-          victim.healthPoints -= damage;
+          let damage = attacker.attack() - victim.protection();
+          if (damage > 0) {
+            victim.healthPoints -= damage;
 
-          this.log(context, `${attacker.name} does ${damage} damage to ${victim.name}.`);
+            this.log(context, `${attacker.name} does ${damage} damage to ${victim.name}.`);
 
-          if (victim.healthPoints <= 0) {
-            removeEntity(context, victim);
+            if (victim.healthPoints <= 0) {
+              removeEntity(context, victim);
+            }
           }
         },
         x: context.map.tileToWorldX(victim.x!),
@@ -157,7 +166,7 @@ let dungeon = {
       });
     } else {
       const x = context.map.tileToWorldX(attacker.x!);
-      const y = context.map.tileToWorldX(attacker.y!);
+      const y = context.map.tileToWorldY(attacker.y!);
       const sprite = context.scene.add.sprite(x!, y!, "tiles", rangedAttack).setOrigin(0);
       if (tint) {
         sprite.tint = tint;

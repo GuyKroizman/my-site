@@ -18,7 +18,7 @@ export default class LongSword extends Entity {
     this.init(context, x, y);
   }
 
-  equip(itemNumber: number) {
+  equip() {
 
   }
 

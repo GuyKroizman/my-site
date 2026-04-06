@@ -14,6 +14,7 @@ export default class Cleric extends BasicHero {
     this.movementPoints = 3
     this.actionPoints = 2
     this.healthPoints = 40
+    this.maxHealthPoints = 40
     this.tile = 2 * 49 + 24;
 
     this.items.push(new Hammer(context))

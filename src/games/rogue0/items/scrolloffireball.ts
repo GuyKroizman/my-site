@@ -16,7 +16,7 @@ export default class ScrollOfFireball extends Entity {
     this.init(context, x, y);
   }
 
-  equip(itemNumber: number) {
+  equip() {
   }
 
   damage() {

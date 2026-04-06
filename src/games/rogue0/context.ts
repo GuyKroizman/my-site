@@ -11,4 +11,11 @@ export type GameContext = {
   messages: string[];
 };
 
-export const context: GameContext = { scene: undefined, map: undefined, entities: [], messages: [] };
+export function createGameContext(): GameContext {
+  return {
+    scene: undefined,
+    map: undefined,
+    entities: [],
+    messages: []
+  };
+}
