@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import { Bullet } from './Bullet'
 import { Car } from './Car'
 import { Track } from './Track'
 import { RaceManager } from './RaceManager'
@@ -12,27 +11,18 @@ import { AmbientBunny } from './AmbientBunny'
 import { AmbientWolf } from './AmbientWolf'
 import { DecorationGrid } from './DecorationGrid'
 import { TimerBillboard } from './TimerBillboard'
-import { GluePuddle } from './GluePuddle'
-import { Ball, DEFAULT_DROP_HEIGHT } from './Ball'
 import { LapDigitDropEffect } from './LapDigitDropEffect'
 import { LevelConfig, CarConfig, BallDropConfig } from './levels'
 import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
 import type { TouchDriveState } from './input'
-import type { PlayerUpgrades, UpgradeId } from './upgrades'
-import { DEFAULT_PLAYER_UPGRADES, getFireButtonWeapons, getWeaponIcon } from './upgrades'
+import type { PlayerUpgrades } from './upgrades'
+import { DEFAULT_PLAYER_UPGRADES, getFireButtonWeapons } from './upgrades'
 import { getCachedTexture, preloadRacingLevelAssets, RACING_SHARED_ASSET_PATHS } from './assets'
-import {
-  clearCombatEntities,
-  findBallSpawnPoint,
-  resolveBallCollisions,
-  triggerBallChainReactions,
-} from './engineCombat'
+import { RacingCombatController } from './engineCombat'
+export type { FireWeaponUiState } from './engineCombat'
+import type { FireWeaponUiState } from './engineCombat'
 
-const BALL_SPAWN_MAX_ATTEMPTS = 8
-const BALL_SPAWN_MARGIN = 0.2
 const PLAYER_DEFAULT_TURN_MULTIPLIER = 1.2
-const GLUE_SLOW_DURATION = 5
-const GLUE_SLOW_MULTIPLIER = 0.8
 
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
@@ -41,15 +31,6 @@ export interface RacingGameCallbacks {
   onCarFinished?: (carName: string, screenPos: { x: number; y: number }) => void
   onCameraReady?: (screenPos: { x: number; y: number }) => void
   onWeaponUiStateChange?: (state: FireWeaponUiState) => void
-}
-
-export interface FireWeaponUiState {
-  activeWeaponId: UpgradeId | null
-  activeWeaponIcon: string
-  nextWeaponIcon: string
-  fireWeaponCount: number
-  turboState: 'hidden' | 'ready' | 'active' | 'cooldown'
-  turboCooldownProgress: number
 }
 
 export class RacingGameEngine {
@@ -83,10 +64,7 @@ export class RacingGameEngine {
   private decorationGrid: DecorationGrid | null = null
   private timerBillboard: TimerBillboard | null = null
   private lapDigitDropEffect: LapDigitDropEffect
-  private balls: Ball[] = []
   private pendingBallDrops: BallDropConfig[] = []
-  private bullets: Bullet[] = []
-  private shootCooldown: number = 0
   private touchShoot: boolean = false
   private spacePressed: boolean = false
   private spaceKeyDownHandler: ((e: KeyboardEvent) => void) | null = null
@@ -98,19 +76,7 @@ export class RacingGameEngine {
 
   // Player upgrades & weapon switching
   private playerUpgrades: PlayerUpgrades
-  private playerMines: Mine[] = []
-  private playerGluePuddles: GluePuddle[] = []
-  private fireWeapons: UpgradeId[] = []
-  private activeWeaponIndex: number = 0
-  private lastFireWeaponUiStateSignature: string | null = null
-
-  // Turbo boost state
-  private turboBoostActive: boolean = false
-  private turboBoostTimer: number = 0
-  private turboBoostCooldown: number = 0
-  private readonly TURBO_BOOST_DURATION: number = 1.0
-  private readonly TURBO_BOOST_COOLDOWN: number = 3.0
-  private readonly TURBO_BOOST_MULTIPLIER: number = 1.5
+  private combat: RacingCombatController
 
   // Camera shake
   private shakeTimer: number = 0
@@ -227,6 +193,9 @@ export class RacingGameEngine {
       theme: this.currentLevelConfig.groundTheme,
       coverStyle: this.currentLevelConfig.groundCoverStyle
     })
+    this.combat = new RacingCombatController(this.scene, this.track, this.soundGenerator, {
+      onWeaponUiStateChange: (state) => this.callbacks.onWeaponUiStateChange?.(state),
+    })
 
     // Create navigation grid for A* pathfinding
     this.track.createNavigationGrid(1.0)
@@ -270,9 +239,7 @@ export class RacingGameEngine {
     }
 
     // Build fire-button weapon list for weapon switching
-    this.fireWeapons = getFireButtonWeapons(this.playerUpgrades)
-    this.activeWeaponIndex = 0
-    this.emitFireWeaponUiState(true)
+    this.combat.setFireWeapons(getFireButtonWeapons(this.playerUpgrades))
 
     // Initialize cinematic camera intro
     this.initCinematicCamera()
@@ -562,39 +529,10 @@ export class RacingGameEngine {
     for (let i = this.pendingBallDrops.length - 1; i >= 0; i--) {
       const drop = this.pendingBallDrops[i]
       if (elapsed >= drop.dropTime) {
-        this.spawnBall(drop)
+        this.combat.spawnBall(drop)
         this.pendingBallDrops.splice(i, 1)
       }
     }
-  }
-
-  private updateBalls(deltaTime: number, raceComplete: boolean): void {
-    if (raceComplete) {
-      return
-    }
-
-    const newlyExplodedPositions: THREE.Vector3[] = []
-    for (let i = this.balls.length - 1; i >= 0; i--) {
-      const ball = this.balls[i]
-      const result = ball.update(deltaTime, this.cars, this.track)
-      if (result.exploded) {
-        if (result.playerLaunched && this.playerMineHitTime === null) {
-          this.playerMineHitTime = performance.now() / 1000
-        }
-        if (result.explosionPosition) {
-          newlyExplodedPositions.push(result.explosionPosition)
-          this.triggerCameraShake(0.5, 0.6)
-        }
-      }
-
-      if (ball.exploded && !ball.isExplosionAnimating) {
-        ball.dispose()
-        this.balls.splice(i, 1)
-      }
-    }
-
-    resolveBallCollisions(this.balls, this.track)
-    triggerBallChainReactions(this.balls, newlyExplodedPositions)
   }
 
   private updatePlayerFailureState(raceComplete: boolean): void {
@@ -627,133 +565,20 @@ export class RacingGameEngine {
   }
 
   private updateCombat(deltaTime: number, canStart: boolean, raceComplete: boolean): void {
-    this.shootCooldown = Math.max(0, this.shootCooldown - deltaTime)
-    this.handleFireWeapons(canStart, raceComplete)
-    this.updateTurboBoost(deltaTime)
-    this.updatePlayerMines()
-    this.updateGluePuddles()
-    this.updateBullets(deltaTime)
-  }
-
-  private handleFireWeapons(canStart: boolean, raceComplete: boolean): void {
-    if (
-      this.fireWeapons.length === 0
-      || (!this.spacePressed && !this.touchShoot)
-      || this.shootCooldown > 0
-      || !canStart
-      || raceComplete
-    ) {
-      return
-    }
-
-    const activeWeapon = this.fireWeapons[this.activeWeaponIndex]
-    switch (activeWeapon) {
-      case 'gun':
-        this.shootBullet()
-        break
-      case 'mines':
-        this.dropPlayerMine()
-        break
-      case 'turbo_boost':
-        this.activateTurboBoost()
-        break
-      case 'glue_trap':
-        this.dropPlayerGluePuddle()
-        break
-    }
-  }
-
-  private updateTurboBoost(deltaTime: number): void {
-    let turboStateChanged = false
-
-    if (this.turboBoostActive) {
-      this.turboBoostTimer -= deltaTime
-      turboStateChanged = true
-      if (this.turboBoostTimer <= 0) {
-        this.turboBoostActive = false
-        this.getPlayerCar()?.setTurboBoostMultiplier(1)
-        this.turboBoostCooldown = this.TURBO_BOOST_COOLDOWN
-      }
-    }
-
-    if (this.turboBoostCooldown > 0) {
-      this.turboBoostCooldown = Math.max(0, this.turboBoostCooldown - deltaTime)
-      turboStateChanged = true
-    }
-
-    if (turboStateChanged) {
-      this.emitFireWeaponUiState()
-    }
-  }
-
-  private updatePlayerMines(): void {
-    for (let i = this.playerMines.length - 1; i >= 0; i--) {
-      const mine = this.playerMines[i]
-      if (!mine.isActive()) continue
-
-      let mineHit = false
-      for (const car of this.cars) {
-        if (car.launched || car.finished) continue
-        if (mine.collidesWith(car.position)) {
-          this.handleExplosionHit(car, mine.getPosition())
-          mineHit = true
-          break
+    this.combat.update(deltaTime, {
+      canStart,
+      raceComplete,
+      firePressed: this.spacePressed || this.touchShoot,
+      cars: this.cars,
+      playerCar: this.getPlayerCar(),
+      onExplosionHit: (car, origin) => this.handleExplosionHit(car, origin),
+      onCameraShake: (duration, intensity) => this.triggerCameraShake(duration, intensity),
+      onPlayerBallExplosion: () => {
+        if (this.playerMineHitTime === null) {
+          this.playerMineHitTime = performance.now() / 1000
         }
-      }
-
-      if (mineHit) {
-        mine.destroy()
-        this.playerMines.splice(i, 1)
-      }
-    }
-  }
-
-  private updateGluePuddles(): void {
-    for (let i = this.playerGluePuddles.length - 1; i >= 0; i--) {
-      const puddle = this.playerGluePuddles[i]
-      let puddleHit = false
-      for (const car of this.cars) {
-        if (car.launched || car.finished) continue
-        if (puddle.collidesWith(car.position)) {
-          car.applyGlueSlow(GLUE_SLOW_DURATION, GLUE_SLOW_MULTIPLIER)
-          puddleHit = true
-          break
-        }
-      }
-      if (puddleHit) {
-        puddle.destroy()
-        this.playerGluePuddles.splice(i, 1)
-      }
-    }
-  }
-
-  private updateBullets(deltaTime: number): void {
-    const aiCars = this.cars.filter(car => !car.isPlayer)
-
-    for (let i = this.bullets.length - 1; i >= 0; i--) {
-      const bullet = this.bullets[i]
-      bullet.update(deltaTime)
-      let hit = false
-      if (!bullet.isExpired()) {
-        for (const car of aiCars) {
-          if (!car.isDestroyed && !car.finished && bullet.checkCollision(car)) {
-            const wasAlive = !car.isDestroyed
-            car.takeDamage()
-            if (wasAlive && car.isDestroyed) {
-              this.soundGenerator.playExplosionSound(0.5)
-            } else {
-              this.soundGenerator.playBulletImpact()
-            }
-            hit = true
-            break
-          }
-        }
-      }
-      if (hit || bullet.isExpired()) {
-        bullet.dispose(this.scene)
-        this.bullets.splice(i, 1)
-      }
-    }
+      },
+    })
   }
 
   private updateSceneEffects(deltaTime: number): void {
@@ -824,10 +649,9 @@ export class RacingGameEngine {
     this.updateCars(deltaTime, raceComplete, canStart)
     this.updateLevelMine(raceComplete, canStart)
     this.updatePendingBallDrops(raceComplete)
-    this.updateBalls(deltaTime, raceComplete)
+    this.updateCombat(deltaTime, canStart, raceComplete)
     this.updatePlayerFailureState(raceComplete)
     this.updateRaceManager(deltaTime, raceComplete)
-    this.updateCombat(deltaTime, canStart, raceComplete)
     this.updateSceneEffects(deltaTime)
 
     // Render
@@ -846,39 +670,15 @@ export class RacingGameEngine {
     this.playerArrow?.show()
     this.raceManager.startRace(this.track)
     this.cars.forEach(car => car.startRace())
-    this.emitFireWeaponUiState(true)
+    this.combat.emitUiState(true)
   }
 
   private resetRaceState(): void {
-    this.clearCombatEntities()
-    this.resetWeaponState()
+    this.combat.reset(this.getPlayerCar())
     this.resetRaceTimingState()
     this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
     this.levelMineArmed = false
     this.lapDigitDropEffect.clear()
-  }
-
-  private clearCombatEntities(): void {
-    clearCombatEntities(
-      this.scene,
-      this.bullets,
-      this.balls,
-      this.playerMines,
-      this.playerGluePuddles
-    )
-    this.bullets = []
-    this.balls = []
-    this.playerMines = []
-    this.playerGluePuddles = []
-  }
-
-  private resetWeaponState(): void {
-    this.shootCooldown = 0
-    this.turboBoostActive = false
-    this.turboBoostTimer = 0
-    this.turboBoostCooldown = 0
-    this.lastFireWeaponUiStateSignature = null
-    this.getPlayerCar()?.setTurboBoostMultiplier(1)
   }
 
   private resetRaceTimingState(): void {
@@ -911,28 +711,23 @@ export class RacingGameEngine {
   }
 
   public rotateWeapon(): void {
-    if (this.fireWeapons.length <= 1) return
-    this.activeWeaponIndex = (this.activeWeaponIndex + 1) % this.fireWeapons.length
-    this.soundGenerator.playWeaponSwitch()
-    this.emitFireWeaponUiState(true)
+    this.combat.rotateWeapon()
   }
 
   public getActiveWeaponIcon(): string {
-    if (this.fireWeapons.length === 0) return ''
-    return getWeaponIcon(this.fireWeapons[this.activeWeaponIndex])
+    return this.combat.getActiveWeaponIcon()
   }
 
   public getNextWeaponIcon(): string {
-    if (this.fireWeapons.length <= 1) return ''
-    return getWeaponIcon(this.fireWeapons[(this.activeWeaponIndex + 1) % this.fireWeapons.length])
+    return this.combat.getNextWeaponIcon()
   }
 
   public getFireWeaponCount(): number {
-    return this.fireWeapons.length
+    return this.combat.getFireWeaponCount()
   }
 
   public getFireWeaponUiState(): FireWeaponUiState {
-    return this.buildFireWeaponUiState()
+    return this.combat.getFireWeaponUiState()
   }
 
   public spawnLapDigit(lapNumber: number): void {
@@ -953,154 +748,6 @@ export class RacingGameEngine {
     this.camera.position.x = this.gameplayCameraPos.x + (Math.random() - 0.5) * 2 * magnitude
     this.camera.position.y = this.gameplayCameraPos.y + (Math.random() - 0.5) * 2 * magnitude
     this.camera.position.z = this.gameplayCameraPos.z + (Math.random() - 0.5) * 2 * magnitude
-  }
-
-  private spawnBall(drop: BallDropConfig) {
-    let x: number, z: number
-    if (drop.x !== undefined && drop.z !== undefined) {
-      x = drop.x
-      z = drop.z
-    } else {
-      const pos = this.findBallSpawnPoint()
-      x = pos.x
-      z = pos.z
-    }
-    const y = drop.y ?? DEFAULT_DROP_HEIGHT
-    const ball = new Ball(this.scene, x, y, z, this.soundGenerator)
-    this.balls.push(ball)
-  }
-
-  private findBallSpawnPoint(): THREE.Vector3 {
-    return findBallSpawnPoint(this.track, this.balls, BALL_SPAWN_MAX_ATTEMPTS, BALL_SPAWN_MARGIN)
-  }
-
-  private shootBullet() {
-    const playerCar = this.getPlayerCar()
-    if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
-
-    const forward = new THREE.Vector3(
-      Math.sin(playerCar.rotation),
-      0,
-      Math.cos(playerCar.rotation)
-    )
-    const spawnPos = playerCar.position.clone().addScaledVector(forward, 1.8)
-    spawnPos.y = playerCar.position.y
-
-    const bullet = new Bullet(spawnPos, playerCar.rotation)
-    this.scene.add(bullet.mesh)
-    this.bullets.push(bullet)
-    this.soundGenerator.playBulletShoot()
-    this.shootCooldown = 0.05
-  }
-
-  private dropPlayerMine() {
-    const playerCar = this.getPlayerCar()
-    if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
-
-    const backward = new THREE.Vector3(
-      -Math.sin(playerCar.rotation),
-      0,
-      -Math.cos(playerCar.rotation)
-    )
-    const spawnPos = playerCar.position.clone().addScaledVector(backward, 2.0)
-    const mine = new Mine(this.scene, spawnPos.x, spawnPos.z, 2.0)
-    this.playerMines.push(mine)
-    this.soundGenerator.playMineDrop()
-    this.shootCooldown = 1.5
-  }
-
-  private dropPlayerGluePuddle() {
-    const playerCar = this.getPlayerCar()
-    if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
-
-    const backward = new THREE.Vector3(
-      -Math.sin(playerCar.rotation),
-      0,
-      -Math.cos(playerCar.rotation)
-    )
-    const spawnPos = playerCar.position.clone().addScaledVector(backward, 2.6)
-    const puddle = new GluePuddle(this.scene, spawnPos.x, spawnPos.z)
-    this.playerGluePuddles.push(puddle)
-    this.soundGenerator.playMineDrop()
-    this.shootCooldown = 1.5
-  }
-
-  private activateTurboBoost() {
-    if (this.turboBoostActive || this.turboBoostCooldown > 0) return
-    const playerCar = this.getPlayerCar()
-    if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
-
-    this.turboBoostActive = true
-    this.turboBoostTimer = this.TURBO_BOOST_DURATION
-    playerCar.setTurboBoostMultiplier(this.TURBO_BOOST_MULTIPLIER)
-    this.soundGenerator.playTurboBoost()
-    this.shootCooldown = this.TURBO_BOOST_DURATION + this.TURBO_BOOST_COOLDOWN
-    this.emitFireWeaponUiState(true)
-  }
-
-  private buildFireWeaponUiState(): FireWeaponUiState {
-    const activeWeaponId = this.fireWeapons.length > 0 ? this.fireWeapons[this.activeWeaponIndex] : null
-    const nextWeaponIcon = this.fireWeapons.length > 1
-      ? getWeaponIcon(this.fireWeapons[(this.activeWeaponIndex + 1) % this.fireWeapons.length])
-      : ''
-
-    if (activeWeaponId !== 'turbo_boost') {
-      return {
-        activeWeaponId,
-        activeWeaponIcon: activeWeaponId ? getWeaponIcon(activeWeaponId) : '',
-        nextWeaponIcon,
-        fireWeaponCount: this.fireWeapons.length,
-        turboState: 'hidden',
-        turboCooldownProgress: 1,
-      }
-    }
-
-    if (this.turboBoostActive) {
-      return {
-        activeWeaponId,
-        activeWeaponIcon: getWeaponIcon(activeWeaponId),
-        nextWeaponIcon,
-        fireWeaponCount: this.fireWeapons.length,
-        turboState: 'active',
-        turboCooldownProgress: 0,
-      }
-    }
-
-    if (this.turboBoostCooldown > 0) {
-      const turboCooldownProgress = 1 - (this.turboBoostCooldown / this.TURBO_BOOST_COOLDOWN)
-      return {
-        activeWeaponId,
-        activeWeaponIcon: getWeaponIcon(activeWeaponId),
-        nextWeaponIcon,
-        fireWeaponCount: this.fireWeapons.length,
-        turboState: 'cooldown',
-        turboCooldownProgress: Math.max(0, Math.min(1, turboCooldownProgress)),
-      }
-    }
-
-    return {
-      activeWeaponId,
-      activeWeaponIcon: getWeaponIcon(activeWeaponId),
-      nextWeaponIcon,
-      fireWeaponCount: this.fireWeapons.length,
-      turboState: 'ready',
-      turboCooldownProgress: 1,
-    }
-  }
-
-  private emitFireWeaponUiState(force = false): void {
-    const state = this.buildFireWeaponUiState()
-    const signature = JSON.stringify({
-      ...state,
-      turboCooldownProgress: Number(state.turboCooldownProgress.toFixed(2)),
-    })
-
-    if (!force && signature === this.lastFireWeaponUiStateSignature) {
-      return
-    }
-
-    this.lastFireWeaponUiStateSignature = signature
-    this.callbacks.onWeaponUiStateChange?.(state)
   }
 
   public pause() {
@@ -1164,10 +811,7 @@ export class RacingGameEngine {
       this.orientationResizeTimeoutId = null
     }
 
-    this.bullets.forEach(b => b.dispose(this.scene))
-    this.bullets = []
-    this.balls.forEach(b => b.dispose())
-    this.balls = []
+    this.combat.dispose()
 
     if (this.startLights) {
       this.startLights.dispose()
@@ -1178,10 +822,6 @@ export class RacingGameEngine {
       this.mine.destroy()
       this.mine = null
     }
-    this.playerMines.forEach(m => m.destroy())
-    this.playerMines = []
-    this.playerGluePuddles.forEach(p => p.destroy())
-    this.playerGluePuddles = []
     if (this.playerArrow) {
       this.playerArrow.dispose()
       this.playerArrow = null
