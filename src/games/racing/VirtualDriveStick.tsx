@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { NEUTRAL_TOUCH_DRIVE_STATE, type TouchDriveState } from './input'
 import type { UpgradeId } from './upgrades'
 
-const STEERING_BASE_WIDTH = 176
+const STEERING_BASE_WIDTH = 132
 const STEERING_BASE_HEIGHT = 72
 const STEERING_KNOB_SIZE = 56
 const STEERING_RADIUS_X = (STEERING_BASE_WIDTH - STEERING_KNOB_SIZE) / 2
