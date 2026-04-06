@@ -2,7 +2,18 @@ import * as THREE from 'three'
 import { Track } from './Track'
 import { SoundGenerator } from './SoundGenerator'
 import { NEUTRAL_TOUCH_DRIVE_STATE, type TouchDriveState } from './input'
-import { getCachedModelClone, isSharedAssetObject } from './assets'
+import { getCachedModelClone } from './assets'
+import {
+  addFireEffect,
+  animateFireEffect,
+  clearFireEffect,
+  computeLocalHalfSize,
+  createDefaultCarMesh,
+  createHealthBar,
+  disposeVisualObject,
+  drawHealthBar,
+  orientAndScaleCarModel,
+} from './carVisuals'
 
 /** 2D OBB overlap test using separating axis theorem on XZ plane. */
 function obbOverlap(
@@ -159,42 +170,7 @@ export class Car {
       this.waypointLookAhead = characteristics.waypointLookAhead
     }
 
-    // Create car mesh with polygon style
-    this.mesh = new THREE.Group()
-
-    // Car body (main box)
-    const bodyGeometry = new THREE.BoxGeometry(1.2, 0.6, 2)
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: color })
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial)
-    body.castShadow = true
-    body.receiveShadow = true
-    this.mesh.add(body)
-
-    // Car roof (smaller box on top)
-    const roofGeometry = new THREE.BoxGeometry(0.8, 0.4, 1.2)
-    const roofMaterial = new THREE.MeshStandardMaterial({ color: color * 0.8 })
-    const roof = new THREE.Mesh(roofGeometry, roofMaterial)
-    roof.position.y = 0.5
-    roof.castShadow = true
-    this.mesh.add(roof)
-
-    // Wheels (simple boxes)
-    const wheelGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3)
-    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 })
-
-    const wheelPositions = [
-      { x: -0.5, y: -0.3, z: 0.7 },
-      { x: 0.5, y: -0.3, z: 0.7 },
-      { x: -0.5, y: -0.3, z: -0.7 },
-      { x: 0.5, y: -0.3, z: -0.7 }
-    ]
-
-    wheelPositions.forEach(pos => {
-      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial)
-      wheel.position.set(pos.x, pos.y, pos.z)
-      wheel.castShadow = true
-      this.mesh.add(wheel)
-    })
+    this.mesh = createDefaultCarMesh(color)
 
     // Cars start facing east (positive x direction) since track goes from -15 to 15 at z: -10
     // In Three.js, rotation.y = Math.PI/2 faces +x direction
@@ -204,14 +180,7 @@ export class Car {
     this.mesh.rotation.y = this.rotation
 
     // Compute local-space bounding half-size (with rotation 0)
-    const savedRotation = this.mesh.rotation.y
-    this.mesh.rotation.y = 0
-    this.mesh.updateMatrixWorld(true)
-    const localBox = new THREE.Box3().setFromObject(this.mesh)
-    localBox.getSize(this.localHalfSize)
-    this.localHalfSize.multiplyScalar(0.5)
-    this.mesh.rotation.y = savedRotation
-    this.mesh.updateMatrixWorld(true)
+    this.localHalfSize.copy(computeLocalHalfSize(this.mesh))
 
     // Setup bounding box (will be updated each frame as OBB)
     this.boundingBox = new THREE.Box3().setFromObject(this.mesh)
@@ -238,14 +207,7 @@ export class Car {
   }
 
   private recomputeLocalHalfSize(): void {
-    const savedRotation = this.mesh.rotation.y
-    this.mesh.rotation.y = 0
-    this.mesh.updateMatrixWorld(true)
-    const localBox = new THREE.Box3().setFromObject(this.mesh)
-    localBox.getSize(this.localHalfSize)
-    this.localHalfSize.multiplyScalar(0.5)
-    this.mesh.rotation.y = savedRotation
-    this.mesh.updateMatrixWorld(true)
+    this.localHalfSize.copy(computeLocalHalfSize(this.mesh))
   }
 
   /** Get the four XZ corners of the oriented bounding box. */
@@ -323,44 +285,9 @@ export class Car {
       return
     }
 
-    const model = this.orientAndScaleLoadedModel(cachedModel)
+    const model = orientAndScaleCarModel(cachedModel)
     this.replaceCarVisual(model)
     this.recomputeLocalHalfSize()
-  }
-
-  private orientAndScaleLoadedModel(model: THREE.Group): THREE.Group {
-    const initialBounds = new THREE.Box3().setFromObject(model)
-    const initialSize = new THREE.Vector3()
-    initialBounds.getSize(initialSize)
-
-    // If the longest axis is X, rotate so the car's length points forward on Z.
-    if (initialSize.x > initialSize.z) {
-      model.rotation.y = Math.PI / 2
-    }
-
-    const orientedBounds = new THREE.Box3().setFromObject(model)
-    const orientedSize = new THREE.Vector3()
-    orientedBounds.getSize(orientedSize)
-
-    // Car model size (larger = more visible on track).
-    const targetLength = 3.0
-    const scale = targetLength / Math.max(orientedSize.z, 0.001)
-    model.scale.setScalar(scale)
-
-    const finalBounds = new THREE.Box3().setFromObject(model)
-    const finalCenter = new THREE.Vector3()
-    finalBounds.getCenter(finalCenter)
-    const targetBottomY = -0.3
-    model.position.set(-finalCenter.x, targetBottomY - finalBounds.min.y, -finalCenter.z)
-
-    model.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.castShadow = true
-        child.receiveShadow = true
-      }
-    })
-
-    return model
   }
 
   private replaceCarVisual(model: THREE.Object3D) {
@@ -373,24 +300,7 @@ export class Car {
   }
 
   private disposeVisualObject(object: THREE.Object3D) {
-    if (isSharedAssetObject(object)) {
-      return
-    }
-
-    object.traverse((child) => {
-      if (isSharedAssetObject(child)) {
-        return
-      }
-
-      if (child instanceof THREE.Mesh) {
-        child.geometry.dispose()
-        if (Array.isArray(child.material)) {
-          child.material.forEach((mat) => mat.dispose())
-        } else {
-          child.material.dispose()
-        }
-      }
-    })
+    disposeVisualObject(object)
   }
 
   /** Apply explosion force from a mine; car will be launched and fly off. */
@@ -460,61 +370,93 @@ export class Car {
   }
 
   public update(deltaTime: number, track: Track, allCars: Car[], raceComplete: boolean = false, canStart: boolean = false) {
-    if (this.glueSlowTimer > 0) {
-      this.glueSlowTimer = Math.max(0, this.glueSlowTimer - deltaTime)
-      if (this.glueSlowTimer === 0) {
-        this.glueSlowMultiplier = 1
-      }
-    }
+    this.updateGlueSlowState(deltaTime)
 
-    // If launched by mine, apply velocity, gravity, and tumble
-    if (this.launched && this.launchVelocity) {
-      this.position.add(this.launchVelocity.clone().multiplyScalar(deltaTime))
-      this.launchVelocity.y -= this.gravity * deltaTime
-      this.mesh.position.copy(this.position)
-      if (this.launchAngularVelocity) {
-        this.mesh.rotation.x += this.launchAngularVelocity.x * deltaTime
-        this.mesh.rotation.y += this.launchAngularVelocity.y * deltaTime
-        this.mesh.rotation.z += this.launchAngularVelocity.z * deltaTime
-      }
-      this.updateHealthBar()
+    if (this.updateLaunchedState(deltaTime)) {
       return
     }
 
-    // If destroyed by bullets, just animate fire and stay put
-    if (this.isDestroyed) {
-      this.fireTime += deltaTime
-      this.animateFire()
-      this.updateHealthBar()
+    if (this.updateDestroyedState(deltaTime)) {
       return
     }
 
-    // If race is complete or car is finished, stop all movement
-    if (this.finished || raceComplete) {
-      this.speed = 0
-      // Just update visual position to keep car visible
-      this.mesh.position.copy(this.position)
-      this.mesh.rotation.y = this.rotation
+    if (this.updateStoppedState(raceComplete, canStart)) {
       return
     }
 
-    // Don't allow movement until green light
-    if (!canStart) {
-      this.speed = 0
-      // Just update visual position to keep car visible
-      this.mesh.position.copy(this.position)
-      this.mesh.rotation.y = this.rotation
+    this.updateDrivingIntent(deltaTime, track, allCars)
+
+    const movementState = this.createMovementState(deltaTime)
+    const positionAfterWall = this.resolveWallCollisions(movementState.newPosition, movementState.direction, track)
+    this.resolveCarCollision(positionAfterWall, movementState.direction, movementState.moveDistance, allCars)
+    this.syncDrivingVisualState(deltaTime)
+    this.updateRaceProgress(track)
+  }
+
+  private updateGlueSlowState(deltaTime: number): void {
+    if (this.glueSlowTimer <= 0) {
       return
     }
 
+    this.glueSlowTimer = Math.max(0, this.glueSlowTimer - deltaTime)
+    if (this.glueSlowTimer === 0) {
+      this.glueSlowMultiplier = 1
+    }
+  }
+
+  private updateLaunchedState(deltaTime: number): boolean {
+    if (!this.launched || !this.launchVelocity) {
+      return false
+    }
+
+    this.position.add(this.launchVelocity.clone().multiplyScalar(deltaTime))
+    this.launchVelocity.y -= this.gravity * deltaTime
+    this.mesh.position.copy(this.position)
+    if (this.launchAngularVelocity) {
+      this.mesh.rotation.x += this.launchAngularVelocity.x * deltaTime
+      this.mesh.rotation.y += this.launchAngularVelocity.y * deltaTime
+      this.mesh.rotation.z += this.launchAngularVelocity.z * deltaTime
+    }
+    this.updateHealthBar()
+    return true
+  }
+
+  private updateDestroyedState(deltaTime: number): boolean {
+    if (!this.isDestroyed) {
+      return false
+    }
+
+    this.fireTime += deltaTime
+    this.animateFire()
+    this.updateHealthBar()
+    return true
+  }
+
+  private updateStoppedState(raceComplete: boolean, canStart: boolean): boolean {
+    if (!this.finished && !raceComplete && canStart) {
+      return false
+    }
+
+    this.speed = 0
+    this.mesh.position.copy(this.position)
+    this.mesh.rotation.y = this.rotation
+    return true
+  }
+
+  private updateDrivingIntent(deltaTime: number, track: Track, allCars: Car[]): void {
     if (this.isPlayer) {
       this.updatePlayer(deltaTime)
-    } else {
-      this.updateAI(deltaTime, track, allCars)
+      return
     }
 
-    // Apply movement (speed can be negative for reverse, but not for AI)
-    // For AI cars, ensure speed is never negative to prevent backward movement
+    this.updateAI(deltaTime, track, allCars)
+  }
+
+  private createMovementState(deltaTime: number): {
+    direction: THREE.Vector3
+    moveDistance: number
+    newPosition: THREE.Vector3
+  } {
     const effectiveSpeed = this.isPlayer ? this.speed : Math.max(0, this.speed)
     const moveDistance = effectiveSpeed * deltaTime
     const direction = new THREE.Vector3(
@@ -522,20 +464,24 @@ export class Car {
       0,
       Math.cos(this.rotation)
     )
-
     const newPosition = this.position.clone().add(direction.multiplyScalar(moveDistance))
 
-    // Apply shockwave push velocity
     newPosition.x += this.pushVelocityX * deltaTime
     newPosition.z += this.pushVelocityZ * deltaTime
-    // Decay push velocity
     const pushDrag = Math.pow(0.92, deltaTime * 60)
     this.pushVelocityX *= pushDrag
     this.pushVelocityZ *= pushDrag
     if (Math.abs(this.pushVelocityX) < 0.1) this.pushVelocityX = 0
     if (Math.abs(this.pushVelocityZ) < 0.1) this.pushVelocityZ = 0
 
-    // Wall collision: slide along the rail instead of stopping dead
+    return { direction, moveDistance, newPosition }
+  }
+
+  private resolveWallCollisions(
+    newPosition: THREE.Vector3,
+    direction: THREE.Vector3,
+    track: Track
+  ): THREE.Vector3 {
     let positionAfterWall: THREE.Vector3
     if (track.isOutsideOuterBorder(newPosition, Car.TRACK_COLLISION_MARGIN)) {
       const { clamped, normals } = track.clampPositionToOuterBounds(
@@ -543,7 +489,6 @@ export class Car {
         Car.TRACK_COLLISION_MARGIN
       )
       positionAfterWall = clamped
-      // Remove velocity component into the wall(s) so we slide along the rail
       const velocity = direction.clone().multiplyScalar(this.speed)
       const slideVelocity = velocity.clone()
       for (const n of normals) {
@@ -557,12 +502,8 @@ export class Car {
       if (slideSpeed > 0.05) {
         this.rotation = Math.atan2(slideVelocity.x, slideVelocity.z)
       }
-      // Slight speed loss on impact (friction against wall)
       this.speed *= 0.92
     } else if (track.isInsideInnerArea(newPosition, Car.INNER_RAIL_MARGIN)) {
-      // Inner rail: just clamp position, don't touch speed or rotation.
-      // The clamping naturally lets the car slide along the wall
-      // (only the axis perpendicular to the wall is clamped, the other axis moves freely).
       const { clamped } = track.clampPositionToInnerBounds(
         newPosition,
         Car.INNER_RAIL_MARGIN
@@ -573,30 +514,28 @@ export class Car {
     }
 
     this.position.copy(positionAfterWall)
+    return positionAfterWall
+  }
 
-    // Check collision with other cars and handle repulsion
+  private resolveCarCollision(
+    positionAfterWall: THREE.Vector3,
+    direction: THREE.Vector3,
+    moveDistance: number,
+    allCars: Car[]
+  ): void {
     const collisionResult = this.checkCollisionWithRepulsion(positionAfterWall, allCars)
     if (collisionResult.collided) {
-      // Play crash sound if enough time has passed since last collision
       const currentTime = performance.now() / 1000
       if (currentTime - this.lastCollisionTime >= this.collisionCooldown) {
-        // AI-AI collisions use constant low volume (0.3), player collisions use randomized volume
         const volume = collisionResult.isAiCollision ? 0.3 : undefined
         this.soundGenerator.playCrashSound(volume)
         this.lastCollisionTime = currentTime
       }
 
-      // Apply repulsion to push cars apart
       this.position.add(collisionResult.repulsion)
-
-      // Still allow some movement in the original direction, but reduced
       const reducedMovement = direction.clone().multiplyScalar(moveDistance * 0.3)
       this.position.add(reducedMovement)
-
-      // Reduce speed when colliding, but don't stop completely
       this.speed *= 0.8
-
-      // Add slight random rotation to help cars slide past each other
       const rotationAmount = 0.015
       if (Math.random() > 0.5) {
         this.rotation += rotationAmount
@@ -606,24 +545,22 @@ export class Car {
     } else {
       this.position.copy(positionAfterWall)
     }
+  }
 
-    // Update mesh position and rotation
+  private syncDrivingVisualState(deltaTime: number): void {
     this.mesh.position.copy(this.position)
     this.mesh.rotation.y = this.rotation
 
-    // Animate damaged fire
     if (this.isDamaged) {
       this.fireTime += deltaTime
       this.animateFire()
     }
 
-    // Update health bar
     this.updateHealthBar()
-
-    // Update bounding box (still used for backward compat, but collisions use OBB)
     this.boundingBox.setFromObject(this.mesh)
+  }
 
-    // Update lap progress
+  private updateRaceProgress(track: Track): void {
     this.updateLapProgress(track)
     this.updateCheckpoints(track)
   }
@@ -1009,7 +946,6 @@ export class Car {
   private applyDamagedState(): void {
     this.isDamaged = true
     this.damageSpeedMultiplier = 0.3
-
     this.addFireEffect(3, 0.5, 0.4, 1.0, 4)
   }
 
@@ -1026,91 +962,38 @@ export class Car {
   }
 
   private addFireEffect(count: number, spreadXZ: number, baseScale: number, lightIntensity: number, lightDistance: number): void {
-    const canvas = document.createElement('canvas')
-    canvas.width = 64
-    canvas.height = 64
-    const ctx2d = canvas.getContext('2d')!
-    const gradient = ctx2d.createRadialGradient(32, 32, 0, 32, 32, 32)
-    gradient.addColorStop(0, 'rgba(255, 220, 50, 0.95)')
-    gradient.addColorStop(0.3, 'rgba(255, 120, 0, 0.85)')
-    gradient.addColorStop(0.7, 'rgba(200, 30, 0, 0.5)')
-    gradient.addColorStop(1, 'rgba(100, 0, 0, 0)')
-    ctx2d.fillStyle = gradient
-    ctx2d.fillRect(0, 0, 64, 64)
-    const texture = new THREE.CanvasTexture(canvas)
-
-    for (let i = 0; i < count; i++) {
-      const material = new THREE.SpriteMaterial({ map: texture, transparent: true })
-      const sprite = new THREE.Sprite(material)
-      sprite.position.set(
-        (Math.random() - 0.5) * spreadXZ,
-        0.5 + Math.random() * spreadXZ,
-        (Math.random() - 0.5) * spreadXZ
-      )
-      const s = baseScale + Math.random() * (baseScale * 0.75)
-      sprite.scale.set(s, s, 1)
-      this.mesh.add(sprite)
-      this.fireMeshes.push(sprite)
-    }
-
-    this.fireLight = new THREE.PointLight(0xff4400, lightIntensity, lightDistance)
-    this.fireLight.position.set(0, 1.2, 0)
-    this.mesh.add(this.fireLight)
+    const fireState = addFireEffect(this.mesh, count, spreadXZ, baseScale, lightIntensity, lightDistance)
+    this.fireMeshes = fireState.fireMeshes
+    this.fireLight = fireState.fireLight
   }
 
   private animateFire(): void {
-    this.fireMeshes.forEach((sprite, i) => {
-      const phase = i * (Math.PI * 2 / this.fireMeshes.length)
-      const oscillation = 0.2 * Math.sin(this.fireTime * 5 + phase)
-      const baseScale = 0.8 + (i % 3) * 0.3
-      const s = baseScale + oscillation
-      sprite.scale.set(s, s, 1)
-      sprite.position.x += (Math.random() - 0.5) * 0.04
-      sprite.position.z += (Math.random() - 0.5) * 0.04
-      sprite.position.x = Math.max(-0.5, Math.min(0.5, sprite.position.x))
-      sprite.position.z = Math.max(-0.5, Math.min(0.5, sprite.position.z))
-    })
-    if (this.fireLight) {
-      this.fireLight.intensity = 1.5 + 0.5 * Math.sin(this.fireTime * 7)
-    }
+    animateFireEffect(this.fireMeshes, this.fireLight, this.fireTime)
   }
 
   private clearFireEffect(): void {
-    this.fireMeshes.forEach(sprite => {
-      this.mesh.remove(sprite)
-      sprite.material.map?.dispose()
-      sprite.material.dispose()
+    const fireState = clearFireEffect(this.mesh, {
+      fireMeshes: this.fireMeshes,
+      fireLight: this.fireLight
     })
-    this.fireMeshes = []
-    if (this.fireLight) {
-      this.mesh.remove(this.fireLight)
-      this.fireLight = null
-    }
+    this.fireMeshes = fireState.fireMeshes
+    this.fireLight = fireState.fireLight
   }
 
   public startRace() {
-    this.finished = false
-    this.lapProgress = 0
-    this.lapsCompleted = 0
-    this.finishPosition = 0
-    this.launched = false
-    this.launchVelocity = null
-    this.launchAngularVelocity = null
-    this.pushVelocityX = 0
-    this.pushVelocityZ = 0
-    this.speed = 0
-    this.clearTemporarySpeedEffects()
-    this.health = 100
-    this.isDestroyed = false
-    this.isDamaged = false
-    this.damageSpeedMultiplier = 1
-    this.clearFireEffect()
+    this.resetTransientState()
   }
 
   public reset(x: number, z: number) {
     this.position.set(x, 0.5, z)
     this.startX = x
     this.rotation = Math.PI / 2
+    this.resetTransientState()
+    this.mesh.position.copy(this.position)
+    this.mesh.rotation.set(0, this.rotation, 0)
+  }
+
+  private resetTransientState(): void {
     this.speed = 0
     this.lapProgress = 0
     this.lapsCompleted = 0
@@ -1127,28 +1010,13 @@ export class Car {
     this.isDamaged = false
     this.damageSpeedMultiplier = 1
     this.clearFireEffect()
-    this.mesh.position.copy(this.position)
-    this.mesh.rotation.set(0, this.rotation, 0)
   }
 
   private createHealthBar(): void {
-    this.healthBarCanvas = document.createElement('canvas')
-    this.healthBarCanvas.width = 64
-    this.healthBarCanvas.height = 8
-    this.healthBarTexture = new THREE.CanvasTexture(this.healthBarCanvas)
-    this.healthBarTexture.minFilter = THREE.LinearFilter
-
-    const material = new THREE.SpriteMaterial({
-      map: this.healthBarTexture,
-      transparent: true,
-      depthTest: false,
-      sizeAttenuation: true,
-    })
-    this.healthBarSprite = new THREE.Sprite(material)
-    this.healthBarSprite.scale.set(2.5, 0.3, 1)
-    this.healthBarSprite.visible = false
-    // Don't add to mesh group (rotation would fight the billboard).
-    // Position is updated manually each frame in updateHealthBar().
+    const healthBar = createHealthBar()
+    this.healthBarCanvas = healthBar.canvas
+    this.healthBarTexture = healthBar.texture
+    this.healthBarSprite = healthBar.sprite
     this.drawHealthBar()
   }
 
@@ -1163,29 +1031,7 @@ export class Car {
     if (!this.healthBarCanvas || !this.healthBarTexture) return
     if (this.lastDrawnHealth === this.health) return
     this.lastDrawnHealth = this.health
-
-    const ctx = this.healthBarCanvas.getContext('2d')!
-    const w = this.healthBarCanvas.width
-    const h = this.healthBarCanvas.height
-    const ratio = Math.max(0, this.health / 100)
-
-    ctx.clearRect(0, 0, w, h)
-
-    // Background (dark)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
-    ctx.fillRect(0, 0, w, h)
-
-    // Health fill (green → yellow → red)
-    if (ratio > 0.5) {
-      ctx.fillStyle = '#22cc22'
-    } else if (ratio > 0.25) {
-      ctx.fillStyle = '#cccc22'
-    } else {
-      ctx.fillStyle = '#cc2222'
-    }
-    ctx.fillRect(1, 1, (w - 2) * ratio, h - 2)
-
-    this.healthBarTexture.needsUpdate = true
+    drawHealthBar(this.healthBarCanvas, this.healthBarTexture, this.health)
   }
 
   private updateHealthBar(): void {
