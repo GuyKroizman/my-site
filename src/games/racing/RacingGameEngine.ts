@@ -2,27 +2,25 @@ import * as THREE from 'three'
 import { Car } from './Car'
 import { Track } from './Track'
 import { RaceManager } from './RaceManager'
-import { StartLights } from './StartLights'
 import { Mine } from './Mine'
 import { SoundGenerator } from './SoundGenerator'
-import { PlayerArrow } from './PlayerArrow'
-import { BackgroundEye } from './BackgroundEye'
-import { AmbientBunny } from './AmbientBunny'
-import { AmbientWolf } from './AmbientWolf'
-import { DecorationGrid } from './DecorationGrid'
-import { TimerBillboard } from './TimerBillboard'
-import { LapDigitDropEffect } from './LapDigitDropEffect'
-import { LevelConfig, CarConfig, BallDropConfig } from './levels'
-import { DECORATION_BOUNDS, DECORATION_MODELS } from './levels/decorationConfig'
+import { LevelConfig, BallDropConfig } from './levels'
 import type { TouchDriveState } from './input'
 import type { PlayerUpgrades } from './upgrades'
 import { DEFAULT_PLAYER_UPGRADES, getFireButtonWeapons } from './upgrades'
 import { getCachedTexture, preloadRacingLevelAssets, RACING_SHARED_ASSET_PATHS } from './assets'
 import { RacingCombatController } from './engineCombat'
+import { RacingEngineInputController } from './engineInput'
+import { RacingSessionController } from './engineSession'
+import { RacingPresentationController } from './enginePresentation'
+import {
+  applyPlayerRaceUpgrades,
+  clonePendingBallDrops,
+  createLevelMine,
+  createRaceCars,
+} from './engineSetup'
 export type { FireWeaponUiState } from './engineCombat'
 import type { FireWeaponUiState } from './engineCombat'
-
-const PLAYER_DEFAULT_TURN_MULTIPLIER = 1.2
 
 export interface RacingGameCallbacks {
   onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
@@ -40,57 +38,29 @@ export class RacingGameEngine {
   private cars: Car[] = []
   private track: Track
   private raceManager: RaceManager
-  private startLights: StartLights | null = null
   private animationId: number | null = null
   private callbacks: RacingGameCallbacks
   private isDisposed: boolean = false
-  private raceStartTime: number = 0
-  private timerActive: boolean = false
   private lastFrameTime: number = 0
   private frameInterval: number = 1000 / 60 // 16.67ms for 60 FPS
   private lastRenderTime: number = 0
   private currentLevelConfig: LevelConfig
   private isPaused: boolean = false
-  private pauseStartTime: number = 0
-  private totalPauseTime: number = 0
   private mine: Mine | null = null
   private soundGenerator: SoundGenerator = new SoundGenerator()
-  private playerArrow: PlayerArrow | null = null
-  private playerMineHitTime: number | null = null
-  private backgroundEyes: BackgroundEye[] = []
-  private ambientBunny: AmbientBunny | null = null
-  private ambientWolf: AmbientWolf | null = null
-  private ambientOuterWolf: AmbientWolf | null = null
-  private decorationGrid: DecorationGrid | null = null
-  private timerBillboard: TimerBillboard | null = null
-  private lapDigitDropEffect: LapDigitDropEffect
   private pendingBallDrops: BallDropConfig[] = []
   private touchShoot: boolean = false
   private spacePressed: boolean = false
-  private spaceKeyDownHandler: ((e: KeyboardEvent) => void) | null = null
-  private spaceKeyUpHandler: ((e: KeyboardEvent) => void) | null = null
   private resizeHandler: (() => void) | null = null
   private orientationChangeHandler: (() => void) | null = null
   private orientationResizeTimeoutId: number | null = null
-  private levelMineArmed: boolean = false
 
   // Player upgrades & weapon switching
   private playerUpgrades: PlayerUpgrades
   private combat: RacingCombatController
-
-  // Camera shake
-  private shakeTimer: number = 0
-  private shakeDuration: number = 0
-  private shakeIntensity: number = 0
-
-  // Cinematic camera intro
-  private cinematicActive: boolean = false
-  private cinematicTimer: number = 0
-  private gameplayCameraPos: THREE.Vector3 = new THREE.Vector3()
-  private cinematicStartPos: THREE.Vector3 = new THREE.Vector3()
-  private cinematicStartLookAt: THREE.Vector3 = new THREE.Vector3()
-  private readonly CINEMATIC_HOLD_DURATION: number = 0.5
-  private readonly CINEMATIC_SWEEP_DURATION: number = 2.0
+  private input: RacingEngineInputController
+  private session: RacingSessionController = new RacingSessionController()
+  private presentation: RacingPresentationController
 
   constructor(container: HTMLElement, callbacks: RacingGameCallbacks, levelConfig: LevelConfig, upgrades?: PlayerUpgrades) {
     // Wrap callbacks so we play finish sound when any car crosses the line, then invoke the provided callback
@@ -130,6 +100,9 @@ export class RacingGameEngine {
     const width = Math.max(container.clientWidth || window.innerWidth, 1)
     const height = Math.max(container.clientHeight || window.innerHeight, 1)
     this.camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000)
+    this.presentation = new RacingPresentationController(this.scene, this.camera, {
+      onCameraReady: (screenPos) => this.callbacks.onCameraReady?.(screenPos),
+    }, this.currentLevelConfig)
     // Position camera to show the entire track centered
     // Track is 30x20, centered at (0, 0, 0), start line at z: -10
     // Adjust camera position based on aspect ratio for portrait mode
@@ -163,9 +136,6 @@ export class RacingGameEngine {
         if (newWidth > 0 && newHeight > 0) {
           this.camera.aspect = newWidth / newHeight
           this.updateCameraPosition(newWidth, newHeight)
-          if (!this.cinematicActive) {
-            this.camera.lookAt(0, 0, 0)
-          }
           this.camera.updateProjectionMatrix()
           this.renderer.setSize(newWidth, newHeight, false) // false = don't update style
         }
@@ -196,22 +166,19 @@ export class RacingGameEngine {
     this.combat = new RacingCombatController(this.scene, this.track, this.soundGenerator, {
       onWeaponUiStateChange: (state) => this.callbacks.onWeaponUiStateChange?.(state),
     })
+    this.input = new RacingEngineInputController({
+      onFirePressedChange: (pressed) => {
+        this.spacePressed = pressed
+      },
+      onRotateWeapon: () => this.rotateWeapon(),
+    })
 
     // Create navigation grid for A* pathfinding
     this.track.createNavigationGrid(1.0)
 
     // Create race manager with level-specific required laps
     this.raceManager = new RaceManager(this.callbacks, this.currentLevelConfig.requiredLaps)
-    this.raceManager.setFinishScreenPosGetter(() => this.projectFinishLine())
-
-    // Create start lights
-    this.startLights = new StartLights(this.scene, () => {
-      // Start lights sequence complete
-    })
-
-    // Create timer billboard
-    this.timerBillboard = new TimerBillboard(this.scene)
-    this.lapDigitDropEffect = new LapDigitDropEffect(this.scene)
+    this.raceManager.setFinishScreenPosGetter(() => this.presentation.projectFinishLine())
 
     // Setup lighting (brighter so car models are more visible)
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.95)
@@ -227,95 +194,19 @@ export class RacingGameEngine {
     fillLight.position.set(-8, 12, -8)
     this.scene.add(fillLight)
 
-    // Create cars
-    this.createCars()
-
-    // Apply player upgrades to player car
-    const playerCar = this.cars.find(car => car.isPlayer)
-    if (playerCar) {
-      playerCar.applyPermanentSpeedMultiplier(this.playerUpgrades.speedMultiplier)
-      playerCar.applyPermanentTurnMultiplier(PLAYER_DEFAULT_TURN_MULTIPLIER)
-      playerCar.hasRam = this.playerUpgrades.hasRam
-    }
+    this.cars = createRaceCars(this.scene, this.currentLevelConfig, (car) => {
+      this.raceManager.addCar(car, this.track)
+    })
+    applyPlayerRaceUpgrades(this.cars, this.playerUpgrades)
 
     // Build fire-button weapon list for weapon switching
     this.combat.setFireWeapons(getFireButtonWeapons(this.playerUpgrades))
 
-    // Initialize cinematic camera intro
-    this.initCinematicCamera()
-
-    // Create player indicator arrow (visible during countdown)
-    this.playerArrow = new PlayerArrow(this.scene)
-
-    // Spawn mine on levels 2 and above (one per level, random position on track)
-    if (this.currentLevelConfig.id >= 2) {
-      const minePos = this.track.getRandomPointOnTrack()
-      this.mine = new Mine(this.scene, minePos.x, minePos.z, 2.0, false)
-    }
+    this.mine = createLevelMine(this.scene, this.currentLevelConfig, () => this.track.getRandomPointOnTrack())
 
     // Initialize pending ball drops from level config
-    this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
-
-    if (this.currentLevelConfig.id === 1) {
-      this.backgroundEyes.push(
-        new BackgroundEye(this.scene, {
-          position: { x: 62, y: 4, z: -25 },
-          stroll: {
-            delay: 10,
-            duration: 15,
-            endPosition: { x: 10, y: 4, z: -17 }
-          }
-        })
-      )
-      this.backgroundEyes.push(
-        new BackgroundEye(this.scene, {
-          position: { x: 62, y: 4, z: -25 },
-          scaleMultiplier: 0.5,
-          stroll: {
-            delay: 24,
-            duration: 10,
-            endPosition: { x: 5, y: 4, z: -22 }
-          }
-        })
-      )
-    }
-
-    if (this.currentLevelConfig.id === 2) {
-      const ambientOrbitCenter = { x: -24, y: 0.5, z: -19 }
-      this.ambientWolf = new AmbientWolf(this.scene, ambientOrbitCenter)
-      this.ambientOuterWolf = new AmbientWolf(this.scene, ambientOrbitCenter, {
-        radius: 4.6,
-        startAngle: 0.28,
-      })
-      this.ambientBunny = new AmbientBunny(this.scene, ambientOrbitCenter)
-    }
-
-    if (this.currentLevelConfig.decorationRows?.length) {
-      this.decorationGrid = new DecorationGrid(
-        this.scene,
-        DECORATION_BOUNDS,
-        DECORATION_MODELS,
-        this.currentLevelConfig.decorationRows
-      )
-    }
-
-    // Setup keys for shooting (X) and weapon switching (Z)
-    this.spaceKeyDownHandler = (e: KeyboardEvent) => {
-      if (e.code === 'KeyX') {
-        this.spacePressed = true
-      }
-      if (e.code === 'KeyZ') {
-        this.rotateWeapon()
-      }
-    }
-    this.spaceKeyUpHandler = (e: KeyboardEvent) => {
-      if (e.code === 'KeyX') {
-        this.spacePressed = false
-      }
-    }
-    window.addEventListener('keydown', this.spaceKeyDownHandler)
-    window.addEventListener('keyup', this.spaceKeyUpHandler)
-
+    this.pendingBallDrops = clonePendingBallDrops(this.currentLevelConfig)
+    this.input.attach()
   }
 
   public static preloadLevelAssets(level: LevelConfig): Promise<void> {
@@ -335,118 +226,8 @@ export class RacingGameEngine {
     this.animate()
   }
 
-  private projectFinishLine(): { x: number; y: number } {
-    const pos = new THREE.Vector3(0, 0.5, -7).project(this.camera)
-    return {
-      x: (pos.x * 0.5 + 0.5) * window.innerWidth,
-      y: (-pos.y * 0.5 + 0.5) * window.innerHeight
-    }
-  }
-
   private updateCameraPosition(viewWidth: number, viewHeight: number) {
-    const aspect = viewWidth / viewHeight
-    const trackWidth = 50
-    const fovRad = (this.camera.fov * Math.PI) / 180
-    const baseCameraY = 25
-    const baseCameraZ = 26
-
-    if (aspect < 1) {
-      const requiredY = trackWidth / (2 * Math.tan(fovRad / 2) * aspect)
-      const requiredZ = requiredY * (baseCameraZ / baseCameraY)
-      this.gameplayCameraPos.set(0, requiredY, requiredZ)
-    } else {
-      this.gameplayCameraPos.set(0, baseCameraY, baseCameraZ)
-    }
-
-    if (!this.cinematicActive) {
-      this.camera.position.copy(this.gameplayCameraPos)
-    }
-  }
-
-  private smootherstep(t: number): number {
-    t = Math.max(0, Math.min(1, t))
-    return t * t * t * (t * (t * 6 - 15) + 10)
-  }
-
-  private initCinematicCamera() {
-    const carConfigs = this.currentLevelConfig.cars
-    let centerX = 0, centerZ = 0
-    carConfigs.forEach(config => {
-      centerX += config.x
-      centerZ += config.z
-    })
-    centerX /= carConfigs.length
-    centerZ /= carConfigs.length
-
-    this.cinematicStartPos.set(centerX + 8, 1.5, centerZ)
-    this.cinematicStartLookAt.set(centerX - 2, 0.5, centerZ)
-
-    this.camera.position.copy(this.cinematicStartPos)
-    this.camera.lookAt(this.cinematicStartLookAt)
-
-    this.cinematicActive = true
-    this.cinematicTimer = 0
-  }
-
-  private updateCinematicCamera(deltaTime: number) {
-    if (!this.cinematicActive) return
-
-    this.cinematicTimer += deltaTime
-
-    if (this.cinematicTimer <= this.CINEMATIC_HOLD_DURATION) {
-      this.camera.position.copy(this.cinematicStartPos)
-      this.camera.lookAt(this.cinematicStartLookAt)
-      return
-    }
-
-    const sweepTime = this.cinematicTimer - this.CINEMATIC_HOLD_DURATION
-    const t = Math.min(sweepTime / this.CINEMATIC_SWEEP_DURATION, 1)
-    const easedT = this.smootherstep(t)
-
-    this.camera.position.lerpVectors(this.cinematicStartPos, this.gameplayCameraPos, easedT)
-
-    const currentLookAt = new THREE.Vector3().lerpVectors(
-      this.cinematicStartLookAt,
-      new THREE.Vector3(0, 0, 0),
-      easedT
-    )
-    this.camera.lookAt(currentLookAt)
-
-    if (t >= 1) {
-      this.cinematicActive = false
-      this.camera.position.copy(this.gameplayCameraPos)
-      this.camera.lookAt(0, 0, 0)
-
-      this.callbacks.onCameraReady?.(this.projectFinishLine())
-
-      if (this.startLights) {
-        this.startLights.startSequence()
-      }
-    }
-  }
-
-  private createCars() {
-    Car.resetAiIndex()
-    // Use car configurations from the current level
-    const carConfigs = this.currentLevelConfig.cars
-
-    carConfigs.forEach((config: CarConfig) => {
-      const car = new Car(
-        config.x,
-        0.5,
-        config.z,
-        config.color,
-        config.name,
-        config.isPlayer,
-        config.characteristics,
-        config.modelPath
-      )
-      this.cars.push(car)
-      this.scene.add(car.mesh)
-      car.addHealthBarToScene(this.scene)
-      this.raceManager.addCar(car, this.track)
-      // Don't give AI cars initial speed - they'll wait for green light
-    })
+    this.presentation.updateCameraPosition(viewWidth, viewHeight)
   }
 
   private getPlayerCar(): Car | undefined {
@@ -454,48 +235,32 @@ export class RacingGameEngine {
   }
 
   private updateRaceTimer(raceComplete: boolean): void {
-    if (!this.timerActive || raceComplete) {
+    if (!this.session.isTimerActive() || raceComplete) {
       return
     }
 
-    const currentTime = performance.now() / 1000
-    const elapsedTime = currentTime - this.raceStartTime - this.totalPauseTime
+    const elapsedTime = this.session.getElapsedRaceTime()
     this.callbacks.onTimerUpdate?.(elapsedTime)
-    this.timerBillboard?.update(elapsedTime)
+    this.presentation.updateRaceTimer(elapsedTime)
   }
 
   private getCanStart(): boolean {
-    return this.startLights ? this.startLights.isGreen() : false
+    return this.presentation.isStartGreen()
   }
 
   private syncRaceStart(canStart: boolean): void {
-    if (!canStart || this.timerActive) {
+    if (!this.session.beginRaceIfNeeded(canStart)) {
       return
     }
 
-    this.timerActive = true
-    this.raceStartTime = performance.now() / 1000
-
-    if (this.mine && !this.levelMineArmed) {
+    if (this.mine && !this.session.isLevelMineArmed()) {
       this.mine.startActivationCountdown()
-      this.levelMineArmed = true
+      this.session.markLevelMineArmed()
     }
   }
 
   private updatePlayerArrow(deltaTime: number, canStart: boolean): void {
-    if (!this.playerArrow) {
-      return
-    }
-
-    if (canStart) {
-      this.playerArrow.hide()
-      return
-    }
-
-    const playerCar = this.getPlayerCar()
-    if (playerCar) {
-      this.playerArrow.update(deltaTime, playerCar.position)
-    }
+    this.presentation.updatePlayerArrow(deltaTime, canStart, this.getPlayerCar()?.position)
   }
 
   private updateCars(deltaTime: number, raceComplete: boolean, canStart: boolean): void {
@@ -521,11 +286,11 @@ export class RacingGameEngine {
   }
 
   private updatePendingBallDrops(raceComplete: boolean): void {
-    if (!this.timerActive || raceComplete) {
+    if (!this.session.isTimerActive() || raceComplete) {
       return
     }
 
-    const elapsed = performance.now() / 1000 - this.raceStartTime - this.totalPauseTime
+    const elapsed = this.session.getElapsedRaceTime()
     for (let i = this.pendingBallDrops.length - 1; i >= 0; i--) {
       const drop = this.pendingBallDrops[i]
       if (elapsed >= drop.dropTime) {
@@ -536,20 +301,20 @@ export class RacingGameEngine {
   }
 
   private updatePlayerFailureState(raceComplete: boolean): void {
-    if (!raceComplete && this.playerMineHitTime === null) {
+    if (!raceComplete && this.session.getPlayerFailureElapsed() === null) {
       const playerCar = this.getPlayerCar()
       if (playerCar?.isDestroyed) {
-        this.playerMineHitTime = performance.now() / 1000
+        this.session.recordPlayerFailure()
       }
     }
 
-    if (this.playerMineHitTime === null || raceComplete) {
+    const failureElapsed = this.session.getPlayerFailureElapsed()
+    if (failureElapsed === null || raceComplete) {
       return
     }
 
-    const elapsed = performance.now() / 1000 - this.playerMineHitTime
-    if (elapsed >= 3) {
-      this.playerMineHitTime = null
+    if (failureElapsed >= 3) {
+      this.session.clearPlayerFailure()
       this.raceManager.forceComplete()
     }
   }
@@ -559,8 +324,7 @@ export class RacingGameEngine {
       return
     }
 
-    const currentTime = performance.now() / 1000
-    const elapsedRaceTime = this.timerActive ? (currentTime - this.raceStartTime - this.totalPauseTime) : 0
+    const elapsedRaceTime = this.session.getElapsedRaceTime()
     this.raceManager.update(deltaTime, this.track, elapsedRaceTime)
   }
 
@@ -572,30 +336,20 @@ export class RacingGameEngine {
       cars: this.cars,
       playerCar: this.getPlayerCar(),
       onExplosionHit: (car, origin) => this.handleExplosionHit(car, origin),
-      onCameraShake: (duration, intensity) => this.triggerCameraShake(duration, intensity),
-      onPlayerBallExplosion: () => {
-        if (this.playerMineHitTime === null) {
-          this.playerMineHitTime = performance.now() / 1000
-        }
-      },
+      onCameraShake: (duration, intensity) => this.presentation.triggerCameraShake(duration, intensity),
+      onPlayerBallExplosion: () => this.session.recordPlayerFailure(),
     })
   }
 
   private updateSceneEffects(deltaTime: number): void {
-    this.updateCinematicCamera(deltaTime)
-    this.backgroundEyes.forEach((eye) => eye.update(deltaTime))
-    this.ambientBunny?.update(deltaTime)
-    this.ambientOuterWolf?.update(deltaTime)
-    this.ambientWolf?.update(deltaTime)
-    this.lapDigitDropEffect.update(deltaTime)
-    this.updateCameraShake(deltaTime)
+    this.presentation.updateSceneEffects(deltaTime)
   }
 
   private handleExplosionHit(car: Car, explosionOrigin: THREE.Vector3): void {
     car.applyExplosionForce(explosionOrigin)
     this.soundGenerator.playExplosionSound()
     if (car.isPlayer) {
-      this.playerMineHitTime = performance.now() / 1000
+      this.session.recordPlayerFailure()
     }
   }
 
@@ -633,10 +387,7 @@ export class RacingGameEngine {
     if (deltaTime > 0.1) deltaTime = 0.016 // Cap at ~60fps equivalent
     if (deltaTime <= 0) deltaTime = 0.016 // Prevent negative or zero deltaTime
 
-    // Update start lights
-    if (this.startLights) {
-      this.startLights.update(deltaTime)
-    }
+    this.presentation.updateStartLights(deltaTime)
 
     // Check if race is complete
     const raceComplete = this.raceManager.isRaceComplete()
@@ -658,16 +409,12 @@ export class RacingGameEngine {
     this.renderer.render(this.scene, this.camera)
 
     // Restore camera position after render so shake doesn't accumulate
-    if (this.shakeTimer > 0 && !this.cinematicActive) {
-      this.camera.position.copy(this.gameplayCameraPos)
-    }
+    this.presentation.restoreCameraAfterRender()
   }
 
   public startRace() {
     this.resetRaceState()
-    this.initCinematicCamera()
-    this.startLights?.reset()
-    this.playerArrow?.show()
+    this.presentation.startRace(this.currentLevelConfig.cars)
     this.raceManager.startRace(this.track)
     this.cars.forEach(car => car.startRace())
     this.combat.emitUiState(true)
@@ -675,18 +422,9 @@ export class RacingGameEngine {
 
   private resetRaceState(): void {
     this.combat.reset(this.getPlayerCar())
-    this.resetRaceTimingState()
-    this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
-    this.levelMineArmed = false
-    this.lapDigitDropEffect.clear()
-  }
-
-  private resetRaceTimingState(): void {
-    this.timerActive = false
-    this.raceStartTime = 0
-    this.totalPauseTime = 0
-    this.pauseStartTime = 0
-    this.playerMineHitTime = null
+    this.session.reset()
+    this.pendingBallDrops = clonePendingBallDrops(this.currentLevelConfig)
+    this.presentation.clearLapDigits()
   }
 
   public reset() {
@@ -731,39 +469,19 @@ export class RacingGameEngine {
   }
 
   public spawnLapDigit(lapNumber: number): void {
-    this.lapDigitDropEffect.spawnDigit(lapNumber)
-  }
-
-  private triggerCameraShake(duration: number, intensity: number) {
-    this.shakeDuration = duration
-    this.shakeTimer = duration
-    this.shakeIntensity = intensity
-  }
-
-  private updateCameraShake(deltaTime: number) {
-    if (this.shakeTimer <= 0 || this.cinematicActive) return
-    this.shakeTimer -= deltaTime
-    const t = Math.max(0, this.shakeTimer / this.shakeDuration)
-    const magnitude = this.shakeIntensity * t
-    this.camera.position.x = this.gameplayCameraPos.x + (Math.random() - 0.5) * 2 * magnitude
-    this.camera.position.y = this.gameplayCameraPos.y + (Math.random() - 0.5) * 2 * magnitude
-    this.camera.position.z = this.gameplayCameraPos.z + (Math.random() - 0.5) * 2 * magnitude
+    this.presentation.spawnLapDigit(lapNumber)
   }
 
   public pause() {
     if (!this.isPaused) {
       this.isPaused = true
-      this.pauseStartTime = performance.now() / 1000
+      this.session.pause()
     }
   }
 
   public resume() {
     if (this.isPaused) {
-      // Calculate how long we were paused and add it to total pause time
-      const pauseEndTime = performance.now() / 1000
-      const pauseDuration = pauseEndTime - this.pauseStartTime
-      this.totalPauseTime += pauseDuration
-
+      this.session.resume()
       this.isPaused = false
       // Reset frame time to prevent large deltaTime jump after resume
       this.lastFrameTime = performance.now() / 1000
@@ -790,14 +508,7 @@ export class RacingGameEngine {
       this.animationId = null
     }
 
-    if (this.spaceKeyDownHandler) {
-      window.removeEventListener('keydown', this.spaceKeyDownHandler)
-      this.spaceKeyDownHandler = null
-    }
-    if (this.spaceKeyUpHandler) {
-      window.removeEventListener('keyup', this.spaceKeyUpHandler)
-      this.spaceKeyUpHandler = null
-    }
+    this.input.dispose()
     if (this.resizeHandler) {
       window.removeEventListener('resize', this.resizeHandler)
       this.resizeHandler = null
@@ -813,40 +524,15 @@ export class RacingGameEngine {
 
     this.combat.dispose()
 
-    if (this.startLights) {
-      this.startLights.dispose()
-      this.startLights = null
-    }
-
     if (this.mine) {
       this.mine.destroy()
       this.mine = null
     }
-    if (this.playerArrow) {
-      this.playerArrow.dispose()
-      this.playerArrow = null
-    }
-    if (this.timerBillboard) {
-      this.timerBillboard.dispose()
-      this.timerBillboard = null
-    }
-    if (this.decorationGrid) {
-      this.decorationGrid.destroy()
-      this.decorationGrid = null
-    }
-    this.lapDigitDropEffect.dispose()
+    this.presentation.dispose()
     this.soundGenerator.dispose()
     this.cars.forEach(car => car.dispose())
     this.cars = []
     this.track.dispose()
-    this.backgroundEyes.forEach((eye) => eye.dispose())
-    this.backgroundEyes = []
-    this.ambientBunny?.dispose()
-    this.ambientBunny = null
-    this.ambientOuterWolf?.dispose()
-    this.ambientOuterWolf = null
-    this.ambientWolf?.dispose()
-    this.ambientWolf = null
     this.scene.background = null
 
     if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentNode) {
