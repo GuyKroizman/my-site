@@ -1,6 +1,15 @@
 import * as THREE from 'three'
 import PF from 'pathfinding'
 import type { GroundCoverStyle, GroundTheme } from './levels/types'
+import {
+  addRoundedRectPath,
+  buildRectangularTrackPath,
+  createCornerBorderMesh,
+  createRoundedTrackShape,
+  DEFAULT_TRACK_LENGTH,
+  DEFAULT_TRACK_WIDTH,
+  type TrackRectBounds,
+} from './trackGeometry'
 
 export interface Checkpoint {
   id: number
@@ -498,8 +507,8 @@ export class Track {
 
   private createRectangularTrack() {
     // Create a rectangular track
-    this.length = 30
-    this.width = 20
+    this.length = DEFAULT_TRACK_LENGTH
+    this.width = DEFAULT_TRACK_WIDTH
     const length = this.length
     const width = this.width
 
@@ -518,140 +527,24 @@ export class Track {
     // Left edge: from (-15, 0, 7) to (-15, 0, -7)
     // Top-left corner: arc from (-15, 0, -7) to (-12, 0, -10), center at (-12, 0, -7)
 
-    this.path = [
-      // Start/Finish point
-      new THREE.Vector3(-length / 2, 0, -width / 2),
-
-      // Top edge end (where top-right corner starts)
-      new THREE.Vector3(length / 2 - radius, 0, -width / 2),
-
-      // Top-right corner arc (8 points, center at (12, 0, -7), radius 3, from angle -π/2 to 0)
-      new THREE.Vector3(12 + 3 * Math.cos(-Math.PI / 2 + Math.PI / 16), 0, -7 + 3 * Math.sin(-Math.PI / 2 + Math.PI / 16)),
-      new THREE.Vector3(12 + 3 * Math.cos(-Math.PI / 2 + Math.PI / 8), 0, -7 + 3 * Math.sin(-Math.PI / 2 + Math.PI / 8)),
-      new THREE.Vector3(12 + 3 * Math.cos(-Math.PI / 2 + 3 * Math.PI / 16), 0, -7 + 3 * Math.sin(-Math.PI / 2 + 3 * Math.PI / 16)),
-      new THREE.Vector3(12 + 3 * Math.cos(-Math.PI / 2 + Math.PI / 4), 0, -7 + 3 * Math.sin(-Math.PI / 2 + Math.PI / 4)),
-      new THREE.Vector3(12 + 3 * Math.cos(-Math.PI / 2 + 5 * Math.PI / 16), 0, -7 + 3 * Math.sin(-Math.PI / 2 + 5 * Math.PI / 16)),
-      new THREE.Vector3(12 + 3 * Math.cos(-Math.PI / 2 + 3 * Math.PI / 8), 0, -7 + 3 * Math.sin(-Math.PI / 2 + 3 * Math.PI / 8)),
-      new THREE.Vector3(12 + 3 * Math.cos(-Math.PI / 2 + 7 * Math.PI / 16), 0, -7 + 3 * Math.sin(-Math.PI / 2 + 7 * Math.PI / 16)),
-      new THREE.Vector3(length / 2, 0, -width / 2 + radius), // End of top-right corner
-
-      // Right edge end (where bottom-right corner starts)
-      new THREE.Vector3(length / 2, 0, width / 2 - radius),
-
-      // Bottom-right corner arc (8 points, center at (12, 0, 7), radius 3, from angle 0 to π/2)
-      new THREE.Vector3(12 + 3 * Math.cos(0 + Math.PI / 16), 0, 7 + 3 * Math.sin(0 + Math.PI / 16)),
-      new THREE.Vector3(12 + 3 * Math.cos(0 + Math.PI / 8), 0, 7 + 3 * Math.sin(0 + Math.PI / 8)),
-      new THREE.Vector3(12 + 3 * Math.cos(0 + 3 * Math.PI / 16), 0, 7 + 3 * Math.sin(0 + 3 * Math.PI / 16)),
-      new THREE.Vector3(12 + 3 * Math.cos(0 + Math.PI / 4), 0, 7 + 3 * Math.sin(0 + Math.PI / 4)),
-      new THREE.Vector3(12 + 3 * Math.cos(0 + 5 * Math.PI / 16), 0, 7 + 3 * Math.sin(0 + 5 * Math.PI / 16)),
-      new THREE.Vector3(12 + 3 * Math.cos(0 + 3 * Math.PI / 8), 0, 7 + 3 * Math.sin(0 + 3 * Math.PI / 8)),
-      new THREE.Vector3(12 + 3 * Math.cos(0 + 7 * Math.PI / 16), 0, 7 + 3 * Math.sin(0 + 7 * Math.PI / 16)),
-      new THREE.Vector3(length / 2 - radius, 0, width / 2), // End of bottom-right corner
-
-      // Bottom edge end (where bottom-left corner starts)
-      new THREE.Vector3(-length / 2 + radius, 0, width / 2),
-
-      // Bottom-left corner arc (8 points, center at (-12, 0, 7), radius 3, from angle π/2 to π)
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI / 2 + Math.PI / 16), 0, 7 + 3 * Math.sin(Math.PI / 2 + Math.PI / 16)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI / 2 + Math.PI / 8), 0, 7 + 3 * Math.sin(Math.PI / 2 + Math.PI / 8)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI / 2 + 3 * Math.PI / 16), 0, 7 + 3 * Math.sin(Math.PI / 2 + 3 * Math.PI / 16)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI / 2 + Math.PI / 4), 0, 7 + 3 * Math.sin(Math.PI / 2 + Math.PI / 4)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI / 2 + 5 * Math.PI / 16), 0, 7 + 3 * Math.sin(Math.PI / 2 + 5 * Math.PI / 16)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI / 2 + 3 * Math.PI / 8), 0, 7 + 3 * Math.sin(Math.PI / 2 + 3 * Math.PI / 8)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI / 2 + 7 * Math.PI / 16), 0, 7 + 3 * Math.sin(Math.PI / 2 + 7 * Math.PI / 16)),
-      new THREE.Vector3(-length / 2, 0, width / 2 - radius), // End of bottom-left corner
-
-      // Left edge end (where top-left corner starts)
-      new THREE.Vector3(-length / 2, 0, -width / 2 + radius),
-
-      // Top-left corner arc (8 points, center at (-12, 0, -7), radius 3, from angle π to 3π/2)
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI + Math.PI / 16), 0, -7 + 3 * Math.sin(Math.PI + Math.PI / 16)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI + Math.PI / 8), 0, -7 + 3 * Math.sin(Math.PI + Math.PI / 8)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI + 3 * Math.PI / 16), 0, -7 + 3 * Math.sin(Math.PI + 3 * Math.PI / 16)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI + Math.PI / 4), 0, -7 + 3 * Math.sin(Math.PI + Math.PI / 4)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI + 5 * Math.PI / 16), 0, -7 + 3 * Math.sin(Math.PI + 5 * Math.PI / 16)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI + 3 * Math.PI / 8), 0, -7 + 3 * Math.sin(Math.PI + 3 * Math.PI / 8)),
-      new THREE.Vector3(-12 + 3 * Math.cos(Math.PI + 7 * Math.PI / 16), 0, -7 + 3 * Math.sin(Math.PI + 7 * Math.PI / 16)),
-      new THREE.Vector3(-length / 2 + radius, 0, -width / 2), // End of top-left corner (back to start area)
-
-      // Back to start (closing the loop)
-      new THREE.Vector3(-length / 2, 0, -width / 2)
-    ]
+    this.path = buildRectangularTrackPath(length, width, radius)
 
     // Create track surface with rounded corners
-    const trackShape = new THREE.Shape()
-
-    // Outer path dimensions (bigger rectangle)
-    const outerMinX = -length / 2 - this.trackWidth
-    const outerMaxX = length / 2 + this.trackWidth
-    const outerMinZ = -width / 2 - this.trackWidth
-    const outerMaxZ = width / 2 + this.trackWidth
-
-    // Inner path dimensions (smaller rectangle, the hole)
-    const innerMinX = -length / 2 + this.trackWidth
-    const innerMaxX = length / 2 - this.trackWidth
-    const innerMinZ = -width / 2 + this.trackWidth
-    const innerMaxZ = width / 2 - this.trackWidth
-
-    // Create outer shape with rounded corners
-    // Start at top-left, before the corner
-    trackShape.moveTo(outerMinX, outerMinZ + radius)
-
-    // Top-left corner arc (center at outerMinX + radius, outerMinZ + radius)
-    trackShape.absarc(outerMinX + radius, outerMinZ + radius, radius, Math.PI, Math.PI * 1.5, false)
-
-    // Top edge
-    trackShape.lineTo(outerMaxX - radius, outerMinZ)
-
-    // Top-right corner arc (center at outerMaxX - radius, outerMinZ + radius)
-    trackShape.absarc(outerMaxX - radius, outerMinZ + radius, radius, Math.PI * 1.5, 0, false)
-
-    // Right edge
-    trackShape.lineTo(outerMaxX, outerMaxZ - radius)
-
-    // Bottom-right corner arc (center at outerMaxX - radius, outerMaxZ - radius)
-    trackShape.absarc(outerMaxX - radius, outerMaxZ - radius, radius, 0, Math.PI / 2, false)
-
-    // Bottom edge
-    trackShape.lineTo(outerMinX + radius, outerMaxZ)
-
-    // Bottom-left corner arc (center at outerMinX + radius, outerMaxZ - radius)
-    trackShape.absarc(outerMinX + radius, outerMaxZ - radius, radius, Math.PI / 2, Math.PI, false)
-
-    // Left edge (back to start)
-    trackShape.lineTo(outerMinX, outerMinZ + radius)
-
-    // Create hole for inner path with rounded corners
-    const hole = new THREE.Path()
-
-    // Start at top-left, before the corner
-    hole.moveTo(innerMinX, innerMinZ + radius)
-
-    // Top-left corner arc (center at innerMinX + radius, innerMinZ + radius)
-    hole.absarc(innerMinX + radius, innerMinZ + radius, radius, Math.PI, Math.PI * 1.5, false)
-
-    // Top edge
-    hole.lineTo(innerMaxX - radius, innerMinZ)
-
-    // Top-right corner arc (center at innerMaxX - radius, innerMinZ + radius)
-    hole.absarc(innerMaxX - radius, innerMinZ + radius, radius, Math.PI * 1.5, 0, false)
-
-    // Right edge
-    hole.lineTo(innerMaxX, innerMaxZ - radius)
-
-    // Bottom-right corner arc (center at innerMaxX - radius, innerMaxZ - radius)
-    hole.absarc(innerMaxX - radius, innerMaxZ - radius, radius, 0, Math.PI / 2, false)
-
-    // Bottom edge
-    hole.lineTo(innerMinX + radius, innerMaxZ)
-
-    // Bottom-left corner arc (center at innerMinX + radius, innerMaxZ - radius)
-    hole.absarc(innerMinX + radius, innerMaxZ - radius, radius, Math.PI / 2, Math.PI, false)
-
-    // Left edge (back to start)
-    hole.lineTo(innerMinX, innerMinZ + radius)
-
-    trackShape.holes.push(hole)
+    const outerBounds: TrackRectBounds = {
+      minX: -length / 2 - this.trackWidth,
+      maxX: length / 2 + this.trackWidth,
+      minZ: -width / 2 - this.trackWidth,
+      maxZ: width / 2 + this.trackWidth
+    }
+    const innerBounds: TrackRectBounds = {
+      minX: -length / 2 + this.trackWidth,
+      maxX: length / 2 - this.trackWidth,
+      minZ: -width / 2 + this.trackWidth,
+      maxZ: width / 2 - this.trackWidth
+    }
+    const { minX: outerMinX, maxX: outerMaxX, minZ: outerMinZ, maxZ: outerMaxZ } = outerBounds
+    const { minX: innerMinX, maxX: innerMaxX, minZ: innerMinZ, maxZ: innerMaxZ } = innerBounds
+    const trackShape = createRoundedTrackShape(outerBounds, innerBounds, radius)
 
     // Create track geometry as 3D extruded shape with thickness
     const extrudeSettings = {
@@ -760,46 +653,12 @@ export class Track {
     // arcCenterX, arcCenterZ: where to position the corner piece (the arc center in world coordinates)
     // arcRadius: the radius of the track corner arc (where the border follows)
     // borderThickness: how thick the border should be
-    const createCornerBorder = (arcCenterX: number, arcCenterZ: number, arcRadius: number, borderThickness: number, startAngle: number, endAngle: number) => {
-      const cornerShape = new THREE.Shape()
-
-      // The shape is created in local coordinates (centered at 0,0)
-      // Inner radius is the track corner radius
-      // Outer radius is inner radius + border thickness
-      const innerRadius = arcRadius
-      const outerRadius = arcRadius + borderThickness
-
-      // Start at inner radius, start angle
-      const innerStartX = innerRadius * Math.cos(startAngle)
-      const innerStartZ = innerRadius * Math.sin(startAngle)
-      cornerShape.moveTo(innerStartX, innerStartZ)
-
-      // Follow inner arc from start to end (quarter circle)
-      cornerShape.absarc(0, 0, innerRadius, startAngle, endAngle, false)
-
-      // Line to outer radius at end angle
-      const outerEndX = outerRadius * Math.cos(endAngle)
-      const outerEndZ = outerRadius * Math.sin(endAngle)
-      cornerShape.lineTo(outerEndX, outerEndZ)
-
-      // Follow outer arc back from end to start (reverse direction)
-      cornerShape.absarc(0, 0, outerRadius, endAngle, startAngle, true)
-
-      // Close the shape
-      cornerShape.lineTo(innerStartX, innerStartZ)
-
-      const extrudeSettings = { depth: borderHeight, bevelEnabled: false }
-      const cornerGeometry = new THREE.ExtrudeGeometry(cornerShape, extrudeSettings)
-      const cornerMesh = new THREE.Mesh(cornerGeometry, borderMaterial)
-      cornerMesh.rotation.x = -Math.PI / 2
-      cornerMesh.position.set(arcCenterX, borderHeight / 2 - 0.2, arcCenterZ)
-      return cornerMesh
-    }
-
     // Outer corner pieces - positioned at track corner arc centers
     // The border follows the outer edge of the track, so arcRadius = radius + trackWidth
     // Top-right corner
-    const topRightCorner = createCornerBorder(
+    const topRightCorner = createCornerBorderMesh(
+      borderMaterial,
+      borderHeight,
       outerMaxX - radius,
       outerMinZ + radius,
       radius,
@@ -810,7 +669,9 @@ export class Track {
     this.trackMesh.add(topRightCorner)
 
     // Bottom-right corner
-    const bottomRightCorner = createCornerBorder(
+    const bottomRightCorner = createCornerBorderMesh(
+      borderMaterial,
+      borderHeight,
       outerMaxX - radius,
       outerMaxZ - radius,
       radius,
@@ -821,7 +682,9 @@ export class Track {
     this.trackMesh.add(bottomRightCorner)
 
     // Bottom-left corner
-    const bottomLeftCorner = createCornerBorder(
+    const bottomLeftCorner = createCornerBorderMesh(
+      borderMaterial,
+      borderHeight,
       outerMinX + radius,
       outerMaxZ - radius,
       radius,
@@ -832,7 +695,9 @@ export class Track {
     this.trackMesh.add(bottomLeftCorner)
 
     // Top-left corner
-    const topLeftCorner = createCornerBorder(
+    const topLeftCorner = createCornerBorderMesh(
+      borderMaterial,
+      borderHeight,
       outerMinX + radius,
       outerMinZ + radius,
       radius,
@@ -882,7 +747,9 @@ export class Track {
     // Inner corner pieces - positioned at track inner corner arc centers
     // The border follows the inner edge of the track, so arcRadius = radius - trackWidth
     // Top-right inner corner
-    const topRightInnerCorner = createCornerBorder(
+    const topRightInnerCorner = createCornerBorderMesh(
+      borderMaterial,
+      borderHeight,
       innerMaxX - radius,
       innerMinZ + radius,
       radius - this.trackWidth,
@@ -893,7 +760,9 @@ export class Track {
     this.trackMesh.add(topRightInnerCorner)
 
     // Bottom-right inner corner
-    const bottomRightInnerCorner = createCornerBorder(
+    const bottomRightInnerCorner = createCornerBorderMesh(
+      borderMaterial,
+      borderHeight,
       innerMaxX - radius,
       innerMaxZ - radius,
       radius - this.trackWidth,
@@ -904,7 +773,9 @@ export class Track {
     this.trackMesh.add(bottomRightInnerCorner)
 
     // Bottom-left inner corner
-    const bottomLeftInnerCorner = createCornerBorder(
+    const bottomLeftInnerCorner = createCornerBorderMesh(
+      borderMaterial,
+      borderHeight,
       innerMinX + radius,
       innerMaxZ - radius,
       radius - this.trackWidth,
@@ -915,7 +786,9 @@ export class Track {
     this.trackMesh.add(bottomLeftInnerCorner)
 
     // Top-left inner corner
-    const topLeftInnerCorner = createCornerBorder(
+    const topLeftInnerCorner = createCornerBorderMesh(
+      borderMaterial,
+      borderHeight,
       innerMinX + radius,
       innerMinZ + radius,
       radius - this.trackWidth,
@@ -1323,25 +1196,6 @@ export class Track {
     const lineHeight = 0.03
     const lineY = 0.1 + lineHeight / 2 + 0.005
 
-    const addRoundedRectPath = (
-      path: THREE.Shape | THREE.Path,
-      minX: number,
-      maxX: number,
-      minZ: number,
-      maxZ: number,
-      radius: number
-    ) => {
-      path.moveTo(minX, minZ + radius)
-      path.absarc(minX + radius, minZ + radius, radius, Math.PI, Math.PI * 1.5, false)
-      path.lineTo(maxX - radius, minZ)
-      path.absarc(maxX - radius, minZ + radius, radius, Math.PI * 1.5, 0, false)
-      path.lineTo(maxX, maxZ - radius)
-      path.absarc(maxX - radius, maxZ - radius, radius, 0, Math.PI / 2, false)
-      path.lineTo(minX + radius, maxZ)
-      path.absarc(minX + radius, maxZ - radius, radius, Math.PI / 2, Math.PI, false)
-      path.lineTo(minX, minZ + radius)
-    }
-
     const createShoulderStrip = (
       stripOuterMinX: number,
       stripOuterMaxX: number,
@@ -1355,24 +1209,20 @@ export class Track {
       stripInnerRadius: number
     ) => {
       const stripShape = new THREE.Shape()
-      addRoundedRectPath(
-        stripShape,
-        stripOuterMinX,
-        stripOuterMaxX,
-        stripOuterMinZ,
-        stripOuterMaxZ,
-        stripOuterRadius
-      )
+      addRoundedRectPath(stripShape, {
+        minX: stripOuterMinX,
+        maxX: stripOuterMaxX,
+        minZ: stripOuterMinZ,
+        maxZ: stripOuterMaxZ
+      }, stripOuterRadius)
 
       const stripHole = new THREE.Path()
-      addRoundedRectPath(
-        stripHole,
-        stripInnerMinX,
-        stripInnerMaxX,
-        stripInnerMinZ,
-        stripInnerMaxZ,
-        stripInnerRadius
-      )
+      addRoundedRectPath(stripHole, {
+        minX: stripInnerMinX,
+        maxX: stripInnerMaxX,
+        minZ: stripInnerMinZ,
+        maxZ: stripInnerMaxZ
+      }, stripInnerRadius)
 
       stripShape.holes.push(stripHole)
 
