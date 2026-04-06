@@ -476,6 +476,318 @@ export class RacingGameEngine {
     })
   }
 
+  private getPlayerCar(): Car | undefined {
+    return this.cars.find(car => car.isPlayer)
+  }
+
+  private updateRaceTimer(raceComplete: boolean): void {
+    if (!this.timerActive || raceComplete) {
+      return
+    }
+
+    const currentTime = performance.now() / 1000
+    const elapsedTime = currentTime - this.raceStartTime - this.totalPauseTime
+    this.callbacks.onTimerUpdate?.(elapsedTime)
+    this.timerBillboard?.update(elapsedTime)
+  }
+
+  private getCanStart(): boolean {
+    return this.startLights ? this.startLights.isGreen() : false
+  }
+
+  private syncRaceStart(canStart: boolean): void {
+    if (!canStart || this.timerActive) {
+      return
+    }
+
+    this.timerActive = true
+    this.raceStartTime = performance.now() / 1000
+
+    if (this.mine && !this.levelMineArmed) {
+      this.mine.startActivationCountdown()
+      this.levelMineArmed = true
+    }
+  }
+
+  private updatePlayerArrow(deltaTime: number, canStart: boolean): void {
+    if (!this.playerArrow) {
+      return
+    }
+
+    if (canStart) {
+      this.playerArrow.hide()
+      return
+    }
+
+    const playerCar = this.getPlayerCar()
+    if (playerCar) {
+      this.playerArrow.update(deltaTime, playerCar.position)
+    }
+  }
+
+  private updateCars(deltaTime: number, raceComplete: boolean, canStart: boolean): void {
+    this.cars.forEach(car => {
+      car.update(deltaTime, this.track, this.cars, raceComplete, canStart)
+    })
+  }
+
+  private updateLevelMine(raceComplete: boolean, canStart: boolean): void {
+    if (!this.mine || raceComplete || !canStart || !this.mine.isActive()) {
+      return
+    }
+
+    for (const car of this.cars) {
+      if (car.launched || car.finished) continue
+      if (this.mine.collidesWith(car.position)) {
+        this.handleExplosionHit(car, this.mine.getPosition())
+        this.mine.destroy()
+        this.mine = null
+        break
+      }
+    }
+  }
+
+  private updatePendingBallDrops(raceComplete: boolean): void {
+    if (!this.timerActive || raceComplete) {
+      return
+    }
+
+    const elapsed = performance.now() / 1000 - this.raceStartTime - this.totalPauseTime
+    for (let i = this.pendingBallDrops.length - 1; i >= 0; i--) {
+      const drop = this.pendingBallDrops[i]
+      if (elapsed >= drop.dropTime) {
+        this.spawnBall(drop)
+        this.pendingBallDrops.splice(i, 1)
+      }
+    }
+  }
+
+  private updateBalls(deltaTime: number, raceComplete: boolean): void {
+    if (raceComplete) {
+      return
+    }
+
+    const newlyExplodedPositions: THREE.Vector3[] = []
+    for (let i = this.balls.length - 1; i >= 0; i--) {
+      const ball = this.balls[i]
+      const result = ball.update(deltaTime, this.cars, this.track)
+      if (result.exploded) {
+        if (result.playerLaunched && this.playerMineHitTime === null) {
+          this.playerMineHitTime = performance.now() / 1000
+        }
+        if (result.explosionPosition) {
+          newlyExplodedPositions.push(result.explosionPosition)
+          this.triggerCameraShake(0.5, 0.6)
+        }
+      }
+
+      if (ball.exploded && !ball.isExplosionAnimating) {
+        ball.dispose()
+        this.balls.splice(i, 1)
+      }
+    }
+
+    this.resolveBallCollisions()
+    this.triggerBallChainReactions(newlyExplodedPositions)
+  }
+
+  private triggerBallChainReactions(explosionPositions: THREE.Vector3[]): void {
+    if (explosionPositions.length === 0) {
+      return
+    }
+
+    for (const ball of this.balls) {
+      if (ball.exploded) continue
+      for (const pos of explosionPositions) {
+        if (ball.isInChainReactionRange(pos)) {
+          if (ball.activated) {
+            ball.triggerImmediateDetonation()
+          } else {
+            ball.triggerActivation()
+          }
+          break
+        }
+      }
+    }
+  }
+
+  private updatePlayerFailureState(raceComplete: boolean): void {
+    if (!raceComplete && this.playerMineHitTime === null) {
+      const playerCar = this.getPlayerCar()
+      if (playerCar?.isDestroyed) {
+        this.playerMineHitTime = performance.now() / 1000
+      }
+    }
+
+    if (this.playerMineHitTime === null || raceComplete) {
+      return
+    }
+
+    const elapsed = performance.now() / 1000 - this.playerMineHitTime
+    if (elapsed >= 3) {
+      this.playerMineHitTime = null
+      this.raceManager.forceComplete()
+    }
+  }
+
+  private updateRaceManager(deltaTime: number, raceComplete: boolean): void {
+    if (raceComplete) {
+      return
+    }
+
+    const currentTime = performance.now() / 1000
+    const elapsedRaceTime = this.timerActive ? (currentTime - this.raceStartTime - this.totalPauseTime) : 0
+    this.raceManager.update(deltaTime, this.track, elapsedRaceTime)
+  }
+
+  private updateCombat(deltaTime: number, canStart: boolean, raceComplete: boolean): void {
+    this.shootCooldown = Math.max(0, this.shootCooldown - deltaTime)
+    this.handleFireWeapons(canStart, raceComplete)
+    this.updateTurboBoost(deltaTime)
+    this.updatePlayerMines()
+    this.updateGluePuddles()
+    this.updateBullets(deltaTime)
+  }
+
+  private handleFireWeapons(canStart: boolean, raceComplete: boolean): void {
+    if (
+      this.fireWeapons.length === 0
+      || (!this.spacePressed && !this.touchShoot)
+      || this.shootCooldown > 0
+      || !canStart
+      || raceComplete
+    ) {
+      return
+    }
+
+    const activeWeapon = this.fireWeapons[this.activeWeaponIndex]
+    switch (activeWeapon) {
+      case 'gun':
+        this.shootBullet()
+        break
+      case 'mines':
+        this.dropPlayerMine()
+        break
+      case 'turbo_boost':
+        this.activateTurboBoost()
+        break
+      case 'glue_trap':
+        this.dropPlayerGluePuddle()
+        break
+    }
+  }
+
+  private updateTurboBoost(deltaTime: number): void {
+    let turboStateChanged = false
+
+    if (this.turboBoostActive) {
+      this.turboBoostTimer -= deltaTime
+      turboStateChanged = true
+      if (this.turboBoostTimer <= 0) {
+        this.turboBoostActive = false
+        this.getPlayerCar()?.setTurboBoostMultiplier(1)
+        this.turboBoostCooldown = this.TURBO_BOOST_COOLDOWN
+      }
+    }
+
+    if (this.turboBoostCooldown > 0) {
+      this.turboBoostCooldown = Math.max(0, this.turboBoostCooldown - deltaTime)
+      turboStateChanged = true
+    }
+
+    if (turboStateChanged) {
+      this.emitFireWeaponUiState()
+    }
+  }
+
+  private updatePlayerMines(): void {
+    for (let i = this.playerMines.length - 1; i >= 0; i--) {
+      const mine = this.playerMines[i]
+      if (!mine.isActive()) continue
+
+      let mineHit = false
+      for (const car of this.cars) {
+        if (car.launched || car.finished) continue
+        if (mine.collidesWith(car.position)) {
+          this.handleExplosionHit(car, mine.getPosition())
+          mineHit = true
+          break
+        }
+      }
+
+      if (mineHit) {
+        mine.destroy()
+        this.playerMines.splice(i, 1)
+      }
+    }
+  }
+
+  private updateGluePuddles(): void {
+    for (let i = this.playerGluePuddles.length - 1; i >= 0; i--) {
+      const puddle = this.playerGluePuddles[i]
+      let puddleHit = false
+      for (const car of this.cars) {
+        if (car.launched || car.finished) continue
+        if (puddle.collidesWith(car.position)) {
+          car.applyGlueSlow(GLUE_SLOW_DURATION, GLUE_SLOW_MULTIPLIER)
+          puddleHit = true
+          break
+        }
+      }
+      if (puddleHit) {
+        puddle.destroy()
+        this.playerGluePuddles.splice(i, 1)
+      }
+    }
+  }
+
+  private updateBullets(deltaTime: number): void {
+    const aiCars = this.cars.filter(car => !car.isPlayer)
+
+    for (let i = this.bullets.length - 1; i >= 0; i--) {
+      const bullet = this.bullets[i]
+      bullet.update(deltaTime)
+      let hit = false
+      if (!bullet.isExpired()) {
+        for (const car of aiCars) {
+          if (!car.isDestroyed && !car.finished && bullet.checkCollision(car)) {
+            const wasAlive = !car.isDestroyed
+            car.takeDamage()
+            if (wasAlive && car.isDestroyed) {
+              this.soundGenerator.playExplosionSound(0.5)
+            } else {
+              this.soundGenerator.playBulletImpact()
+            }
+            hit = true
+            break
+          }
+        }
+      }
+      if (hit || bullet.isExpired()) {
+        bullet.dispose(this.scene)
+        this.bullets.splice(i, 1)
+      }
+    }
+  }
+
+  private updateSceneEffects(deltaTime: number): void {
+    this.updateCinematicCamera(deltaTime)
+    this.backgroundEyes.forEach((eye) => eye.update(deltaTime))
+    this.ambientBunny?.update(deltaTime)
+    this.ambientOuterWolf?.update(deltaTime)
+    this.ambientWolf?.update(deltaTime)
+    this.lapDigitDropEffect.update(deltaTime)
+    this.updateCameraShake(deltaTime)
+  }
+
+  private handleExplosionHit(car: Car, explosionOrigin: THREE.Vector3): void {
+    car.applyExplosionForce(explosionOrigin)
+    this.soundGenerator.playExplosionSound()
+    if (car.isPlayer) {
+      this.playerMineHitTime = performance.now() / 1000
+    }
+  }
+
   private animate = () => {
     // Stop animation if disposed
     if (this.isDisposed) {
@@ -518,249 +830,19 @@ export class RacingGameEngine {
     // Check if race is complete
     const raceComplete = this.raceManager.isRaceComplete()
 
-    // Update timer and notify callback
-    if (this.timerActive && !raceComplete) {
-      const currentTime = performance.now() / 1000
-      const elapsedTime = currentTime - this.raceStartTime - this.totalPauseTime
-      if (this.callbacks.onTimerUpdate) {
-        this.callbacks.onTimerUpdate(elapsedTime)
-      }
-      if (this.timerBillboard) {
-        this.timerBillboard.update(elapsedTime)
-      }
-    }
+    this.updateRaceTimer(raceComplete)
 
-    // Update cars - pass start lights state
-    const canStart = this.startLights ? this.startLights.isGreen() : false
-
-    // Start timer the moment cars can go
-    if (canStart && !this.timerActive) {
-      this.timerActive = true
-      this.raceStartTime = performance.now() / 1000
-      if (this.mine && !this.levelMineArmed) {
-        this.mine.startActivationCountdown()
-        this.levelMineArmed = true
-      }
-    }
-
-    // Update player arrow (show during countdown, hide once race starts)
-    if (this.playerArrow) {
-      if (canStart) {
-        this.playerArrow.hide()
-      } else {
-        const playerCar = this.cars.find(car => car.isPlayer)
-        if (playerCar) {
-          this.playerArrow.update(deltaTime, playerCar.position)
-        }
-      }
-    }
-
-    this.cars.forEach(car => {
-      car.update(deltaTime, this.track, this.cars, raceComplete, canStart)
-    })
-
-    // Check car–mine collision (only one mine per level; first collision destroys it)
-    if (this.mine && !raceComplete && canStart && this.mine.isActive()) {
-      for (const car of this.cars) {
-        if (car.launched || car.finished) continue
-        if (this.mine.collidesWith(car.position)) {
-          car.applyExplosionForce(this.mine.getPosition())
-          this.soundGenerator.playExplosionSound()
-          if (car.isPlayer) {
-            this.playerMineHitTime = performance.now() / 1000
-          }
-          this.mine.destroy()
-          this.mine = null
-          break
-        }
-      }
-    }
-
-    // Spawn pending ball drops based on elapsed race time
-    if (this.timerActive && !raceComplete) {
-      const elapsed = performance.now() / 1000 - this.raceStartTime - this.totalPauseTime
-      for (let i = this.pendingBallDrops.length - 1; i >= 0; i--) {
-        const drop = this.pendingBallDrops[i]
-        if (elapsed >= drop.dropTime) {
-          this.spawnBall(drop)
-          this.pendingBallDrops.splice(i, 1)
-        }
-      }
-    }
-
-    // Update balls and handle explosions + chain reactions (skip after race ends)
-    if (!raceComplete) {
-      const newlyExplodedPositions: THREE.Vector3[] = []
-      for (let i = this.balls.length - 1; i >= 0; i--) {
-        const ball = this.balls[i]
-        const result = ball.update(deltaTime, this.cars, this.track)
-        if (result.exploded) {
-          if (result.playerLaunched && this.playerMineHitTime === null) {
-            this.playerMineHitTime = performance.now() / 1000
-          }
-          if (result.explosionPosition) {
-            newlyExplodedPositions.push(result.explosionPosition)
-            this.triggerCameraShake(0.5, 0.6)
-          }
-        }
-        // Remove balls whose explosion animation has finished
-        if (ball.exploded && !ball.isExplosionAnimating) {
-          ball.dispose()
-          this.balls.splice(i, 1)
-        }
-      }
-      this.resolveBallCollisions()
-      // Chain reactions: exploding balls trigger nearby balls
-      if (newlyExplodedPositions.length > 0) {
-        for (const ball of this.balls) {
-          if (ball.exploded) continue
-          for (const pos of newlyExplodedPositions) {
-            if (ball.isInChainReactionRange(pos)) {
-              if (ball.activated) {
-                ball.triggerImmediateDetonation()
-              } else {
-                ball.triggerActivation()
-              }
-              break
-            }
-          }
-        }
-      }
-    }
-
-    // End race 3 seconds after player car is destroyed (by explosions, bullets, etc.)
-    if (this.playerMineHitTime === null && !raceComplete) {
-      const playerCar = this.cars.find(car => car.isPlayer)
-      if (playerCar && playerCar.isDestroyed) {
-        this.playerMineHitTime = performance.now() / 1000
-      }
-    }
-
-    // End race 3 seconds after player hit a mine or was destroyed
-    if (this.playerMineHitTime !== null && !raceComplete) {
-      const elapsed = performance.now() / 1000 - this.playerMineHitTime
-      if (elapsed >= 3) {
-        this.playerMineHitTime = null
-        this.raceManager.forceComplete()
-      }
-    }
-
-    // Update race manager (only if race not complete)
-    if (!raceComplete) {
-      const currentTime = performance.now() / 1000
-      const elapsedRaceTime = this.timerActive ? (currentTime - this.raceStartTime - this.totalPauseTime) : 0
-      this.raceManager.update(deltaTime, this.track, elapsedRaceTime)
-    }
-
-    // Handle shooting / fire button actions based on active weapon
-    this.shootCooldown = Math.max(0, this.shootCooldown - deltaTime)
-    if (this.fireWeapons.length > 0 && (this.spacePressed || this.touchShoot) && this.shootCooldown <= 0 && canStart && !raceComplete) {
-      const activeWeapon = this.fireWeapons[this.activeWeaponIndex]
-      switch (activeWeapon) {
-        case 'gun': this.shootBullet(); break
-        case 'mines': this.dropPlayerMine(); break
-        case 'turbo_boost': this.activateTurboBoost(); break
-        case 'glue_trap': this.dropPlayerGluePuddle(); break
-      }
-    }
-
-    // Update turbo boost
-    let turboStateChanged = false
-    if (this.turboBoostActive) {
-      this.turboBoostTimer -= deltaTime
-      turboStateChanged = true
-      if (this.turboBoostTimer <= 0) {
-        this.turboBoostActive = false
-        const pc = this.cars.find(car => car.isPlayer)
-        if (pc) pc.setTurboBoostMultiplier(1)
-        this.turboBoostCooldown = this.TURBO_BOOST_COOLDOWN
-      }
-    }
-    if (this.turboBoostCooldown > 0) {
-      this.turboBoostCooldown = Math.max(0, this.turboBoostCooldown - deltaTime)
-      turboStateChanged = true
-    }
-    if (turboStateChanged) {
-      this.emitFireWeaponUiState()
-    }
-
-    // Check player-dropped mine collisions
-    for (let i = this.playerMines.length - 1; i >= 0; i--) {
-      const mine = this.playerMines[i]
-      if (!mine.isActive()) continue
-      let mineHit = false
-      for (const car of this.cars) {
-        if (car.launched || car.finished) continue
-        if (mine.collidesWith(car.position)) {
-          car.applyExplosionForce(mine.getPosition())
-          this.soundGenerator.playExplosionSound()
-          if (car.isPlayer) {
-            this.playerMineHitTime = performance.now() / 1000
-          }
-          mineHit = true
-          break
-        }
-      }
-      if (mineHit) {
-        mine.destroy()
-        this.playerMines.splice(i, 1)
-      }
-    }
-
-    for (let i = this.playerGluePuddles.length - 1; i >= 0; i--) {
-      const puddle = this.playerGluePuddles[i]
-      let puddleHit = false
-      for (const car of this.cars) {
-        if (car.launched || car.finished) continue
-        if (puddle.collidesWith(car.position)) {
-          car.applyGlueSlow(GLUE_SLOW_DURATION, GLUE_SLOW_MULTIPLIER)
-          puddleHit = true
-          break
-        }
-      }
-      if (puddleHit) {
-        puddle.destroy()
-        this.playerGluePuddles.splice(i, 1)
-      }
-    }
-
-    // Update bullets and check collisions with AI cars
-    const aiCars = this.cars.filter(car => !car.isPlayer)
-    for (let i = this.bullets.length - 1; i >= 0; i--) {
-      const bullet = this.bullets[i]
-      bullet.update(deltaTime)
-      let hit = false
-      if (!bullet.isExpired()) {
-        for (const car of aiCars) {
-          if (!car.isDestroyed && !car.finished && bullet.checkCollision(car)) {
-            const wasAlive = !car.isDestroyed
-            car.takeDamage()
-            if (wasAlive && car.isDestroyed) {
-              this.soundGenerator.playExplosionSound(0.5)
-            } else {
-              this.soundGenerator.playBulletImpact()
-            }
-            hit = true
-            break
-          }
-        }
-      }
-      if (hit || bullet.isExpired()) {
-        bullet.dispose(this.scene)
-        this.bullets.splice(i, 1)
-      }
-    }
-
-    this.updateCinematicCamera(deltaTime)
-
-    this.backgroundEyes.forEach((eye) => eye.update(deltaTime))
-    this.ambientBunny?.update(deltaTime)
-    this.ambientOuterWolf?.update(deltaTime)
-    this.ambientWolf?.update(deltaTime)
-    this.lapDigitDropEffect.update(deltaTime)
-
-    // Apply camera shake
-    this.updateCameraShake(deltaTime)
+    const canStart = this.getCanStart()
+    this.syncRaceStart(canStart)
+    this.updatePlayerArrow(deltaTime, canStart)
+    this.updateCars(deltaTime, raceComplete, canStart)
+    this.updateLevelMine(raceComplete, canStart)
+    this.updatePendingBallDrops(raceComplete)
+    this.updateBalls(deltaTime, raceComplete)
+    this.updatePlayerFailureState(raceComplete)
+    this.updateRaceManager(deltaTime, raceComplete)
+    this.updateCombat(deltaTime, canStart, raceComplete)
+    this.updateSceneEffects(deltaTime)
 
     // Render
     this.renderer.render(this.scene, this.camera)
@@ -772,49 +854,50 @@ export class RacingGameEngine {
   }
 
   public startRace() {
-    // Clear any bullets, balls, and player mines from a previous race
+    this.resetRaceState()
+    this.initCinematicCamera()
+    this.startLights?.reset()
+    this.playerArrow?.show()
+    this.raceManager.startRace(this.track)
+    this.cars.forEach(car => car.startRace())
+    this.emitFireWeaponUiState(true)
+  }
+
+  private resetRaceState(): void {
+    this.clearCombatEntities()
+    this.resetWeaponState()
+    this.resetRaceTimingState()
+    this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
+    this.levelMineArmed = false
+    this.lapDigitDropEffect.clear()
+  }
+
+  private clearCombatEntities(): void {
     this.bullets.forEach(b => b.dispose(this.scene))
     this.bullets = []
-    this.shootCooldown = 0
     this.balls.forEach(b => b.dispose())
     this.balls = []
     this.playerMines.forEach(m => m.destroy())
     this.playerMines = []
     this.playerGluePuddles.forEach(p => p.destroy())
     this.playerGluePuddles = []
+  }
+
+  private resetWeaponState(): void {
+    this.shootCooldown = 0
     this.turboBoostActive = false
     this.turboBoostTimer = 0
     this.turboBoostCooldown = 0
     this.lastFireWeaponUiStateSignature = null
-    this.pendingBallDrops = [...(this.currentLevelConfig.ballDrops ?? [])]
-    this.levelMineArmed = false
-    this.lapDigitDropEffect.clear()
+    this.getPlayerCar()?.setTurboBoostMultiplier(1)
+  }
 
-    // Reset timer
+  private resetRaceTimingState(): void {
     this.timerActive = false
     this.raceStartTime = 0
     this.totalPauseTime = 0
     this.pauseStartTime = 0
     this.playerMineHitTime = null
-
-    // Reset cinematic camera
-    this.initCinematicCamera()
-
-    // Reset start lights
-    if (this.startLights) {
-      this.startLights.reset()
-    }
-
-    // Show player arrow again for countdown
-    if (this.playerArrow) {
-      this.playerArrow.show()
-    }
-
-    // Start lights will begin sequence automatically
-    // Race manager will start when lights complete
-    this.raceManager.startRace(this.track)
-    this.cars.forEach(car => car.startRace())
-    this.emitFireWeaponUiState(true)
   }
 
   public reset() {
@@ -951,7 +1034,7 @@ export class RacingGameEngine {
   }
 
   private shootBullet() {
-    const playerCar = this.cars.find(car => car.isPlayer)
+    const playerCar = this.getPlayerCar()
     if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
 
     const forward = new THREE.Vector3(
@@ -970,7 +1053,7 @@ export class RacingGameEngine {
   }
 
   private dropPlayerMine() {
-    const playerCar = this.cars.find(car => car.isPlayer)
+    const playerCar = this.getPlayerCar()
     if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
 
     const backward = new THREE.Vector3(
@@ -986,7 +1069,7 @@ export class RacingGameEngine {
   }
 
   private dropPlayerGluePuddle() {
-    const playerCar = this.cars.find(car => car.isPlayer)
+    const playerCar = this.getPlayerCar()
     if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
 
     const backward = new THREE.Vector3(
@@ -1003,7 +1086,7 @@ export class RacingGameEngine {
 
   private activateTurboBoost() {
     if (this.turboBoostActive || this.turboBoostCooldown > 0) return
-    const playerCar = this.cars.find(car => car.isPlayer)
+    const playerCar = this.getPlayerCar()
     if (!playerCar || playerCar.launched || playerCar.isDestroyed) return
 
     this.turboBoostActive = true

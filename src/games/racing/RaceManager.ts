@@ -29,30 +29,20 @@ export class RaceManager {
     this.cars.push(car)
     this.lastLapProgress.set(car, 0)
     this.previousCheckpoint.set(car, -1)
-    // Initialize checkpoint tracking array to match track's checkpoint count
-    const checkpointCount = track.getCheckpointCount()
-    if (car.checkpointPassed.length !== checkpointCount) {
-      car.checkpointPassed = new Array(checkpointCount).fill(false)
-    }
+    this.resetCarProgress(car, track.getCheckpointCount())
   }
 
   public startRace(track: Track) {
     this.raceStarted = true
     this.raceComplete = false
     this.finishedCars = []
+    this.finishTimes.clear()
     this.firstFinishTime = null
     const checkpointCount = track.getCheckpointCount()
     this.cars.forEach(car => {
       this.lastLapProgress.set(car, 0)
       this.previousCheckpoint.set(car, -1)
-      car.lapsCompleted = 0
-      car.lastCheckpoint = -1
-      // Ensure checkpoint array matches track's checkpoint count
-      if (car.checkpointPassed.length !== checkpointCount) {
-        car.checkpointPassed = new Array(checkpointCount).fill(false)
-      } else {
-        car.checkpointPassed.fill(false)
-      }
+      this.resetCarProgress(car, checkpointCount)
     })
   }
 
@@ -174,14 +164,7 @@ export class RaceManager {
     this.cars.forEach(car => {
       this.lastLapProgress.set(car, 0)
       this.previousCheckpoint.set(car, -1)
-      car.lapsCompleted = 0
-      car.lastCheckpoint = -1
-      // Ensure checkpoint array matches track's checkpoint count
-      if (car.checkpointPassed.length !== checkpointCount) {
-        car.checkpointPassed = new Array(checkpointCount).fill(false)
-      } else {
-        car.checkpointPassed.fill(false)
-      }
+      this.resetCarProgress(car, checkpointCount)
     })
   }
 
@@ -192,5 +175,17 @@ export class RaceManager {
 
   public isRaceComplete(): boolean {
     return this.raceComplete
+  }
+
+  private resetCarProgress(car: Car, checkpointCount: number): void {
+    car.lapsCompleted = 0
+    car.lastCheckpoint = -1
+
+    if (car.checkpointPassed.length !== checkpointCount) {
+      car.checkpointPassed = new Array(checkpointCount).fill(false)
+      return
+    }
+
+    car.checkpointPassed.fill(false)
   }
 }
