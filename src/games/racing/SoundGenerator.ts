@@ -2,6 +2,16 @@
  * SoundGenerator - Generates simple beep tones using Web Audio API
  * No sound files needed - all sounds are generated programmatically
  */
+import {
+  createDistortionCurve,
+  createNoiseBuffer,
+  createOscillatorGain,
+  disconnectNodes,
+  resumeAudioContext,
+  scheduleExpFade,
+  scheduleLinearFade,
+} from './soundUtils'
+
 export class SoundGenerator {
   private static isMuted: boolean = false
   private audioContext: AudioContext | null = null
@@ -82,96 +92,61 @@ export class SoundGenerator {
     // --- Crash buffers (10 variations) ---
     const crashBufSize = ctx.sampleRate * 0.5
     for (let v = 0; v < 10; v++) {
-      const buffer = ctx.createBuffer(1, crashBufSize, ctx.sampleRate)
-      const data = buffer.getChannelData(0)
-      for (let i = 0; i < crashBufSize; i++) {
-        data[i] = Math.random() * 2 - 1
-      }
-      this.crashBuffers.push(buffer)
+      this.crashBuffers.push(
+        createNoiseBuffer(ctx, crashBufSize, () => Math.random() * 2 - 1)
+      )
     }
 
     // --- Explosion buffers & distortion curves ---
     // Noise buffers (3 variations for variety)
     const noiseLen = Math.floor(ctx.sampleRate * 1.4)
     for (let v = 0; v < 3; v++) {
-      const buffer = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
-      const data = buffer.getChannelData(0)
-      for (let i = 0; i < noiseLen; i++) {
-        const impulse = Math.random() < 0.03 ? (Math.random() * 2 - 1) * 3 : 0
-        data[i] = (Math.random() * 2 - 1) + impulse
-      }
-      this.explosionNoiseBuffers.push(buffer)
+      this.explosionNoiseBuffers.push(
+        createNoiseBuffer(ctx, noiseLen, () => {
+          const impulse = Math.random() < 0.03 ? (Math.random() * 2 - 1) * 3 : 0
+          return (Math.random() * 2 - 1) + impulse
+        })
+      )
     }
 
     // Boom distortion curve
-    this.boomCurve = new Float32Array(512)
-    for (let i = 0; i < 512; i++) {
-      const x = (i * 2) / 512 - 1
-      this.boomCurve[i] = Math.tanh(x * 4)
-    }
+    this.boomCurve = createDistortionCurve(512, (x) => Math.tanh(x * 4))
 
     // Punch distortion curve
-    this.punchCurve = new Float32Array(512)
-    for (let i = 0; i < 512; i++) {
-      const x = (i * 2) / 512 - 1
-      this.punchCurve[i] = Math.sign(x) * Math.pow(Math.abs(x), 0.15)
-    }
+    this.punchCurve = createDistortionCurve(512, (x) => Math.sign(x) * Math.pow(Math.abs(x), 0.15))
 
     // Crackle distortion curve
-    this.crackleCurve = new Float32Array(256)
-    for (let i = 0; i < 256; i++) {
-      const x = (i * 2) / 256 - 1
-      this.crackleCurve[i] = Math.sign(x) * (1 - Math.exp(-Math.abs(x) * 8))
-    }
+    this.crackleCurve = createDistortionCurve(256, (x) => Math.sign(x) * (1 - Math.exp(-Math.abs(x) * 8)))
 
     // Noise distortion curve
-    this.noiseDCurve = new Float32Array(256)
-    for (let i = 0; i < 256; i++) {
-      const x = (i * 2) / 256 - 1
-      this.noiseDCurve[i] = Math.tanh(x * 3)
-    }
+    this.noiseDCurve = createDistortionCurve(256, (x) => Math.tanh(x * 3))
 
     // --- Turbo boost buffer: shaped noise for whoosh ---
     const turboLen = Math.floor(ctx.sampleRate * 0.8)
-    const turboBuffer = ctx.createBuffer(1, turboLen, ctx.sampleRate)
-    const turboData = turboBuffer.getChannelData(0)
-    for (let i = 0; i < turboLen; i++) {
+    this.turboNoiseBuffer = createNoiseBuffer(ctx, turboLen, (i) => {
       const t = i / turboLen
-      // Envelope: quick attack, sustain, then fade
       const env = t < 0.05 ? t / 0.05 : t < 0.6 ? 1.0 : 1.0 - (t - 0.6) / 0.4
-      turboData[i] = (Math.random() * 2 - 1) * env
-    }
-    this.turboNoiseBuffer = turboBuffer
+      return (Math.random() * 2 - 1) * env
+    })
 
     // Turbo distortion curve — mild saturation for a breathy whoosh
-    this.turboCurve = new Float32Array(256)
-    for (let i = 0; i < 256; i++) {
-      const x = (i * 2) / 256 - 1
-      this.turboCurve[i] = Math.tanh(x * 2)
-    }
+    this.turboCurve = createDistortionCurve(256, (x) => Math.tanh(x * 2))
 
     // --- Mine drop buffer: short metallic clunk noise ---
     const mineDropLen = Math.floor(ctx.sampleRate * 0.15)
-    const mineDropBuffer = ctx.createBuffer(1, mineDropLen, ctx.sampleRate)
-    const mineDropData = mineDropBuffer.getChannelData(0)
-    for (let i = 0; i < mineDropLen; i++) {
+    this.mineDropNoiseBuffer = createNoiseBuffer(ctx, mineDropLen, (i) => {
       const t = i / mineDropLen
-      // Sharp attack, fast decay
       const env = t < 0.02 ? t / 0.02 : Math.exp(-t * 20)
-      mineDropData[i] = (Math.random() * 2 - 1) * env
-    }
-    this.mineDropNoiseBuffer = mineDropBuffer
+      return (Math.random() * 2 - 1) * env
+    })
 
     // --- Weapon switch click buffer ---
     const switchLen = Math.floor(ctx.sampleRate * 0.03)
-    const switchBuffer = ctx.createBuffer(1, switchLen, ctx.sampleRate)
-    const switchData = switchBuffer.getChannelData(0)
-    for (let i = 0; i < switchLen; i++) {
+    this.weaponSwitchBuffer = createNoiseBuffer(ctx, switchLen, (i) => {
       const t = i / switchLen
       const env = t < 0.1 ? t / 0.1 : Math.exp(-t * 40)
-      switchData[i] = (Math.random() * 2 - 1) * env
-    }
-    this.weaponSwitchBuffer = switchBuffer
+      return (Math.random() * 2 - 1) * env
+    })
   }
 
   /**
@@ -190,28 +165,16 @@ export class SoundGenerator {
       return
     }
 
-    // Resume audio context if it's suspended (browser autoplay policy)
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {
-        // Ignore errors - audio will work after user interaction
-      })
-    }
+    resumeAudioContext(ctx)
 
     try {
-      const oscillator = ctx.createOscillator()
-      const gainNode = ctx.createGain()
-
-      oscillator.connect(gainNode)
-      gainNode.connect(ctx.destination)
-
+      const { oscillator, gain: gainNode } = createOscillatorGain(ctx, 'sine', ctx.destination)
       oscillator.frequency.value = frequency
-      oscillator.type = 'sine' // Sine wave for smooth beep
 
-      // Create a smooth envelope: quick attack, smooth release
       const now = ctx.currentTime
       gainNode.gain.setValueAtTime(0, now)
-      gainNode.gain.linearRampToValueAtTime(volume, now + 0.01) // Quick attack
-      gainNode.gain.linearRampToValueAtTime(0, now + duration) // Smooth release
+      gainNode.gain.linearRampToValueAtTime(volume, now + 0.01)
+      gainNode.gain.linearRampToValueAtTime(0, now + duration)
 
       oscillator.start(now)
       oscillator.stop(now + duration)
@@ -234,18 +197,10 @@ export class SoundGenerator {
       return
     }
 
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => { })
-    }
+    resumeAudioContext(ctx)
 
     try {
-      const oscillator = ctx.createOscillator()
-      const gainNode = ctx.createGain()
-
-      oscillator.connect(gainNode)
-      gainNode.connect(ctx.destination)
-
-      oscillator.type = 'sine'
+      const { oscillator, gain: gainNode } = createOscillatorGain(ctx, 'sine', ctx.destination)
       oscillator.frequency.setValueAtTime(startFreq, ctx.currentTime)
       oscillator.frequency.linearRampToValueAtTime(endFreq, ctx.currentTime + duration)
 
@@ -275,21 +230,13 @@ export class SoundGenerator {
       return
     }
 
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => { })
-    }
+    resumeAudioContext(ctx)
 
     try {
-      // Use pre-generated buffer (randomly select one for variety)
       if (this.crashBuffers.length === 0) {
-        // Fallback: generate on the fly if buffers weren't pre-generated
-        const bufferSize = ctx.sampleRate * 0.5
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
-        const data = buffer.getChannelData(0)
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1
-        }
-        this.crashBuffers.push(buffer)
+        this.crashBuffers.push(
+          createNoiseBuffer(ctx, ctx.sampleRate * 0.5, () => Math.random() * 2 - 1)
+        )
       }
 
       const buffer = this.crashBuffers[Math.floor(Math.random() * this.crashBuffers.length)]
@@ -333,18 +280,12 @@ export class SoundGenerator {
       // Sharp, abrupt envelope - no smooth exponential ramp (that causes echo)
       // Use linear ramp for more abrupt cutoff
       const now = ctx.currentTime
-      gain.gain.setValueAtTime(initialVolume, now)
-      gain.gain.linearRampToValueAtTime(0, now + decayTime) // Linear = sharper, less echo
+      scheduleLinearFade(gain, now, initialVolume, decayTime)
 
-      // Track active sounds and clean up when done
       this.activeCrashSounds++
       noise.onended = () => {
         this.activeCrashSounds--
-        // Disconnect nodes to allow garbage collection
-        noise.disconnect()
-        highpass.disconnect()
-        filter.disconnect()
-        gain.disconnect()
+        disconnectNodes(noise, highpass, filter, gain)
       }
 
       noise.start()
@@ -365,9 +306,7 @@ export class SoundGenerator {
 
     if (this.activeExplosionSounds >= this.maxConcurrentExplosionSounds) return
 
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {})
-    }
+    resumeAudioContext(ctx)
 
     try {
       const now = ctx.currentTime
@@ -382,8 +321,7 @@ export class SoundGenerator {
       boomOsc.frequency.setValueAtTime(60, now)
       boomOsc.frequency.exponentialRampToValueAtTime(15, now + 1.2)
       boomDistortion.curve = this.boomCurve as unknown as Float32Array<ArrayBuffer>
-      boomGain.gain.setValueAtTime(volume, now)
-      boomGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2)
+      scheduleExpFade(boomGain, now, volume, 1.2)
       boomOsc.connect(boomDistortion)
       boomDistortion.connect(boomGain)
       boomGain.connect(masterGain)
@@ -398,8 +336,7 @@ export class SoundGenerator {
       punchOsc.frequency.setValueAtTime(250, now)
       punchOsc.frequency.exponentialRampToValueAtTime(30, now + 0.6)
       distortion.curve = this.punchCurve as unknown as Float32Array<ArrayBuffer>
-      punchGain.gain.setValueAtTime(volume * 0.7, now)
-      punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6)
+      scheduleExpFade(punchGain, now, volume * 0.7, 0.6)
       punchOsc.connect(distortion)
       distortion.connect(punchGain)
       punchGain.connect(masterGain)
@@ -414,8 +351,7 @@ export class SoundGenerator {
       crackleOsc.frequency.setValueAtTime(150, now)
       crackleOsc.frequency.exponentialRampToValueAtTime(20, now + 0.4)
       crackleDistortion.curve = this.crackleCurve as unknown as Float32Array<ArrayBuffer>
-      crackleGain.gain.setValueAtTime(volume * 0.4, now)
-      crackleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4)
+      scheduleExpFade(crackleGain, now, volume * 0.4, 0.4)
       crackleOsc.connect(crackleDistortion)
       crackleDistortion.connect(crackleGain)
       crackleGain.connect(masterGain)
@@ -433,8 +369,7 @@ export class SoundGenerator {
       noiseFilter.frequency.setValueAtTime(6000, now)
       noiseFilter.frequency.exponentialRampToValueAtTime(150, now + 1.2)
       const noiseGain = ctx.createGain()
-      noiseGain.gain.setValueAtTime(volume * 0.7, now)
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4)
+      scheduleExpFade(noiseGain, now, volume * 0.7, 1.4)
       noiseSrc.connect(noiseDistortion)
       noiseDistortion.connect(noiseFilter)
       noiseFilter.connect(noiseGain)
@@ -445,20 +380,13 @@ export class SoundGenerator {
       this.activeExplosionSounds++
       const cleanup = () => {
         this.activeExplosionSounds--
-        boomOsc.disconnect()
-        boomDistortion.disconnect()
-        boomGain.disconnect()
-        punchOsc.disconnect()
-        punchGain.disconnect()
-        distortion.disconnect()
-        crackleOsc.disconnect()
-        crackleDistortion.disconnect()
-        crackleGain.disconnect()
-        noiseSrc.disconnect()
-        noiseDistortion.disconnect()
-        noiseFilter.disconnect()
-        noiseGain.disconnect()
-        masterGain.disconnect()
+        disconnectNodes(
+          boomOsc, boomDistortion, boomGain,
+          punchOsc, punchGain, distortion,
+          crackleOsc, crackleDistortion, crackleGain,
+          noiseSrc, noiseDistortion, noiseFilter, noiseGain,
+          masterGain
+        )
       }
       noiseSrc.onended = cleanup
     } catch (error) {
@@ -474,9 +402,7 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {})
-    }
+    resumeAudioContext(ctx)
     try {
       // Two-note ascending chime (finish line crossed)
       this.playBeep(523, 0.12, volume) // C5
@@ -495,9 +421,7 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {})
-    }
+    resumeAudioContext(ctx)
     try {
       // Descending minor third - "sad" resolution
       this.playBeep(392, 0.15, volume)  // G4
@@ -516,19 +440,13 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {})
-    }
+    resumeAudioContext(ctx)
     try {
       const now = ctx.currentTime
 
       // Short noise burst through bandpass — the metallic "thwack"
       const noiseLen = Math.floor(ctx.sampleRate * 0.015)
-      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
-      const noiseData = noiseBuf.getChannelData(0)
-      for (let i = 0; i < noiseLen; i++) {
-        noiseData[i] = Math.random() * 2 - 1
-      }
+      const noiseBuf = createNoiseBuffer(ctx, noiseLen, () => Math.random() * 2 - 1)
       const noiseSrc = ctx.createBufferSource()
       noiseSrc.buffer = noiseBuf
 
@@ -538,8 +456,7 @@ export class SoundGenerator {
       filter.Q.value = 2
 
       const noiseGain = ctx.createGain()
-      noiseGain.gain.setValueAtTime(volume, now)
-      noiseGain.gain.linearRampToValueAtTime(0, now + 0.015)
+      scheduleLinearFade(noiseGain, now, volume, 0.015)
 
       noiseSrc.connect(filter)
       filter.connect(noiseGain)
@@ -553,19 +470,14 @@ export class SoundGenerator {
       osc.type = 'sine'
       osc.frequency.setValueAtTime(300, now)
       osc.frequency.exponentialRampToValueAtTime(150, now + 0.03)
-      oscGain.gain.setValueAtTime(volume * 0.5, now)
-      oscGain.gain.linearRampToValueAtTime(0, now + 0.03)
+      scheduleLinearFade(oscGain, now, volume * 0.5, 0.03)
       osc.connect(oscGain)
       oscGain.connect(ctx.destination)
       osc.start(now)
       osc.stop(now + 0.03)
 
       osc.onended = () => {
-        noiseSrc.disconnect()
-        filter.disconnect()
-        noiseGain.disconnect()
-        osc.disconnect()
-        oscGain.disconnect()
+        disconnectNodes(noiseSrc, filter, noiseGain, osc, oscGain)
       }
     } catch (error) {
       console.warn('Failed to play bullet impact sound:', error)
@@ -579,28 +491,18 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {})
-    }
+    resumeAudioContext(ctx)
     try {
       const now = ctx.currentTime
 
-      const osc = ctx.createOscillator()
-      const oscGain = ctx.createGain()
-      osc.type = 'square'
+      const { oscillator: osc, gain: oscGain } = createOscillatorGain(ctx, 'square', ctx.destination)
       osc.frequency.setValueAtTime(1200 + Math.random() * 200, now)
       osc.frequency.exponentialRampToValueAtTime(300, now + 0.06)
-      oscGain.gain.setValueAtTime(volume, now)
-      oscGain.gain.linearRampToValueAtTime(0, now + 0.06)
-      osc.connect(oscGain)
-      oscGain.connect(ctx.destination)
+      scheduleLinearFade(oscGain, now, volume, 0.06)
       osc.start(now)
       osc.stop(now + 0.06)
 
-      osc.onended = () => {
-        osc.disconnect()
-        oscGain.disconnect()
-      }
+      osc.onended = () => { disconnectNodes(osc, oscGain) }
     } catch (error) {
       console.warn('Failed to play bullet shoot sound:', error)
     }
@@ -613,22 +515,17 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    resumeAudioContext(ctx)
     try {
       const now = ctx.currentTime
       const freq = 800 + progress * 600 // 800→1400 Hz
       const vol = volume + progress * 0.15
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = 'sine'
+      const { oscillator: osc, gain } = createOscillatorGain(ctx, 'sine', ctx.destination)
       osc.frequency.value = freq
-      gain.gain.setValueAtTime(vol, now)
-      gain.gain.linearRampToValueAtTime(0, now + 0.03)
-      osc.connect(gain)
-      gain.connect(ctx.destination)
+      scheduleLinearFade(gain, now, vol, 0.03)
       osc.start(now)
       osc.stop(now + 0.03)
-      osc.onended = () => { osc.disconnect(); gain.disconnect() }
+      osc.onended = () => { disconnectNodes(osc, gain) }
     } catch (e) {
       console.warn('Failed to play bomb tick:', e)
     }
@@ -641,21 +538,16 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    resumeAudioContext(ctx)
     try {
       const now = ctx.currentTime
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = 'sine'
+      const { oscillator: osc, gain } = createOscillatorGain(ctx, 'sine', ctx.destination)
       osc.frequency.setValueAtTime(150, now)
       osc.frequency.exponentialRampToValueAtTime(60, now + 0.08)
-      gain.gain.setValueAtTime(volume, now)
-      gain.gain.linearRampToValueAtTime(0, now + 0.08)
-      osc.connect(gain)
-      gain.connect(ctx.destination)
+      scheduleLinearFade(gain, now, volume, 0.08)
       osc.start(now)
       osc.stop(now + 0.08)
-      osc.onended = () => { osc.disconnect(); gain.disconnect() }
+      osc.onended = () => { disconnectNodes(osc, gain) }
     } catch (e) {
       console.warn('Failed to play ball bounce sound:', e)
     }
@@ -668,41 +560,30 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    resumeAudioContext(ctx)
     try {
       const now = ctx.currentTime
 
-      // Tone component
-      const osc = ctx.createOscillator()
-      const oscGain = ctx.createGain()
-      osc.type = 'sine'
+      const { oscillator: osc, gain: oscGain } = createOscillatorGain(ctx, 'sine', ctx.destination)
       osc.frequency.setValueAtTime(300, now)
       osc.frequency.exponentialRampToValueAtTime(120, now + 0.06)
-      oscGain.gain.setValueAtTime(volume, now)
-      oscGain.gain.linearRampToValueAtTime(0, now + 0.06)
-      osc.connect(oscGain)
-      oscGain.connect(ctx.destination)
+      scheduleLinearFade(oscGain, now, volume, 0.06)
       osc.start(now)
       osc.stop(now + 0.06)
 
-      // Tiny noise burst
       const noiseLen = Math.floor(ctx.sampleRate * 0.01)
-      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
-      const data = noiseBuf.getChannelData(0)
-      for (let i = 0; i < noiseLen; i++) data[i] = Math.random() * 2 - 1
+      const noiseBuf = createNoiseBuffer(ctx, noiseLen, () => Math.random() * 2 - 1)
       const noiseSrc = ctx.createBufferSource()
       noiseSrc.buffer = noiseBuf
       const noiseGain = ctx.createGain()
-      noiseGain.gain.setValueAtTime(volume * 0.5, now)
-      noiseGain.gain.linearRampToValueAtTime(0, now + 0.01)
+      scheduleLinearFade(noiseGain, now, volume * 0.5, 0.01)
       noiseSrc.connect(noiseGain)
       noiseGain.connect(ctx.destination)
       noiseSrc.start(now)
       noiseSrc.stop(now + 0.01)
 
       osc.onended = () => {
-        osc.disconnect(); oscGain.disconnect()
-        noiseSrc.disconnect(); noiseGain.disconnect()
+        disconnectNodes(osc, oscGain, noiseSrc, noiseGain)
       }
     } catch (e) {
       console.warn('Failed to play ball wall hit sound:', e)
@@ -716,36 +597,26 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    resumeAudioContext(ctx)
     try {
       const now = ctx.currentTime
 
-      // Sine sweep for body
-      const osc = ctx.createOscillator()
-      const oscGain = ctx.createGain()
-      osc.type = 'sine'
+      const { oscillator: osc, gain: oscGain } = createOscillatorGain(ctx, 'sine', ctx.destination)
       osc.frequency.setValueAtTime(200, now)
       osc.frequency.exponentialRampToValueAtTime(80, now + 0.1)
-      oscGain.gain.setValueAtTime(volume, now)
-      oscGain.gain.linearRampToValueAtTime(0, now + 0.1)
-      osc.connect(oscGain)
-      oscGain.connect(ctx.destination)
+      scheduleLinearFade(oscGain, now, volume, 0.1)
       osc.start(now)
       osc.stop(now + 0.1)
 
-      // Short noise burst for impact
       const noiseLen = Math.floor(ctx.sampleRate * 0.02)
-      const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate)
-      const data = noiseBuf.getChannelData(0)
-      for (let i = 0; i < noiseLen; i++) data[i] = Math.random() * 2 - 1
+      const noiseBuf = createNoiseBuffer(ctx, noiseLen, () => Math.random() * 2 - 1)
       const noiseSrc = ctx.createBufferSource()
       noiseSrc.buffer = noiseBuf
       const filter = ctx.createBiquadFilter()
       filter.type = 'lowpass'
       filter.frequency.value = 1500
       const noiseGain = ctx.createGain()
-      noiseGain.gain.setValueAtTime(volume * 0.6, now)
-      noiseGain.gain.linearRampToValueAtTime(0, now + 0.02)
+      scheduleLinearFade(noiseGain, now, volume * 0.6, 0.02)
       noiseSrc.connect(filter)
       filter.connect(noiseGain)
       noiseGain.connect(ctx.destination)
@@ -753,8 +624,7 @@ export class SoundGenerator {
       noiseSrc.stop(now + 0.02)
 
       osc.onended = () => {
-        osc.disconnect(); oscGain.disconnect()
-        noiseSrc.disconnect(); filter.disconnect(); noiseGain.disconnect()
+        disconnectNodes(osc, oscGain, noiseSrc, filter, noiseGain)
       }
     } catch (e) {
       console.warn('Failed to play ball car hit sound:', e)
@@ -769,7 +639,7 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    resumeAudioContext(ctx)
     try {
       const now = ctx.currentTime
 
@@ -800,27 +670,21 @@ export class SoundGenerator {
         noiseSrc.stop(now + 0.7)
 
         noiseSrc.onended = () => {
-          noiseSrc.disconnect(); bandpass.disconnect()
-          distortion.disconnect(); noiseGain.disconnect()
+          disconnectNodes(noiseSrc, bandpass, distortion, noiseGain)
         }
       }
 
-      // Layer 2: Rising tone sweep for the "acceleration" feel
-      const osc = ctx.createOscillator()
-      const oscGain = ctx.createGain()
-      osc.type = 'sawtooth'
+      const { oscillator: osc, gain: oscGain } = createOscillatorGain(ctx, 'sawtooth', ctx.destination)
       osc.frequency.setValueAtTime(120, now)
       osc.frequency.exponentialRampToValueAtTime(400, now + 0.15)
       osc.frequency.exponentialRampToValueAtTime(250, now + 0.5)
       oscGain.gain.setValueAtTime(volume * 0.3, now)
       oscGain.gain.linearRampToValueAtTime(volume * 0.15, now + 0.3)
       oscGain.gain.linearRampToValueAtTime(0, now + 0.5)
-      osc.connect(oscGain)
-      oscGain.connect(ctx.destination)
       osc.start(now)
       osc.stop(now + 0.5)
 
-      osc.onended = () => { osc.disconnect(); oscGain.disconnect() }
+      osc.onended = () => { disconnectNodes(osc, oscGain) }
     } catch (e) {
       console.warn('Failed to play turbo boost sound:', e)
     }
@@ -834,20 +698,14 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    resumeAudioContext(ctx)
     try {
       const now = ctx.currentTime
 
-      // Layer 1: Low thud tone — heavy metallic object hitting ground
-      const osc = ctx.createOscillator()
-      const oscGain = ctx.createGain()
-      osc.type = 'sine'
+      const { oscillator: osc, gain: oscGain } = createOscillatorGain(ctx, 'sine', ctx.destination)
       osc.frequency.setValueAtTime(180, now)
       osc.frequency.exponentialRampToValueAtTime(60, now + 0.12)
-      oscGain.gain.setValueAtTime(volume, now)
-      oscGain.gain.linearRampToValueAtTime(0, now + 0.12)
-      osc.connect(oscGain)
-      oscGain.connect(ctx.destination)
+      scheduleLinearFade(oscGain, now, volume, 0.12)
       osc.start(now)
       osc.stop(now + 0.12)
 
@@ -862,8 +720,7 @@ export class SoundGenerator {
         filter.Q.value = 2
 
         const noiseGain = ctx.createGain()
-        noiseGain.gain.setValueAtTime(volume * 0.7, now)
-        noiseGain.gain.linearRampToValueAtTime(0, now + 0.1)
+        scheduleLinearFade(noiseGain, now, volume * 0.7, 0.1)
 
         noiseSrc.connect(filter)
         filter.connect(noiseGain)
@@ -872,25 +729,18 @@ export class SoundGenerator {
         noiseSrc.stop(now + 0.1)
 
         noiseSrc.onended = () => {
-          noiseSrc.disconnect(); filter.disconnect(); noiseGain.disconnect()
+          disconnectNodes(noiseSrc, filter, noiseGain)
         }
       }
 
-      // Layer 3: Brief click for the "release" mechanism
-      const click = ctx.createOscillator()
-      const clickGain = ctx.createGain()
-      click.type = 'square'
+      const { oscillator: click, gain: clickGain } = createOscillatorGain(ctx, 'square', ctx.destination)
       click.frequency.value = 2500
-      clickGain.gain.setValueAtTime(volume * 0.15, now)
-      clickGain.gain.linearRampToValueAtTime(0, now + 0.008)
-      click.connect(clickGain)
-      clickGain.connect(ctx.destination)
+      scheduleLinearFade(clickGain, now, volume * 0.15, 0.008)
       click.start(now)
       click.stop(now + 0.008)
 
       osc.onended = () => {
-        osc.disconnect(); oscGain.disconnect()
-        click.disconnect(); clickGain.disconnect()
+        disconnectNodes(osc, oscGain, click, clickGain)
       }
     } catch (e) {
       console.warn('Failed to play mine drop sound:', e)
@@ -904,20 +754,14 @@ export class SoundGenerator {
     if (SoundGenerator.isMuted) return
     const ctx = this.getAudioContext()
     if (!ctx) return
-    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}) }
+    resumeAudioContext(ctx)
     try {
       const now = ctx.currentTime
 
-      // Brief tone pip
-      const osc = ctx.createOscillator()
-      const oscGain = ctx.createGain()
-      osc.type = 'sine'
+      const { oscillator: osc, gain: oscGain } = createOscillatorGain(ctx, 'sine', ctx.destination)
       osc.frequency.setValueAtTime(1800, now)
       osc.frequency.exponentialRampToValueAtTime(1200, now + 0.04)
-      oscGain.gain.setValueAtTime(volume, now)
-      oscGain.gain.linearRampToValueAtTime(0, now + 0.04)
-      osc.connect(oscGain)
-      oscGain.connect(ctx.destination)
+      scheduleLinearFade(oscGain, now, volume, 0.04)
       osc.start(now)
       osc.stop(now + 0.04)
 
@@ -929,8 +773,7 @@ export class SoundGenerator {
         filter.type = 'highpass'
         filter.frequency.value = 3000
         const noiseGain = ctx.createGain()
-        noiseGain.gain.setValueAtTime(volume * 0.5, now)
-        noiseGain.gain.linearRampToValueAtTime(0, now + 0.025)
+        scheduleLinearFade(noiseGain, now, volume * 0.5, 0.025)
         noiseSrc.connect(filter)
         filter.connect(noiseGain)
         noiseGain.connect(ctx.destination)
@@ -938,11 +781,11 @@ export class SoundGenerator {
         noiseSrc.stop(now + 0.025)
 
         noiseSrc.onended = () => {
-          noiseSrc.disconnect(); filter.disconnect(); noiseGain.disconnect()
+          disconnectNodes(noiseSrc, filter, noiseGain)
         }
       }
 
-      osc.onended = () => { osc.disconnect(); oscGain.disconnect() }
+      osc.onended = () => { disconnectNodes(osc, oscGain) }
     } catch (e) {
       console.warn('Failed to play weapon switch sound:', e)
     }

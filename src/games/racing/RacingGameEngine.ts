@@ -21,6 +21,12 @@ import type { TouchDriveState } from './input'
 import type { PlayerUpgrades, UpgradeId } from './upgrades'
 import { DEFAULT_PLAYER_UPGRADES, getFireButtonWeapons, getWeaponIcon } from './upgrades'
 import { getCachedTexture, preloadRacingLevelAssets, RACING_SHARED_ASSET_PATHS } from './assets'
+import {
+  clearCombatEntities,
+  findBallSpawnPoint,
+  resolveBallCollisions,
+  triggerBallChainReactions,
+} from './engineCombat'
 
 const BALL_SPAWN_MAX_ATTEMPTS = 8
 const BALL_SPAWN_MARGIN = 0.2
@@ -587,28 +593,8 @@ export class RacingGameEngine {
       }
     }
 
-    this.resolveBallCollisions()
-    this.triggerBallChainReactions(newlyExplodedPositions)
-  }
-
-  private triggerBallChainReactions(explosionPositions: THREE.Vector3[]): void {
-    if (explosionPositions.length === 0) {
-      return
-    }
-
-    for (const ball of this.balls) {
-      if (ball.exploded) continue
-      for (const pos of explosionPositions) {
-        if (ball.isInChainReactionRange(pos)) {
-          if (ball.activated) {
-            ball.triggerImmediateDetonation()
-          } else {
-            ball.triggerActivation()
-          }
-          break
-        }
-      }
-    }
+    resolveBallCollisions(this.balls, this.track)
+    triggerBallChainReactions(this.balls, newlyExplodedPositions)
   }
 
   private updatePlayerFailureState(raceComplete: boolean): void {
@@ -873,13 +859,16 @@ export class RacingGameEngine {
   }
 
   private clearCombatEntities(): void {
-    this.bullets.forEach(b => b.dispose(this.scene))
+    clearCombatEntities(
+      this.scene,
+      this.bullets,
+      this.balls,
+      this.playerMines,
+      this.playerGluePuddles
+    )
     this.bullets = []
-    this.balls.forEach(b => b.dispose())
     this.balls = []
-    this.playerMines.forEach(m => m.destroy())
     this.playerMines = []
-    this.playerGluePuddles.forEach(p => p.destroy())
     this.playerGluePuddles = []
   }
 
@@ -982,55 +971,7 @@ export class RacingGameEngine {
   }
 
   private findBallSpawnPoint(): THREE.Vector3 {
-    let bestCandidate = this.track.getRandomPointOnTrack()
-    let bestDistance = -Infinity
-
-    for (let attempt = 0; attempt < BALL_SPAWN_MAX_ATTEMPTS; attempt++) {
-      const candidate = this.track.getRandomPointOnTrack()
-      const nearestDistance = this.getNearestLiveBallDistance(candidate)
-      if (nearestDistance > bestDistance) {
-        bestCandidate = candidate
-        bestDistance = nearestDistance
-      }
-      if (nearestDistance >= this.getBallSpawnClearance()) {
-        return candidate
-      }
-    }
-
-    return bestCandidate
-  }
-
-  private getNearestLiveBallDistance(position: THREE.Vector3): number {
-    let nearestDistance = Infinity
-
-    for (const ball of this.balls) {
-      if (ball.exploded) continue
-      const distance = position.distanceTo(ball.position)
-      nearestDistance = Math.min(nearestDistance, distance)
-    }
-
-    return nearestDistance
-  }
-
-  private getBallSpawnClearance(): number {
-    return this.balls.length > 0 ? this.balls[0].getRadius() * 2 + BALL_SPAWN_MARGIN : 0
-  }
-
-  private resolveBallCollisions(): void {
-    const activeBalls = this.balls.filter(ball => !ball.exploded)
-    if (activeBalls.length < 2) return
-
-    for (let pass = 0; pass < activeBalls.length; pass++) {
-      let changed = false
-      for (let i = 0; i < activeBalls.length; i++) {
-        for (let j = i + 1; j < activeBalls.length; j++) {
-          if (activeBalls[i].resolveCollisionWithBall(activeBalls[j], this.track)) {
-            changed = true
-          }
-        }
-      }
-      if (!changed) break
-    }
+    return findBallSpawnPoint(this.track, this.balls, BALL_SPAWN_MAX_ATTEMPTS, BALL_SPAWN_MARGIN)
   }
 
   private shootBullet() {
