@@ -10,6 +10,15 @@ import {
   DEFAULT_TRACK_WIDTH,
   type TrackRectBounds,
 } from './trackGeometry'
+import {
+  checkFinishLineCrossing,
+  createDefaultCheckpoints,
+  getCheckpointCenterById,
+  getNearestForwardCheckpoint as getNearestForwardCheckpointOnTrack,
+  getPathProgress,
+  getRandomPointOnPath,
+  isPointInCheckpoint,
+} from './trackTopology'
 
 export interface Checkpoint {
   id: number
@@ -815,71 +824,9 @@ export class Track {
   }
 
   private createCheckpoints() {
-    // Default checkpoints for rectangular track
-    const length = this.length
-    const width = this.width
-    const trackWidth = this.trackWidth
-    const cornerSize = 15
-    const finishLineLength = 6
-
-    const configs: CheckpointConfig[] = [
-      // Checkpoint 0: Finish line checkpoint
-      // The track path starts at (-length/2, 0, -width/2) = (-15, 0, -10)
-      // Left side (minX) should be exactly at the start line position (x = -15)
-      // Should span the width of the track (perpendicular to travel) and extend along track direction
-      // Track direction at finish line is +X (cars move from left to right)
-      {
-        id: 0,
-        bounds: {
-          minX: 0,
-          maxX: finishLineLength, // Extend forward 8 units
-          minZ: -width / 2 - trackWidth, // Bottom edge: -10 - 6 = -16
-          maxZ: -width / 2 + trackWidth  // Top edge: -10 + 6 = -4
-        }
-      },
-      // Checkpoint 1: Top right corner (bigger)
-      {
-        id: 1,
-        bounds: {
-          minX: length / 2 - cornerSize / 2,
-          maxX: length / 2 + cornerSize / 2,
-          minZ: -width / 2 - cornerSize / 2,
-          maxZ: -width / 2 + cornerSize / 2
-        }
-      },
-      // Checkpoint 2: Bottom right corner (bigger)
-      {
-        id: 2,
-        bounds: {
-          minX: length / 2 - cornerSize / 2,
-          maxX: length / 2 + cornerSize / 2,
-          minZ: width / 2 - cornerSize / 2,
-          maxZ: width / 2 + cornerSize / 2
-        }
-      },
-      // Checkpoint 3: Bottom left corner (bigger)
-      {
-        id: 3,
-        bounds: {
-          minX: -length / 2 - cornerSize / 2,
-          maxX: -length / 2 + cornerSize / 2,
-          minZ: width / 2 - cornerSize / 2,
-          maxZ: width / 2 + cornerSize / 2
-        }
-      },
-      // Checkpoint 4: Top left corner (bigger)
-      {
-        id: 4,
-        bounds: {
-          minX: -length / 2 - cornerSize / 2,
-          maxX: -length / 2 + cornerSize / 2,
-          minZ: -width / 2 - cornerSize / 2,
-          maxZ: -width / 2 + cornerSize / 2
-        }
-      }
-    ]
-
-    this.createCheckpointsFromConfig(configs)
+    this.createCheckpointsFromConfig(
+      createDefaultCheckpoints(this.length, this.width, this.trackWidth)
+    )
   }
 
   private createCheckpointsFromConfig(configs: CheckpointConfig[]) {
@@ -975,18 +922,7 @@ export class Track {
   }
 
   public isInCheckpoint(position: THREE.Vector3, checkpointId: number): boolean {
-    const checkpoint = this.checkpoints.find(cp => cp.id === checkpointId)
-    if (!checkpoint) return false
-
-    // For now, use axis-aligned bounding box check
-    // If rotation is needed in the future, we'd need to transform the position
-    // by the inverse rotation before checking bounds
-    return (
-      position.x >= checkpoint.minX &&
-      position.x <= checkpoint.maxX &&
-      position.z >= checkpoint.minZ &&
-      position.z <= checkpoint.maxZ
-    )
+    return isPointInCheckpoint(position, this.checkpoints.find(cp => cp.id === checkpointId))
   }
 
   public getCheckpointCount(): number {
@@ -994,68 +930,11 @@ export class Track {
   }
 
   public getNextCheckpointCenter(checkpointId: number): THREE.Vector3 {
-    const checkpoint = this.checkpoints.find(cp => cp.id === checkpointId)
-    if (!checkpoint) {
-      // Fallback to first checkpoint
-      const first = this.checkpoints[0]
-      if (!first) return new THREE.Vector3(0, 0, 0)
-      return new THREE.Vector3(
-        (first.minX + first.maxX) / 2,
-        0,
-        (first.minZ + first.maxZ) / 2
-      )
-    }
-    return new THREE.Vector3(
-      (checkpoint.minX + checkpoint.maxX) / 2,
-      0,
-      (checkpoint.minZ + checkpoint.maxZ) / 2
-    )
+    return getCheckpointCenterById(this.checkpoints, checkpointId)
   }
 
   public getNearestForwardCheckpoint(position: THREE.Vector3, forwardDirection: THREE.Vector3, lastCheckpoint: number): THREE.Vector3 | null {
-    // Find the checkpoint that is forward-facing from the car's position
-    let bestCheckpoint: THREE.Vector3 | null = null
-    let bestDot = -1
-
-    // Try the next checkpoint first
-    const checkpointCount = this.checkpoints.length
-    const nextCheckpointId = (lastCheckpoint + 1) % checkpointCount
-    const nextCheckpoint = this.getNextCheckpointCenter(nextCheckpointId)
-    const nextDir = new THREE.Vector3()
-    nextDir.subVectors(nextCheckpoint, position)
-    nextDir.y = 0
-    const nextDist = nextDir.length()
-    if (nextDist > 0.1) {
-      nextDir.normalize()
-      const nextDot = forwardDirection.dot(nextDir)
-      if (nextDot > bestDot) {
-        bestDot = nextDot
-        bestCheckpoint = nextCheckpoint
-      }
-    }
-
-    // Also try the checkpoint after that
-    const afterNextId = (lastCheckpoint + 2) % checkpointCount
-    const afterNextCheckpoint = this.getNextCheckpointCenter(afterNextId)
-    const afterNextDir = new THREE.Vector3()
-    afterNextDir.subVectors(afterNextCheckpoint, position)
-    afterNextDir.y = 0
-    const afterNextDist = afterNextDir.length()
-    if (afterNextDist > 0.1) {
-      afterNextDir.normalize()
-      const afterNextDot = forwardDirection.dot(afterNextDir)
-      if (afterNextDot > bestDot) {
-        bestDot = afterNextDot
-        bestCheckpoint = afterNextCheckpoint
-      }
-    }
-
-    // Return the best forward checkpoint if it's reasonably forward (dot > 0.1)
-    if (bestDot > 0.1) {
-      return bestCheckpoint
-    }
-
-    return null
+    return getNearestForwardCheckpointOnTrack(this.checkpoints, position, forwardDirection, lastCheckpoint)
   }
 
   /**
@@ -1064,39 +943,7 @@ export class Track {
    * Samples uniformly by arc length so positions are evenly distributed.
    */
   public getRandomPointOnTrack(): THREE.Vector3 {
-    // Build cumulative arc-length table
-    const cumLen: number[] = [0]
-    for (let i = 1; i < this.path.length; i++) {
-      const dx = this.path[i].x - this.path[i - 1].x
-      const dz = this.path[i].z - this.path[i - 1].z
-      cumLen.push(cumLen[i - 1] + Math.sqrt(dx * dx + dz * dz))
-    }
-    const totalLen = cumLen[cumLen.length - 1]
-
-    // Skip the first/last 15% of arc length to avoid start/finish area
-    const skipFraction = 0.15
-    const minLen = totalLen * skipFraction
-    const maxLen = totalLen * (1 - skipFraction)
-    const targetLen = minLen + Math.random() * (maxLen - minLen)
-
-    // Find the segment containing targetLen and interpolate
-    for (let i = 1; i < cumLen.length; i++) {
-      if (cumLen[i] >= targetLen) {
-        const segLen = cumLen[i] - cumLen[i - 1]
-        const t = segLen > 0 ? (targetLen - cumLen[i - 1]) / segLen : 0
-        const p0 = this.path[i - 1]
-        const p1 = this.path[i]
-        return new THREE.Vector3(
-          p0.x + (p1.x - p0.x) * t,
-          0,
-          p0.z + (p1.z - p0.z) * t
-        )
-      }
-    }
-
-    // Fallback
-    const p = this.path[Math.floor(this.path.length / 2)]
-    return new THREE.Vector3(p.x, p.y, p.z)
+    return getRandomPointOnPath(this.path)
   }
 
   private addLaneDividers() {
@@ -1274,144 +1121,11 @@ export class Track {
   }
 
   public getProgress(position: THREE.Vector3, previousProgress: number = 0): number {
-    // Find closest point on track, but only consider segments forward from previous progress
-    // This ensures progress only increases (or wraps around at finish line)
-    const totalSegments = this.path.length - 1
-
-    // Calculate which segment the previous progress corresponds to
-    const previousSegmentIndex = Math.floor((previousProgress % 1.0) * totalSegments)
-    const previousSegmentProgress = ((previousProgress % 1.0) * totalSegments) - previousSegmentIndex
-
-    // Helper to normalize progress difference (handles wrap-around)
-    const getProgressDiff = (newProgress: number, oldProgress: number): number => {
-      let diff = newProgress - oldProgress
-      // Handle wrap-around: if going from 0.95 to 0.05, that's +0.1 (forward)
-      if (diff < -0.5) diff += 1.0
-      // Handle reverse wrap-around: if going from 0.05 to 0.95, that's -0.1 (backward)
-      if (diff > 0.5) diff -= 1.0
-      return diff
-    }
-
-    let bestProgress = previousProgress
-    let minDistance = Infinity
-    const maxSearchDistance = 10.0 // Maximum distance to consider (prevents huge jumps)
-    const segmentTransitionThreshold = 0.95 // Only move to next segment if we're 95% through current
-    const minDistanceToEnd = 2.0 // Must be within 2 units of end point to consider next segment
-
-    // First, check the current segment
-    const currentSegmentIndex = previousSegmentIndex
-    const currentStart = this.path[currentSegmentIndex]
-    const currentEnd = this.path[(currentSegmentIndex + 1) % totalSegments]
-    const currentSegment = currentEnd.clone().sub(currentStart)
-    const toCurrentPoint = position.clone().sub(currentStart)
-    const currentSegmentLength = currentSegment.length()
-
-    if (currentSegmentLength > 0) {
-      let t = toCurrentPoint.dot(currentSegment) / (currentSegmentLength * currentSegmentLength)
-      t = Math.max(previousSegmentProgress, Math.min(1, t))
-
-      const closestPoint = currentStart.clone().add(currentSegment.multiplyScalar(t))
-      const distance = position.distanceTo(closestPoint)
-
-      if (distance < maxSearchDistance) {
-        const segmentProgress = (currentSegmentIndex + t) / totalSegments
-        const progressDiff = getProgressDiff(segmentProgress, previousProgress)
-
-        if (progressDiff >= -0.05) {
-          minDistance = distance
-          bestProgress = segmentProgress
-        }
-      }
-
-      // Only check next segment if we're very near the end of current segment
-      // Must be both: 95% through the segment AND within 2 units of the end point
-      const distanceToEnd = position.distanceTo(currentEnd)
-      const isNearEnd = t >= segmentTransitionThreshold && distanceToEnd < minDistanceToEnd
-
-      if (isNearEnd) {
-        // Check next segment
-        const nextSegmentIndex = (currentSegmentIndex + 1) % totalSegments
-        const nextStart = this.path[nextSegmentIndex]
-        const nextEnd = this.path[(nextSegmentIndex + 1) % totalSegments]
-        const nextSegment = nextEnd.clone().sub(nextStart)
-        const toNextPoint = position.clone().sub(nextStart)
-        const nextSegmentLength = nextSegment.length()
-
-        if (nextSegmentLength > 0) {
-          let tNext = toNextPoint.dot(nextSegment) / (nextSegmentLength * nextSegmentLength)
-          tNext = Math.max(0, Math.min(1, tNext))
-
-          const closestPointNext = nextStart.clone().add(nextSegment.multiplyScalar(tNext))
-          const distanceNext = position.distanceTo(closestPointNext)
-
-          if (distanceNext < maxSearchDistance) {
-            const segmentProgressNext = (nextSegmentIndex + tNext) / totalSegments
-            const progressDiffNext = getProgressDiff(segmentProgressNext, previousProgress)
-
-            // Only use next segment if it's significantly closer (at least 20% better)
-            // This prevents switching at corners when distances are similar
-            if (progressDiffNext >= -0.05 && distanceNext < minDistance * 0.8) {
-              minDistance = distanceNext
-              bestProgress = segmentProgressNext
-            }
-          }
-        }
-      }
-    }
-
-    // If we didn't find a good forward candidate, also check if we're near the finish line
-    // (this handles the wrap-around case)
-    if (previousProgress > 0.9) {
-      // Check the first segment (finish line area) in case we wrapped around
-      const segmentIndex = 0
-      const start = this.path[segmentIndex]
-      const end = this.path[(segmentIndex + 1) % totalSegments]
-
-      const segment = end.clone().sub(start)
-      const toPoint = position.clone().sub(start)
-      const segmentLength = segment.length()
-
-      if (segmentLength > 0) {
-        let t = toPoint.dot(segment) / (segmentLength * segmentLength)
-        t = Math.max(0, Math.min(1, t))
-
-        const closestPoint = start.clone().add(segment.multiplyScalar(t))
-        const distance = position.distanceTo(closestPoint)
-
-        if (distance < maxSearchDistance) {
-          const segmentProgress = (segmentIndex + t) / totalSegments
-          const progressDiff = getProgressDiff(segmentProgress, previousProgress)
-
-          // If we wrapped around (large negative diff), accept it
-          if (progressDiff < -0.5) {
-            minDistance = distance
-            bestProgress = segmentProgress
-          }
-        }
-      }
-    }
-
-    // Final validation: ensure progress only moves forward (or wraps around)
-    const finalDiff = getProgressDiff(bestProgress, previousProgress)
-
-    // If progress went backward significantly (not wrap-around), clamp to previous + small increment
-    if (finalDiff < -0.05 && finalDiff > -0.5) {
-      // Small backward movement - use previous progress with tiny increment
-      bestProgress = (previousProgress + 0.001) % 1.0
-    }
-    // If progress wrapped backward (0.05 -> 0.95), that's invalid - use previous
-    else if (finalDiff > 0.5) {
-      bestProgress = previousProgress
-    }
-
-    return bestProgress
+    return getPathProgress(this.path, position, previousProgress)
   }
 
   public checkFinishLine(position: THREE.Vector3): boolean {
-    // Check if car crossed finish line (at start position)
-    const finishLinePos = new THREE.Vector3(-15, 0, -10) // Start position
-    const distance = Math.abs(position.z - finishLinePos.z)
-    return distance < 1 && position.x < finishLinePos.x + 2 && position.x > finishLinePos.x - 2
+    return checkFinishLineCrossing(position, new THREE.Vector3(-15, 0, -10))
   }
 
   public getFinishLinePosition(): THREE.Vector3 {
