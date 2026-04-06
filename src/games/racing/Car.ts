@@ -933,7 +933,7 @@ export class Car {
             const pushToOther = toOther.clone().multiplyScalar(-pushStrength * 2)
             otherCar.pushVelocityX += pushToOther.x * 8
             otherCar.pushVelocityZ += pushToOther.z * 8
-            otherCar.takeDamageAmount(1)
+            otherCar.takeDamageAmount(3)
             pushStrength *= 0.5
           }
 
@@ -987,7 +987,7 @@ export class Car {
   }
 
   public takeDamage(): void {
-    this.takeDamageAmount(3)
+    this.takeDamageAmount(6)
   }
 
   public takeDamageAmount(amount: number): void {
