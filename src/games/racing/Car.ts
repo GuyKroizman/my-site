@@ -600,7 +600,7 @@ export class Car {
     const isReversing = this.speed < 0
     const effectiveMaxSpeed = this.getEffectiveMaxSpeed()
     if (currentSpeed > Car.MIN_STEER_SPEED && steeringInput !== 0) {
-      const turnMultiplier = isTouch ? 1.35 : 0.7
+      const turnMultiplier = isTouch ? 0.85 : 0.7
       // Use a minimum speed ratio so turning works at low speeds
       const speedRatio = Math.max(0.5, currentSpeed / effectiveMaxSpeed)
       const turnAmount =

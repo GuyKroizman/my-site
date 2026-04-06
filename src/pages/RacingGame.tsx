@@ -207,6 +207,9 @@ export default function RacingGame() {
 
       gameEngineRef.current = engine
       engine.startRace()
+      if (isTouchDevice()) {
+        engine.setTouchControls({ throttle: 1, steering: 0 })
+      }
 
       // Set initial weapon UI state
       setFireWeaponUiState(engine.getFireWeaponUiState())
@@ -296,11 +299,11 @@ export default function RacingGame() {
     setRaceResult(null)
   }
 
-  const handleTouchDriveChange = (state: TouchDriveState) => {
+  const handleTouchDriveChange = useCallback((state: TouchDriveState) => {
     if (gameEngineRef.current) {
       gameEngineRef.current.setTouchControls(state)
     }
-  }
+  }, [])
 
   const handleTouchShoot = useCallback((shooting: boolean) => {
     if (gameEngineRef.current) {
