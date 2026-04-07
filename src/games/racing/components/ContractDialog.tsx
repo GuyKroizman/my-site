@@ -11,49 +11,29 @@ export function ContractDialog({ dialog, onContinue }: ContractDialogProps) {
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/90 px-3 py-3 md:px-4 md:py-4">
       <div className="max-w-5xl w-full rounded-2xl border border-white/10 bg-neutral-950/95 p-3 shadow-2xl md:p-8">
-        <div className="grid gap-4 md:grid-cols-[320px_minmax(0,1fr)] md:items-stretch md:gap-6">
-          <div className="relative flex min-h-[72svh] items-end justify-center overflow-hidden rounded-2xl border border-cyan-300/20 bg-gradient-to-b from-cyan-500/5 to-fuchsia-500/5 p-3 md:min-h-[260px] md:p-4">
+        <div className="grid grid-cols-[minmax(120px,0.78fr)_minmax(0,1fr)] items-stretch gap-3 md:grid-cols-[320px_minmax(0,1fr)] md:gap-6">
+          <div className="relative flex min-h-[56svh] items-end justify-center overflow-hidden rounded-2xl border border-cyan-300/20 bg-gradient-to-b from-cyan-500/5 to-fuchsia-500/5 p-2 md:min-h-[260px] md:p-4">
             <img
               src="/racing/contractor.png"
               alt="Contractor"
-              className="h-full max-h-[80svh] w-full object-contain object-top drop-shadow-[0_0_28px_rgba(34,211,238,0.3)] md:max-h-[420px]"
+              className="h-full max-h-[70svh] w-full object-contain object-bottom drop-shadow-[0_0_28px_rgba(34,211,238,0.3)] md:max-h-[420px]"
             />
-            <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/10 bg-black/55 p-3 shadow-xl backdrop-blur-sm md:hidden">
-              <div className="space-y-2">
-                {dialog.lines.map((line, index) => (
-                  <p
-                    key={`${line}-${index}-mobile`}
-                    className={`leading-snug ${index === 0 ? 'text-sm font-semibold text-white' : 'text-xs text-neutral-200'}`}
-                  >
-                    {renderHighlightedText(line, dialog)}
-                  </p>
-                ))}
-              </div>
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={onContinue}
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black transition-colors hover:bg-amber-400 active:bg-amber-600"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
           </div>
-          <div className="hidden min-w-0 flex-col justify-between rounded-2xl bg-white/5 p-5 md:flex md:p-6">
-            <div className="space-y-4">
+          <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/10 bg-black/55 p-3 shadow-xl backdrop-blur-sm md:bg-white/5 md:p-6 md:shadow-none">
+            <div className="space-y-2 md:space-y-4">
               {dialog.lines.map((line, index) => (
                 <p
                   key={`${line}-${index}`}
-                  className={`leading-relaxed ${index === 0 ? 'text-2xl font-semibold text-white' : 'text-lg text-neutral-200'}`}
+                  className={`leading-snug md:leading-relaxed ${index === 0 ? 'text-sm font-semibold text-white md:text-2xl' : 'text-[11px] text-neutral-200 md:text-lg'}`}
                 >
                   {renderHighlightedText(line, dialog)}
                 </p>
               ))}
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-3 flex justify-end md:mt-6">
               <button
                 onClick={onContinue}
-                className="rounded-lg bg-amber-500 px-5 py-3 font-bold text-black transition-colors hover:bg-amber-400 active:bg-amber-600"
+                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black transition-colors hover:bg-amber-400 active:bg-amber-600 md:px-5 md:py-3"
               >
                 Continue
               </button>
