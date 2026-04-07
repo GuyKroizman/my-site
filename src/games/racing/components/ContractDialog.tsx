@@ -18,7 +18,7 @@ export function ContractDialog({ dialog, onContinue }: ContractDialogProps) {
               alt="Contractor"
               className="h-full max-h-[80svh] w-full object-contain object-top drop-shadow-[0_0_28px_rgba(34,211,238,0.3)] md:max-h-[420px]"
             />
-            <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/10 bg-black/80 p-3 shadow-xl backdrop-blur-sm md:hidden">
+            <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/10 bg-black/55 p-3 shadow-xl backdrop-blur-sm md:hidden">
               <div className="space-y-2">
                 {dialog.lines.map((line, index) => (
                   <p
