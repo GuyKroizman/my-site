@@ -1,13 +1,19 @@
 import { Car } from './Car'
 import { Track } from './Track'
-import { RacingGameCallbacks } from './RacingGameEngine'
+import type { RawRaceResults } from './RacingGameEngine'
+
+interface RaceManagerCallbacks {
+  onRaceComplete: (results: RawRaceResults) => void
+  onLapComplete?: (laps: number) => void
+  onCarFinished?: (carName: string, screenPos: { x: number; y: number }) => void
+}
 
 export class RaceManager {
   private cars: Car[] = []
   private raceStarted: boolean = false
   private raceComplete: boolean = false
   private finishedCars: Car[] = []
-  private callbacks: RacingGameCallbacks
+  private callbacks: RaceManagerCallbacks
   private lastLapProgress: Map<Car, number> = new Map()
   private previousCheckpoint: Map<Car, number> = new Map()
   private requiredLaps: number
@@ -16,7 +22,7 @@ export class RaceManager {
   private readonly COMPLETION_DELAY: number = 5 // 5 seconds after first car finishes
   private getFinishScreenPos?: () => { x: number; y: number }
 
-  constructor(callbacks: RacingGameCallbacks, requiredLaps: number = 4) {
+  constructor(callbacks: RaceManagerCallbacks, requiredLaps: number = 4) {
     this.callbacks = callbacks
     this.requiredLaps = requiredLaps
   }
@@ -144,7 +150,7 @@ export class RaceManager {
       }
     })
 
-    const results = {
+    const results: RawRaceResults = {
       winner: sorted[0]?.name || 'Unknown',
       second: sorted[1]?.name || 'Unknown',
       third: sorted[2]?.name || 'Unknown',

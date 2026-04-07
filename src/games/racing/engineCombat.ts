@@ -12,8 +12,8 @@ import type { BallDropConfig } from './levels'
 
 const BALL_SPAWN_MAX_ATTEMPTS = 8
 const BALL_SPAWN_MARGIN = 0.2
-const GLUE_SLOW_DURATION = 5
-const GLUE_SLOW_MULTIPLIER = 0.8
+const GLUE_SLOW_DURATION = 8
+const GLUE_SLOW_MULTIPLIER = 0.5
 const TURBO_BOOST_DURATION = 1.0
 const TURBO_BOOST_COOLDOWN = 3.0
 const TURBO_BOOST_MULTIPLIER = 1.5
@@ -54,6 +54,7 @@ export class RacingCombatController {
   private turboBoostTimer: number = 0
   private turboBoostCooldown: number = 0
   private lastFireWeaponUiStateSignature: string | null = null
+  private gluedCarNames: Set<string> = new Set()
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -75,6 +76,7 @@ export class RacingCombatController {
     this.turboBoostTimer = 0
     this.turboBoostCooldown = 0
     this.lastFireWeaponUiStateSignature = null
+    this.gluedCarNames.clear()
     playerCar?.setTurboBoostMultiplier(1)
   }
 
@@ -109,6 +111,10 @@ export class RacingCombatController {
 
   public emitUiState(force = false): void {
     this.emitFireWeaponUiState(force)
+  }
+
+  public getGluedCarNames(): string[] {
+    return [...this.gluedCarNames]
   }
 
   public update(deltaTime: number, context: CombatUpdateContext): void {
@@ -231,6 +237,9 @@ export class RacingCombatController {
         if (car.launched || car.finished) continue
         if (puddle.collidesWith(car.position)) {
           car.applyGlueSlow(GLUE_SLOW_DURATION, GLUE_SLOW_MULTIPLIER)
+          if (!car.isPlayer) {
+            this.gluedCarNames.add(car.name)
+          }
           puddleHit = true
           break
         }

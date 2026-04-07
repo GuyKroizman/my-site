@@ -8,6 +8,12 @@ export interface UpgradeOption {
   repeatable: boolean
 }
 
+export interface UpgradeContract {
+  upgradeId: Exclude<UpgradeId, 'nothing'>
+  upgradeName: string
+  taskText: string
+}
+
 export interface PlayerUpgrades {
   hasGun: boolean
   hasMines: boolean
@@ -38,28 +44,28 @@ export const UPGRADE_POOL: UpgradeOption[] = [
   },
   {
     id: 'mines',
-    name: 'Drop Mines',
+    name: 'Mines',
     description: 'Fire drops a mine behind your car. Activates after 2s. Hurts everyone including you!',
     icon: '\u{1F4A3}',
     repeatable: false,
   },
   {
     id: 'turbo_boost',
-    name: 'Turbo Boost',
+    name: 'Boost',
     description: 'Press fire for a short speed burst. 3s cooldown.',
     icon: '\u{1F680}',
     repeatable: false,
   },
   {
     id: 'glue_trap',
-    name: 'Glue Trap',
-    description: 'Fire drops glue behind your car. First car to touch it slows 20% for 5 seconds.',
+    name: 'Glue',
+    description: 'Fire drops glue behind your car. First car to touch it slows 50% for 8 seconds.',
     icon: '\u{1F7E2}',
     repeatable: false,
   },
   {
     id: 'ram',
-    name: 'Ram Reinforcement',
+    name: 'Ram',
     description: 'Collisions damage other cars and push them harder.',
     icon: '\u{1F6E1}',
     repeatable: false,
@@ -70,6 +76,34 @@ export const UPGRADE_POOL: UpgradeOption[] = [
     description: 'Proceed to the next race without modifications.',
     icon: '\u27A1\uFE0F',
     repeatable: true,
+  },
+]
+
+export const UPGRADE_CONTRACTS: UpgradeContract[] = [
+  {
+    upgradeId: 'mines',
+    upgradeName: 'Mines',
+    taskText: 'destroy the red car',
+  },
+  {
+    upgradeId: 'gun',
+    upgradeName: 'Machine Gun',
+    taskText: 'destroy the blue car',
+  },
+  {
+    upgradeId: 'ram',
+    upgradeName: 'Ram',
+    taskText: 'destroy any car',
+  },
+  {
+    upgradeId: 'turbo_boost',
+    upgradeName: 'Boost',
+    taskText: 'finish the race under 25 seconds',
+  },
+  {
+    upgradeId: 'glue_trap',
+    upgradeName: 'Glue',
+    taskText: 'glue at least two cars',
   },
 ]
 
@@ -97,6 +131,29 @@ export function applyUpgrade(current: PlayerUpgrades, upgradeId: UpgradeId): Pla
 
 export function getAvailableOptions(current: PlayerUpgrades): UpgradeOption[] {
   return UPGRADE_POOL.filter(opt => opt.repeatable || !current.selectedIds.has(opt.id))
+}
+
+export function getAvailableContracts(current: PlayerUpgrades): UpgradeContract[] {
+  return UPGRADE_CONTRACTS.filter(contract => !current.selectedIds.has(contract.upgradeId))
+}
+
+export function getContractForUpgrade(upgradeId: Exclude<UpgradeId, 'nothing'>): UpgradeContract {
+  const contract = UPGRADE_CONTRACTS.find(option => option.upgradeId === upgradeId)
+  if (!contract) {
+    throw new Error(`Missing contract for upgrade: ${upgradeId}`)
+  }
+
+  return contract
+}
+
+export function selectRandomContract(current: PlayerUpgrades): UpgradeContract | null {
+  const contracts = getAvailableContracts(current)
+  if (contracts.length === 0) {
+    return null
+  }
+
+  const index = Math.floor(Math.random() * contracts.length)
+  return contracts[index]
 }
 
 const FIRE_BUTTON_WEAPONS: UpgradeId[] = ['gun', 'mines', 'turbo_boost', 'glue_trap']

@@ -1,24 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { FireWeaponUiState, RacingGameEngine } from '../games/racing/RacingGameEngine'
-import { GameManager, RaceResult, GameState as ManagerGameState } from '../games/racing/GameManager'
+import { ContractDialogData, GameManager, RaceResult, GameState as ManagerGameState } from '../games/racing/GameManager'
 import { LevelConfig } from '../games/racing/levels'
 import { SoundGenerator } from '../games/racing/SoundGenerator'
 import { VirtualDriveStick } from '../games/racing/VirtualDriveStick'
 import { isMobileLandscape, isPortrait, isTouchDevice, isLandscape } from '../games/racing/device'
 import type { TouchDriveState } from '../games/racing/input'
-import type { UpgradeOption, UpgradeId } from '../games/racing/upgrades'
 import {
   Header,
   MuteButton,
+  ContractDialog,
   RaceCompleteDialog,
   GameWonDialog,
   PausedDialog,
   MenuScreen,
-  FinishLineConfetti,
-  UpgradeSelectionScreen
+  FinishLineConfetti
 } from '../games/racing/components'
 
-type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'upgradeSelection' | 'gameWon'
+type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'contractDialog' | 'gameWon'
 
 const EMPTY_FIRE_WEAPON_UI_STATE: FireWeaponUiState = {
   activeWeaponId: null,
@@ -47,7 +46,7 @@ export default function RacingGame() {
   const [gameContainerVisible, setGameContainerVisible] = useState(true)
   const [confettiBurstId, setConfettiBurstId] = useState(0)
   const [confettiOrigin, setConfettiOrigin] = useState<{ x: number; y: number } | null>(null)
-  const [upgradeOptions, setUpgradeOptions] = useState<UpgradeOption[]>([])
+  const [contractDialog, setContractDialog] = useState<ContractDialogData | null>(null)
   const [fireWeaponUiState, setFireWeaponUiState] = useState<FireWeaponUiState>(EMPTY_FIRE_WEAPON_UI_STATE)
   const [isRaceLoading, setIsRaceLoading] = useState(false)
 
@@ -66,11 +65,11 @@ export default function RacingGame() {
           gameEngineRef.current.playSadFinishSound()
         }
       },
-      onGameComplete: (_won: boolean) => {
+      onGameComplete: (_won: boolean, _totalCoins: number) => {
         // State is already set by onStateChange
       },
-      onUpgradeSelection: (options: UpgradeOption[]) => {
-        setUpgradeOptions(options)
+      onContractDialog: (dialog: ContractDialogData) => {
+        setContractDialog(dialog)
       }
     })
     gameManagerRef.current = manager
@@ -268,9 +267,10 @@ export default function RacingGame() {
     }
   }
 
-  const handleUpgradeSelect = (upgradeId: UpgradeId) => {
+  const handleContinueContractDialog = () => {
+    setContractDialog(null)
     if (gameManagerRef.current) {
-      gameManagerRef.current.selectUpgrade(upgradeId)
+      gameManagerRef.current.acknowledgeContractDialog()
     }
   }
 
@@ -284,6 +284,7 @@ export default function RacingGame() {
     disposeGameEngine()
     gameManagerRef.current?.returnToMenu()
     resetRaceUi({ clearRaceResult: true })
+    setContractDialog(null)
   }
 
   // Two-phase dismiss: switch to menu first (so it renders behind), keep overlay alive
@@ -292,6 +293,7 @@ export default function RacingGame() {
     disposeGameEngine()
     gameManagerRef.current?.returnToMenu()
     resetRaceUi()
+    setContractDialog(null)
   }
 
   const handleLoseScreenDismissComplete = () => {
@@ -341,16 +343,17 @@ export default function RacingGame() {
           />
         )}
 
-        {uiState === 'upgradeSelection' && (
-          <UpgradeSelectionScreen
-            options={upgradeOptions}
-            onSelect={handleUpgradeSelect}
+        {uiState === 'contractDialog' && contractDialog && (
+          <ContractDialog
+            dialog={contractDialog}
+            onContinue={handleContinueContractDialog}
           />
         )}
 
         {uiState === 'gameWon' && (
           <GameWonDialog
             totalLevels={totalLevels}
+            totalCoins={gameManagerRef.current?.getTotalCoins() ?? 0}
             onBackToMenu={handleBackToMenu}
           />
         )}

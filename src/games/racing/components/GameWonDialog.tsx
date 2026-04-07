@@ -1,9 +1,10 @@
 interface GameWonDialogProps {
   totalLevels: number
+  totalCoins: number
   onBackToMenu: () => void
 }
 
-export function GameWonDialog({ totalLevels, onBackToMenu }: GameWonDialogProps) {
+export function GameWonDialog({ totalLevels, totalCoins, onBackToMenu }: GameWonDialogProps) {
   return (
     <div className="absolute inset-0 bg-black bg-opacity-90 z-10 flex items-center justify-center px-4 py-4 overflow-y-auto">
       <div className="max-w-4xl w-full grid grid-cols-[minmax(0,1fr)_auto] gap-4 items-center">
@@ -15,6 +16,9 @@ export function GameWonDialog({ totalLevels, onBackToMenu }: GameWonDialogProps)
           </p>
           <p className="text-gray-300 text-sm">
             You are a true racing champion!
+          </p>
+          <p className="mt-3 text-base font-semibold text-yellow-300">
+            Total coins: {totalCoins}
           </p>
         </div>
         <div className="flex items-center justify-end">

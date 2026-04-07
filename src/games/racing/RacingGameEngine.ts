@@ -22,8 +22,20 @@ import {
 export type { FireWeaponUiState } from './engineCombat'
 import type { FireWeaponUiState } from './engineCombat'
 
+export interface RawRaceResults {
+  winner: string
+  second: string
+  third: string
+  times: { [name: string]: number }
+}
+
 export interface RacingGameCallbacks {
-  onRaceComplete: (results: { winner: string; second: string; third: string; times: { [name: string]: number } }) => void
+  onRaceComplete: (results: RawRaceResults & {
+    destroyedCarNames: string[]
+    eliminatedCars: Array<{ name: string; color: number }>
+    playerFinishTime: number | null
+    gluedCarNames: string[]
+  }) => void
   onLapComplete?: (laps: number) => void
   onTimerUpdate?: (time: number) => void
   onCarFinished?: (carName: string, screenPos: { x: number; y: number }) => void
@@ -177,7 +189,14 @@ export class RacingGameEngine {
     this.track.createNavigationGrid(1.0)
 
     // Create race manager with level-specific required laps
-    this.raceManager = new RaceManager(this.callbacks, this.currentLevelConfig.requiredLaps)
+    this.raceManager = new RaceManager({
+      onRaceComplete: (results) => this.callbacks.onRaceComplete({
+        ...results,
+        ...this.buildRaceTelemetry(results.times),
+      }),
+      onLapComplete: (laps) => this.callbacks.onLapComplete?.(laps),
+      onCarFinished: (carName, screenPos) => this.callbacks.onCarFinished?.(carName, screenPos),
+    }, this.currentLevelConfig.requiredLaps)
     this.raceManager.setFinishScreenPosGetter(() => this.presentation.projectFinishLine())
 
     // Setup lighting (brighter so car models are more visible)
@@ -326,6 +345,24 @@ export class RacingGameEngine {
 
     const elapsedRaceTime = this.session.getElapsedRaceTime()
     this.raceManager.update(deltaTime, this.track, elapsedRaceTime)
+  }
+
+  private buildRaceTelemetry(times: { [name: string]: number }): {
+    destroyedCarNames: string[]
+    eliminatedCars: Array<{ name: string; color: number }>
+    playerFinishTime: number | null
+    gluedCarNames: string[]
+  } {
+    const eliminatedCars = this.cars
+      .filter(car => !car.isPlayer && (car.isDestroyed || car.launched))
+      .map(car => ({ name: car.name, color: car.color }))
+
+    return {
+      destroyedCarNames: eliminatedCars.map(car => car.name),
+      eliminatedCars,
+      playerFinishTime: times.Player ?? null,
+      gluedCarNames: this.combat.getGluedCarNames(),
+    }
   }
 
   private updateCombat(deltaTime: number, canStart: boolean, raceComplete: boolean): void {

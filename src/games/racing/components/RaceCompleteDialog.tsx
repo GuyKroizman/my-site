@@ -23,6 +23,7 @@ export function RaceCompleteDialog({
   const [dismissing, setDismissing] = useState(false)
 
   const getDisplayName = (name: string) => name === 'Player' ? 'You' : name
+  const hasTask = raceResult.activeTaskText !== null
 
   const handleBackToMenu = () => {
     setDismissing(true)
@@ -106,6 +107,18 @@ export function RaceCompleteDialog({
                 Better luck next time!
               </p>
             </div>
+
+            <div className="mt-3 rounded-lg bg-black/40 p-3 text-sm text-gray-200">
+              <p className="font-semibold text-yellow-300">Coins</p>
+              <p>Placement reward: {raceResult.placementCoins}</p>
+              <p>Task reward: {raceResult.taskCoins}</p>
+              <p className="mt-1 font-semibold text-white">Total coins: {raceResult.totalCoins}</p>
+              {hasTask && (
+                <p className="mt-1 text-gray-300">
+                  Task: {raceResult.activeTaskText} ({raceResult.taskCompleted ? 'completed' : 'not completed'})
+                </p>
+              )}
+            </div>
           </div>
           <div
             className="flex items-center justify-end bg-black/60 backdrop-blur-sm rounded-lg p-4"
@@ -174,6 +187,18 @@ export function RaceCompleteDialog({
                 ? 'Final track complete!'
                 : `Advancing to Track ${currentLevel.id + 1}...`}
             </p>
+          </div>
+
+          <div className="mt-3 rounded-lg bg-black/40 p-3 text-sm text-gray-200">
+            <p className="font-semibold text-yellow-300">Coins</p>
+            <p>Placement reward: {raceResult.placementCoins}</p>
+            <p>Task reward: {raceResult.taskCoins}</p>
+            <p className="mt-1 font-semibold text-white">Total coins: {raceResult.totalCoins}</p>
+            {hasTask && (
+              <p className="mt-1 text-gray-300">
+                Task: {raceResult.activeTaskText} ({raceResult.taskCompleted ? 'completed' : 'not completed'})
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-end">
