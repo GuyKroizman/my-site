@@ -13,13 +13,12 @@ import {
   MuteButton,
   ContractDialog,
   RaceCompleteDialog,
-  GameWonDialog,
   PausedDialog,
   MenuScreen,
   FinishLineConfetti
 } from '../games/racing/components'
 
-type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'contractDialog' | 'gameWon'
+type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'contractDialog'
 const RACING_HIGH_SCORES_SESSION_KEY = 'racing-high-scores'
 
 const EMPTY_FIRE_WEAPON_UI_STATE: FireWeaponUiState = {
@@ -97,9 +96,6 @@ export default function RacingGame() {
         if (!result.levelPassed && gameEngineRef.current) {
           gameEngineRef.current.playSadFinishSound()
         }
-      },
-      onGameComplete: (_won: boolean, _totalCoins: number) => {
-        // State is already set by onStateChange
       },
       onContractDialog: (dialog: ContractDialogData) => {
         setContractDialog(dialog)
@@ -419,9 +415,10 @@ export default function RacingGame() {
           <RaceCompleteDialog
             raceResult={raceResult}
             currentLevel={currentLevel}
+            totalLevels={totalLevels}
             isLastLevel={gameManagerRef.current?.isLastLevel() ?? false}
             onProceed={handleProceedAfterRace}
-            onBackToMenu={handleLoseScreenBackToMenu}
+            onBackToMenu={raceResult.levelPassed ? handleBackToMenu : handleLoseScreenBackToMenu}
             onDismissComplete={handleLoseScreenDismissComplete}
           />
         )}
@@ -430,14 +427,6 @@ export default function RacingGame() {
           <ContractDialog
             dialog={contractDialog}
             onContinue={handleContinueContractDialog}
-          />
-        )}
-
-        {uiState === 'gameWon' && (
-          <GameWonDialog
-            totalLevels={totalLevels}
-            totalCoins={gameManagerRef.current?.getTotalCoins() ?? 0}
-            onBackToMenu={handleBackToMenu}
           />
         )}
 

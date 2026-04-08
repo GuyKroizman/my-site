@@ -8,7 +8,7 @@ import {
   selectRandomContract,
 } from './upgrades'
 
-const DEFAULT_START_LEVEL_INDEX = 0
+const DEFAULT_START_LEVEL_INDEX = 4
 const TASK_COMPLETION_REWARD = 1000
 const BOOST_TASK_FINISH_TIME_SECONDS = 25
 const TIME_BONUS_TARGET_SECONDS = 40
@@ -16,7 +16,7 @@ const TIME_BONUS_COINS_PER_SECOND = 10
 const RED_CAR_COLOR = 0xff0000
 const BLUE_CAR_COLOR = 0x0000ff
 
-export type GameState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'contractDialog' | 'gameWon'
+export type GameState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'contractDialog'
 
 export interface RaceTelemetry {
   destroyedCarNames: string[]
@@ -51,7 +51,6 @@ export interface GameManagerCallbacks {
   onStateChange: (state: GameState) => void
   onLevelChange: (level: LevelConfig) => void
   onRaceResult: (result: RaceResult) => void
-  onGameComplete: (won: boolean, totalCoins: number) => void
   onContractDialog: (dialog: ContractDialogData) => void
 }
 
@@ -183,10 +182,6 @@ export class GameManager {
     if (!this.lastRaceResult || !this.lastRaceResult.levelPassed) return
 
     if (this.currentLevelIndex >= levels.length - 1) {
-      this.state = 'gameWon'
-      this.lastRaceResult = null
-      this.callbacks.onStateChange(this.state)
-      this.callbacks.onGameComplete(true, this.totalCoins)
       return
     }
 
