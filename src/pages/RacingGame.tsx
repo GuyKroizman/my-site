@@ -18,6 +18,7 @@ import {
 } from '../games/racing/components'
 
 type UIState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'contractDialog' | 'gameWon'
+const RACING_HIGH_SCORES_SESSION_KEY = 'racing-high-scores'
 
 const EMPTY_FIRE_WEAPON_UI_STATE: FireWeaponUiState = {
   activeWeaponId: null,
@@ -49,6 +50,7 @@ export default function RacingGame() {
   const [contractDialog, setContractDialog] = useState<ContractDialogData | null>(null)
   const [fireWeaponUiState, setFireWeaponUiState] = useState<FireWeaponUiState>(EMPTY_FIRE_WEAPON_UI_STATE)
   const [isRaceLoading, setIsRaceLoading] = useState(false)
+  const [highScores, setHighScores] = useState<number[]>([])
 
   // Initialize GameManager
   useEffect(() => {
@@ -77,6 +79,29 @@ export default function RacingGame() {
 
     return () => {
       gameManagerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const storedScores = window.sessionStorage.getItem(RACING_HIGH_SCORES_SESSION_KEY)
+      if (!storedScores) {
+        return
+      }
+
+      const parsed = JSON.parse(storedScores)
+      if (!Array.isArray(parsed)) {
+        return
+      }
+
+      setHighScores(
+        parsed
+          .filter((score): score is number => typeof score === 'number' && Number.isFinite(score))
+          .sort((a, b) => b - a)
+          .slice(0, 3)
+      )
+    } catch (error) {
+      console.warn('Failed to load racing high scores from session storage', error)
     }
   }, [])
 
@@ -281,6 +306,7 @@ export default function RacingGame() {
   }, [])
 
   const handleBackToMenu = () => {
+    persistCurrentRunScore()
     disposeGameEngine()
     gameManagerRef.current?.returnToMenu()
     resetRaceUi({ clearRaceResult: true })
@@ -290,6 +316,7 @@ export default function RacingGame() {
   // Two-phase dismiss: switch to menu first (so it renders behind), keep overlay alive
   const handleLoseScreenBackToMenu = () => {
     setDismissingLoseScreen(true)
+    persistCurrentRunScore()
     disposeGameEngine()
     gameManagerRef.current?.returnToMenu()
     resetRaceUi()
@@ -317,6 +344,27 @@ export default function RacingGame() {
     const newMutedState = SoundGenerator.toggleMute()
     setIsMuted(newMutedState)
   }
+
+  const persistCurrentRunScore = useCallback(() => {
+    const currentScore = gameManagerRef.current?.getTotalCoins() ?? 0
+    if (currentScore <= 0) {
+      return
+    }
+
+    setHighScores((previousScores) => {
+      const nextScores = [...previousScores, currentScore]
+        .sort((a, b) => b - a)
+        .slice(0, 3)
+
+      try {
+        window.sessionStorage.setItem(RACING_HIGH_SCORES_SESSION_KEY, JSON.stringify(nextScores))
+      } catch (error) {
+        console.warn('Failed to save racing high scores to session storage', error)
+      }
+
+      return nextScores
+    })
+  }, [])
 
   // Determine fire button visibility based on player upgrades
   const showFireButton = fireWeaponUiState.fireWeaponCount > 0
@@ -413,6 +461,7 @@ export default function RacingGame() {
             <MenuScreen
               isPortraitMode={isPortraitMode}
               totalLevels={totalLevels}
+              highScores={highScores}
               onStartGame={handleStartGame}
             />
           </div>

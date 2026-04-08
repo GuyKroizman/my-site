@@ -111,6 +111,7 @@ export function RaceCompleteDialog({
             <div className="mt-3 rounded-lg bg-black/40 p-3 text-sm text-gray-200">
               <p className="font-semibold text-yellow-300">Coins</p>
               <p>Placement reward: {raceResult.placementCoins}</p>
+              <p>Time reward: {raceResult.timeCoins}</p>
               <p>Task reward: {raceResult.taskCoins}</p>
               <p className="mt-1 font-semibold text-white">Total coins: {raceResult.totalCoins}</p>
               {hasTask && (
@@ -192,6 +193,7 @@ export function RaceCompleteDialog({
           <div className="mt-3 rounded-lg bg-black/40 p-3 text-sm text-gray-200">
             <p className="font-semibold text-yellow-300">Coins</p>
             <p>Placement reward: {raceResult.placementCoins}</p>
+            <p>Time reward: {raceResult.timeCoins}</p>
             <p>Task reward: {raceResult.taskCoins}</p>
             <p className="mt-1 font-semibold text-white">Total coins: {raceResult.totalCoins}</p>
             {hasTask && (

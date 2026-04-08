@@ -1,10 +1,13 @@
 interface MenuScreenProps {
   isPortraitMode: boolean
   totalLevels: number
+  highScores: number[]
   onStartGame: () => void
 }
 
-export function MenuScreen({ isPortraitMode, totalLevels, onStartGame }: MenuScreenProps) {
+export function MenuScreen({ isPortraitMode, totalLevels, highScores, onStartGame }: MenuScreenProps) {
+  const hasHighScores = highScores.length > 0
+
   if (isPortraitMode) {
     return (
       <div className="w-full h-full flex items-center justify-center px-3 py-4">
@@ -22,6 +25,22 @@ export function MenuScreen({ isPortraitMode, totalLevels, onStartGame }: MenuScr
                   <span className="text-gray-400">• Desktop: Arrow Keys (↑ Forward, ↓ Reverse, ← → Turn)</span><br />
                   <span className="text-gray-400">• Mobile: Use on-screen D-pad</span>
                 </p>
+              </div>
+              <div className="mt-3 rounded-lg bg-black/35 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-300 sm:text-sm">
+                  Top Scores
+                </p>
+                {hasHighScores ? (
+                  <div className="mt-2 space-y-1 text-sm text-white sm:text-base">
+                    {highScores.map((score, index) => (
+                      <p key={`${score}-${index}`}>
+                        {index + 1}. {score} coins
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-gray-400 sm:text-sm">No scores yet this session.</p>
+                )}
               </div>
               <p className="mt-3 text-yellow-300 text-xs sm:text-sm">
                 Rotate to landscape to enable Start Race.
@@ -64,6 +83,20 @@ export function MenuScreen({ isPortraitMode, totalLevels, onStartGame }: MenuScr
       >
         Start Race
       </button>
+      <div className="absolute left-4 top-4 z-10 min-w-[180px] rounded-xl border border-white/10 bg-black/55 p-4 text-white backdrop-blur-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Top Scores</p>
+        {hasHighScores ? (
+          <div className="mt-3 space-y-1 text-sm">
+            {highScores.map((score, index) => (
+              <p key={`${score}-${index}`}>
+                {index + 1}. {score} coins
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-gray-300">No scores yet this session.</p>
+        )}
+      </div>
     </div>
   )
 }

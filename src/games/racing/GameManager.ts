@@ -10,6 +10,8 @@ import {
 const DEFAULT_START_LEVEL_INDEX = 0
 const TASK_COMPLETION_REWARD = 1000
 const BOOST_TASK_FINISH_TIME_SECONDS = 25
+const TIME_BONUS_TARGET_SECONDS = 40
+const TIME_BONUS_COINS_PER_SECOND = 10
 const RED_CAR_COLOR = 0xff0000
 const BLUE_CAR_COLOR = 0x0000ff
 
@@ -36,6 +38,7 @@ export interface RaceResult {
   playerPosition: number
   levelPassed: boolean
   placementCoins: number
+  timeCoins: number
   taskCoins: number
   coinsEarned: number
   totalCoins: number
@@ -117,9 +120,10 @@ export class GameManager {
     const playerPosition = getPlayerPosition(results)
     const levelPassed = playerPosition <= currentLevel.winCondition.maxPosition
     const placementCoins = getPlacementCoins(playerPosition)
+    const timeCoins = getTimeCoins(results.playerFinishTime)
     const taskCompleted = this.evaluateActiveTask(results)
     const taskCoins = taskCompleted ? TASK_COMPLETION_REWARD : 0
-    const coinsEarned = placementCoins + taskCoins
+    const coinsEarned = placementCoins + timeCoins + taskCoins
 
     this.totalCoins += coinsEarned
 
@@ -131,6 +135,7 @@ export class GameManager {
       playerPosition,
       levelPassed,
       placementCoins,
+      timeCoins,
       taskCoins,
       coinsEarned,
       totalCoins: this.totalCoins,
@@ -342,6 +347,14 @@ function getPlacementCoins(playerPosition: number): number {
     default:
       return 0
   }
+}
+
+function getTimeCoins(playerFinishTime: number | null): number {
+  if (playerFinishTime === null || playerFinishTime >= TIME_BONUS_TARGET_SECONDS) {
+    return 0
+  }
+
+  return Math.max(0, Math.floor((TIME_BONUS_TARGET_SECONDS - playerFinishTime) * TIME_BONUS_COINS_PER_SECOND))
 }
 
 function getMissedTaskWarning(completedLevelNumber: number): string {
