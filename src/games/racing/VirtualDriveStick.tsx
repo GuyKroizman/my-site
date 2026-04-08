@@ -9,6 +9,11 @@ const STEERING_RADIUS_X = (STEERING_BASE_WIDTH - STEERING_KNOB_SIZE) / 2
 const STEERING_DEADZONE = 0.08
 const BRAKE_BUTTON_SIZE = 84
 const FIRE_BUTTON_SIZE = 80
+const RIGHT_CONTROL_INSET = '2rem'
+const RIGHT_CONTROL_BOTTOM_INSET = 'calc(env(safe-area-inset-bottom, 0px) + 8px)'
+const LARGE_RIGHT_CONTROL_GAP = 8
+const SMALL_RIGHT_CONTROL_GAP = 8
+const ROTATE_BUTTON_RIGHT_OFFSET = 'calc(2rem + 18px)'
 
 interface VirtualDriveStickProps {
   onStateChange: (state: TouchDriveState) => void
@@ -21,6 +26,7 @@ interface VirtualDriveStickProps {
   onRotateWeapon?: () => void
   showRotateButton?: boolean
   rotateButtonIcon?: string
+  autoThrottle?: boolean
 }
 
 function applyDeadzone(value: number, deadzone: number) {
@@ -61,6 +67,7 @@ export function VirtualDriveStick({
   onRotateWeapon,
   showRotateButton = false,
   rotateButtonIcon = '',
+  autoThrottle = true,
 }: VirtualDriveStickProps) {
   const [steeringOffsetX, setSteeringOffsetX] = useState(0)
   const [showTurboReadyPulse, setShowTurboReadyPulse] = useState(false)
@@ -102,10 +109,10 @@ export function VirtualDriveStick({
 
   const emitDriveState = useCallback((nextSteeringOffsetX: number, nextIsBraking: boolean) => {
     onStateChange({
-      throttle: nextIsBraking ? -1 : 1,
+      throttle: nextIsBraking ? -1 : autoThrottle ? 1 : 0,
       steering: steeringOffsetToValue(nextSteeringOffsetX),
     })
-  }, [onStateChange])
+  }, [autoThrottle, onStateChange])
 
   useEffect(() => {
     emitDriveState(0, false)
@@ -207,11 +214,13 @@ export function VirtualDriveStick({
       {showRotateButton && (
         <div
           className="fixed z-50 select-none pointer-events-auto flex items-center justify-center"
-          style={{
+        style={{
             width: 44,
             height: 44,
-            bottom: showFireButton ? 'calc(2rem + 184px)' : 'calc(2rem + 106px)',
-            right: 'calc(2rem + 20px)',
+            bottom: showFireButton
+              ? `calc(${RIGHT_CONTROL_BOTTOM_INSET} + ${BRAKE_BUTTON_SIZE + LARGE_RIGHT_CONTROL_GAP + FIRE_BUTTON_SIZE + SMALL_RIGHT_CONTROL_GAP}px)`
+              : `calc(${RIGHT_CONTROL_BOTTOM_INSET} + ${BRAKE_BUTTON_SIZE + SMALL_RIGHT_CONTROL_GAP}px)`,
+            right: ROTATE_BUTTON_RIGHT_OFFSET,
             borderRadius: '50%',
             background: 'radial-gradient(circle, #555, #333)',
             border: '2px solid rgba(255, 255, 255, 0.3)',
@@ -234,8 +243,8 @@ export function VirtualDriveStick({
           style={{
             width: FIRE_BUTTON_SIZE,
             height: FIRE_BUTTON_SIZE,
-            bottom: 'calc(2rem + 98px)',
-            right: '2rem',
+            bottom: `calc(${RIGHT_CONTROL_BOTTOM_INSET} + ${BRAKE_BUTTON_SIZE + LARGE_RIGHT_CONTROL_GAP}px)`,
+            right: RIGHT_CONTROL_INSET,
             touchAction: 'none',
           }}
           onPointerDown={(e) => {
@@ -295,10 +304,12 @@ export function VirtualDriveStick({
         </div>
       )}
       <div
-        className="fixed bottom-8 right-8 z-50 select-none pointer-events-auto"
+        className="fixed z-50 select-none pointer-events-auto"
         style={{
           width: BRAKE_BUTTON_SIZE,
           height: BRAKE_BUTTON_SIZE,
+          bottom: RIGHT_CONTROL_BOTTOM_INSET,
+          right: RIGHT_CONTROL_INSET,
           touchAction: 'none',
         }}
         onPointerDown={(e) => {

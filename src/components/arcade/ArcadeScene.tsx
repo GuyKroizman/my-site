@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useArcadeScene } from './useArcadeScene'
 import { projects } from './cabinetData'
 import ProjectCabinet from './ProjectCabinet'
+import { isIPhoneBrowser, isMobileBrowser } from '../../utils/runtime'
 
 export default function ArcadeScene() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -13,9 +14,8 @@ export default function ArcadeScene() {
   const [isIPhone, setIsIPhone] = useState(false)
 
   useEffect(() => {
-    const ua = navigator.userAgent
-    setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua))
-    setIsIPhone(/iPhone|iPad|iPod/i.test(ua))
+    setIsMobile(isMobileBrowser())
+    setIsIPhone(isIPhoneBrowser())
   }, [])
 
   const handleNavigate = useCallback((path: string) => {

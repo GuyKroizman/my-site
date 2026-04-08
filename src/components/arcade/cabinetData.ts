@@ -54,7 +54,7 @@ export const projects: Project[] = [
     description: 'Race against AI opponents on a 3D track.',
     path: '/racing-game',
     color: '#f97316',
-    availability: 'all',
+    availability: 'mobile',
   },
   {
     id: 'the-mask',

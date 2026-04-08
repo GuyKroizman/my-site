@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { FireWeaponUiState, RacingGameEngine } from '../games/racing/RacingGameEngine'
 import { ContractDialogData, GameManager, RaceResult, GameState as ManagerGameState } from '../games/racing/GameManager'
 import { LevelConfig } from '../games/racing/levels'
@@ -6,6 +7,7 @@ import { SoundGenerator } from '../games/racing/SoundGenerator'
 import { VirtualDriveStick } from '../games/racing/VirtualDriveStick'
 import { isMobileLandscape, isPortrait, isTouchDevice, isLandscape } from '../games/racing/device'
 import type { TouchDriveState } from '../games/racing/input'
+import { canUseLocalDesktopRacingDebug, isMobileBrowser } from '../utils/runtime'
 import {
   Header,
   MuteButton,
@@ -27,6 +29,32 @@ const EMPTY_FIRE_WEAPON_UI_STATE: FireWeaponUiState = {
   fireWeaponCount: 0,
   turboState: 'hidden',
   turboCooldownProgress: 1,
+}
+
+function DesktopBlockScreen() {
+  return (
+    <div className="w-full h-screen flex flex-col bg-gray-900">
+      <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white">
+        <h1 className="text-lg font-semibold">Racing Game</h1>
+        <Link to="/" className="text-base text-blue-400 underline hover:text-blue-300">
+          Back to Home
+        </Link>
+      </header>
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+        <div className="text-5xl mb-4">🏎️</div>
+        <h2 className="text-xl font-bold text-white mb-2">Mobile only on the live site</h2>
+        <p className="text-gray-400 max-w-sm mb-6">
+          Racing Game is available on mobile in production. Desktop access is only enabled while running the app locally in Vite dev mode for UI debugging.
+        </p>
+        <Link
+          to="/"
+          className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-lg transition-colors"
+        >
+          Back to Home
+        </Link>
+      </div>
+    </div>
+  )
 }
 
 export default function RacingGame() {
@@ -51,6 +79,9 @@ export default function RacingGame() {
   const [fireWeaponUiState, setFireWeaponUiState] = useState<FireWeaponUiState>(EMPTY_FIRE_WEAPON_UI_STATE)
   const [isRaceLoading, setIsRaceLoading] = useState(false)
   const [highScores, setHighScores] = useState<number[]>([])
+  const isDesktopBrowser = !isMobileBrowser()
+  const desktopDebugMode = canUseLocalDesktopRacingDebug()
+  const showVirtualControls = isTouchDevice() || desktopDebugMode
 
   // Initialize GameManager
   useEffect(() => {
@@ -231,7 +262,7 @@ export default function RacingGame() {
 
       gameEngineRef.current = engine
       engine.startRace()
-      if (isTouchDevice()) {
+      if (showVirtualControls) {
         engine.setTouchControls({ throttle: 1, steering: 0 })
       }
 
@@ -369,6 +400,10 @@ export default function RacingGame() {
   // Determine fire button visibility based on player upgrades
   const showFireButton = fireWeaponUiState.fireWeaponCount > 0
 
+  if (isDesktopBrowser && !desktopDebugMode) {
+    return <DesktopBlockScreen />
+  }
+
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
       <Header hideHeader={hideHeader} />
@@ -411,7 +446,7 @@ export default function RacingGame() {
         )}
 
         {/* Virtual drive stick - only show when playing and on touch devices */}
-        {uiState === 'playing' && isTouchDevice() && (
+        {uiState === 'playing' && showVirtualControls && (
           <VirtualDriveStick
             onStateChange={handleTouchDriveChange}
             onShoot={handleTouchShoot}
@@ -423,6 +458,7 @@ export default function RacingGame() {
             onRotateWeapon={handleRotateWeapon}
             showRotateButton={fireWeaponUiState.fireWeaponCount > 1}
             rotateButtonIcon={fireWeaponUiState.nextWeaponIcon}
+            autoThrottle={!desktopDebugMode}
           />
         )}
 
