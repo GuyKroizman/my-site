@@ -4,6 +4,7 @@ import {
   PlayerUpgrades,
   DEFAULT_PLAYER_UPGRADES,
   applyUpgrade,
+  removeUpgradeEffect,
   selectRandomContract,
 } from './upgrades'
 
@@ -264,6 +265,7 @@ export class GameManager {
 
   private buildPostTaskDialog(completedLevelNumber: number, taskCompleted: boolean): ContractDialogData | null {
     if (taskCompleted) {
+      this.completeActiveContract()
       const grantedContract = this.grantRandomUpgradeContract()
       if (!grantedContract) {
         return null
@@ -282,6 +284,15 @@ export class GameManager {
 
     const warningTemplate = getMissedTaskWarning(completedLevelNumber)
     return this.createDialog(this.activeContract, [warningTemplate])
+  }
+
+  private completeActiveContract(): void {
+    if (!this.activeContract) {
+      return
+    }
+
+    this.playerUpgrades = removeUpgradeEffect(this.playerUpgrades, this.activeContract.upgradeId)
+    this.activeContract = null
   }
 
   private grantRandomUpgradeContract(): UpgradeContract | null {

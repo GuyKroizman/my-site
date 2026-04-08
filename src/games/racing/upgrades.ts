@@ -129,6 +129,15 @@ export function applyUpgrade(current: PlayerUpgrades, upgradeId: UpgradeId): Pla
   }
 }
 
+export function removeUpgradeEffect(current: PlayerUpgrades, upgradeId: UpgradeId): PlayerUpgrades {
+  switch (upgradeId) {
+    case 'mines':
+      return { ...current, hasMines: false }
+    default:
+      return current
+  }
+}
+
 export function getAvailableOptions(current: PlayerUpgrades): UpgradeOption[] {
   return UPGRADE_POOL.filter(opt => opt.repeatable || !current.selectedIds.has(opt.id))
 }
