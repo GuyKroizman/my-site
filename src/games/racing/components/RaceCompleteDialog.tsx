@@ -218,7 +218,7 @@ export function RaceCompleteDialog({
             </div>
 
             <div className="min-w-0 md:pt-5">
-              <div className="rounded-2xl bg-black/32 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.24)]">
+              <div className="rounded-2xl bg-black/60 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.24)]">
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-amber-300">Rewards</p>
                 <div className="mt-3 space-y-2 text-sm text-gray-100 sm:text-base">
                   <p>Placement reward: {raceResult.placementCoins}</p>
