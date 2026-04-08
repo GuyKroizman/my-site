@@ -5,6 +5,13 @@ interface MenuScreenProps {
   onStartGame: () => void
 }
 
+function getPlacementLabel(rank: number) {
+  if (rank === 1) return '1st place'
+  if (rank === 2) return '2nd place'
+  if (rank === 3) return '3rd place'
+  return `${rank}th place`
+}
+
 export function MenuScreen({ isPortraitMode, totalLevels, highScores, onStartGame }: MenuScreenProps) {
   const hasHighScores = highScores.length > 0
 
@@ -34,7 +41,7 @@ export function MenuScreen({ isPortraitMode, totalLevels, highScores, onStartGam
                   <div className="mt-2 space-y-1 text-sm text-white sm:text-base">
                     {highScores.map((score, index) => (
                       <p key={`${score}-${index}`}>
-                        {index + 1}. {score} coins
+                        {getPlacementLabel(index + 1)}: {score}
                       </p>
                     ))}
                   </div>
@@ -89,7 +96,7 @@ export function MenuScreen({ isPortraitMode, totalLevels, highScores, onStartGam
           <div className="mt-3 space-y-1 text-sm">
             {highScores.map((score, index) => (
               <p key={`${score}-${index}`}>
-                {index + 1}. {score} coins
+                {getPlacementLabel(index + 1)}: {score}
               </p>
             ))}
           </div>
