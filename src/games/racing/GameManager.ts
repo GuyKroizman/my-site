@@ -8,7 +8,7 @@ import {
   selectRandomContract,
 } from './upgrades'
 
-const DEFAULT_START_LEVEL_INDEX = 4
+const DEFAULT_START_LEVEL_INDEX = 0
 const TASK_COMPLETION_REWARD = 1000
 const BOOST_TASK_FINISH_TIME_SECONDS = 25
 const TIME_BONUS_TARGET_SECONDS = 40
