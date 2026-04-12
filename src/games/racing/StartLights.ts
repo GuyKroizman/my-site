@@ -33,43 +33,19 @@ export class StartLights {
     const lightHeight = 0.4 // Doubled from 0.2
 
     // Red light (left)
-    const redGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
-    const redMaterial = new THREE.MeshStandardMaterial({
-      color: 0x333333,
-      emissive: 0x000000,
-      emissiveIntensity: 0,
-      transparent: true,
-      opacity: 0.5
-    })
-    this.redLight = new THREE.Mesh(redGeometry, redMaterial)
+    this.redLight = this.createLight(lightRadius, lightHeight)
     this.redLight.position.set(lightX - lightSpacing, lightY, lightZ)
     this.redLight.rotation.x = Math.PI / 2
     this.lightsGroup.add(this.redLight)
 
     // Orange light (middle)
-    const orangeGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
-    const orangeMaterial = new THREE.MeshStandardMaterial({
-      color: 0x333333,
-      emissive: 0x000000,
-      emissiveIntensity: 0,
-      transparent: true,
-      opacity: 0.5
-    })
-    this.orangeLight = new THREE.Mesh(orangeGeometry, orangeMaterial)
+    this.orangeLight = this.createLight(lightRadius, lightHeight)
     this.orangeLight.position.set(lightX, lightY, lightZ)
     this.orangeLight.rotation.x = Math.PI / 2
     this.lightsGroup.add(this.orangeLight)
 
     // Green light (right)
-    const greenGeometry = new THREE.CylinderGeometry(lightRadius, lightRadius, lightHeight, 32)
-    const greenMaterial = new THREE.MeshStandardMaterial({
-      color: 0x333333,
-      emissive: 0x000000,
-      emissiveIntensity: 0,
-      transparent: true,
-      opacity: 0.5
-    })
-    this.greenLight = new THREE.Mesh(greenGeometry, greenMaterial)
+    this.greenLight = this.createLight(lightRadius, lightHeight)
     this.greenLight.position.set(lightX + lightSpacing, lightY, lightZ)
     this.greenLight.rotation.x = Math.PI / 2
     this.lightsGroup.add(this.greenLight)
@@ -79,26 +55,106 @@ export class StartLights {
     this.lightsGroup.visible = false
   }
 
+  private createLight(radius: number, height: number) {
+    const lightGeometry = new THREE.CylinderGeometry(radius, radius, height, 48)
+    const lightMaterial = new THREE.MeshStandardMaterial({
+      color: 0x353535,
+      emissive: 0x000000,
+      emissiveIntensity: 0,
+      transparent: true,
+      opacity: 0.5,
+      metalness: 0.05,
+      roughness: 0.35
+    })
+    const light = new THREE.Mesh(lightGeometry, lightMaterial)
+
+    const ringOuterRadius = radius * 1.035
+    const ringInnerRadius = radius * 0.92
+    const ringDepth = height * 0.24
+    const ringShape = new THREE.Shape()
+    ringShape.absarc(0, 0, ringOuterRadius, 0, Math.PI * 2, false)
+
+    const ringHole = new THREE.Path()
+    ringHole.absarc(0, 0, ringInnerRadius, 0, Math.PI * 2, true)
+    ringShape.holes.push(ringHole)
+
+    const ringGeometry = new THREE.ExtrudeGeometry(ringShape, {
+      depth: ringDepth,
+      bevelEnabled: false,
+      curveSegments: 48
+    })
+    const ringMaterial = new THREE.MeshStandardMaterial({
+      color: 0xb5b8bf,
+      metalness: 0.85,
+      roughness: 0.3
+    })
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial)
+    ring.name = 'light-ring'
+    ring.position.set(0, 0, height * 0.5 - ringDepth)
+    ring.rotation.x = Math.PI / 2
+    light.add(ring)
+
+    const lensGeometry = new THREE.CircleGeometry(ringInnerRadius * 0.98, 48)
+    const lensMaterial = new THREE.MeshStandardMaterial({
+      color: 0x252525,
+      emissive: 0x000000,
+      emissiveIntensity: 0,
+      transparent: true,
+      opacity: 0.9,
+      metalness: 0.02,
+      roughness: 0.18
+    })
+    const lens = new THREE.Mesh(lensGeometry, lensMaterial)
+    lens.name = 'light-lens'
+    lens.position.set(0, 0, height * 0.5 - ringDepth * 0.2)
+    lens.rotation.x = Math.PI / 2
+    light.add(lens)
+
+    return light
+  }
+
+  private setLightState(light: THREE.Mesh, color: number | null) {
+    const bodyMaterial = light.material as THREE.MeshStandardMaterial
+    const lens = light.children.find(
+      (child) => child instanceof THREE.Mesh && child.name === 'light-lens'
+    ) as THREE.Mesh | undefined
+    const lensMaterial = lens?.material as THREE.MeshStandardMaterial | undefined
+
+    if (color === null) {
+      bodyMaterial.color.setHex(0x353535)
+      bodyMaterial.emissive.setHex(0x000000)
+      bodyMaterial.emissiveIntensity = 0
+      bodyMaterial.opacity = 0.5
+
+      if (lensMaterial) {
+        lensMaterial.color.setHex(0x252525)
+        lensMaterial.emissive.setHex(0x000000)
+        lensMaterial.emissiveIntensity = 0
+        lensMaterial.opacity = 0.9
+      }
+
+      return
+    }
+
+    bodyMaterial.color.setHex(color)
+    bodyMaterial.emissive.setHex(color)
+    bodyMaterial.emissiveIntensity = 1
+    bodyMaterial.opacity = 1
+
+    if (lensMaterial) {
+      lensMaterial.color.setHex(color)
+      lensMaterial.emissive.setHex(color)
+      lensMaterial.emissiveIntensity = 1.4
+      lensMaterial.opacity = 1
+    }
+  }
+
   private activateRed() {
     this.state = 'red'
     this.stateTimer = 0
-    const redMaterial = this.redLight.material as THREE.MeshStandardMaterial
-    redMaterial.color.setHex(0xff0000)
-    redMaterial.emissive.setHex(0xff0000)
-    redMaterial.emissiveIntensity = 1
-    redMaterial.opacity = 1
-
-    const orangeMaterial = this.orangeLight.material as THREE.MeshStandardMaterial
-    orangeMaterial.color.setHex(0x333333)
-    orangeMaterial.emissive.setHex(0x000000)
-    orangeMaterial.emissiveIntensity = 0
-    orangeMaterial.opacity = 0.5
-
-    const greenMaterial = this.greenLight.material as THREE.MeshStandardMaterial
-    greenMaterial.color.setHex(0x333333)
-    greenMaterial.emissive.setHex(0x000000)
-    greenMaterial.emissiveIntensity = 0
-    greenMaterial.opacity = 0.5
+    this.setLightState(this.redLight, 0xff0000)
+    this.setLightState(this.orangeLight, null)
+    this.setLightState(this.greenLight, null)
 
     // Play low beep for red light (subtle, optional)
     this.soundGenerator.playBeep(250, 0.1, 0.3)
@@ -107,23 +163,9 @@ export class StartLights {
   private activateOrange() {
     this.state = 'orange'
     this.stateTimer = 0
-    const redMaterial = this.redLight.material as THREE.MeshStandardMaterial
-    redMaterial.color.setHex(0x333333)
-    redMaterial.emissive.setHex(0x000000)
-    redMaterial.emissiveIntensity = 0
-    redMaterial.opacity = 0.5
-
-    const orangeMaterial = this.orangeLight.material as THREE.MeshStandardMaterial
-    orangeMaterial.color.setHex(0xff8800)
-    orangeMaterial.emissive.setHex(0xff8800)
-    orangeMaterial.emissiveIntensity = 1
-    orangeMaterial.opacity = 1
-
-    const greenMaterial = this.greenLight.material as THREE.MeshStandardMaterial
-    greenMaterial.color.setHex(0x333333)
-    greenMaterial.emissive.setHex(0x000000)
-    greenMaterial.emissiveIntensity = 0
-    greenMaterial.opacity = 0.5
+    this.setLightState(this.redLight, null)
+    this.setLightState(this.orangeLight, 0xff8800)
+    this.setLightState(this.greenLight, null)
 
     // Play medium beep for orange light
     this.soundGenerator.playBeep(450, 0.1, 0.5)
@@ -132,17 +174,8 @@ export class StartLights {
   private activateGreen() {
     this.state = 'green'
     this.stateTimer = 0
-    const orangeMaterial = this.orangeLight.material as THREE.MeshStandardMaterial
-    orangeMaterial.color.setHex(0x333333)
-    orangeMaterial.emissive.setHex(0x000000)
-    orangeMaterial.emissiveIntensity = 0
-    orangeMaterial.opacity = 0.5
-
-    const greenMaterial = this.greenLight.material as THREE.MeshStandardMaterial
-    greenMaterial.color.setHex(0x00ff00)
-    greenMaterial.emissive.setHex(0x00ff00)
-    greenMaterial.emissiveIntensity = 1
-    greenMaterial.opacity = 1
+    this.setLightState(this.orangeLight, null)
+    this.setLightState(this.greenLight, 0x00ff00)
 
     // Play higher beep for green light (ready signal)
     this.soundGenerator.playBeep(700, 0.15, 0.7)
@@ -286,6 +319,9 @@ export class StartLights {
     }
 
     this.lightsGroup.visible = false
+    this.setLightState(this.redLight, null)
+    this.setLightState(this.orangeLight, null)
+    this.setLightState(this.greenLight, null)
   }
 
   public dispose() {
