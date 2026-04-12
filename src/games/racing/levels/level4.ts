@@ -81,7 +81,13 @@ export const level4: LevelConfig = {
   ],
   ballDrops: [
     { dropTime: 2 },
-    { dropTime: 10 },
-    { dropTime: 18 },
+    { dropTime: 2 },
+    { dropTime: 2 },
+    { dropTime: 2 },
+    { dropTime: 13 },
+    { dropTime: 13 },
+    { dropTime: 13 },
+    { dropTime: 13 },
+    { dropTime: 13 },
   ],
 }
