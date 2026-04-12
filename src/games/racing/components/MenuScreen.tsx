@@ -77,8 +77,10 @@ export function MenuScreen({ isPortraitMode, totalLevels, highScores, onStartGam
         }
       `}</style>
       <div
-        className="absolute inset-0 bg-center bg-contain bg-no-repeat"
+        className="absolute inset-0 bg-center bg-cover bg-no-repeat"
         style={{
+          backgroundSize: '100%',
+          backgroundPosition: 'center 80%',
           backgroundImage: 'url(/racing/woman_and_dog_watching_sunset.png)',
           transformOrigin: 'center center',
           animation: 'racingMenuKenBurns 55s ease-in-out infinite',
