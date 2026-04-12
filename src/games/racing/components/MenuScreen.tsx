@@ -92,7 +92,7 @@ export function MenuScreen({ isPortraitMode, totalLevels, highScores, onStartGam
       >
         Start Race
       </button>
-      <div className="absolute left-4 top-4 z-10 min-w-[180px] rounded-xl border border-white/10 bg-black/55 p-4 text-white backdrop-blur-sm">
+      <div className="absolute right-4 top-4 z-10 min-w-[180px] rounded-xl border border-white/10 bg-black/55 p-4 text-white backdrop-blur-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Top Scores</p>
         {hasHighScores ? (
           <div className="mt-3 space-y-1 text-sm">
