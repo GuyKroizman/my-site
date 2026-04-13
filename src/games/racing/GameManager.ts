@@ -15,6 +15,8 @@ const TIME_BONUS_TARGET_SECONDS = 40
 const TIME_BONUS_COINS_PER_SECOND = 10
 const RED_CAR_COLOR = 0xff0000
 const BLUE_CAR_COLOR = 0x0000ff
+const RED_CAR_NAME = 'Red Racer'
+const BLUE_CAR_NAME = 'Blue Cruiser'
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'raceComplete' | 'contractDialog'
 
@@ -322,9 +324,9 @@ export class GameManager {
 
     switch (this.activeContract.upgradeId) {
       case 'mines':
-        return results.eliminatedCars.some((car) => car.color === RED_CAR_COLOR)
+        return hasEliminatedTargetCar(results, RED_CAR_NAME, RED_CAR_COLOR)
       case 'gun':
-        return results.eliminatedCars.some((car) => car.color === BLUE_CAR_COLOR)
+        return hasEliminatedTargetCar(results, BLUE_CAR_NAME, BLUE_CAR_COLOR)
       case 'ram':
         return results.eliminatedCars.length > 0
       case 'turbo_boost':
@@ -374,4 +376,16 @@ function getMissedTaskWarning(completedLevelNumber: number): string {
     default:
       return 'No upgrade for you, you better <task> in the next race'
   }
+}
+
+function hasEliminatedTargetCar(
+  results: RaceTelemetry,
+  targetName: string,
+  targetColor: number
+): boolean {
+  if (results.destroyedCarNames.includes(targetName)) {
+    return true
+  }
+
+  return results.eliminatedCars.some((car) => car.name === targetName || car.color === targetColor)
 }
