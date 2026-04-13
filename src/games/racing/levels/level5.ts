@@ -86,6 +86,5 @@ export const level5: LevelConfig = {
     { dropTime: 10 },
     { dropTime: 10 },
     { dropTime: 10 },
-    { dropTime: 10 },
   ],
 }
