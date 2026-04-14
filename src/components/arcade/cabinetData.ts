@@ -67,6 +67,16 @@ export const projects: Project[] = [
     availability: 'mobile-no-iphone',
   },
   {
+    id: 'tiny-shooter',
+    emoji: '\u{1F52B}',
+    title: 'Tiny Shooter',
+    subtitle: 'FPS Sandbox',
+    description: 'First-person shooter sandbox. Walk around and shoot cylinders.',
+    path: '/tiny-shooter',
+    color: '#6366f1',
+    availability: 'desktop',
+  },
+  {
     id: 'floaty',
     emoji: '\u{1F97D}',
     title: 'Floaty McHandface',

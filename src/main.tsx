@@ -12,6 +12,7 @@ const RacingGame = React.lazy(() => import('./pages/RacingGame.tsx'))
 const TheMask = React.lazy(() => import('./pages/TheMask.tsx'))
 const FloatyMcHandface = React.lazy(() => import('./pages/FloatyMcHandface.tsx'))
 const AnimViewer = React.lazy(() => import('./pages/AnimViewer.tsx'))
+const TinyShooter = React.lazy(() => import('./pages/TinyShooter.tsx'))
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -36,6 +37,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/the-mask" element={<TheMask />} />
           <Route path="/floaty-mchandface" element={<FloatyMcHandface />} />
           <Route path="/anim_viewer" element={<AnimViewer />} />
+          <Route path="/tiny-shooter" element={<TinyShooter />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
