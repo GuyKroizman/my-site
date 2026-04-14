@@ -9,6 +9,7 @@ export default function TinyShooter() {
   const gameEngineRef = useRef<TinyShooterEngine | null>(null)
   const [uiState, setUiState] = useState<UIState>('menu')
   const [pointerLocked, setPointerLocked] = useState(false)
+  const [health, setHealth] = useState(100)
 
   useEffect(() => {
     return () => {
@@ -22,8 +23,10 @@ export default function TinyShooter() {
   // Create the engine after the DOM has updated and the container has flex-1 sizing
   useEffect(() => {
     if (uiState !== 'playing' || gameEngineRef.current || !containerRef.current) return
+    setHealth(100)
     const engine = new TinyShooterEngine(containerRef.current, {
       onPointerLockChange: (locked) => setPointerLocked(locked),
+      onHealthChange: (h) => setHealth(h),
     })
     gameEngineRef.current = engine
   }, [uiState])
@@ -69,14 +72,33 @@ export default function TinyShooter() {
         className={`${uiState === 'playing' ? 'flex-1' : ''} w-full relative overflow-hidden min-h-0`}
       >
         {uiState === 'playing' && (
-          <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
-            <span
-              className="text-white text-2xl font-bold opacity-70 select-none"
-              style={{ textShadow: '1px 1px 2px black, -1px -1px 2px black' }}
-            >
-              X
-            </span>
-          </div>
+          <>
+            <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+              <span
+                className="text-white text-2xl font-bold opacity-70 select-none"
+                style={{ textShadow: '1px 1px 2px black, -1px -1px 2px black' }}
+              >
+                X
+              </span>
+            </div>
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none flex flex-col items-center gap-1">
+              <span
+                className="text-white text-sm font-bold select-none"
+                style={{ textShadow: '1px 1px 2px black' }}
+              >
+                HP {health}
+              </span>
+              <div className="w-48 h-3 bg-gray-800/80 rounded-full overflow-hidden border border-gray-600">
+                <div
+                  className="h-full transition-all duration-150 rounded-full"
+                  style={{
+                    width: `${health}%`,
+                    backgroundColor: health > 60 ? '#22c55e' : health > 30 ? '#eab308' : '#ef4444',
+                  }}
+                />
+              </div>
+            </div>
+          </>
         )}
         {uiState === 'playing' && !pointerLocked && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 pointer-events-none">

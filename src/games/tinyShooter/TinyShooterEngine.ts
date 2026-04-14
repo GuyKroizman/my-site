@@ -16,13 +16,18 @@ import {
   MAX_PROJECTILES,
   SHOOT_COOLDOWN,
   MOUSE_SENSITIVITY,
+  PLAYER_MAX_HEALTH,
+  GIANT_DAMAGE,
+  GIANT_DAMAGE_COOLDOWN,
 } from './types'
 import type { Projectile } from './types'
+import { Giant } from './Giant'
 
 const UP = new THREE.Vector3(0, 1, 0)
 
 export interface TinyShooterEngineOptions {
   onPointerLockChange?: (locked: boolean) => void
+  onHealthChange?: (health: number) => void
 }
 
 export class TinyShooterEngine {
@@ -46,6 +51,11 @@ export class TinyShooterEngine {
 
   private projectileGeometry: THREE.CylinderGeometry
   private projectileMaterial: THREE.MeshStandardMaterial
+  private giant: Giant
+  private health = PLAYER_MAX_HEALTH
+  private lastDamageTime = 0
+  private damageOverlay: HTMLDivElement
+  private onHealthChange?: (health: number) => void
 
   constructor(container: HTMLElement, options?: TinyShooterEngineOptions) {
     this.container = container
@@ -87,6 +97,15 @@ export class TinyShooterEngine {
       8
     )
     this.projectileMaterial = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff6600, emissiveIntensity: 0.5 })
+
+    this.giant = new Giant(this.world, this.scene, { x: 30, z: 30 })
+
+    this.damageOverlay = document.createElement('div')
+    this.damageOverlay.style.cssText =
+      'position:absolute;inset:0;pointer-events:none;background:rgba(255,0,0,0);transition:background 0.05s;z-index:15;'
+    container.appendChild(this.damageOverlay)
+
+    this.onHealthChange = options?.onHealthChange
 
     this.input = new InputManager(this.renderer.domElement)
     this.input.onPointerLockChange = options?.onPointerLockChange
@@ -233,6 +252,25 @@ export class TinyShooterEngine {
     }
 
     this.updateProjectiles()
+    this.giant.update(PHYSICS_DT, this.camera.position)
+
+    // Giant collision with player
+    const gdx = this.playerBody.position.x - this.giant.body.position.x
+    const gdz = this.playerBody.position.z - this.giant.body.position.z
+    const giantCollisionRadius = 4.0
+    if (gdx * gdx + gdz * gdz < giantCollisionRadius * giantCollisionRadius) {
+      const now = performance.now() / 1000
+      if (now - this.lastDamageTime >= GIANT_DAMAGE_COOLDOWN) {
+        this.lastDamageTime = now
+        this.health = Math.max(0, this.health - GIANT_DAMAGE)
+        this.onHealthChange?.(this.health)
+        this.damageOverlay.style.background = 'rgba(255,0,0,0.4)'
+        setTimeout(() => {
+          this.damageOverlay.style.background = 'rgba(255,0,0,0)'
+        }, 150)
+      }
+    }
+
     this.renderer.render(this.scene, this.camera)
   }
 
@@ -243,6 +281,9 @@ export class TinyShooterEngine {
 
     this.input.dispose()
     this.sound.dispose()
+
+    this.giant.dispose(this.scene, this.world)
+    this.damageOverlay.remove()
 
     for (const p of this.projectiles) {
       this.world.removeBody(p.body)

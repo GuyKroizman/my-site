@@ -15,6 +15,16 @@ export const MAX_PROJECTILES = 50
 export const SHOOT_COOLDOWN = 0.15
 export const MOUSE_SENSITIVITY = 0.002
 
+export const GIANT_HEIGHT = 34
+export const GIANT_WALK_SPEED = 3
+export const GIANT_WANDER_INTERVAL = 4
+export const GIANT_AGGRO_RANGE = 50
+export const GIANT_CHASE_SPEED = 5
+export const GIANT_DAMAGE = 10
+export const GIANT_DAMAGE_COOLDOWN = 1
+
+export const PLAYER_MAX_HEALTH = 100
+
 export interface Projectile {
   mesh: THREE.Mesh
   body: CANNON.Body
