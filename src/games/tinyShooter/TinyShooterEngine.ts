@@ -96,9 +96,9 @@ export class TinyShooterEngine {
       PROJECTILE_LENGTH,
       8
     )
-    this.projectileMaterial = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff6600, emissiveIntensity: 0.5 })
+    this.projectileMaterial = new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xff8800, emissiveIntensity: 1.5 })
 
-    this.giant = new Giant(this.world, this.scene, { x: 30, z: 30 })
+    this.giant = new Giant(this.world, this.scene, { x: 60, z: 60 })
 
     this.damageOverlay = document.createElement('div')
     this.damageOverlay.style.cssText =

@@ -7,12 +7,12 @@ export const PLAYER_MASS = 80
 export const PLAYER_SPEED = 8
 export const PHYSICS_DT = 1 / 60
 export const PHYSICS_SUBSTEPS = 3
-export const PROJECTILE_SPEED = 50
-export const PROJECTILE_RADIUS = 0.05
-export const PROJECTILE_LENGTH = 0.6
-export const PROJECTILE_LIFETIME = 5
+export const PROJECTILE_SPEED = 120
+export const PROJECTILE_RADIUS = 1
+export const PROJECTILE_LENGTH = 20.0
+export const PROJECTILE_LIFETIME = 8
 export const MAX_PROJECTILES = 50
-export const SHOOT_COOLDOWN = 0.15
+export const SHOOT_COOLDOWN = 0.5
 export const MOUSE_SENSITIVITY = 0.002
 
 export const GIANT_HEIGHT = 34
