@@ -254,20 +254,36 @@ export class TinyShooterEngine {
     this.updateProjectiles()
     this.giant.update(PHYSICS_DT, this.camera.position)
 
+    // Projectile hits on giant
+    if (!this.giant.dead) {
+      const hitSet = this.giant.checkProjectileHits(this.projectiles)
+      if (hitSet.size > 0) {
+        const sorted = [...hitSet].sort((a, b) => b - a)
+        for (const idx of sorted) {
+          const p = this.projectiles[idx]
+          this.world.removeBody(p.body)
+          this.scene.remove(p.mesh)
+          this.projectiles.splice(idx, 1)
+        }
+      }
+    }
+
     // Giant collision with player
-    const gdx = this.playerBody.position.x - this.giant.body.position.x
-    const gdz = this.playerBody.position.z - this.giant.body.position.z
-    const giantCollisionRadius = 4.0
-    if (gdx * gdx + gdz * gdz < giantCollisionRadius * giantCollisionRadius) {
-      const now = performance.now() / 1000
-      if (now - this.lastDamageTime >= GIANT_DAMAGE_COOLDOWN) {
-        this.lastDamageTime = now
-        this.health = Math.max(0, this.health - GIANT_DAMAGE)
-        this.onHealthChange?.(this.health)
-        this.damageOverlay.style.background = 'rgba(255,0,0,0.4)'
-        setTimeout(() => {
-          this.damageOverlay.style.background = 'rgba(255,0,0,0)'
-        }, 150)
+    if (!this.giant.dead) {
+      const gdx = this.playerBody.position.x - this.giant.body.position.x
+      const gdz = this.playerBody.position.z - this.giant.body.position.z
+      const giantCollisionRadius = 4.0
+      if (gdx * gdx + gdz * gdz < giantCollisionRadius * giantCollisionRadius) {
+        const now = performance.now() / 1000
+        if (now - this.lastDamageTime >= GIANT_DAMAGE_COOLDOWN) {
+          this.lastDamageTime = now
+          this.health = Math.max(0, this.health - GIANT_DAMAGE)
+          this.onHealthChange?.(this.health)
+          this.damageOverlay.style.background = 'rgba(255,0,0,0.4)'
+          setTimeout(() => {
+            this.damageOverlay.style.background = 'rgba(255,0,0,0)'
+          }, 150)
+        }
       }
     }
 
