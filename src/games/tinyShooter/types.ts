@@ -23,10 +23,53 @@ export const GIANT_CHASE_SPEED = 5
 export const GIANT_DAMAGE = 10
 export const GIANT_DAMAGE_COOLDOWN = 1
 
+export const ROBO_ENEMY_HEALTH = 100
+export const ROBO_ENEMY_PATROL_SPEED = 2.5
+export const ROBO_ENEMY_PATROL_DISTANCE = 10
+export const ROBO_ENEMY_HEIGHT = 3.2
+export const ROBO_ENEMY_HIT_RADIUS = 1.5
+export const ROBO_ENEMY_KNOCKBACK_DAMPING = 5
+export const ENEMY_BODY_RADIUS = 0.75
+
+export interface EnemyModelConfig {
+  modelPath: string
+  walkAnimation: string
+  deathAnimation: string
+  visualScaleCorrection: number
+  visualFootContactOffset: number
+  useDirectScene?: boolean
+  forceOpaqueMaterials?: boolean
+}
+
+export interface EnemyConfig {
+  health: number
+  patrolSpeed: number
+  patrolDistance: number
+  height: number
+  hitRadius: number
+  knockbackDamping: number
+  bodyRadius: number
+  model: EnemyModelConfig
+}
+
+export interface WeaponStats {
+  damage: number
+  knockback: number
+  projectileSpeed: number
+}
+
+export const CURRENT_WEAPON: WeaponStats = {
+  damage: 45,
+  knockback: 16,
+  projectileSpeed: PROJECTILE_SPEED,
+}
+
 export const PLAYER_MAX_HEALTH = 100
 
 export interface Projectile {
   mesh: THREE.Mesh
   body: CANNON.Body
   createdAt: number
+  damage: number
+  knockback: number
 }

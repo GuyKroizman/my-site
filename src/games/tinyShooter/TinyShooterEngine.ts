@@ -9,7 +9,6 @@ import {
   PLAYER_SPEED,
   PHYSICS_DT,
   PHYSICS_SUBSTEPS,
-  PROJECTILE_SPEED,
   PROJECTILE_RADIUS,
   PROJECTILE_LENGTH,
   PROJECTILE_LIFETIME,
@@ -19,11 +18,21 @@ import {
   PLAYER_MAX_HEALTH,
   GIANT_DAMAGE,
   GIANT_DAMAGE_COOLDOWN,
+  CURRENT_WEAPON,
 } from './types'
 import type { Projectile } from './types'
 import { Giant } from './Giant'
+import { AnimatedEnemy } from './AnimatedEnemy'
+import { IdleBehavior, PatrolBehavior } from './enemyBehaviors'
+import { roboEnemyConfig, robotEnemy2Config } from './enemyConfigs'
 
 const UP = new THREE.Vector3(0, 1, 0)
+const ROBOT_ENEMY_2_SELECTED = {
+  x: -18,
+  z: -24,
+  visualScaleCorrection: 60,
+  visualFootContactOffset: 85,
+} as const
 
 export interface TinyShooterEngineOptions {
   onPointerLockChange?: (locked: boolean) => void
@@ -52,6 +61,7 @@ export class TinyShooterEngine {
   private projectileGeometry: THREE.CylinderGeometry
   private projectileMaterial: THREE.MeshStandardMaterial
   private giant: Giant
+  private enemies: AnimatedEnemy[] = []
   private health = PLAYER_MAX_HEALTH
   private lastDamageTime = 0
   private damageOverlay: HTMLDivElement
@@ -99,6 +109,29 @@ export class TinyShooterEngine {
     this.projectileMaterial = new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xff8800, emissiveIntensity: 1.5 })
 
     this.giant = new Giant(this.world, this.scene, { x: 60, z: 60 })
+    this.enemies = [
+      new AnimatedEnemy(
+        this.world,
+        this.scene,
+        { x: -10, z: -18 },
+        roboEnemyConfig,
+        new PatrolBehavior({ x: -10, z: -18 }, roboEnemyConfig.patrolDistance),
+      ),
+      new AnimatedEnemy(
+        this.world,
+        this.scene,
+        { x: ROBOT_ENEMY_2_SELECTED.x, z: ROBOT_ENEMY_2_SELECTED.z },
+        {
+          ...robotEnemy2Config,
+          model: {
+            ...robotEnemy2Config.model,
+            visualScaleCorrection: ROBOT_ENEMY_2_SELECTED.visualScaleCorrection,
+            visualFootContactOffset: ROBOT_ENEMY_2_SELECTED.visualFootContactOffset,
+          },
+        },
+        new IdleBehavior(),
+      ),
+    ]
 
     this.damageOverlay = document.createElement('div')
     this.damageOverlay.style.cssText =
@@ -166,9 +199,9 @@ export class TinyShooterEngine {
       position: new CANNON.Vec3(spawnPos.x, spawnPos.y, spawnPos.z),
     })
     body.velocity.set(
-      dir.x * PROJECTILE_SPEED,
-      dir.y * PROJECTILE_SPEED,
-      dir.z * PROJECTILE_SPEED
+      dir.x * CURRENT_WEAPON.projectileSpeed,
+      dir.y * CURRENT_WEAPON.projectileSpeed,
+      dir.z * CURRENT_WEAPON.projectileSpeed
     )
     this.world.addBody(body)
 
@@ -176,6 +209,8 @@ export class TinyShooterEngine {
       body,
       mesh,
       createdAt: performance.now(),
+      damage: CURRENT_WEAPON.damage,
+      knockback: CURRENT_WEAPON.knockback,
     })
 
     this.sound.play()
@@ -253,18 +288,29 @@ export class TinyShooterEngine {
 
     this.updateProjectiles()
     this.giant.update(PHYSICS_DT, this.camera.position)
+    for (const enemy of this.enemies) {
+      enemy.update(PHYSICS_DT)
+    }
 
-    // Projectile hits on giant
+    const hitSet = new Set<number>()
     if (!this.giant.dead) {
-      const hitSet = this.giant.checkProjectileHits(this.projectiles)
-      if (hitSet.size > 0) {
-        const sorted = [...hitSet].sort((a, b) => b - a)
-        for (const idx of sorted) {
-          const p = this.projectiles[idx]
-          this.world.removeBody(p.body)
-          this.scene.remove(p.mesh)
-          this.projectiles.splice(idx, 1)
-        }
+      for (const idx of this.giant.checkProjectileHits(this.projectiles)) {
+        hitSet.add(idx)
+      }
+    }
+    for (const enemy of this.enemies) {
+      if (enemy.dead) continue
+      for (const idx of enemy.checkProjectileHits(this.projectiles)) {
+        hitSet.add(idx)
+      }
+    }
+    if (hitSet.size > 0) {
+      const sorted = [...hitSet].sort((a, b) => b - a)
+      for (const idx of sorted) {
+        const p = this.projectiles[idx]
+        this.world.removeBody(p.body)
+        this.scene.remove(p.mesh)
+        this.projectiles.splice(idx, 1)
       }
     }
 
@@ -299,6 +345,9 @@ export class TinyShooterEngine {
     this.sound.dispose()
 
     this.giant.dispose(this.scene, this.world)
+    for (const enemy of this.enemies) {
+      enemy.dispose()
+    }
     this.damageOverlay.remove()
 
     for (const p of this.projectiles) {
