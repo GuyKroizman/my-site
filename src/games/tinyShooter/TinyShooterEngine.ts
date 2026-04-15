@@ -84,7 +84,7 @@ export class TinyShooterEngine {
     this.playerBody = new CANNON.Body({
       mass: PLAYER_MASS,
       shape: new CANNON.Sphere(0.4),
-      position: new CANNON.Vec3(0, PLAYER_HEIGHT / 2 + 0.4, 0),
+      position: new CANNON.Vec3(-10, PLAYER_HEIGHT / 2 + 0.4, -10),
       fixedRotation: true,
       linearDamping: 0.9,
     })

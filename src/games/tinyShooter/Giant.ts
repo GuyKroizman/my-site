@@ -8,6 +8,7 @@ import {
   GROUND_SIZE,
 } from './types'
 import type { Projectile } from './types'
+import { GiantSound } from './GiantSound'
 
 const WALK_ANIM_SPEED = 2.5
 const MAX_HIP_SWING = 0.4
@@ -42,7 +43,11 @@ interface BodyBlock {
 
 interface FallingBlock {
   mesh: THREE.Mesh
+  vx: number
   vy: number
+  vz: number
+  grounded: boolean
+  lingerTime: number
 }
 
 export class Giant {
@@ -78,6 +83,7 @@ export class Giant {
   private fallingBlocks: FallingBlock[] = []
   private scene: THREE.Scene
   private world: CANNON.World
+  private sound = new GiantSound()
 
   private tmpVec = new THREE.Vector3()
   private tmpQuat = new THREE.Quaternion()
@@ -261,7 +267,7 @@ export class Giant {
     this.wanderTimeLeft = GIANT_WANDER_INTERVAL
   }
 
-  private spawnFallingBlock(mesh: THREE.Mesh, extraVy = 0): void {
+  private spawnFallingBlock(mesh: THREE.Mesh, scatter = false): void {
     mesh.getWorldPosition(this.tmpVec)
     mesh.getWorldQuaternion(this.tmpQuat)
     mesh.removeFromParent()
@@ -270,7 +276,16 @@ export class Giant {
     mesh.quaternion.copy(this.tmpQuat)
     this.scene.add(mesh)
 
-    this.fallingBlocks.push({ mesh, vy: extraVy })
+    const spreadXZ = scatter ? 12 : 0
+    const upBoost = scatter ? Math.random() * 10 + 4 : 0
+    this.fallingBlocks.push({
+      mesh,
+      vx: (Math.random() - 0.5) * spreadXZ,
+      vy: upBoost,
+      vz: (Math.random() - 0.5) * spreadXZ,
+      grounded: false,
+      lingerTime: 0,
+    })
   }
 
   private destroyTorsoBlock(index: number): void {
@@ -300,6 +315,7 @@ export class Giant {
     if (this.dead) return
     this.dead = true
     this.world.removeBody(this.body)
+    this.sound.playDeath()
 
     this.group.updateMatrixWorld(true)
     const meshes: THREE.Mesh[] = []
@@ -308,7 +324,7 @@ export class Giant {
     })
 
     for (const mesh of meshes) {
-      this.spawnFallingBlock(mesh, Math.random() * 8)
+      this.spawnFallingBlock(mesh, true)
     }
 
     this.scene.remove(this.group)
@@ -334,6 +350,7 @@ export class Giant {
         const dz = pp.z - this.tmpVec.z
         if (dx * dx + dy * dy + dz * dz < HIT_RADIUS_SQ) {
           this.destroyTorsoBlock(bi)
+          this.sound.playHit()
           hitIndices.add(pi)
           hit = true
           break
@@ -359,6 +376,7 @@ export class Giant {
           const dz = pp.z - this.tmpVec.z
           if (dx * dx + dy * dy + dz * dz < HIT_RADIUS_SQ) {
             this.destroyArmBlocksFrom(blocks, bi, cascade)
+            this.sound.playHit()
             hitIndices.add(pi)
             hit = true
             break
@@ -379,12 +397,29 @@ export class Giant {
     // Update falling blocks
     for (let i = this.fallingBlocks.length - 1; i >= 0; i--) {
       const fb = this.fallingBlocks[i]
-      fb.vy += FALLING_GRAVITY * dt
-      fb.mesh.position.y += fb.vy * dt
 
-      if (fb.mesh.position.y < -1) {
-        this.scene.remove(fb.mesh)
-        this.fallingBlocks.splice(i, 1)
+      if (fb.grounded) {
+        fb.lingerTime += dt
+        if (fb.lingerTime >= 5) {
+          this.scene.remove(fb.mesh)
+          this.fallingBlocks.splice(i, 1)
+        }
+        continue
+      }
+
+      fb.vy += FALLING_GRAVITY * dt
+      fb.mesh.position.x += fb.vx * dt
+      fb.mesh.position.y += fb.vy * dt
+      fb.mesh.position.z += fb.vz * dt
+
+      // Tumble while airborne
+      fb.mesh.rotation.x += fb.vx * dt
+      fb.mesh.rotation.z += fb.vz * dt
+
+      if (fb.mesh.position.y <= 0.2) {
+        fb.mesh.position.y = 0.2
+        fb.grounded = true
+        fb.lingerTime = 0
       }
     }
 
@@ -450,5 +485,6 @@ export class Giant {
     this.fallingBlocks.length = 0
     for (const geo of this.geometries) geo.dispose()
     for (const mat of this.materials) mat.dispose()
+    this.sound.dispose()
   }
 }
