@@ -35,6 +35,7 @@ const ARM_LOWER_COUNT = 9
 
 const HIT_RADIUS_SQ = 3.0 * 3.0
 const FALLING_GRAVITY = -40
+const GIANT_TURN_SMOOTHING = 4.5
 
 interface BodyBlock {
   mesh: THREE.Mesh
@@ -66,6 +67,8 @@ export class Giant {
 
   private wanderDirX = 0
   private wanderDirZ = 1
+  private moveDirX = 0
+  private moveDirZ = 1
   private wanderTimeLeft = 0
   private walkPhase = 0
 
@@ -112,6 +115,20 @@ export class Giant {
     world.addBody(this.body)
 
     this.pickNewWanderDirection()
+    this.moveDirX = this.wanderDirX
+    this.moveDirZ = this.wanderDirZ
+  }
+
+  private updateMoveDirection(dt: number): void {
+    const blend = Math.min(1, dt * GIANT_TURN_SMOOTHING)
+    const nextX = this.moveDirX + (this.wanderDirX - this.moveDirX) * blend
+    const nextZ = this.moveDirZ + (this.wanderDirZ - this.moveDirZ) * blend
+    const length = Math.hypot(nextX, nextZ)
+
+    if (length > 0.0001) {
+      this.moveDirX = nextX / length
+      this.moveDirZ = nextZ / length
+    }
   }
 
   private buildArmColumn(
@@ -432,9 +449,11 @@ export class Giant {
 
     let speed: number
     if (distToPlayer < GIANT_AGGRO_RANGE) {
-      const invDist = 1 / distToPlayer
-      this.wanderDirX = dx * invDist
-      this.wanderDirZ = dz * invDist
+      if (distToPlayer > 0.0001) {
+        const invDist = 1 / distToPlayer
+        this.wanderDirX = dx * invDist
+        this.wanderDirZ = dz * invDist
+      }
       speed = GIANT_CHASE_SPEED
     } else {
       this.wanderTimeLeft -= dt
@@ -444,9 +463,11 @@ export class Giant {
       speed = GIANT_WALK_SPEED
     }
 
+    this.updateMoveDirection(dt)
+
     const boundary = GROUND_SIZE / 2 - 5
-    const newX = this.group.position.x + this.wanderDirX * speed * dt
-    const newZ = this.group.position.z + this.wanderDirZ * speed * dt
+    const newX = this.group.position.x + this.moveDirX * speed * dt
+    const newZ = this.group.position.z + this.moveDirZ * speed * dt
 
     if (Math.abs(newX) > boundary || Math.abs(newZ) > boundary) {
       this.pickNewWanderDirection()
@@ -455,7 +476,7 @@ export class Giant {
       this.group.position.z = newZ
     }
 
-    this.group.rotation.y = Math.atan2(this.wanderDirX, this.wanderDirZ)
+    this.group.rotation.y = Math.atan2(this.moveDirX, this.moveDirZ)
 
     // Walking animation
     const animSpeed = distToPlayer < GIANT_AGGRO_RANGE
