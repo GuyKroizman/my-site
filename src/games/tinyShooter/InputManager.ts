@@ -1,4 +1,4 @@
-import { GAMEPAD_DEADZONE } from './types'
+import { GAMEPAD_DEADZONE } from './constants'
 
 export interface FPSInputState {
   moveX: number

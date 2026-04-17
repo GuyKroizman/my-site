@@ -1,19 +1,32 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { TinyShooterEngine } from '../games/tinyShooter/TinyShooterEngine'
 import { isTouchDevice } from '../games/racing/device'
+import type { TinyShooterGameState } from '../games/tinyShooter/gameTypes'
 
 type UIState = 'menu' | 'playing'
+
+const INITIAL_GAME_STATE: TinyShooterGameState = {
+  phase: 'playing',
+  health: 100,
+  pointerLocked: false,
+  gamepadStatus: {
+    connected: false,
+    active: false,
+    id: null,
+  },
+  currentLevelId: 'hangar-1',
+  currentLevelName: 'Hangar One',
+  levelComplete: false,
+  victory: false,
+}
 
 export default function TinyShooter() {
   const containerRef = useRef<HTMLDivElement>(null)
   const gameEngineRef = useRef<TinyShooterEngine | null>(null)
   const [uiState, setUiState] = useState<UIState>('menu')
-  const [pointerLocked, setPointerLocked] = useState(false)
-  const [health, setHealth] = useState(100)
   const [mobileDevice, setMobileDevice] = useState(false)
-  const [gamepadConnected, setGamepadConnected] = useState(false)
-  const [activeGamepadId, setActiveGamepadId] = useState<string | null>(null)
+  const [gameState, setGameState] = useState<TinyShooterGameState>(INITIAL_GAME_STATE)
 
   useEffect(() => {
     setMobileDevice(isTouchDevice())
@@ -31,35 +44,28 @@ export default function TinyShooter() {
   // Create the engine after the DOM has updated and the container has flex-1 sizing
   useEffect(() => {
     if (uiState !== 'playing' || gameEngineRef.current || !containerRef.current) return
-    setHealth(100)
     const engine = new TinyShooterEngine(containerRef.current, {
-      onPointerLockChange: (locked) => setPointerLocked(locked),
-      onHealthChange: (h) => setHealth(h),
-      onGamepadStatusChange: (status) => {
-        setGamepadConnected(status.active)
-        setActiveGamepadId(status.id)
-      },
+      onStateChange: (nextState) => setGameState(nextState),
     })
     gameEngineRef.current = engine
   }, [uiState])
 
-  const startGame = useCallback(() => {
+  const startGame = () => {
     if (!containerRef.current) return
     if (gameEngineRef.current) {
       gameEngineRef.current.dispose()
       gameEngineRef.current = null
     }
+    setGameState(INITIAL_GAME_STATE)
     setUiState('playing')
-  }, [])
+  }
 
   const handleBackToMenu = () => {
     if (gameEngineRef.current) {
       gameEngineRef.current.dispose()
       gameEngineRef.current = null
     }
-    setPointerLocked(false)
-    setGamepadConnected(false)
-    setActiveGamepadId(null)
+    setGameState(INITIAL_GAME_STATE)
     setUiState('menu')
   }
 
@@ -100,38 +106,66 @@ export default function TinyShooter() {
                 className="text-white text-sm font-bold select-none"
                 style={{ textShadow: '1px 1px 2px black' }}
               >
-                HP {health}
+                HP {gameState.health}
               </span>
               <div className="w-48 h-3 bg-gray-800/80 rounded-full overflow-hidden border border-gray-600">
                 <div
                   className="h-full transition-all duration-150 rounded-full"
                   style={{
-                    width: `${health}%`,
-                    backgroundColor: health > 60 ? '#22c55e' : health > 30 ? '#eab308' : '#ef4444',
+                    width: `${gameState.health}%`,
+                    backgroundColor:
+                      gameState.health > 60 ? '#22c55e' : gameState.health > 30 ? '#eab308' : '#ef4444',
                   }}
                 />
               </div>
+              <span
+                className="text-xs text-gray-200 select-none"
+                style={{ textShadow: '1px 1px 2px black' }}
+              >
+                {gameState.currentLevelName}
+              </span>
             </div>
           </>
         )}
-        {uiState === 'playing' && mobileDevice && !gamepadConnected && (
+        {uiState === 'playing' && mobileDevice && !gameState.gamepadStatus.active && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 px-6">
             <div className="max-w-sm rounded-xl border border-white/20 bg-gray-900/90 p-5 text-center text-white shadow-2xl">
               <p className="text-lg font-semibold">Controller required</p>
               <p className="mt-2 text-sm text-gray-300">
                 Pair the 8BitDo Lite 2 in Android using D mode, then press any button if it is already connected.
               </p>
-              {activeGamepadId && (
+              {gameState.gamepadStatus.id && (
                 <p className="mt-3 text-xs text-gray-400">
-                  Detected: {activeGamepadId}
+                  Detected: {gameState.gamepadStatus.id}
                 </p>
               )}
             </div>
           </div>
         )}
-        {uiState === 'playing' && !mobileDevice && !pointerLocked && (
+        {uiState === 'playing' && !mobileDevice && !gameState.pointerLocked && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 pointer-events-none">
             <p className="text-white text-lg">Click to lock mouse</p>
+          </div>
+        )}
+        {uiState === 'playing' && gameState.levelComplete && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 pointer-events-none">
+            <p className="text-white text-2xl font-bold">Level Cleared</p>
+          </div>
+        )}
+        {uiState === 'playing' && gameState.victory && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 pointer-events-none">
+            <div className="rounded-xl border border-white/20 bg-black/50 px-6 py-4 text-center text-white">
+              <p className="text-3xl font-bold">Victory</p>
+              <p className="mt-2 text-sm text-gray-200">All authored levels cleared.</p>
+            </div>
+          </div>
+        )}
+        {uiState === 'playing' && gameState.phase === 'game-over' && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/55 pointer-events-none">
+            <div className="rounded-xl border border-white/20 bg-black/55 px-6 py-4 text-center text-white">
+              <p className="text-3xl font-bold">Game Over</p>
+              <p className="mt-2 text-sm text-gray-200">Return to the menu to restart the run.</p>
+            </div>
           </div>
         )}
       </div>

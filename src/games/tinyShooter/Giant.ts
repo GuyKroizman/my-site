@@ -5,9 +5,10 @@ import {
   GIANT_WANDER_INTERVAL,
   GIANT_AGGRO_RANGE,
   GIANT_CHASE_SPEED,
-  GROUND_SIZE,
-} from './types'
-import type { Projectile } from './types'
+} from './giantConstants'
+import { GROUND_SIZE } from './constants'
+import type { LevelActor, ActorUpdateContext, PlayerContactEffect } from './actorTypes'
+import type { Projectile } from './gameTypes'
 import { GiantSound } from './GiantSound'
 
 const WALK_ANIM_SPEED = 2.5
@@ -51,7 +52,7 @@ interface FallingBlock {
   lingerTime: number
 }
 
-export class Giant {
+export class Giant implements LevelActor {
   private group: THREE.Group
   body: CANNON.Body
   dead = false
@@ -90,6 +91,11 @@ export class Giant {
 
   private tmpVec = new THREE.Vector3()
   private tmpQuat = new THREE.Quaternion()
+  private readonly playerContactRadius = 4
+  private readonly contactEffect: PlayerContactEffect = {
+    damage: 10,
+    cooldownSeconds: 1,
+  }
 
   constructor(world: CANNON.World, scene: THREE.Scene, position: { x: number; z: number }) {
     this.scene = scene
@@ -117,6 +123,10 @@ export class Giant {
     this.pickNewWanderDirection()
     this.moveDirX = this.wanderDirX
     this.moveDirZ = this.wanderDirZ
+  }
+
+  get isAlive(): boolean {
+    return !this.dead
   }
 
   private updateMoveDirection(dt: number): void {
@@ -347,8 +357,8 @@ export class Giant {
     this.scene.remove(this.group)
   }
 
-  checkProjectileHits(projectiles: Projectile[]): Set<number> {
-    const hitIndices = new Set<number>()
+  collectProjectileHits(projectiles: Projectile[]): number[] {
+    const hitIndices: number[] = []
     if (this.dead) return hitIndices
 
     this.group.updateMatrixWorld(true)
@@ -368,7 +378,7 @@ export class Giant {
         if (dx * dx + dy * dy + dz * dz < HIT_RADIUS_SQ) {
           this.destroyTorsoBlock(bi)
           this.sound.playHit()
-          hitIndices.add(pi)
+          hitIndices.push(pi)
           hit = true
           break
         }
@@ -394,7 +404,7 @@ export class Giant {
           if (dx * dx + dy * dy + dz * dz < HIT_RADIUS_SQ) {
             this.destroyArmBlocksFrom(blocks, bi, cascade)
             this.sound.playHit()
-            hitIndices.add(pi)
+            hitIndices.push(pi)
             hit = true
             break
           }
@@ -410,7 +420,8 @@ export class Giant {
     return hitIndices
   }
 
-  update(dt: number, playerPos: THREE.Vector3): void {
+  update(dt: number, context: ActorUpdateContext): void {
+    const playerPos = context.playerPosition
     // Update falling blocks
     for (let i = this.fallingBlocks.length - 1; i >= 0; i--) {
       const fb = this.fallingBlocks[i]
@@ -499,10 +510,22 @@ export class Giant {
     this.body.position.set(this.group.position.x, 8.5 * S, this.group.position.z)
   }
 
-  dispose(scene: THREE.Scene, world: CANNON.World): void {
-    if (!this.dead) world.removeBody(this.body)
-    scene.remove(this.group)
-    for (const fb of this.fallingBlocks) scene.remove(fb.mesh)
+  getPlayerContactEffect(playerPosition: THREE.Vector3): PlayerContactEffect | null {
+    if (this.dead) return null
+
+    const dx = playerPosition.x - this.body.position.x
+    const dz = playerPosition.z - this.body.position.z
+    if (dx * dx + dz * dz >= this.playerContactRadius * this.playerContactRadius) {
+      return null
+    }
+
+    return this.contactEffect
+  }
+
+  dispose(): void {
+    if (!this.dead) this.world.removeBody(this.body)
+    this.scene.remove(this.group)
+    for (const fb of this.fallingBlocks) this.scene.remove(fb.mesh)
     this.fallingBlocks.length = 0
     for (const geo of this.geometries) geo.dispose()
     for (const mat of this.materials) mat.dispose()

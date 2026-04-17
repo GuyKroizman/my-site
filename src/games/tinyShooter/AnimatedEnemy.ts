@@ -3,7 +3,9 @@ import * as CANNON from 'cannon-es'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { EnemyBehavior } from './enemyBehaviors'
-import type { EnemyConfig, Projectile } from './types'
+import type { LevelActor, ActorUpdateContext, PlayerContactEffect } from './actorTypes'
+import type { EnemyArchetype } from './enemyTypes'
+import type { Projectile } from './gameTypes'
 
 const TURN_SPEED = 8
 const ROOT_MOTION_NODE_NAMES = new Set(['CharacterArmature', 'RootNode', 'Armature'])
@@ -82,11 +84,11 @@ function forceMaterialOpaque(material: THREE.Material): void {
   }
 }
 
-export class AnimatedEnemy {
+export class AnimatedEnemy implements LevelActor {
   readonly body: CANNON.Body
   readonly root = new THREE.Group()
 
-  private readonly config: EnemyConfig
+  private readonly config: EnemyArchetype
   private readonly scene: THREE.Scene
   private readonly world: CANNON.World
   private readonly behavior: EnemyBehavior
@@ -109,11 +111,15 @@ export class AnimatedEnemy {
 
   dead = false
 
+  get isAlive(): boolean {
+    return !this.dead
+  }
+
   constructor(
     world: CANNON.World,
     scene: THREE.Scene,
     position: { x: number; z: number },
-    config: EnemyConfig,
+    config: EnemyArchetype,
     behavior: EnemyBehavior,
     options: AnimatedEnemyOptions = {},
   ) {
@@ -236,7 +242,7 @@ export class AnimatedEnemy {
 
     this.toTarget.normalize()
     this.moveDir.lerp(this.toTarget, Math.min(1, dt * TURN_SPEED)).normalize()
-    this.root.position.addScaledVector(this.moveDir, this.config.patrolSpeed * dt)
+    this.root.position.addScaledVector(this.moveDir, this.config.moveSpeed * dt)
     return false
   }
 
@@ -284,9 +290,9 @@ export class AnimatedEnemy {
     }
   }
 
-  update(dt: number): void {
+  update(dt: number, context: ActorUpdateContext): void {
     if (!this.dead) {
-      this.behavior.update(this, dt)
+      this.behavior.update(this, dt, context)
     }
 
     this.applyKnockback(dt)
@@ -296,8 +302,8 @@ export class AnimatedEnemy {
     this.syncBody()
   }
 
-  checkProjectileHits(projectiles: Projectile[]): Set<number> {
-    const hitIndices = new Set<number>()
+  collectProjectileHits(projectiles: Projectile[]): number[] {
+    const hitIndices: number[] = []
     if (this.dead) return hitIndices
 
     for (let index = 0; index < projectiles.length; index++) {
@@ -320,10 +326,14 @@ export class AnimatedEnemy {
         this.die()
       }
 
-      hitIndices.add(index)
+      hitIndices.push(index)
     }
 
     return hitIndices
+  }
+
+  getPlayerContactEffect(_playerPosition: THREE.Vector3): PlayerContactEffect | null {
+    return null
   }
 
   dispose(): void {

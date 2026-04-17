@@ -1,12 +1,14 @@
 import * as THREE from 'three'
 import type { AnimatedEnemy } from './AnimatedEnemy'
+import type { ActorUpdateContext } from './actorTypes'
+import type { EnemySpawnBehaviorConfig } from './enemyTypes'
 
 export interface EnemyBehavior {
-  update(enemy: AnimatedEnemy, dt: number): void
+  update(enemy: AnimatedEnemy, dt: number, context: ActorUpdateContext): void
 }
 
 export class IdleBehavior implements EnemyBehavior {
-  update(): void {}
+  update(_enemy: AnimatedEnemy, _dt: number, _context: ActorUpdateContext): void {}
 }
 
 export class PatrolBehavior implements EnemyBehavior {
@@ -20,7 +22,7 @@ export class PatrolBehavior implements EnemyBehavior {
     ]
   }
 
-  update(enemy: AnimatedEnemy, dt: number): void {
+  update(enemy: AnimatedEnemy, dt: number, _context: ActorUpdateContext): void {
     const target = this.patrolPoints[this.patrolIndex]
     const reached = enemy.moveToward(target, dt)
     if (reached) {
@@ -44,7 +46,7 @@ export class StrafeBehavior implements EnemyBehavior {
     this.distance = distance
   }
 
-  update(enemy: AnimatedEnemy, dt: number): void {
+  update(enemy: AnimatedEnemy, dt: number, _context: ActorUpdateContext): void {
     this.time += dt
     const forwardOffset = Math.sin(this.time * 0.9) * this.distance
     const lateralOffset = Math.sin(this.time * 1.8) * this.distance * 0.55
@@ -53,5 +55,19 @@ export class StrafeBehavior implements EnemyBehavior {
       .addScaledVector(this.direction, forwardOffset)
       .addScaledVector(this.lateral, lateralOffset)
     enemy.moveToward(target, dt)
+  }
+}
+
+export function createEnemyBehavior(
+  origin: { x: number; z: number },
+  config: EnemySpawnBehaviorConfig,
+): EnemyBehavior {
+  switch (config.type) {
+    case 'idle':
+      return new IdleBehavior()
+    case 'patrol':
+      return new PatrolBehavior(origin, config.distance ?? 8)
+    case 'strafe':
+      return new StrafeBehavior(origin, config.distance ?? 6, config.headingDegrees ?? 0)
   }
 }

@@ -12,7 +12,6 @@ const MAX_CONCURRENT = 3
 export class ShotSound {
   private ctx: AudioContext | null = null
   private noiseBuffer: AudioBuffer | null = null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private distortionCurve: any = null
   private activeSounds = 0
 
