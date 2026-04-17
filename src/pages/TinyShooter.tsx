@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { TinyShooterEngine } from '../games/tinyShooter/TinyShooterEngine'
+import { isTouchDevice } from '../games/racing/device'
 
 type UIState = 'menu' | 'playing'
 
@@ -10,6 +11,13 @@ export default function TinyShooter() {
   const [uiState, setUiState] = useState<UIState>('menu')
   const [pointerLocked, setPointerLocked] = useState(false)
   const [health, setHealth] = useState(100)
+  const [mobileDevice, setMobileDevice] = useState(false)
+  const [gamepadConnected, setGamepadConnected] = useState(false)
+  const [activeGamepadId, setActiveGamepadId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setMobileDevice(isTouchDevice())
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -27,6 +35,10 @@ export default function TinyShooter() {
     const engine = new TinyShooterEngine(containerRef.current, {
       onPointerLockChange: (locked) => setPointerLocked(locked),
       onHealthChange: (h) => setHealth(h),
+      onGamepadStatusChange: (status) => {
+        setGamepadConnected(status.active)
+        setActiveGamepadId(status.id)
+      },
     })
     gameEngineRef.current = engine
   }, [uiState])
@@ -46,6 +58,8 @@ export default function TinyShooter() {
       gameEngineRef.current = null
     }
     setPointerLocked(false)
+    setGamepadConnected(false)
+    setActiveGamepadId(null)
     setUiState('menu')
   }
 
@@ -100,7 +114,22 @@ export default function TinyShooter() {
             </div>
           </>
         )}
-        {uiState === 'playing' && !pointerLocked && (
+        {uiState === 'playing' && mobileDevice && !gamepadConnected && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 px-6">
+            <div className="max-w-sm rounded-xl border border-white/20 bg-gray-900/90 p-5 text-center text-white shadow-2xl">
+              <p className="text-lg font-semibold">Controller required</p>
+              <p className="mt-2 text-sm text-gray-300">
+                Pair the 8BitDo Lite 2 in Android using D mode, then press any button if it is already connected.
+              </p>
+              {activeGamepadId && (
+                <p className="mt-3 text-xs text-gray-400">
+                  Detected: {activeGamepadId}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+        {uiState === 'playing' && !mobileDevice && !pointerLocked && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 pointer-events-none">
             <p className="text-white text-lg">Click to lock mouse</p>
           </div>
@@ -114,10 +143,22 @@ export default function TinyShooter() {
             <p className="text-gray-300 text-sm mb-6">FPS sandbox &mdash; walk around and shoot cylinders</p>
             <div className="bg-gray-700/50 rounded-lg p-4 mb-6 text-gray-300 text-sm">
               <p className="font-semibold mb-1">Controls</p>
-              <p>WASD &mdash; Move</p>
-              <p>Mouse &mdash; Look around</p>
-              <p>Left click &mdash; Shoot</p>
-              <p>Escape &mdash; Release mouse</p>
+              {mobileDevice ? (
+                <>
+                  <p>Android controller mode</p>
+                  <p>Left stick &mdash; Move</p>
+                  <p>Right stick &mdash; Look around</p>
+                  <p>RT or RB &mdash; Shoot</p>
+                  <p>Best in landscape with 8BitDo Lite 2 in D mode</p>
+                </>
+              ) : (
+                <>
+                  <p>WASD &mdash; Move</p>
+                  <p>Mouse &mdash; Look around</p>
+                  <p>Left click &mdash; Shoot</p>
+                  <p>Escape &mdash; Release mouse</p>
+                </>
+              )}
             </div>
             <button
               onClick={startGame}

@@ -14,6 +14,8 @@ export const PROJECTILE_LIFETIME = 8
 export const MAX_PROJECTILES = 50
 export const SHOOT_COOLDOWN = 0.5
 export const MOUSE_SENSITIVITY = 0.002
+export const GAMEPAD_DEADZONE = 0.2
+export const GAMEPAD_LOOK_SPEED = 0.06
 
 export const GIANT_HEIGHT = 34
 export const GIANT_WALK_SPEED = 3

@@ -65,21 +65,21 @@ function removeRootMotion(clip: THREE.AnimationClip): THREE.AnimationClip {
 }
 
 function forceMaterialOpaque(material: THREE.Material): void {
-  if (!(material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial)) {
-    material.transparent = false
-    material.opacity = 1
-    material.depthWrite = true
-    material.alphaTest = 0
-    material.needsUpdate = true
-    return
-  }
-
   material.transparent = false
   material.opacity = 1
   material.depthWrite = true
   material.alphaTest = 0
-  material.side = THREE.FrontSide
   material.needsUpdate = true
+
+  if (material instanceof THREE.MeshStandardMaterial) {
+    material.alphaMap = null
+    material.metalness = 0
+    material.roughness = 0.6
+  }
+
+  if (material instanceof THREE.MeshPhysicalMaterial) {
+    material.transmission = 0
+  }
 }
 
 export class AnimatedEnemy {

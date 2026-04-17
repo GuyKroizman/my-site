@@ -15,12 +15,14 @@ import {
   MAX_PROJECTILES,
   SHOOT_COOLDOWN,
   MOUSE_SENSITIVITY,
+  GAMEPAD_LOOK_SPEED,
   PLAYER_MAX_HEALTH,
   GIANT_DAMAGE,
   GIANT_DAMAGE_COOLDOWN,
   CURRENT_WEAPON,
 } from './types'
 import type { Projectile } from './types'
+import type { GamepadStatus } from './InputManager'
 import { Giant } from './Giant'
 import { AnimatedEnemy } from './AnimatedEnemy'
 import { IdleBehavior, PatrolBehavior } from './enemyBehaviors'
@@ -37,6 +39,7 @@ const ROBOT_ENEMY_2_SELECTED = {
 export interface TinyShooterEngineOptions {
   onPointerLockChange?: (locked: boolean) => void
   onHealthChange?: (health: number) => void
+  onGamepadStatusChange?: (status: GamepadStatus) => void
 }
 
 export class TinyShooterEngine {
@@ -142,6 +145,7 @@ export class TinyShooterEngine {
 
     this.input = new InputManager(this.renderer.domElement)
     this.input.onPointerLockChange = options?.onPointerLockChange
+    this.input.onGamepadStatusChange = options?.onGamepadStatusChange
 
     this.sound = new ShotSound()
 
@@ -236,12 +240,12 @@ export class TinyShooterEngine {
   private animate = (): void => {
     if (this.isDisposed) return
     this.animFrameId = requestAnimationFrame(this.animate)
+    this.input.update()
 
     if (this.input.isLocked()) {
       const { dx, dy } = this.input.consumeMouseDelta()
       this.yaw -= dx * MOUSE_SENSITIVITY
       this.pitch -= dy * MOUSE_SENSITIVITY
-      this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch))
     }
 
     this.playerBody.velocity.x = 0
@@ -249,13 +253,12 @@ export class TinyShooterEngine {
     this.world.step(PHYSICS_DT, PHYSICS_DT, PHYSICS_SUBSTEPS)
 
     const inputState = this.input.getState()
-    let moveX = 0
-    let moveZ = 0
-    if (inputState.forward) moveZ -= 1
-    if (inputState.backward) moveZ += 1
-    if (inputState.left) moveX -= 1
-    if (inputState.right) moveX += 1
+    this.yaw -= inputState.lookX * GAMEPAD_LOOK_SPEED
+    this.pitch -= inputState.lookY * GAMEPAD_LOOK_SPEED
+    this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch))
 
+    let moveX = inputState.moveX
+    let moveZ = inputState.moveZ
     const len = Math.sqrt(moveX * moveX + moveZ * moveZ)
     if (len > 0) {
       moveX /= len
@@ -278,7 +281,7 @@ export class TinyShooterEngine {
     this.tmpEuler.set(this.pitch, this.yaw, 0)
     this.camera.quaternion.setFromEuler(this.tmpEuler)
 
-    if (inputState.shooting && this.input.isLocked()) {
+    if (inputState.shooting) {
       const now = performance.now() / 1000
       if (now - this.lastShotTime >= SHOOT_COOLDOWN) {
         this.lastShotTime = now
