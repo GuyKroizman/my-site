@@ -2,42 +2,29 @@ import type { LevelDefinition } from './levelTypes'
 
 export const tinyShooterLevels: LevelDefinition[] = [
   {
-    id: 'hangar-1',
-    name: 'Hangar One',
-    playerSpawn: { x: -10, z: -10 },
-    arenaSize: 200,
-    clearCondition: 'defeat-all',
-    nextLevelId: 'hangar-2',
-    actors: [
-      {
-        kind: 'animatedEnemy',
-        enemyId: 'heavyBot',
-        position: { x: -10, z: -18 },
-        behavior: { type: 'idle' },
-      },
-      {
-        kind: 'animatedEnemy',
-        enemyId: 'roboScout',
-        position: { x: -18, z: -24 },
-        behavior: { type: 'idle' },
-      },
-      {
-        kind: 'giant',
-        position: { x: 60, z: 60 },
-      },
-    ],
-  },
-  {
-    id: 'hangar-2',
-    name: 'Hangar Two',
-    playerSpawn: { x: -14, z: -14 },
+    id: 'diamond-core',
+    name: 'Diamond Core',
+    playerSpawn: { x: 0, z: 8 },
+    objective: {
+      position: { x: 0, z: 0 },
+      radius: 2.25,
+      maxHealth: 120,
+    },
     arenaSize: 200,
     clearCondition: 'defeat-all',
     nextLevelId: null,
     actors: [
       {
-        kind: 'giant',
-        position: { x: 52, z: 42 },
+        kind: 'animatedEnemy',
+        enemyId: 'roboScout',
+        position: { x: -32, z: -28 },
+        behavior: { type: 'seekObjective' },
+      },
+      {
+        kind: 'animatedEnemy',
+        enemyId: 'heavyBot',
+        position: { x: 32, z: -30 },
+        behavior: { type: 'seekObjective' },
       },
     ],
   },

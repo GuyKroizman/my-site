@@ -1,14 +1,16 @@
 import * as THREE from 'three'
 import type { AnimatedEnemy } from './AnimatedEnemy'
 import type { ActorUpdateContext } from './actorTypes'
-import type { EnemySpawnBehaviorConfig } from './enemyTypes'
+import type { EnemyArchetype, EnemySpawnBehaviorConfig } from './enemyTypes'
 
 export interface EnemyBehavior {
   update(enemy: AnimatedEnemy, dt: number, context: ActorUpdateContext): void
 }
 
 export class IdleBehavior implements EnemyBehavior {
-  update(_enemy: AnimatedEnemy, _dt: number, _context: ActorUpdateContext): void {}
+  update(enemy: AnimatedEnemy, _dt: number, _context: ActorUpdateContext): void {
+    enemy.setFocusTarget('objective')
+  }
 }
 
 export class PatrolBehavior implements EnemyBehavior {
@@ -23,6 +25,7 @@ export class PatrolBehavior implements EnemyBehavior {
   }
 
   update(enemy: AnimatedEnemy, dt: number, _context: ActorUpdateContext): void {
+    enemy.setFocusTarget('objective')
     const target = this.patrolPoints[this.patrolIndex]
     const reached = enemy.moveToward(target, dt)
     if (reached) {
@@ -47,6 +50,7 @@ export class StrafeBehavior implements EnemyBehavior {
   }
 
   update(enemy: AnimatedEnemy, dt: number, _context: ActorUpdateContext): void {
+    enemy.setFocusTarget('objective')
     this.time += dt
     const forwardOffset = Math.sin(this.time * 0.9) * this.distance
     const lateralOffset = Math.sin(this.time * 1.8) * this.distance * 0.55
@@ -58,9 +62,49 @@ export class StrafeBehavior implements EnemyBehavior {
   }
 }
 
+export class SeekObjectiveBehavior implements EnemyBehavior {
+  private readonly playerTarget = new THREE.Vector3()
+  private readonly objectiveTarget = new THREE.Vector3()
+  private readonly aggroRangeSq: number
+  private readonly disengageRangeSq: number
+  private readonly playerContactRadius: number
+  private chasingPlayer = false
+
+  constructor(config: EnemyArchetype) {
+    this.aggroRangeSq = config.aggroRange * config.aggroRange
+    this.disengageRangeSq = config.disengageRange * config.disengageRange
+    this.playerContactRadius = config.playerContactRadius
+  }
+
+  update(enemy: AnimatedEnemy, dt: number, context: ActorUpdateContext): void {
+    const enemyPosition = enemy.getPosition()
+    const dx = context.playerPosition.x - enemyPosition.x
+    const dz = context.playerPosition.z - enemyPosition.z
+    const playerDistanceSq = dx * dx + dz * dz
+
+    if (this.chasingPlayer) {
+      this.chasingPlayer = playerDistanceSq <= this.disengageRangeSq
+    } else {
+      this.chasingPlayer = playerDistanceSq <= this.aggroRangeSq
+    }
+
+    if (this.chasingPlayer) {
+      enemy.setFocusTarget('player')
+      this.playerTarget.set(context.playerPosition.x, 0, context.playerPosition.z)
+      enemy.moveToward(this.playerTarget, dt, this.playerContactRadius)
+      return
+    }
+
+    enemy.setFocusTarget('objective')
+    this.objectiveTarget.set(context.objectivePosition.x, 0, context.objectivePosition.z)
+    enemy.moveToward(this.objectiveTarget, dt, context.objectiveRadius)
+  }
+}
+
 export function createEnemyBehavior(
   origin: { x: number; z: number },
   config: EnemySpawnBehaviorConfig,
+  enemyConfig?: EnemyArchetype,
 ): EnemyBehavior {
   switch (config.type) {
     case 'idle':
@@ -69,5 +113,10 @@ export function createEnemyBehavior(
       return new PatrolBehavior(origin, config.distance ?? 8)
     case 'strafe':
       return new StrafeBehavior(origin, config.distance ?? 6, config.headingDegrees ?? 0)
+    case 'seekObjective':
+      if (!enemyConfig) {
+        throw new Error('seekObjective behavior requires an enemy archetype')
+      }
+      return new SeekObjectiveBehavior(enemyConfig)
   }
 }

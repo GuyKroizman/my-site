@@ -9,14 +9,17 @@ type UIState = 'menu' | 'playing'
 const INITIAL_GAME_STATE: TinyShooterGameState = {
   phase: 'playing',
   health: 100,
+  objectiveHealth: 120,
+  objectiveMaxHealth: 120,
+  gameOverReason: null,
   pointerLocked: false,
   gamepadStatus: {
     connected: false,
     active: false,
     id: null,
   },
-  currentLevelId: 'hangar-1',
-  currentLevelName: 'Hangar One',
+  currentLevelId: 'diamond-core',
+  currentLevelName: 'Diamond Core',
   levelComplete: false,
   victory: false,
 }
@@ -41,7 +44,6 @@ export default function TinyShooter() {
     }
   }, [])
 
-  // Create the engine after the DOM has updated and the container has flex-1 sizing
   useEffect(() => {
     if (uiState !== 'playing' || gameEngineRef.current || !containerRef.current) return
     const engine = new TinyShooterEngine(containerRef.current, {
@@ -68,6 +70,9 @@ export default function TinyShooter() {
     setGameState(INITIAL_GAME_STATE)
     setUiState('menu')
   }
+
+  const objectivePercent =
+    (gameState.objectiveHealth / Math.max(gameState.objectiveMaxHealth, 1)) * 100
 
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
@@ -100,6 +105,28 @@ export default function TinyShooter() {
               >
                 X
               </span>
+            </div>
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 z-10 pointer-events-none flex flex-col items-center gap-1">
+              <span
+                className="text-cyan-100 text-sm font-bold select-none uppercase tracking-[0.2em]"
+                style={{ textShadow: '1px 1px 2px black' }}
+              >
+                Diamond
+              </span>
+              <div className="w-56 h-3 bg-slate-950/80 rounded-full overflow-hidden border border-cyan-300/40">
+                <div
+                  className="h-full transition-all duration-150 rounded-full"
+                  style={{
+                    width: `${objectivePercent}%`,
+                    background:
+                      gameState.objectiveHealth > gameState.objectiveMaxHealth * 0.55
+                        ? 'linear-gradient(90deg, #22d3ee, #67e8f9)'
+                        : gameState.objectiveHealth > gameState.objectiveMaxHealth * 0.25
+                          ? 'linear-gradient(90deg, #f59e0b, #fcd34d)'
+                          : 'linear-gradient(90deg, #ef4444, #f87171)',
+                  }}
+                />
+              </div>
             </div>
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none flex flex-col items-center gap-1">
               <span
@@ -156,15 +183,21 @@ export default function TinyShooter() {
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 pointer-events-none">
             <div className="rounded-xl border border-white/20 bg-black/50 px-6 py-4 text-center text-white">
               <p className="text-3xl font-bold">Victory</p>
-              <p className="mt-2 text-sm text-gray-200">All authored levels cleared.</p>
+              <p className="mt-2 text-sm text-gray-200">The diamond survived.</p>
             </div>
           </div>
         )}
         {uiState === 'playing' && gameState.phase === 'game-over' && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/55 pointer-events-none">
             <div className="rounded-xl border border-white/20 bg-black/55 px-6 py-4 text-center text-white">
-              <p className="text-3xl font-bold">Game Over</p>
-              <p className="mt-2 text-sm text-gray-200">Return to the menu to restart the run.</p>
+              <p className="text-3xl font-bold">
+                {gameState.gameOverReason === 'objective-destroyed' ? 'Core Lost' : 'Game Over'}
+              </p>
+              <p className="mt-2 text-sm text-gray-200">
+                {gameState.gameOverReason === 'objective-destroyed'
+                  ? 'The diamond was destroyed.'
+                  : 'You were destroyed.'}
+              </p>
             </div>
           </div>
         )}
@@ -174,7 +207,7 @@ export default function TinyShooter() {
         <div className="flex-1 min-h-0 w-full flex flex-col bg-gradient-to-br from-gray-800 to-gray-900 z-20">
           <div className="flex-1 flex flex-col items-center justify-center">
             <h2 className="text-3xl font-bold text-white mb-2">Tiny Shooter</h2>
-            <p className="text-gray-300 text-sm mb-6">FPS sandbox &mdash; walk around and shoot cylinders</p>
+            <p className="text-gray-300 text-sm mb-6">Defend the center diamond from incoming robots</p>
             <div className="bg-gray-700/50 rounded-lg p-4 mb-6 text-gray-300 text-sm">
               <p className="font-semibold mb-1">Controls</p>
               {mobileDevice ? (

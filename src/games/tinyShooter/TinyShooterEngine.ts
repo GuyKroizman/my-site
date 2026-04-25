@@ -30,6 +30,7 @@ import { getFirstTinyShooterLevel, getLevelById } from './levels'
 const UP = new THREE.Vector3(0, 1, 0)
 const LEVEL_TRANSITION_DELAY_SECONDS = 1.4
 const DAMAGE_FLASH_SECONDS = 0.15
+const OBJECTIVE_HEIGHT = 1.85
 const DEFAULT_GAMEPAD_STATUS: GamepadStatus = {
   connected: false,
   active: false,
@@ -57,16 +58,54 @@ export class TinyShooterEngine {
   private readonly tmpDir = new THREE.Vector3()
   private readonly tmpEuler = new THREE.Euler(0, 0, 0, 'YXZ')
   private readonly playerPosition = new THREE.Vector3()
+  private readonly objectivePosition = new THREE.Vector3()
+  private readonly objectiveRoot = new THREE.Group()
+  private readonly objectiveCoreMaterial = new THREE.MeshStandardMaterial({
+    color: 0xdafcff,
+    emissive: 0x5df4ff,
+    emissiveIntensity: 2.6,
+    roughness: 0.15,
+    metalness: 0.2,
+  })
+  private readonly objectiveShellMaterial = new THREE.MeshBasicMaterial({
+    color: 0x6cf2ff,
+    transparent: true,
+    opacity: 0.2,
+    depthWrite: false,
+  })
+  private readonly objectiveRingMaterial = new THREE.MeshBasicMaterial({
+    color: 0x7cf5ff,
+    transparent: true,
+    opacity: 0.7,
+    depthWrite: false,
+  })
+  private readonly objectiveCore = new THREE.Mesh(
+    new THREE.OctahedronGeometry(1.25, 0),
+    this.objectiveCoreMaterial,
+  )
+  private readonly objectiveShell = new THREE.Mesh(
+    new THREE.OctahedronGeometry(2.1, 0),
+    this.objectiveShellMaterial,
+  )
+  private readonly objectiveRing = new THREE.Mesh(
+    new THREE.TorusGeometry(2.35, 0.08, 12, 48),
+    this.objectiveRingMaterial,
+  )
+  private readonly objectiveLight = new THREE.PointLight(0x79f8ff, 3.6, 28, 2)
+  private readonly playerContactTimes = new Map<LevelActor, number>()
+  private readonly objectiveContactTimes = new Map<LevelActor, number>()
 
   private projectiles: Projectile[] = []
   private actors: LevelActor[] = []
   private currentLevel: LevelDefinition
   private phase: TinyShooterPhase = 'playing'
   private health = PLAYER_MAX_HEALTH
+  private objectiveHealth = 0
+  private objectiveMaxHealth = 0
+  private gameOverReason: TinyShooterGameState['gameOverReason'] = null
   private pointerLocked = false
   private gamepadStatus: GamepadStatus = DEFAULT_GAMEPAD_STATUS
   private lastShotTime = 0
-  private lastDamageTime = 0
   private damageFlashUntil = 0
   private phaseChangedAt = performance.now()
   private yaw = 0
@@ -120,6 +159,18 @@ export class TinyShooterEngine {
     this.damageOverlay.style.cssText =
       'position:absolute;inset:0;pointer-events:none;background:rgba(255,0,0,0);transition:background 0.05s;z-index:15;'
     container.appendChild(this.damageOverlay)
+
+    this.objectiveCore.castShadow = true
+    this.objectiveCore.receiveShadow = true
+    this.objectiveCore.position.y = OBJECTIVE_HEIGHT
+    this.objectiveShell.position.y = OBJECTIVE_HEIGHT
+    this.objectiveShell.renderOrder = 1
+    this.objectiveRing.position.y = 0.08
+    this.objectiveRing.rotation.x = Math.PI / 2
+    this.objectiveRing.renderOrder = 1
+    this.objectiveLight.position.set(0, OBJECTIVE_HEIGHT, 0)
+    this.objectiveRoot.add(this.objectiveRing, this.objectiveShell, this.objectiveCore, this.objectiveLight)
+    this.scene.add(this.objectiveRoot)
 
     this.input = new InputManager(this.renderer.domElement)
     this.input.onPointerLockChange = (locked) => {
@@ -178,6 +229,9 @@ export class TinyShooterEngine {
     this.onStateChange?.({
       phase: this.phase,
       health: this.health,
+      objectiveHealth: this.objectiveHealth,
+      objectiveMaxHealth: this.objectiveMaxHealth,
+      gameOverReason: this.gameOverReason,
       pointerLocked: this.pointerLocked,
       gamepadStatus: this.gamepadStatus,
       currentLevelId: this.currentLevel.id,
@@ -199,7 +253,10 @@ export class TinyShooterEngine {
     this.playerBody.position.set(spawn.x, PLAYER_HEIGHT / 2 + PLAYER_BODY_RADIUS, spawn.z)
     this.playerBody.velocity.set(0, 0, 0)
     this.playerBody.angularVelocity.set(0, 0, 0)
-    this.yaw = 0
+
+    const dx = this.currentLevel.objective.position.x - spawn.x
+    const dz = this.currentLevel.objective.position.z - spawn.z
+    this.yaw = dx === 0 && dz === 0 ? 0 : Math.atan2(-dx, -dz)
     this.pitch = 0
   }
 
@@ -221,12 +278,19 @@ export class TinyShooterEngine {
   private loadLevel(level: LevelDefinition, resetHealth: boolean): void {
     this.clearProjectiles()
     this.clearActors()
+    this.playerContactTimes.clear()
+    this.objectiveContactTimes.clear()
     this.currentLevel = level
+    this.objectivePosition.set(level.objective.position.x, 0, level.objective.position.z)
+    this.objectiveRoot.position.set(level.objective.position.x, 0, level.objective.position.z)
+    this.objectiveHealth = level.objective.maxHealth
+    this.objectiveMaxHealth = level.objective.maxHealth
+    this.gameOverReason = null
     this.resetPlayer(level.playerSpawn)
 
     if (resetHealth) {
       this.health = PLAYER_MAX_HEALTH
-      this.lastDamageTime = 0
+      this.damageFlashUntil = 0
     }
 
     this.actors = level.actors.map((spawn) => createLevelActor(spawn, this.world, this.scene))
@@ -349,15 +413,13 @@ export class TinyShooterEngine {
   }
 
   private updateActors(): void {
-    this.playerPosition.set(
-      this.camera.position.x,
-      this.camera.position.y,
-      this.camera.position.z,
-    )
+    this.playerPosition.set(this.camera.position.x, 0, this.camera.position.z)
 
     for (const actor of this.actors) {
       actor.update(PHYSICS_DT, {
         playerPosition: this.playerPosition,
+        objectivePosition: this.objectivePosition,
+        objectiveRadius: this.currentLevel.objective.radius,
         arenaSize: this.currentLevel.arenaSize,
       })
     }
@@ -378,13 +440,15 @@ export class TinyShooterEngine {
     }
   }
 
-  private applyDamage(amount: number, nowSeconds: number): void {
+  private applyPlayerDamage(amount: number, nowSeconds: number): void {
+    if (this.phase !== 'playing') return
+
     this.health = Math.max(0, this.health - amount)
-    this.lastDamageTime = nowSeconds
     this.damageFlashUntil = nowSeconds + DAMAGE_FLASH_SECONDS
     this.emitState()
 
     if (this.health === 0) {
+      this.gameOverReason = 'player-dead'
       this.setPhase('game-over')
     }
   }
@@ -393,15 +457,49 @@ export class TinyShooterEngine {
     if (this.phase !== 'playing') return
 
     const nowSeconds = now / 1000
-    const playerPosition = this.camera.position
-
     for (const actor of this.actors) {
-      const effect = actor.getPlayerContactEffect(playerPosition)
+      const effect = actor.getPlayerContactEffect(this.playerPosition)
       if (!effect) continue
-      if (nowSeconds - this.lastDamageTime < effect.cooldownSeconds) continue
 
-      this.applyDamage(effect.damage, nowSeconds)
-      break
+      const lastContactAt = this.playerContactTimes.get(actor) ?? Number.NEGATIVE_INFINITY
+      if (nowSeconds - lastContactAt < effect.cooldownSeconds) continue
+
+      this.playerContactTimes.set(actor, nowSeconds)
+      this.applyPlayerDamage(effect.damage, nowSeconds)
+      if (this.health === 0) {
+        return
+      }
+    }
+  }
+
+  private applyObjectiveDamage(amount: number): void {
+    if (this.phase !== 'playing') return
+
+    this.objectiveHealth = Math.max(0, this.objectiveHealth - amount)
+    this.emitState()
+
+    if (this.objectiveHealth === 0) {
+      this.gameOverReason = 'objective-destroyed'
+      this.setPhase('game-over')
+    }
+  }
+
+  private updateObjectiveContacts(now: number): void {
+    if (this.phase !== 'playing') return
+
+    const nowSeconds = now / 1000
+    for (const actor of this.actors) {
+      const effect = actor.getObjectiveContactEffect(this.objectivePosition)
+      if (!effect) continue
+
+      const lastContactAt = this.objectiveContactTimes.get(actor) ?? Number.NEGATIVE_INFINITY
+      if (nowSeconds - lastContactAt < effect.cooldownSeconds) continue
+
+      this.objectiveContactTimes.set(actor, nowSeconds)
+      this.applyObjectiveDamage(effect.damage)
+      if (this.objectiveHealth === 0) {
+        return
+      }
     }
   }
 
@@ -409,6 +507,18 @@ export class TinyShooterEngine {
     const nowSeconds = now / 1000
     this.damageOverlay.style.background =
       nowSeconds < this.damageFlashUntil ? 'rgba(255,0,0,0.4)' : 'rgba(255,0,0,0)'
+  }
+
+  private updateObjectiveVisual(now: number): void {
+    const time = now / 1000
+    const pulse = 1 + Math.sin(time * 3.2) * 0.08
+    this.objectiveCore.scale.setScalar(pulse)
+    this.objectiveShell.scale.setScalar(1.04 + Math.sin(time * 2.4) * 0.1)
+    this.objectiveRing.scale.setScalar(1.02 + Math.sin(time * 2.1) * 0.04)
+    this.objectiveCoreMaterial.emissiveIntensity = 2.4 + Math.sin(time * 3.2) * 0.5
+    this.objectiveShellMaterial.opacity = 0.18 + (Math.sin(time * 2.4) + 1) * 0.06
+    this.objectiveRingMaterial.opacity = 0.58 + (Math.sin(time * 2.4) + 1) * 0.08
+    this.objectiveLight.intensity = 3.3 + (Math.sin(time * 3.2) + 1) * 0.45
   }
 
   private evaluateLevelProgress(now: number): void {
@@ -459,7 +569,9 @@ export class TinyShooterEngine {
     this.updateActors()
     this.resolveProjectileHits()
     this.updatePlayerContacts(now)
+    this.updateObjectiveContacts(now)
     this.updateDamageOverlay(now)
+    this.updateObjectiveVisual(now)
     this.evaluateLevelProgress(now)
 
     this.renderer.render(this.scene, this.camera)
@@ -475,9 +587,16 @@ export class TinyShooterEngine {
     this.clearProjectiles()
     this.clearActors()
     this.damageOverlay.remove()
+    this.scene.remove(this.objectiveRoot)
 
     this.projectileGeometry.dispose()
     this.projectileMaterial.dispose()
+    this.objectiveCore.geometry.dispose()
+    this.objectiveShell.geometry.dispose()
+    this.objectiveRing.geometry.dispose()
+    this.objectiveCoreMaterial.dispose()
+    this.objectiveShellMaterial.dispose()
+    this.objectiveRingMaterial.dispose()
 
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement)

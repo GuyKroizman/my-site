@@ -3,7 +3,12 @@ import * as CANNON from 'cannon-es'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { EnemyBehavior } from './enemyBehaviors'
-import type { LevelActor, ActorUpdateContext, PlayerContactEffect } from './actorTypes'
+import type {
+  LevelActor,
+  ActorUpdateContext,
+  ObjectiveContactEffect,
+  PlayerContactEffect,
+} from './actorTypes'
 import type { EnemyArchetype } from './enemyTypes'
 import type { Projectile } from './gameTypes'
 
@@ -12,6 +17,8 @@ const ROOT_MOTION_NODE_NAMES = new Set(['CharacterArmature', 'RootNode', 'Armatu
 
 const loader = new GLTFLoader()
 const modelAssetCache = new Map<string, Promise<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>>()
+type EnemyFocusTarget = 'objective' | 'player'
+type LocomotionState = 'idle' | 'walk' | 'dead' | 'none'
 
 export interface AnimatedEnemyOptions {
   label?: string
@@ -85,9 +92,13 @@ export class AnimatedEnemy implements LevelActor {
   private labelSprite: THREE.Sprite | null = null
 
   private mixer: THREE.AnimationMixer | null = null
+  private idleAction: THREE.AnimationAction | null = null
   private walkAction: THREE.AnimationAction | null = null
   private deathAction: THREE.AnimationAction | null = null
   private visualModel: THREE.Object3D | null = null
+  private locomotionState: LocomotionState = 'none'
+  private focusTarget: EnemyFocusTarget = 'objective'
+  private objectiveRadius = 0
   private health: number
   private disposed = false
 
@@ -189,6 +200,9 @@ export class AnimatedEnemy implements LevelActor {
       this.config.model.useDirectScene === true ? model : model.getObjectByName('CharacterArmature') ?? model
     this.mixer = new THREE.AnimationMixer(mixerRoot)
 
+    const idleClip =
+      animations.find((clip) => clip.name === this.config.model.idleAnimation) ??
+      animations.find((clip) => clip.name.toLowerCase().includes('idle'))
     const walkClip =
       animations.find((clip) => clip.name === this.config.model.walkAnimation) ??
       animations.find((clip) => clip.name.toLowerCase().includes('walk'))
@@ -196,10 +210,14 @@ export class AnimatedEnemy implements LevelActor {
       animations.find((clip) => clip.name === this.config.model.deathAnimation) ??
       animations.find((clip) => clip.name.toLowerCase().includes('dead') || clip.name.toLowerCase().includes('death'))
 
+    if (idleClip) {
+      this.idleAction = this.mixer.clipAction(idleClip)
+      this.idleAction.setLoop(THREE.LoopRepeat, Infinity)
+    }
+
     if (walkClip) {
       this.walkAction = this.mixer.clipAction(walkClip)
       this.walkAction.setLoop(THREE.LoopRepeat, Infinity)
-      this.walkAction.play()
     }
 
     if (deathClip) {
@@ -207,12 +225,14 @@ export class AnimatedEnemy implements LevelActor {
       this.deathAction.setLoop(THREE.LoopOnce, 1)
       this.deathAction.clampWhenFinished = true
     }
+
+    this.playLocomotionState('idle')
   }
 
-  moveToward(target: THREE.Vector3, dt: number): boolean {
+  moveToward(target: THREE.Vector3, dt: number, stopDistance = 0.5): boolean {
     this.toTarget.set(target.x - this.root.position.x, 0, target.z - this.root.position.z)
     const distanceToTarget = this.toTarget.length()
-    if (distanceToTarget < 0.5) {
+    if (distanceToTarget <= stopDistance) {
       return true
     }
 
@@ -224,6 +244,10 @@ export class AnimatedEnemy implements LevelActor {
 
   getPosition(): THREE.Vector3 {
     return this.root.position
+  }
+
+  setFocusTarget(target: EnemyFocusTarget): void {
+    this.focusTarget = target
   }
 
   private applyKnockback(dt: number): void {
@@ -254,10 +278,27 @@ export class AnimatedEnemy implements LevelActor {
     this.modelAnchor.position.y = -this.visualBounds.min.y + this.config.model.visualFootContactOffset + 0.01
   }
 
+  private playLocomotionState(nextState: Exclude<LocomotionState, 'dead'>): void {
+    if (this.locomotionState === nextState || this.dead) {
+      return
+    }
+
+    const previousAction = this.locomotionState === 'walk' ? this.walkAction : this.idleAction
+    const nextAction = nextState === 'walk' ? this.walkAction : this.idleAction
+
+    previousAction?.stop()
+    nextAction?.reset()
+    nextAction?.play()
+    this.locomotionState = nextState
+  }
+
   private die(): void {
     if (this.dead) return
     this.dead = true
     this.body.collisionFilterMask = 0
+    this.focusTarget = 'objective'
+    this.locomotionState = 'dead'
+    this.idleAction?.stop()
     this.walkAction?.stop()
 
     if (this.deathAction) {
@@ -267,11 +308,21 @@ export class AnimatedEnemy implements LevelActor {
   }
 
   update(dt: number, context: ActorUpdateContext): void {
+    const prevX = this.root.position.x
+    const prevZ = this.root.position.z
+    this.objectiveRadius = context.objectiveRadius
+
     if (!this.dead) {
       this.behavior.update(this, dt, context)
     }
 
     this.applyKnockback(dt)
+    if (!this.dead) {
+      const deltaX = this.root.position.x - prevX
+      const deltaZ = this.root.position.z - prevZ
+      const planarDeltaSq = deltaX * deltaX + deltaZ * deltaZ
+      this.playLocomotionState(planarDeltaSq > 0.000001 ? 'walk' : 'idle')
+    }
     this.updateFacing()
     this.mixer?.update(dt)
     if (this.config.model.visualFootContactOffset !== 0) {
@@ -310,8 +361,38 @@ export class AnimatedEnemy implements LevelActor {
     return hitIndices
   }
 
-  getPlayerContactEffect(_playerPosition: THREE.Vector3): PlayerContactEffect | null {
-    return null
+  getPlayerContactEffect(playerPosition: THREE.Vector3): PlayerContactEffect | null {
+    if (this.dead || this.focusTarget !== 'player') {
+      return null
+    }
+
+    const dx = playerPosition.x - this.root.position.x
+    const dz = playerPosition.z - this.root.position.z
+    if (dx * dx + dz * dz > this.config.playerContactRadius * this.config.playerContactRadius) {
+      return null
+    }
+
+    return {
+      damage: this.config.playerContactDamage,
+      cooldownSeconds: this.config.playerContactCooldownSeconds,
+    }
+  }
+
+  getObjectiveContactEffect(objectivePosition: THREE.Vector3): ObjectiveContactEffect | null {
+    if (this.dead || this.focusTarget !== 'objective') {
+      return null
+    }
+
+    const dx = objectivePosition.x - this.root.position.x
+    const dz = objectivePosition.z - this.root.position.z
+    if (dx * dx + dz * dz > this.objectiveRadius * this.objectiveRadius) {
+      return null
+    }
+
+    return {
+      damage: this.config.objectiveContactDamage,
+      cooldownSeconds: this.config.objectiveContactCooldownSeconds,
+    }
   }
 
   dispose(): void {

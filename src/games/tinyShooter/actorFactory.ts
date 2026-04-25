@@ -22,6 +22,6 @@ export function createLevelActor(
     scene,
     spawn.position,
     archetype,
-    createEnemyBehavior(spawn.position, spawn.behavior),
+    createEnemyBehavior(spawn.position, spawn.behavior, archetype),
   )
 }

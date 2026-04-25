@@ -7,7 +7,12 @@ import {
   GIANT_CHASE_SPEED,
 } from './giantConstants'
 import { GROUND_SIZE } from './constants'
-import type { LevelActor, ActorUpdateContext, PlayerContactEffect } from './actorTypes'
+import type {
+  LevelActor,
+  ActorUpdateContext,
+  ObjectiveContactEffect,
+  PlayerContactEffect,
+} from './actorTypes'
 import type { Projectile } from './gameTypes'
 import { GiantSound } from './GiantSound'
 
@@ -520,6 +525,10 @@ export class Giant implements LevelActor {
     }
 
     return this.contactEffect
+  }
+
+  getObjectiveContactEffect(_objectivePosition: THREE.Vector3): ObjectiveContactEffect | null {
+    return null
   }
 
   dispose(): void {

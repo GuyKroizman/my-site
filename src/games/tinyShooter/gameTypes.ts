@@ -15,6 +15,9 @@ export interface Projectile {
 export interface TinyShooterGameState {
   phase: TinyShooterPhase
   health: number
+  objectiveHealth: number
+  objectiveMaxHealth: number
+  gameOverReason: 'player-dead' | 'objective-destroyed' | null
   pointerLocked: boolean
   gamepadStatus: GamepadStatus
   currentLevelId: string
