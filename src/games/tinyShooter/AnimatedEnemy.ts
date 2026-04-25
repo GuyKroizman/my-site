@@ -66,24 +66,6 @@ function removeRootMotion(clip: THREE.AnimationClip): THREE.AnimationClip {
   return new THREE.AnimationClip(clip.name, clip.duration, filteredTracks)
 }
 
-function forceMaterialOpaque(material: THREE.Material): void {
-  material.transparent = false
-  material.opacity = 1
-  material.depthWrite = true
-  material.alphaTest = 0
-  material.needsUpdate = true
-
-  if (material instanceof THREE.MeshStandardMaterial) {
-    material.alphaMap = null
-    material.metalness = 0
-    material.roughness = 0.6
-  }
-
-  if (material instanceof THREE.MeshPhysicalMaterial) {
-    material.transmission = 0
-  }
-}
-
 export class AnimatedEnemy implements LevelActor {
   readonly body: CANNON.Body
   readonly root = new THREE.Group()
@@ -179,13 +161,6 @@ export class AnimatedEnemy implements LevelActor {
         child.castShadow = true
         child.receiveShadow = true
         child.frustumCulled = false
-        if (this.config.model.forceOpaqueMaterials) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(forceMaterialOpaque)
-          } else if (child.material) {
-            forceMaterialOpaque(child.material)
-          }
-        }
         if (this.options.debugColor !== undefined) {
           child.material = new THREE.MeshStandardMaterial({
             color: this.options.debugColor,
@@ -210,7 +185,8 @@ export class AnimatedEnemy implements LevelActor {
     this.fallbackMesh.visible = !!this.options.keepFallbackVisible
     this.visualModel = model
 
-    const mixerRoot = model.getObjectByName('CharacterArmature') ?? model
+    const mixerRoot =
+      this.config.model.useDirectScene === true ? model : model.getObjectByName('CharacterArmature') ?? model
     this.mixer = new THREE.AnimationMixer(mixerRoot)
 
     const walkClip =
@@ -275,7 +251,7 @@ export class AnimatedEnemy implements LevelActor {
     if (!this.visualModel) return
 
     this.visualBounds.setFromObject(this.visualModel)
-    this.modelAnchor.position.y = -(this.visualBounds.min.y + this.config.model.visualFootContactOffset)
+    this.modelAnchor.position.y = -this.visualBounds.min.y + this.config.model.visualFootContactOffset + 0.01
   }
 
   private die(): void {
@@ -298,7 +274,9 @@ export class AnimatedEnemy implements LevelActor {
     this.applyKnockback(dt)
     this.updateFacing()
     this.mixer?.update(dt)
-    this.snapVisualToGround()
+    if (this.config.model.visualFootContactOffset !== 0) {
+      this.snapVisualToGround()
+    }
     this.syncBody()
   }
 

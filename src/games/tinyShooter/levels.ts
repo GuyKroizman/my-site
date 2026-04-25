@@ -11,13 +11,13 @@ export const tinyShooterLevels: LevelDefinition[] = [
     actors: [
       {
         kind: 'animatedEnemy',
-        enemyId: 'roboScout',
+        enemyId: 'heavyBot',
         position: { x: -10, z: -18 },
-        behavior: { type: 'patrol', distance: 10 },
+        behavior: { type: 'idle' },
       },
       {
         kind: 'animatedEnemy',
-        enemyId: 'heavyBot',
+        enemyId: 'roboScout',
         position: { x: -18, z: -24 },
         behavior: { type: 'idle' },
       },
@@ -35,24 +35,6 @@ export const tinyShooterLevels: LevelDefinition[] = [
     clearCondition: 'defeat-all',
     nextLevelId: null,
     actors: [
-      {
-        kind: 'animatedEnemy',
-        enemyId: 'roboScout',
-        position: { x: -16, z: -32 },
-        behavior: { type: 'patrol', distance: 14 },
-      },
-      {
-        kind: 'animatedEnemy',
-        enemyId: 'roboScout',
-        position: { x: 8, z: -20 },
-        behavior: { type: 'strafe', distance: 8, headingDegrees: 45 },
-      },
-      {
-        kind: 'animatedEnemy',
-        enemyId: 'heavyBot',
-        position: { x: 22, z: -12 },
-        behavior: { type: 'strafe', distance: 6, headingDegrees: 90 },
-      },
       {
         kind: 'giant',
         position: { x: 52, z: 42 },

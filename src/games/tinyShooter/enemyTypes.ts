@@ -5,7 +5,6 @@ export interface EnemyModelConfig {
   visualScaleCorrection: number
   visualFootContactOffset: number
   useDirectScene?: boolean
-  forceOpaqueMaterials?: boolean
 }
 
 export interface EnemyArchetype {
