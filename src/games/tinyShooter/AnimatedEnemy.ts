@@ -11,6 +11,7 @@ import type {
 } from './actorTypes'
 import type { EnemyArchetype } from './enemyTypes'
 import type { Projectile } from './gameTypes'
+import { PROJECTILE_RADIUS } from './constants'
 
 const TURN_SPEED = 8
 const ROOT_MOTION_NODE_NAMES = new Set(['CharacterArmature', 'RootNode', 'Armature'])
@@ -86,8 +87,9 @@ export class AnimatedEnemy implements LevelActor {
   private readonly toTarget = new THREE.Vector3()
   private readonly modelAnchor = new THREE.Group()
   private readonly visualBounds = new THREE.Box3()
+  private readonly hitBounds = new THREE.Box3()
+  private readonly hitCenter = new THREE.Vector3()
   private readonly fallbackMesh: THREE.Mesh
-  private readonly hitRadiusSq: number
   private readonly options: AnimatedEnemyOptions
   private labelSprite: THREE.Sprite | null = null
 
@@ -122,7 +124,6 @@ export class AnimatedEnemy implements LevelActor {
     this.behavior = behavior
     this.options = options
     this.health = config.health
-    this.hitRadiusSq = config.hitRadius * config.hitRadius
 
     this.root.position.set(position.x, 0, position.z)
     this.scene.add(this.root)
@@ -335,12 +336,28 @@ export class AnimatedEnemy implements LevelActor {
     const hitIndices: number[] = []
     if (this.dead) return hitIndices
 
+    this.root.updateMatrixWorld(true)
+    this.hitBounds.setFromObject(this.visualModel ?? this.fallbackMesh)
+    this.hitBounds.getCenter(this.hitCenter)
+    const boundsRadius =
+      Math.max(
+        this.hitBounds.max.x - this.hitBounds.min.x,
+        this.hitBounds.max.z - this.hitBounds.min.z,
+      ) * 0.5
+    const combinedRadius = Math.max(this.config.hitRadius, boundsRadius) + PROJECTILE_RADIUS
+    const combinedRadiusSq = combinedRadius * combinedRadius
+
     for (let index = 0; index < projectiles.length; index++) {
       const projectile = projectiles[index]
-      const dx = projectile.body.position.x - this.root.position.x
-      const dy = projectile.body.position.y - this.body.position.y
-      const dz = projectile.body.position.z - this.root.position.z
-      if (dx * dx + dy * dy + dz * dz > this.hitRadiusSq) {
+      const closestY = THREE.MathUtils.clamp(
+        projectile.body.position.y,
+        this.hitBounds.min.y,
+        this.hitBounds.max.y,
+      )
+      const dx = projectile.body.position.x - this.hitCenter.x
+      const dy = projectile.body.position.y - closestY
+      const dz = projectile.body.position.z - this.hitCenter.z
+      if (dx * dx + dy * dy + dz * dz > combinedRadiusSq) {
         continue
       }
 
