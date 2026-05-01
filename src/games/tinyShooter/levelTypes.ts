@@ -20,7 +20,18 @@ export interface GiantSpawnDefinition extends BaseActorSpawnDefinition {
   kind: 'giant'
 }
 
-export type ActorSpawnDefinition = AnimatedEnemySpawnDefinition | GiantSpawnDefinition
+export interface RobotSpawnerSpawnDefinition extends BaseActorSpawnDefinition {
+  kind: 'robotSpawner'
+  enemyId: string
+  behavior: EnemySpawnBehaviorConfig
+  releaseIntervalSeconds: number
+  initialDelaySeconds: number
+}
+
+export type ActorSpawnDefinition =
+  | AnimatedEnemySpawnDefinition
+  | GiantSpawnDefinition
+  | RobotSpawnerSpawnDefinition
 
 export interface LevelDefinition {
   id: string
@@ -29,6 +40,6 @@ export interface LevelDefinition {
   objective: ObjectiveDefinition
   arenaSize: number
   actors: ActorSpawnDefinition[]
-  clearCondition: 'defeat-all'
+  clearCondition: 'defeat-all' | 'survival'
   nextLevelId: string | null
 }

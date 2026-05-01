@@ -3,6 +3,7 @@ import * as CANNON from 'cannon-es'
 import { InputManager } from './InputManager'
 import type { GamepadStatus } from './InputManager'
 import { ShotSound } from './ShotSound'
+import { SpawnBoxHitSound } from './SpawnBoxHitSound'
 import {
   GROUND_SIZE,
   PLAYER_BODY_RADIUS,
@@ -52,6 +53,7 @@ export class TinyShooterEngine {
   private readonly playerBody: CANNON.Body
   private readonly input: InputManager
   private readonly sound: ShotSound
+  private readonly spawnBoxHitSound: SpawnBoxHitSound
   private readonly projectileGeometry: THREE.CylinderGeometry
   private readonly projectileMaterial: THREE.MeshStandardMaterial
   private readonly damageOverlay: HTMLDivElement
@@ -183,6 +185,8 @@ export class TinyShooterEngine {
     }
 
     this.sound = new ShotSound()
+    this.spawnBoxHitSound = new SpawnBoxHitSound()
+    this.spawnBoxHitSound.prewarm()
 
     this.loadLevel(this.currentLevel, true)
     window.addEventListener('resize', this.handleResize)
@@ -293,7 +297,9 @@ export class TinyShooterEngine {
       this.damageFlashUntil = 0
     }
 
-    this.actors = level.actors.map((spawn) => createLevelActor(spawn, this.world, this.scene))
+    this.actors = level.actors.map((spawn) => createLevelActor(spawn, this.world, this.scene, {
+      spawnBoxHitSound: this.spawnBoxHitSound,
+    }))
     this.setPhase('playing')
   }
 
@@ -328,6 +334,7 @@ export class TinyShooterEngine {
       createdAt: performance.now(),
       damage: DEFAULT_WEAPON.damage,
       knockback: DEFAULT_WEAPON.knockback,
+      previousPosition: spawnPos.clone(),
     })
 
     this.sound.play()
@@ -352,6 +359,7 @@ export class TinyShooterEngine {
         continue
       }
 
+      projectile.previousPosition.copy(projectile.mesh.position)
       projectile.mesh.position.set(
         projectile.body.position.x,
         projectile.body.position.y,
@@ -425,12 +433,32 @@ export class TinyShooterEngine {
     }
   }
 
+  private buildAvailableProjectiles(consumed: Set<number>): { projectiles: Projectile[]; indices: number[] } {
+    const availableProjectiles: Projectile[] = []
+    const availableIndices: number[] = []
+
+    for (let index = 0; index < this.projectiles.length; index++) {
+      if (consumed.has(index)) continue
+      availableProjectiles.push(this.projectiles[index])
+      availableIndices.push(index)
+    }
+
+    return {
+      projectiles: availableProjectiles,
+      indices: availableIndices,
+    }
+  }
+
   private resolveProjectileHits(): void {
     const hitIndices = new Set<number>()
 
     for (const actor of this.actors) {
-      for (const index of actor.collectProjectileHits(this.projectiles)) {
-        hitIndices.add(index)
+      const available = this.buildAvailableProjectiles(hitIndices)
+      for (const localIndex of actor.collectProjectileHits(available.projectiles)) {
+        const projectileIndex = available.indices[localIndex]
+        if (projectileIndex !== undefined) {
+          hitIndices.add(projectileIndex)
+        }
       }
     }
 
@@ -523,6 +551,7 @@ export class TinyShooterEngine {
 
   private evaluateLevelProgress(now: number): void {
     if (this.phase === 'game-over' || this.phase === 'victory') return
+    if (this.currentLevel.clearCondition === 'survival') return
 
     const levelCleared = this.actors.every((actor) => !actor.isAlive)
     if (!levelCleared) return
@@ -584,6 +613,7 @@ export class TinyShooterEngine {
 
     this.input.dispose()
     this.sound.dispose()
+    this.spawnBoxHitSound.dispose()
     this.clearProjectiles()
     this.clearActors()
     this.damageOverlay.remove()

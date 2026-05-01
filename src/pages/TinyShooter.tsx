@@ -207,7 +207,7 @@ export default function TinyShooter() {
         <div className="flex-1 min-h-0 w-full flex flex-col bg-gradient-to-br from-gray-800 to-gray-900 z-20">
           <div className="flex-1 flex flex-col items-center justify-center">
             <h2 className="text-3xl font-bold text-white mb-2">Tiny Shooter</h2>
-            <p className="text-gray-300 text-sm mb-6">Defend the center diamond from incoming robots</p>
+            <p className="text-gray-300 text-sm mb-6">Defend the center diamond from endless spawned robots</p>
             <div className="bg-gray-700/50 rounded-lg p-4 mb-6 text-gray-300 text-sm">
               <p className="font-semibold mb-1">Controls</p>
               {mobileDevice ? (

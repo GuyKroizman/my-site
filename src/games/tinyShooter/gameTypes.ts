@@ -10,6 +10,7 @@ export interface Projectile {
   createdAt: number
   damage: number
   knockback: number
+  previousPosition: THREE.Vector3
 }
 
 export interface TinyShooterGameState {
