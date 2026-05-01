@@ -221,6 +221,8 @@ export default function TinyShooter() {
               ) : (
                 <>
                   <p>WASD &mdash; Move</p>
+                  <p>Z / C &mdash; Strafe left / right</p>
+                  <p>X &mdash; Move forward</p>
                   <p>Mouse &mdash; Look around</p>
                   <p>Left click &mdash; Shoot</p>
                   <p>Escape &mdash; Release mouse</p>

@@ -30,6 +30,7 @@ export class InputManager {
     left: false,
     right: false,
   }
+  private pressedKeys = new Set<string>()
   private mouseShooting = false
   private mouseDeltaX = 0
   private mouseDeltaY = 0
@@ -42,21 +43,62 @@ export class InputManager {
   onPointerLockChange?: (locked: boolean) => void
   onGamepadStatusChange?: (status: GamepadStatus) => void
 
+  private syncKeyboardState(): void {
+    this.keyboardState.forward = this.pressedKeys.has('KeyW') || this.pressedKeys.has('KeyX')
+    this.keyboardState.backward = this.pressedKeys.has('KeyS')
+    this.keyboardState.left = this.pressedKeys.has('KeyA') || this.pressedKeys.has('KeyZ')
+    this.keyboardState.right = this.pressedKeys.has('KeyD') || this.pressedKeys.has('KeyC')
+  }
+
   private handleKeyDown = (e: KeyboardEvent) => {
     switch (e.code) {
-      case 'KeyW': this.keyboardState.forward = true; e.preventDefault(); break
-      case 'KeyS': this.keyboardState.backward = true; e.preventDefault(); break
-      case 'KeyA': this.keyboardState.left = true; e.preventDefault(); break
-      case 'KeyD': this.keyboardState.right = true; e.preventDefault(); break
+      case 'KeyW':
+      case 'KeyX':
+        this.pressedKeys.add(e.code)
+        this.syncKeyboardState()
+        e.preventDefault()
+        break
+      case 'KeyS':
+        this.pressedKeys.add(e.code)
+        this.syncKeyboardState()
+        e.preventDefault()
+        break
+      case 'KeyA':
+      case 'KeyZ':
+        this.pressedKeys.add(e.code)
+        this.syncKeyboardState()
+        e.preventDefault()
+        break
+      case 'KeyD':
+      case 'KeyC':
+        this.pressedKeys.add(e.code)
+        this.syncKeyboardState()
+        e.preventDefault()
+        break
     }
   }
 
   private handleKeyUp = (e: KeyboardEvent) => {
     switch (e.code) {
-      case 'KeyW': this.keyboardState.forward = false; break
-      case 'KeyS': this.keyboardState.backward = false; break
-      case 'KeyA': this.keyboardState.left = false; break
-      case 'KeyD': this.keyboardState.right = false; break
+      case 'KeyW':
+      case 'KeyX':
+        this.pressedKeys.delete(e.code)
+        this.syncKeyboardState()
+        break
+      case 'KeyS':
+        this.pressedKeys.delete(e.code)
+        this.syncKeyboardState()
+        break
+      case 'KeyA':
+      case 'KeyZ':
+        this.pressedKeys.delete(e.code)
+        this.syncKeyboardState()
+        break
+      case 'KeyD':
+      case 'KeyC':
+        this.pressedKeys.delete(e.code)
+        this.syncKeyboardState()
+        break
     }
   }
 
@@ -85,6 +127,7 @@ export class InputManager {
   private handlePointerLockChange = () => {
     this.locked = document.pointerLockElement === this.canvas
     if (!this.locked) {
+      this.pressedKeys.clear()
       this.keyboardState.forward = false
       this.keyboardState.backward = false
       this.keyboardState.left = false
