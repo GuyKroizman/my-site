@@ -10,7 +10,7 @@ export const tinyShooterLevels: LevelDefinition[] = [
       radius: 2.25,
       maxHealth: 120,
     },
-    arenaSize: 200,
+    arenaSize: 400,
     clearCondition: 'survival',
     nextLevelId: null,
     actors: [
@@ -32,7 +32,7 @@ export const tinyShooterLevels: LevelDefinition[] = [
       },
       {
         kind: 'giant',
-        position: { x: 0, z: -44 },
+        position: { x: 0, z: -84 },
       },
     ],
   },
