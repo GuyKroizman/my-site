@@ -26,6 +26,10 @@ export const tinyShooterLevels: LevelDefinition[] = [
         position: { x: 32, z: -30 },
         behavior: { type: 'seekObjective' },
       },
+      {
+        kind: 'giant',
+        position: { x: 0, z: -44 },
+      },
     ],
   },
 ]
