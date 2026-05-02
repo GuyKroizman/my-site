@@ -25,7 +25,7 @@ import {
 } from './constants'
 import { DEFAULT_WEAPON } from './weapons'
 import type { Projectile, RadarBlip, RadarSnapshot, TinyShooterGameState, TinyShooterPhase } from './gameTypes'
-import type { LevelActor, PlayerBlockerSnapshot, RadarTargetSnapshot, SolidRobotSnapshot } from './actorTypes'
+import type { LevelActor, PlayerBlockerSnapshot, RadarTargetSnapshot, SolidRobotSnapshot, VisionBlockerSnapshot } from './actorTypes'
 import type { LevelDefinition } from './levelTypes'
 import { createLevelActor } from './actorFactory'
 import { getFirstTinyShooterLevel, getLevelById } from './levels'
@@ -128,7 +128,7 @@ export class TinyShooterEngine {
       : getFirstTinyShooterLevel()
 
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x87ceeb)
+    this.scene.background = new THREE.Color(0xd9d9d9)
 
     const aspect = Math.max(container.clientWidth, 1) / Math.max(container.clientHeight, 1)
     this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000)
@@ -208,7 +208,7 @@ export class TinyShooterEngine {
     dirLight.position.set(10, 20, 10)
     this.scene.add(dirLight)
 
-    this.scene.add(new THREE.HemisphereLight(0x87ceeb, 0x444444, 0.3))
+    this.scene.add(new THREE.HemisphereLight(0xd9d9d9, 0x444444, 0.3))
 
     const groundBody = new CANNON.Body({
       mass: 0,
@@ -446,6 +446,15 @@ export class TinyShooterEngine {
     return blockers
   }
 
+  private collectVisionBlockers(): VisionBlockerSnapshot[] {
+    const blockers: VisionBlockerSnapshot[] = []
+    for (const actor of this.actors) {
+      blockers.push(...actor.getVisionBlockers())
+    }
+
+    return blockers
+  }
+
   private tryMovePlayer(
     deltaX: number,
     deltaZ: number,
@@ -511,6 +520,7 @@ export class TinyShooterEngine {
 
   private updateActors(): void {
     this.playerPosition.set(this.camera.position.x, 0, this.camera.position.z)
+    const visionBlockers = this.collectVisionBlockers()
 
     for (const actor of this.actors) {
       const solidRobots = this.collectSolidRobots()
@@ -520,6 +530,7 @@ export class TinyShooterEngine {
         objectiveRadius: this.currentLevel.objective.radius,
         arenaSize: this.currentLevel.arenaSize,
         solidRobots,
+        visionBlockers,
       })
     }
   }

@@ -11,12 +11,14 @@ import type {
   PlayerContactEffect,
   RadarTargetSnapshot,
   SolidRobotSnapshot,
+  VisionBlockerSnapshot,
 } from './actorTypes'
 import type { EnemyArchetype } from './enemyTypes'
 import type { Projectile } from './gameTypes'
 import { PROJECTILE_RADIUS } from './constants'
 
 const TURN_SPEED = 8
+const FACING_TURN_SPEED = 7
 const ROOT_MOTION_NODE_NAMES = new Set(['CharacterArmature', 'RootNode', 'Armature'])
 
 const loader = new GLTFLoader()
@@ -87,9 +89,11 @@ export class AnimatedEnemy implements LevelActor {
   private readonly world: CANNON.World
   private readonly behavior: EnemyBehavior
   private readonly moveDir = new THREE.Vector3(1, 0, 0)
+  private readonly latestPlayerPosition = new THREE.Vector3()
   private readonly knockbackVelocity = new THREE.Vector3()
   private readonly toTarget = new THREE.Vector3()
   private readonly candidatePosition = new THREE.Vector3()
+  private readonly hitDirection = new THREE.Vector3()
   private readonly solidSnapshot: SolidRobotSnapshot
   private readonly modelAnchor = new THREE.Group()
   private readonly visualBounds = new THREE.Box3()
@@ -266,6 +270,10 @@ export class AnimatedEnemy implements LevelActor {
     return this.root.position
   }
 
+  getForwardDirection(): THREE.Vector3 {
+    return new THREE.Vector3(Math.sin(this.root.rotation.y), 0, Math.cos(this.root.rotation.y))
+  }
+
   getInstanceId(): string {
     return this.solidId
   }
@@ -276,6 +284,16 @@ export class AnimatedEnemy implements LevelActor {
 
   setFocusTarget(target: EnemyFocusTarget): void {
     this.focusTarget = target
+  }
+
+  setImmediateFacingDirection(direction: THREE.Vector3): void {
+    const planarLengthSq = direction.x * direction.x + direction.z * direction.z
+    if (planarLengthSq < 0.0001) {
+      return
+    }
+
+    const inversePlanarLength = 1 / Math.sqrt(planarLengthSq)
+    this.moveDir.set(direction.x * inversePlanarLength, 0, direction.z * inversePlanarLength)
   }
 
   private canOccupy(position: THREE.Vector3): boolean {
@@ -338,7 +356,7 @@ export class AnimatedEnemy implements LevelActor {
     this.body.position.set(this.root.position.x, this.config.height / 2, this.root.position.z)
   }
 
-  private updateFacing(): void {
+  private updateFacing(dt: number): void {
     const velocitySq = this.moveDir.lengthSq() + this.knockbackVelocity.lengthSq()
     if (velocitySq < 0.0001) return
 
@@ -346,7 +364,18 @@ export class AnimatedEnemy implements LevelActor {
     const facingZ = this.dead ? this.knockbackVelocity.z : this.moveDir.z
     if (Math.abs(facingX) < 0.0001 && Math.abs(facingZ) < 0.0001) return
 
-    this.root.rotation.y = Math.atan2(facingX, facingZ)
+    const targetRotation = Math.atan2(facingX, facingZ)
+    const rotationDelta = Math.atan2(
+      Math.sin(targetRotation - this.root.rotation.y),
+      Math.cos(targetRotation - this.root.rotation.y),
+    )
+    const maxTurnStep = FACING_TURN_SPEED * dt
+    if (Math.abs(rotationDelta) <= maxTurnStep) {
+      this.root.rotation.y = targetRotation
+      return
+    }
+
+    this.root.rotation.y += Math.sign(rotationDelta) * maxTurnStep
   }
 
   private snapVisualToGround(): void {
@@ -390,6 +419,7 @@ export class AnimatedEnemy implements LevelActor {
     const prevZ = this.root.position.z
     this.objectiveRadius = context.objectiveRadius
     this.solidRobots = context.solidRobots
+    this.latestPlayerPosition.copy(context.playerPosition)
 
     if (!this.dead) {
       this.behavior.update(this, dt, context)
@@ -402,7 +432,7 @@ export class AnimatedEnemy implements LevelActor {
       const planarDeltaSq = deltaX * deltaX + deltaZ * deltaZ
       this.playLocomotionState(planarDeltaSq > 0.000001 ? 'walk' : 'idle')
     }
-    this.updateFacing()
+    this.updateFacing(dt)
     this.mixer?.update(dt)
     if (this.config.model.visualFootContactOffset !== 0) {
       this.snapVisualToGround()
@@ -448,6 +478,10 @@ export class AnimatedEnemy implements LevelActor {
       this.health = Math.max(0, this.health - projectile.damage)
       if (this.health === 0) {
         this.die()
+      } else {
+        this.hitDirection.set(-projectile.body.velocity.x, 0, -projectile.body.velocity.z)
+        this.setImmediateFacingDirection(this.hitDirection)
+        this.behavior.onPlayerShotHit(this, this.latestPlayerPosition)
       }
 
       hitIndices.push(index)
@@ -499,6 +533,10 @@ export class AnimatedEnemy implements LevelActor {
   }
 
   getPlayerBlockers(): readonly PlayerBlockerSnapshot[] {
+    return []
+  }
+
+  getVisionBlockers(): readonly VisionBlockerSnapshot[] {
     return []
   }
 

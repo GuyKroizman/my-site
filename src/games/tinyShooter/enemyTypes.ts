@@ -8,6 +8,11 @@ export interface EnemyModelConfig {
   useDirectScene?: boolean
 }
 
+export interface EnemyVisionConfig {
+  range: number
+  coneAngleDegrees: number
+}
+
 export interface EnemyArchetype {
   id: string
   health: number
@@ -16,13 +21,13 @@ export interface EnemyArchetype {
   hitRadius: number
   knockbackDamping: number
   bodyRadius: number
-  aggroRange: number
   disengageRange: number
   playerContactRadius: number
   playerContactDamage: number
   playerContactCooldownSeconds: number
   objectiveContactDamage: number
   objectiveContactCooldownSeconds: number
+  vision: EnemyVisionConfig
   model: EnemyModelConfig
 }
 

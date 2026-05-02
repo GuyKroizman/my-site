@@ -1,11 +1,13 @@
 import * as THREE from 'three'
 import type { AnimatedEnemy } from './AnimatedEnemy'
 import type { ActorUpdateContext } from './actorTypes'
-import { GROUND_SIZE } from './constants'
+import { GROUND_SIZE, PLAYER_BODY_RADIUS } from './constants'
+import { canSeeTarget } from './enemyVision'
 import type { EnemyArchetype, EnemySpawnBehaviorConfig } from './enemyTypes'
 
 export interface EnemyBehavior {
   update(enemy: AnimatedEnemy, dt: number, context: ActorUpdateContext): void
+  onPlayerShotHit(enemy: AnimatedEnemy, playerPosition: THREE.Vector3): void
 }
 
 const SEARCH_POINT_INSET = 12
@@ -15,6 +17,8 @@ export class IdleBehavior implements EnemyBehavior {
   update(enemy: AnimatedEnemy, _dt: number, _context: ActorUpdateContext): void {
     enemy.setFocusTarget('objective')
   }
+
+  onPlayerShotHit(_enemy: AnimatedEnemy, _playerPosition: THREE.Vector3): void {}
 }
 
 export class PatrolBehavior implements EnemyBehavior {
@@ -36,6 +40,8 @@ export class PatrolBehavior implements EnemyBehavior {
       this.patrolIndex = (this.patrolIndex + 1) % this.patrolPoints.length
     }
   }
+
+  onPlayerShotHit(_enemy: AnimatedEnemy, _playerPosition: THREE.Vector3): void {}
 }
 
 export class StrafeBehavior implements EnemyBehavior {
@@ -64,6 +70,8 @@ export class StrafeBehavior implements EnemyBehavior {
       .addScaledVector(this.lateral, lateralOffset)
     enemy.moveToward(target, dt)
   }
+
+  onPlayerShotHit(_enemy: AnimatedEnemy, _playerPosition: THREE.Vector3): void {}
 }
 
 export class SeekObjectiveBehavior implements EnemyBehavior {
@@ -71,11 +79,13 @@ export class SeekObjectiveBehavior implements EnemyBehavior {
   private readonly objectiveTarget = new THREE.Vector3()
   private readonly searchCenter = new THREE.Vector3()
   private readonly searchCorners: THREE.Vector3[] = []
-  private readonly aggroRangeSq: number
   private readonly disengageRangeSq: number
   private readonly playerContactRadius: number
+  private readonly visionRange: number
+  private readonly visionConeAngleDegrees: number
   private readonly origin: { x: number; z: number }
   private activeTarget: 'search' | 'player' | 'objective' = 'search'
+  private forcedPlayerAggro = false
   private searchInitialized = false
   private searchCornerIndex = 0
   private searchStep = 1
@@ -83,9 +93,10 @@ export class SeekObjectiveBehavior implements EnemyBehavior {
 
   constructor(origin: { x: number; z: number }, config: EnemyArchetype) {
     this.origin = origin
-    this.aggroRangeSq = config.aggroRange * config.aggroRange
     this.disengageRangeSq = config.disengageRange * config.disengageRange
     this.playerContactRadius = config.playerContactRadius
+    this.visionRange = config.vision.range
+    this.visionConeAngleDegrees = config.vision.coneAngleDegrees
   }
 
   private initializeSearch(enemy: AnimatedEnemy, context: ActorUpdateContext): void {
@@ -139,15 +150,40 @@ export class SeekObjectiveBehavior implements EnemyBehavior {
     this.headingToCenter = true
   }
 
-  private acquireSearchTarget(enemyPosition: THREE.Vector3, context: ActorUpdateContext): 'player' | 'objective' | null {
+  private acquireSearchTarget(
+    enemy: AnimatedEnemy,
+    enemyPosition: THREE.Vector3,
+    context: ActorUpdateContext,
+  ): 'player' | 'objective' | null {
     const dx = context.playerPosition.x - enemyPosition.x
     const dz = context.playerPosition.z - enemyPosition.z
     const playerDistanceSq = dx * dx + dz * dz
     const objectiveDx = context.objectivePosition.x - enemyPosition.x
     const objectiveDz = context.objectivePosition.z - enemyPosition.z
     const objectiveDistanceSq = objectiveDx * objectiveDx + objectiveDz * objectiveDz
-    const seesPlayer = playerDistanceSq <= this.aggroRangeSq
-    const seesObjective = objectiveDistanceSq <= this.aggroRangeSq
+    const observerForward = enemy.getForwardDirection()
+    const seesPlayer = canSeeTarget({
+      observerPosition: enemyPosition,
+      observerForward,
+      target: {
+        position: context.playerPosition,
+        radius: PLAYER_BODY_RADIUS,
+      },
+      range: this.visionRange,
+      coneAngleDegrees: this.visionConeAngleDegrees,
+      blockers: context.visionBlockers,
+    })
+    const seesObjective = canSeeTarget({
+      observerPosition: enemyPosition,
+      observerForward,
+      target: {
+        position: context.objectivePosition,
+        radius: context.objectiveRadius,
+      },
+      range: this.visionRange,
+      coneAngleDegrees: this.visionConeAngleDegrees,
+      blockers: context.visionBlockers,
+    })
 
     if (seesPlayer && seesObjective) {
       return playerDistanceSq <= objectiveDistanceSq ? 'player' : 'objective'
@@ -175,16 +211,17 @@ export class SeekObjectiveBehavior implements EnemyBehavior {
     const objectiveDz = context.objectivePosition.z - enemyPosition.z
     const objectiveDistanceSq = objectiveDx * objectiveDx + objectiveDz * objectiveDz
 
-    if (this.activeTarget === 'player' && playerDistanceSq > this.disengageRangeSq) {
+    if (this.activeTarget === 'player' && !this.forcedPlayerAggro && playerDistanceSq > this.disengageRangeSq) {
       this.activeTarget = 'search'
     } else if (this.activeTarget === 'objective' && objectiveDistanceSq > this.disengageRangeSq) {
       this.activeTarget = 'search'
     }
 
     if (this.activeTarget === 'search') {
-      const acquiredTarget = this.acquireSearchTarget(enemyPosition, context)
+      const acquiredTarget = this.acquireSearchTarget(enemy, enemyPosition, context)
       if (acquiredTarget) {
         this.activeTarget = acquiredTarget
+        this.forcedPlayerAggro = false
       }
     }
 
@@ -207,6 +244,11 @@ export class SeekObjectiveBehavior implements EnemyBehavior {
     if (enemy.moveToward(searchTarget, dt, SEARCH_STOP_DISTANCE)) {
       this.advanceSearchTarget()
     }
+  }
+
+  onPlayerShotHit(_enemy: AnimatedEnemy, _playerPosition: THREE.Vector3): void {
+    this.activeTarget = 'player'
+    this.forcedPlayerAggro = true
   }
 }
 

@@ -15,6 +15,7 @@ import type {
   PlayerContactEffect,
   RadarTargetSnapshot,
   SolidRobotSnapshot,
+  VisionBlockerSnapshot,
 } from './actorTypes'
 import type { Projectile } from './gameTypes'
 import { GiantSound } from './GiantSound'
@@ -548,6 +549,10 @@ export class Giant implements LevelActor {
   }
 
   getPlayerBlockers(): readonly PlayerBlockerSnapshot[] {
+    return []
+  }
+
+  getVisionBlockers(): readonly VisionBlockerSnapshot[] {
     return []
   }
 

@@ -13,6 +13,7 @@ import type {
   PlayerContactEffect,
   RadarTargetSnapshot,
   SolidRobotSnapshot,
+  VisionBlockerSnapshot,
 } from './actorTypes'
 import type { Projectile } from './gameTypes'
 import type { RobotSpawnerSpawnDefinition } from './levelTypes'
@@ -75,6 +76,7 @@ export class RobotSpawner implements LevelActor {
   private readonly config: EnemyArchetype
   private readonly group = new THREE.Group()
   private readonly playerBlocker: PlayerBlockerSnapshot
+  private readonly visionBlocker: VisionBlockerSnapshot
   private readonly shellMaterial = new THREE.MeshBasicMaterial({
     color: 0x86f7ff,
     transparent: true,
@@ -116,6 +118,7 @@ export class RobotSpawner implements LevelActor {
       minZ: spawn.position.z - BOX_HALF_DEPTH,
       maxZ: spawn.position.z + BOX_HALF_DEPTH,
     }
+    this.visionBlocker = { ...this.playerBlocker }
     this.spawnCountdown = spawn.initialDelaySeconds
     this.group.position.copy(this.center)
     this.scene.add(this.group)
@@ -508,6 +511,10 @@ export class RobotSpawner implements LevelActor {
 
   getPlayerBlockers(): readonly PlayerBlockerSnapshot[] {
     return [this.playerBlocker]
+  }
+
+  getVisionBlockers(): readonly VisionBlockerSnapshot[] {
+    return [this.visionBlocker]
   }
 
   dispose(): void {
