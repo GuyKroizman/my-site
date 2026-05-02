@@ -11,6 +11,7 @@ import type {
   ObjectiveContactEffect,
   PlayerBlockerSnapshot,
   PlayerContactEffect,
+  RadarTargetSnapshot,
   SolidRobotSnapshot,
 } from './actorTypes'
 import type { Projectile } from './gameTypes'
@@ -494,6 +495,15 @@ export class RobotSpawner implements LevelActor {
     }
 
     return solids
+  }
+
+  getRadarTargets(): readonly RadarTargetSnapshot[] {
+    const radarTargets: RadarTargetSnapshot[] = []
+    for (const robot of this.releasedRobots) {
+      radarTargets.push(...robot.enemy.getRadarTargets())
+    }
+
+    return radarTargets
   }
 
   getPlayerBlockers(): readonly PlayerBlockerSnapshot[] {

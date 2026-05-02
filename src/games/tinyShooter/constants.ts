@@ -19,3 +19,4 @@ export const SHOOT_COOLDOWN = 0.5
 export const MOUSE_SENSITIVITY = 0.002
 export const GAMEPAD_DEADZONE = 0.2
 export const GAMEPAD_LOOK_SPEED = 0.06
+export const RADAR_RANGE_ARENA_FACTOR = 0.25

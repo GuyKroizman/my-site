@@ -13,6 +13,7 @@ import type {
   ObjectiveContactEffect,
   PlayerBlockerSnapshot,
   PlayerContactEffect,
+  RadarTargetSnapshot,
   SolidRobotSnapshot,
 } from './actorTypes'
 import type { Projectile } from './gameTypes'
@@ -103,12 +104,17 @@ export class Giant implements LevelActor {
     damage: 10,
     cooldownSeconds: 1,
   }
+  private readonly radarTargetSnapshot: RadarTargetSnapshot
 
   constructor(world: CANNON.World, scene: THREE.Scene, position: { x: number; z: number }) {
     this.scene = scene
     this.world = world
     this.group = new THREE.Group()
     this.group.position.set(position.x, 0, position.z)
+    this.radarTargetSnapshot = {
+      kind: 'enemy',
+      position: this.group.position,
+    }
 
     const skinMat = new THREE.MeshStandardMaterial({ color: SKIN_COLOR })
     const torsoMat = new THREE.MeshStandardMaterial({ color: TORSO_COLOR })
@@ -535,6 +541,10 @@ export class Giant implements LevelActor {
 
   getSolidRobots(): readonly SolidRobotSnapshot[] {
     return []
+  }
+
+  getRadarTargets(): readonly RadarTargetSnapshot[] {
+    return this.dead ? [] : [this.radarTargetSnapshot]
   }
 
   getPlayerBlockers(): readonly PlayerBlockerSnapshot[] {

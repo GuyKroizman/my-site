@@ -17,14 +17,15 @@ import {
   PROJECTILE_LENGTH,
   PROJECTILE_LIFETIME,
   PROJECTILE_RADIUS,
+  RADAR_RANGE_ARENA_FACTOR,
   MAX_PROJECTILES,
   SHOOT_COOLDOWN,
   MOUSE_SENSITIVITY,
   GAMEPAD_LOOK_SPEED,
 } from './constants'
 import { DEFAULT_WEAPON } from './weapons'
-import type { Projectile, TinyShooterGameState, TinyShooterPhase } from './gameTypes'
-import type { LevelActor, PlayerBlockerSnapshot, SolidRobotSnapshot } from './actorTypes'
+import type { Projectile, RadarBlip, RadarSnapshot, TinyShooterGameState, TinyShooterPhase } from './gameTypes'
+import type { LevelActor, PlayerBlockerSnapshot, RadarTargetSnapshot, SolidRobotSnapshot } from './actorTypes'
 import type { LevelDefinition } from './levelTypes'
 import { createLevelActor } from './actorFactory'
 import { getFirstTinyShooterLevel, getLevelById } from './levels'
@@ -33,6 +34,7 @@ const UP = new THREE.Vector3(0, 1, 0)
 const LEVEL_TRANSITION_DELAY_SECONDS = 1.4
 const DAMAGE_FLASH_SECONDS = 0.24
 const OBJECTIVE_HEIGHT = 1.85
+const MIN_RADAR_RANGE = 1
 const DEFAULT_GAMEPAD_STATUS: GamepadStatus = {
   connected: false,
   active: false,
@@ -648,6 +650,82 @@ export class TinyShooterEngine {
     this.objectiveShellMaterial.opacity = 0.18 + (Math.sin(time * 2.4) + 1) * 0.06
     this.objectiveRingMaterial.opacity = 0.58 + (Math.sin(time * 2.4) + 1) * 0.08
     this.objectiveLight.intensity = 3.3 + (Math.sin(time * 3.2) + 1) * 0.45
+  }
+
+  private getRadarRange(): number {
+    return Math.max(this.currentLevel.arenaSize * RADAR_RANGE_ARENA_FACTOR, MIN_RADAR_RANGE)
+  }
+
+  private createRadarBlip(
+    targetPosition: THREE.Vector3,
+    kind: RadarBlip['kind'],
+    radarRange: number,
+    playerX: number,
+    playerZ: number,
+  ): RadarBlip | null {
+    const deltaX = targetPosition.x - playerX
+    const deltaZ = targetPosition.z - playerZ
+    const distanceToTarget = Math.hypot(deltaX, deltaZ)
+
+    if (distanceToTarget > radarRange) {
+      return null
+    }
+
+    const rightX = Math.cos(this.yaw)
+    const rightZ = -Math.sin(this.yaw)
+    const forwardX = -Math.sin(this.yaw)
+    const forwardZ = -Math.cos(this.yaw)
+
+    return {
+      kind,
+      x: (deltaX * rightX + deltaZ * rightZ) / radarRange,
+      y: -(deltaX * forwardX + deltaZ * forwardZ) / radarRange,
+    }
+  }
+
+  private collectRadarTargets(): RadarTargetSnapshot[] {
+    const radarTargets: RadarTargetSnapshot[] = []
+    for (const actor of this.actors) {
+      radarTargets.push(...actor.getRadarTargets())
+    }
+
+    return radarTargets
+  }
+
+  getRadarSnapshot(): RadarSnapshot {
+    const radarRange = this.getRadarRange()
+    const playerX = this.playerBody.position.x
+    const playerZ = this.playerBody.position.z
+    const blips: RadarBlip[] = []
+    const objectiveBlip = this.createRadarBlip(
+      this.objectivePosition,
+      'objective',
+      radarRange,
+      playerX,
+      playerZ,
+    )
+
+    if (objectiveBlip) {
+      blips.push(objectiveBlip)
+    }
+
+    for (const radarTarget of this.collectRadarTargets()) {
+      const enemyBlip = this.createRadarBlip(
+        radarTarget.position,
+        radarTarget.kind,
+        radarRange,
+        playerX,
+        playerZ,
+      )
+      if (enemyBlip) {
+        blips.push(enemyBlip)
+      }
+    }
+
+    return {
+      range: radarRange,
+      blips,
+    }
   }
 
   private evaluateLevelProgress(now: number): void {

@@ -9,6 +9,7 @@ import type {
   ObjectiveContactEffect,
   PlayerBlockerSnapshot,
   PlayerContactEffect,
+  RadarTargetSnapshot,
   SolidRobotSnapshot,
 } from './actorTypes'
 import type { EnemyArchetype } from './enemyTypes'
@@ -97,6 +98,7 @@ export class AnimatedEnemy implements LevelActor {
   private readonly fallbackMesh: THREE.Mesh
   private readonly options: AnimatedEnemyOptions
   private readonly solidId: string
+  private readonly radarTargetSnapshot: RadarTargetSnapshot
   private labelSprite: THREE.Sprite | null = null
 
   private mixer: THREE.AnimationMixer | null = null
@@ -136,6 +138,10 @@ export class AnimatedEnemy implements LevelActor {
       id: this.solidId,
       position: this.root.position,
       radius: this.config.bodyRadius,
+    }
+    this.radarTargetSnapshot = {
+      kind: 'enemy',
+      position: this.root.position,
     }
 
     this.root.position.set(position.x, 0, position.z)
@@ -486,6 +492,10 @@ export class AnimatedEnemy implements LevelActor {
 
   getSolidRobots(): readonly SolidRobotSnapshot[] {
     return this.dead ? [] : [this.solidSnapshot]
+  }
+
+  getRadarTargets(): readonly RadarTargetSnapshot[] {
+    return this.dead ? [] : [this.radarTargetSnapshot]
   }
 
   getPlayerBlockers(): readonly PlayerBlockerSnapshot[] {

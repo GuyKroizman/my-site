@@ -14,6 +14,11 @@ export interface PlayerBlockerSnapshot {
   maxZ: number
 }
 
+export interface RadarTargetSnapshot {
+  kind: 'enemy'
+  position: THREE.Vector3
+}
+
 export interface ActorUpdateContext {
   playerPosition: THREE.Vector3
   objectivePosition: THREE.Vector3
@@ -39,6 +44,7 @@ export interface LevelActor {
   getPlayerContactEffect(playerPosition: THREE.Vector3): PlayerContactEffect | null
   getObjectiveContactEffect(objectivePosition: THREE.Vector3): ObjectiveContactEffect | null
   getSolidRobots(): readonly SolidRobotSnapshot[]
+  getRadarTargets(): readonly RadarTargetSnapshot[]
   getPlayerBlockers(): readonly PlayerBlockerSnapshot[]
   dispose(): void
 }

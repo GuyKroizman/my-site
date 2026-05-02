@@ -13,6 +13,17 @@ export interface Projectile {
   previousPosition: THREE.Vector3
 }
 
+export interface RadarBlip {
+  kind: 'objective' | 'enemy'
+  x: number
+  y: number
+}
+
+export interface RadarSnapshot {
+  range: number
+  blips: RadarBlip[]
+}
+
 export interface TinyShooterGameState {
   phase: TinyShooterPhase
   health: number

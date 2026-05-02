@@ -2,9 +2,22 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { TinyShooterEngine } from '../games/tinyShooter/TinyShooterEngine'
 import { isTouchDevice } from '../games/racing/device'
-import type { TinyShooterGameState } from '../games/tinyShooter/gameTypes'
+import type { RadarSnapshot, TinyShooterGameState } from '../games/tinyShooter/gameTypes'
 
 type UIState = 'menu' | 'playing'
+
+const EMPTY_RADAR_SNAPSHOT: RadarSnapshot = {
+  range: 0,
+  blips: [],
+}
+
+const RADAR_DIAMETER = 136
+const RADAR_RADIUS = RADAR_DIAMETER / 2
+const RADAR_CENTER = RADAR_DIAMETER / 2
+const PLAYER_DOT_RADIUS = 4
+const TARGET_DOT_RADIUS = 4
+const RADAR_RING_STROKE_WIDTH = 2
+const RADAR_GRID_OPACITY = 0.28
 
 const INITIAL_GAME_STATE: TinyShooterGameState = {
   phase: 'playing',
@@ -22,6 +35,103 @@ const INITIAL_GAME_STATE: TinyShooterGameState = {
   currentLevelName: 'Diamond Core',
   levelComplete: false,
   victory: false,
+}
+
+interface TinyShooterRadarProps {
+  gameEngineRef: { current: TinyShooterEngine | null }
+  isVisible: boolean
+}
+
+function TinyShooterRadar({ gameEngineRef, isVisible }: TinyShooterRadarProps) {
+  const [radarSnapshot, setRadarSnapshot] = useState<RadarSnapshot>(EMPTY_RADAR_SNAPSHOT)
+
+  useEffect(() => {
+    if (!isVisible) {
+      setRadarSnapshot(EMPTY_RADAR_SNAPSHOT)
+      return
+    }
+
+    let animationFrameId = 0
+
+    const updateRadarSnapshot = () => {
+      const engine = gameEngineRef.current
+      if (engine) {
+        setRadarSnapshot(engine.getRadarSnapshot())
+      }
+      animationFrameId = requestAnimationFrame(updateRadarSnapshot)
+    }
+
+    updateRadarSnapshot()
+
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+    }
+  }, [gameEngineRef, isVisible])
+
+  if (!isVisible) {
+    return null
+  }
+
+  return (
+    <div className="absolute top-5 right-5 z-10 pointer-events-none select-none">
+      <svg
+        width={RADAR_DIAMETER}
+        height={RADAR_DIAMETER}
+        viewBox={`0 0 ${RADAR_DIAMETER} ${RADAR_DIAMETER}`}
+        aria-label="Radar"
+      >
+        <circle
+          cx={RADAR_CENTER}
+          cy={RADAR_CENTER}
+          r={RADAR_RADIUS - RADAR_RING_STROKE_WIDTH}
+          fill="rgba(10, 16, 12, 0.72)"
+          stroke="rgba(180, 255, 210, 0.82)"
+          strokeWidth={RADAR_RING_STROKE_WIDTH}
+        />
+        <circle
+          cx={RADAR_CENTER}
+          cy={RADAR_CENTER}
+          r={(RADAR_RADIUS - RADAR_RING_STROKE_WIDTH) * 0.66}
+          fill="none"
+          stroke={`rgba(180, 255, 210, ${RADAR_GRID_OPACITY})`}
+          strokeWidth="1"
+        />
+        <line
+          x1={RADAR_CENTER}
+          y1={RADAR_RING_STROKE_WIDTH + 8}
+          x2={RADAR_CENTER}
+          y2={RADAR_DIAMETER - RADAR_RING_STROKE_WIDTH - 8}
+          stroke={`rgba(180, 255, 210, ${RADAR_GRID_OPACITY})`}
+          strokeWidth="1"
+        />
+        <line
+          x1={RADAR_RING_STROKE_WIDTH + 8}
+          y1={RADAR_CENTER}
+          x2={RADAR_DIAMETER - RADAR_RING_STROKE_WIDTH - 8}
+          y2={RADAR_CENTER}
+          stroke={`rgba(180, 255, 210, ${RADAR_GRID_OPACITY})`}
+          strokeWidth="1"
+        />
+        {radarSnapshot.blips.map((blip, index) => (
+          <circle
+            key={`${blip.kind}-${index}`}
+            cx={RADAR_CENTER + blip.x * (RADAR_RADIUS - 12)}
+            cy={RADAR_CENTER + blip.y * (RADAR_RADIUS - 12)}
+            r={TARGET_DOT_RADIUS}
+            fill={blip.kind === 'objective' ? '#22c55e' : '#ef4444'}
+          />
+        ))}
+        <circle
+          cx={RADAR_CENTER}
+          cy={RADAR_CENTER}
+          r={PLAYER_DOT_RADIUS}
+          fill="#050505"
+          stroke="rgba(255, 255, 255, 0.88)"
+          strokeWidth="1"
+        />
+      </svg>
+    </div>
+  )
 }
 
 export default function TinyShooter() {
@@ -98,6 +208,7 @@ export default function TinyShooter() {
       >
         {uiState === 'playing' && (
           <>
+            <TinyShooterRadar gameEngineRef={gameEngineRef} isVisible />
             <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
               <span
                 className="text-white text-2xl font-bold opacity-70 select-none"
