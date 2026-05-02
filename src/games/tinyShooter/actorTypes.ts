@@ -1,11 +1,25 @@
 import type * as THREE from 'three'
 import type { Projectile } from './gameTypes'
 
+export interface SolidRobotSnapshot {
+  id: string
+  position: THREE.Vector3
+  radius: number
+}
+
+export interface PlayerBlockerSnapshot {
+  minX: number
+  maxX: number
+  minZ: number
+  maxZ: number
+}
+
 export interface ActorUpdateContext {
   playerPosition: THREE.Vector3
   objectivePosition: THREE.Vector3
   objectiveRadius: number
   arenaSize: number
+  solidRobots: readonly SolidRobotSnapshot[]
 }
 
 export interface PlayerContactEffect {
@@ -24,5 +38,7 @@ export interface LevelActor {
   collectProjectileHits(projectiles: Projectile[]): number[]
   getPlayerContactEffect(playerPosition: THREE.Vector3): PlayerContactEffect | null
   getObjectiveContactEffect(objectivePosition: THREE.Vector3): ObjectiveContactEffect | null
+  getSolidRobots(): readonly SolidRobotSnapshot[]
+  getPlayerBlockers(): readonly PlayerBlockerSnapshot[]
   dispose(): void
 }

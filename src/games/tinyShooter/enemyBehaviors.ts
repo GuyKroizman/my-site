@@ -1,11 +1,15 @@
 import * as THREE from 'three'
 import type { AnimatedEnemy } from './AnimatedEnemy'
 import type { ActorUpdateContext } from './actorTypes'
+import { GROUND_SIZE } from './constants'
 import type { EnemyArchetype, EnemySpawnBehaviorConfig } from './enemyTypes'
 
 export interface EnemyBehavior {
   update(enemy: AnimatedEnemy, dt: number, context: ActorUpdateContext): void
 }
+
+const SEARCH_POINT_INSET = 12
+const SEARCH_STOP_DISTANCE = 0.5
 
 export class IdleBehavior implements EnemyBehavior {
   update(enemy: AnimatedEnemy, _dt: number, _context: ActorUpdateContext): void {
@@ -65,39 +69,144 @@ export class StrafeBehavior implements EnemyBehavior {
 export class SeekObjectiveBehavior implements EnemyBehavior {
   private readonly playerTarget = new THREE.Vector3()
   private readonly objectiveTarget = new THREE.Vector3()
+  private readonly searchCenter = new THREE.Vector3()
+  private readonly searchCorners: THREE.Vector3[] = []
   private readonly aggroRangeSq: number
   private readonly disengageRangeSq: number
   private readonly playerContactRadius: number
-  private chasingPlayer = false
+  private readonly origin: { x: number; z: number }
+  private activeTarget: 'search' | 'player' | 'objective' = 'search'
+  private searchInitialized = false
+  private searchCornerIndex = 0
+  private searchStep = 1
+  private headingToCenter = false
 
-  constructor(config: EnemyArchetype) {
+  constructor(origin: { x: number; z: number }, config: EnemyArchetype) {
+    this.origin = origin
     this.aggroRangeSq = config.aggroRange * config.aggroRange
     this.disengageRangeSq = config.disengageRange * config.disengageRange
     this.playerContactRadius = config.playerContactRadius
   }
 
-  update(enemy: AnimatedEnemy, dt: number, context: ActorUpdateContext): void {
-    const enemyPosition = enemy.getPosition()
+  private initializeSearch(enemy: AnimatedEnemy, context: ActorUpdateContext): void {
+    if (this.searchInitialized) {
+      return
+    }
+
+    const halfArena = Math.min(context.arenaSize * 0.5, GROUND_SIZE * 0.5) - SEARCH_POINT_INSET
+    this.searchCenter.set(0, 0, 0)
+    this.searchCorners.push(
+      new THREE.Vector3(-halfArena, 0, -halfArena),
+      new THREE.Vector3(halfArena, 0, -halfArena),
+      new THREE.Vector3(halfArena, 0, halfArena),
+      new THREE.Vector3(-halfArena, 0, halfArena),
+    )
+
+    let nearestCornerIndex = 0
+    let nearestCornerDistanceSq = Number.POSITIVE_INFINITY
+    for (let index = 0; index < this.searchCorners.length; index++) {
+      const corner = this.searchCorners[index]
+      const dx = corner.x - this.origin.x
+      const dz = corner.z - this.origin.z
+      const distanceSq = dx * dx + dz * dz
+      if (distanceSq < nearestCornerDistanceSq) {
+        nearestCornerDistanceSq = distanceSq
+        nearestCornerIndex = index
+      }
+    }
+
+    const centerDx = this.searchCenter.x - this.origin.x
+    const centerDz = this.searchCenter.z - this.origin.z
+    const centerDistanceSq = centerDx * centerDx + centerDz * centerDz
+    this.headingToCenter = centerDistanceSq < nearestCornerDistanceSq
+    this.searchCornerIndex = nearestCornerIndex
+    this.searchStep = enemy.getInstanceIndex() % 2 === 0 ? 1 : -1
+    this.searchInitialized = true
+  }
+
+  private getSearchTarget(): THREE.Vector3 {
+    return this.headingToCenter ? this.searchCenter : this.searchCorners[this.searchCornerIndex]
+  }
+
+  private advanceSearchTarget(): void {
+    if (this.headingToCenter) {
+      this.headingToCenter = false
+      this.searchCornerIndex =
+        (this.searchCornerIndex + this.searchStep + this.searchCorners.length) % this.searchCorners.length
+      return
+    }
+
+    this.headingToCenter = true
+  }
+
+  private acquireSearchTarget(enemyPosition: THREE.Vector3, context: ActorUpdateContext): 'player' | 'objective' | null {
     const dx = context.playerPosition.x - enemyPosition.x
     const dz = context.playerPosition.z - enemyPosition.z
     const playerDistanceSq = dx * dx + dz * dz
+    const objectiveDx = context.objectivePosition.x - enemyPosition.x
+    const objectiveDz = context.objectivePosition.z - enemyPosition.z
+    const objectiveDistanceSq = objectiveDx * objectiveDx + objectiveDz * objectiveDz
+    const seesPlayer = playerDistanceSq <= this.aggroRangeSq
+    const seesObjective = objectiveDistanceSq <= this.aggroRangeSq
 
-    if (this.chasingPlayer) {
-      this.chasingPlayer = playerDistanceSq <= this.disengageRangeSq
-    } else {
-      this.chasingPlayer = playerDistanceSq <= this.aggroRangeSq
+    if (seesPlayer && seesObjective) {
+      return playerDistanceSq <= objectiveDistanceSq ? 'player' : 'objective'
     }
 
-    if (this.chasingPlayer) {
+    if (seesPlayer) {
+      return 'player'
+    }
+
+    if (seesObjective) {
+      return 'objective'
+    }
+
+    return null
+  }
+
+  update(enemy: AnimatedEnemy, dt: number, context: ActorUpdateContext): void {
+    this.initializeSearch(enemy, context)
+
+    const enemyPosition = enemy.getPosition()
+    const playerDx = context.playerPosition.x - enemyPosition.x
+    const playerDz = context.playerPosition.z - enemyPosition.z
+    const playerDistanceSq = playerDx * playerDx + playerDz * playerDz
+    const objectiveDx = context.objectivePosition.x - enemyPosition.x
+    const objectiveDz = context.objectivePosition.z - enemyPosition.z
+    const objectiveDistanceSq = objectiveDx * objectiveDx + objectiveDz * objectiveDz
+
+    if (this.activeTarget === 'player' && playerDistanceSq > this.disengageRangeSq) {
+      this.activeTarget = 'search'
+    } else if (this.activeTarget === 'objective' && objectiveDistanceSq > this.disengageRangeSq) {
+      this.activeTarget = 'search'
+    }
+
+    if (this.activeTarget === 'search') {
+      const acquiredTarget = this.acquireSearchTarget(enemyPosition, context)
+      if (acquiredTarget) {
+        this.activeTarget = acquiredTarget
+      }
+    }
+
+    if (this.activeTarget === 'player') {
       enemy.setFocusTarget('player')
       this.playerTarget.set(context.playerPosition.x, 0, context.playerPosition.z)
       enemy.moveToward(this.playerTarget, dt, this.playerContactRadius)
       return
     }
 
-    enemy.setFocusTarget('objective')
-    this.objectiveTarget.set(context.objectivePosition.x, 0, context.objectivePosition.z)
-    enemy.moveToward(this.objectiveTarget, dt, context.objectiveRadius)
+    if (this.activeTarget === 'objective') {
+      enemy.setFocusTarget('objective')
+      this.objectiveTarget.set(context.objectivePosition.x, 0, context.objectivePosition.z)
+      enemy.moveToward(this.objectiveTarget, dt, context.objectiveRadius)
+      return
+    }
+
+    enemy.setFocusTarget('none')
+    const searchTarget = this.getSearchTarget()
+    if (enemy.moveToward(searchTarget, dt, SEARCH_STOP_DISTANCE)) {
+      this.advanceSearchTarget()
+    }
   }
 }
 
@@ -117,6 +226,6 @@ export function createEnemyBehavior(
       if (!enemyConfig) {
         throw new Error('seekObjective behavior requires an enemy archetype')
       }
-      return new SeekObjectiveBehavior(enemyConfig)
+      return new SeekObjectiveBehavior(origin, enemyConfig)
   }
 }

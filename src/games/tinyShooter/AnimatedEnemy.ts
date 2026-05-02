@@ -7,7 +7,9 @@ import type {
   LevelActor,
   ActorUpdateContext,
   ObjectiveContactEffect,
+  PlayerBlockerSnapshot,
   PlayerContactEffect,
+  SolidRobotSnapshot,
 } from './actorTypes'
 import type { EnemyArchetype } from './enemyTypes'
 import type { Projectile } from './gameTypes'
@@ -18,7 +20,8 @@ const ROOT_MOTION_NODE_NAMES = new Set(['CharacterArmature', 'RootNode', 'Armatu
 
 const loader = new GLTFLoader()
 const modelAssetCache = new Map<string, Promise<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>>()
-type EnemyFocusTarget = 'objective' | 'player'
+let nextAnimatedEnemyId = 1
+type EnemyFocusTarget = 'objective' | 'player' | 'none'
 type LocomotionState = 'idle' | 'walk' | 'dead' | 'none'
 
 export interface AnimatedEnemyOptions {
@@ -85,12 +88,15 @@ export class AnimatedEnemy implements LevelActor {
   private readonly moveDir = new THREE.Vector3(1, 0, 0)
   private readonly knockbackVelocity = new THREE.Vector3()
   private readonly toTarget = new THREE.Vector3()
+  private readonly candidatePosition = new THREE.Vector3()
+  private readonly solidSnapshot: SolidRobotSnapshot
   private readonly modelAnchor = new THREE.Group()
   private readonly visualBounds = new THREE.Box3()
   private readonly hitBounds = new THREE.Box3()
   private readonly hitCenter = new THREE.Vector3()
   private readonly fallbackMesh: THREE.Mesh
   private readonly options: AnimatedEnemyOptions
+  private readonly solidId: string
   private labelSprite: THREE.Sprite | null = null
 
   private mixer: THREE.AnimationMixer | null = null
@@ -99,8 +105,9 @@ export class AnimatedEnemy implements LevelActor {
   private deathAction: THREE.AnimationAction | null = null
   private visualModel: THREE.Object3D | null = null
   private locomotionState: LocomotionState = 'none'
-  private focusTarget: EnemyFocusTarget = 'objective'
+  private focusTarget: EnemyFocusTarget = 'none'
   private objectiveRadius = 0
+  private solidRobots: readonly SolidRobotSnapshot[] = []
   private health: number
   private disposed = false
 
@@ -124,6 +131,12 @@ export class AnimatedEnemy implements LevelActor {
     this.behavior = behavior
     this.options = options
     this.health = config.health
+    this.solidId = `enemy-${nextAnimatedEnemyId++}`
+    this.solidSnapshot = {
+      id: this.solidId,
+      position: this.root.position,
+      radius: this.config.bodyRadius,
+    }
 
     this.root.position.set(position.x, 0, position.z)
     this.scene.add(this.root)
@@ -239,7 +252,7 @@ export class AnimatedEnemy implements LevelActor {
 
     this.toTarget.normalize()
     this.moveDir.lerp(this.toTarget, Math.min(1, dt * TURN_SPEED)).normalize()
-    this.root.position.addScaledVector(this.moveDir, this.config.moveSpeed * dt)
+    this.tryMove(this.moveDir.x * this.config.moveSpeed * dt, this.moveDir.z * this.config.moveSpeed * dt)
     return false
   }
 
@@ -247,12 +260,70 @@ export class AnimatedEnemy implements LevelActor {
     return this.root.position
   }
 
+  getInstanceId(): string {
+    return this.solidId
+  }
+
+  getInstanceIndex(): number {
+    return Number.parseInt(this.solidId.slice('enemy-'.length), 10)
+  }
+
   setFocusTarget(target: EnemyFocusTarget): void {
     this.focusTarget = target
   }
 
+  private canOccupy(position: THREE.Vector3): boolean {
+    for (const robot of this.solidRobots) {
+      if (robot.id === this.solidId) {
+        continue
+      }
+
+      const combinedRadius = this.config.bodyRadius + robot.radius
+      const dx = position.x - robot.position.x
+      const dz = position.z - robot.position.z
+      if (dx * dx + dz * dz < combinedRadius * combinedRadius) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  private tryMove(deltaX: number, deltaZ: number): void {
+    if (Math.abs(deltaX) < 0.000001 && Math.abs(deltaZ) < 0.000001) {
+      return
+    }
+
+    this.candidatePosition.set(this.root.position.x + deltaX, 0, this.root.position.z + deltaZ)
+    if (this.canOccupy(this.candidatePosition)) {
+      this.root.position.copy(this.candidatePosition)
+      return
+    }
+
+    const prioritizeX = Math.abs(deltaX) >= Math.abs(deltaZ)
+    if (this.tryMoveAxis(prioritizeX ? deltaX : 0, prioritizeX ? 0 : deltaZ)) {
+      return
+    }
+
+    this.tryMoveAxis(prioritizeX ? 0 : deltaX, prioritizeX ? deltaZ : 0)
+  }
+
+  private tryMoveAxis(deltaX: number, deltaZ: number): boolean {
+    if (Math.abs(deltaX) < 0.000001 && Math.abs(deltaZ) < 0.000001) {
+      return false
+    }
+
+    this.candidatePosition.set(this.root.position.x + deltaX, 0, this.root.position.z + deltaZ)
+    if (!this.canOccupy(this.candidatePosition)) {
+      return false
+    }
+
+    this.root.position.copy(this.candidatePosition)
+    return true
+  }
+
   private applyKnockback(dt: number): void {
-    this.root.position.addScaledVector(this.knockbackVelocity, dt)
+    this.tryMove(this.knockbackVelocity.x * dt, this.knockbackVelocity.z * dt)
     const damping = Math.max(0, 1 - this.config.knockbackDamping * dt)
     this.knockbackVelocity.multiplyScalar(damping)
   }
@@ -297,7 +368,7 @@ export class AnimatedEnemy implements LevelActor {
     if (this.dead) return
     this.dead = true
     this.body.collisionFilterMask = 0
-    this.focusTarget = 'objective'
+    this.focusTarget = 'none'
     this.locomotionState = 'dead'
     this.idleAction?.stop()
     this.walkAction?.stop()
@@ -312,6 +383,7 @@ export class AnimatedEnemy implements LevelActor {
     const prevX = this.root.position.x
     const prevZ = this.root.position.z
     this.objectiveRadius = context.objectiveRadius
+    this.solidRobots = context.solidRobots
 
     if (!this.dead) {
       this.behavior.update(this, dt, context)
@@ -379,7 +451,7 @@ export class AnimatedEnemy implements LevelActor {
   }
 
   getPlayerContactEffect(playerPosition: THREE.Vector3): PlayerContactEffect | null {
-    if (this.dead || this.focusTarget !== 'player') {
+    if (this.dead) {
       return null
     }
 
@@ -410,6 +482,14 @@ export class AnimatedEnemy implements LevelActor {
       damage: this.config.objectiveContactDamage,
       cooldownSeconds: this.config.objectiveContactCooldownSeconds,
     }
+  }
+
+  getSolidRobots(): readonly SolidRobotSnapshot[] {
+    return this.dead ? [] : [this.solidSnapshot]
+  }
+
+  getPlayerBlockers(): readonly PlayerBlockerSnapshot[] {
+    return []
   }
 
   dispose(): void {

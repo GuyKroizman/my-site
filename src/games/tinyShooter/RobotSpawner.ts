@@ -9,7 +9,9 @@ import type {
   ActorUpdateContext,
   LevelActor,
   ObjectiveContactEffect,
+  PlayerBlockerSnapshot,
   PlayerContactEffect,
+  SolidRobotSnapshot,
 } from './actorTypes'
 import type { Projectile } from './gameTypes'
 import type { RobotSpawnerSpawnDefinition } from './levelTypes'
@@ -71,6 +73,7 @@ export class RobotSpawner implements LevelActor {
   private readonly world: CANNON.World
   private readonly config: EnemyArchetype
   private readonly group = new THREE.Group()
+  private readonly playerBlocker: PlayerBlockerSnapshot
   private readonly shellMaterial = new THREE.MeshBasicMaterial({
     color: 0x86f7ff,
     transparent: true,
@@ -106,6 +109,12 @@ export class RobotSpawner implements LevelActor {
     this.world = world
     this.config = getEnemyArchetype(spawn.enemyId)
     this.center = new THREE.Vector3(spawn.position.x, BOX_CENTER_Y, spawn.position.z)
+    this.playerBlocker = {
+      minX: spawn.position.x - BOX_HALF_WIDTH,
+      maxX: spawn.position.x + BOX_HALF_WIDTH,
+      minZ: spawn.position.z - BOX_HALF_DEPTH,
+      maxZ: spawn.position.z + BOX_HALF_DEPTH,
+    }
     this.spawnCountdown = spawn.initialDelaySeconds
     this.group.position.copy(this.center)
     this.scene.add(this.group)
@@ -198,7 +207,7 @@ export class RobotSpawner implements LevelActor {
     }
   }
 
-  private updateStagedRobot(dt: number): void {
+  private updateStagedRobot(dt: number, context: ActorUpdateContext): void {
     if (!this.stagedRobot) return
 
     this.stagedRobot.elapsed += dt
@@ -217,9 +226,22 @@ export class RobotSpawner implements LevelActor {
       return
     }
 
-    if (this.stagedRobot.elapsed >= HOLD_DURATION) {
+    if (this.stagedRobot.elapsed >= HOLD_DURATION && this.canReleaseStagedRobot(context)) {
       this.releaseStagedRobot()
     }
+  }
+
+  private canReleaseStagedRobot(context: ActorUpdateContext): boolean {
+    for (const robot of context.solidRobots) {
+      const combinedRadius = this.config.bodyRadius + robot.radius
+      const dx = this.spawn.position.x - robot.position.x
+      const dz = this.spawn.position.z - robot.position.z
+      if (dx * dx + dz * dz < combinedRadius * combinedRadius) {
+        return false
+      }
+    }
+
+    return true
   }
 
   private updateReleasedRobots(dt: number, context: ActorUpdateContext): void {
@@ -262,7 +284,7 @@ export class RobotSpawner implements LevelActor {
 
   update(dt: number, context: ActorUpdateContext): void {
     this.updateSpawnTimer(dt)
-    this.updateStagedRobot(dt)
+    this.updateStagedRobot(dt, context)
     this.updateReleasedRobots(dt, context)
     this.updateRipples(dt)
   }
@@ -463,6 +485,19 @@ export class RobotSpawner implements LevelActor {
     return totalDamage > 0
       ? { damage: totalDamage, cooldownSeconds: 0 }
       : null
+  }
+
+  getSolidRobots(): readonly SolidRobotSnapshot[] {
+    const solids: SolidRobotSnapshot[] = []
+    for (const robot of this.releasedRobots) {
+      solids.push(...robot.enemy.getSolidRobots())
+    }
+
+    return solids
+  }
+
+  getPlayerBlockers(): readonly PlayerBlockerSnapshot[] {
+    return [this.playerBlocker]
   }
 
   dispose(): void {

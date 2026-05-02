@@ -11,7 +11,9 @@ import type {
   LevelActor,
   ActorUpdateContext,
   ObjectiveContactEffect,
+  PlayerBlockerSnapshot,
   PlayerContactEffect,
+  SolidRobotSnapshot,
 } from './actorTypes'
 import type { Projectile } from './gameTypes'
 import { GiantSound } from './GiantSound'
@@ -529,6 +531,14 @@ export class Giant implements LevelActor {
 
   getObjectiveContactEffect(_objectivePosition: THREE.Vector3): ObjectiveContactEffect | null {
     return null
+  }
+
+  getSolidRobots(): readonly SolidRobotSnapshot[] {
+    return []
+  }
+
+  getPlayerBlockers(): readonly PlayerBlockerSnapshot[] {
+    return []
   }
 
   dispose(): void {

@@ -4,6 +4,7 @@ import { InputManager } from './InputManager'
 import type { GamepadStatus } from './InputManager'
 import { ShotSound } from './ShotSound'
 import { SpawnBoxHitSound } from './SpawnBoxHitSound'
+import { PlayerDamageSound } from './PlayerDamageSound'
 import {
   GROUND_SIZE,
   PLAYER_BODY_RADIUS,
@@ -23,14 +24,14 @@ import {
 } from './constants'
 import { DEFAULT_WEAPON } from './weapons'
 import type { Projectile, TinyShooterGameState, TinyShooterPhase } from './gameTypes'
-import type { LevelActor } from './actorTypes'
+import type { LevelActor, PlayerBlockerSnapshot, SolidRobotSnapshot } from './actorTypes'
 import type { LevelDefinition } from './levelTypes'
 import { createLevelActor } from './actorFactory'
 import { getFirstTinyShooterLevel, getLevelById } from './levels'
 
 const UP = new THREE.Vector3(0, 1, 0)
 const LEVEL_TRANSITION_DELAY_SECONDS = 1.4
-const DAMAGE_FLASH_SECONDS = 0.15
+const DAMAGE_FLASH_SECONDS = 0.24
 const OBJECTIVE_HEIGHT = 1.85
 const DEFAULT_GAMEPAD_STATUS: GamepadStatus = {
   connected: false,
@@ -54,6 +55,7 @@ export class TinyShooterEngine {
   private readonly input: InputManager
   private readonly sound: ShotSound
   private readonly spawnBoxHitSound: SpawnBoxHitSound
+  private readonly playerDamageSound: PlayerDamageSound
   private readonly projectileGeometry: THREE.CylinderGeometry
   private readonly projectileMaterial: THREE.MeshStandardMaterial
   private readonly damageOverlay: HTMLDivElement
@@ -109,6 +111,7 @@ export class TinyShooterEngine {
   private gamepadStatus: GamepadStatus = DEFAULT_GAMEPAD_STATUS
   private lastShotTime = 0
   private damageFlashUntil = 0
+  private damageFlashStrength = 0
   private phaseChangedAt = performance.now()
   private yaw = 0
   private pitch = 0
@@ -159,7 +162,7 @@ export class TinyShooterEngine {
 
     this.damageOverlay = document.createElement('div')
     this.damageOverlay.style.cssText =
-      'position:absolute;inset:0;pointer-events:none;background:rgba(255,0,0,0);transition:background 0.05s;z-index:15;'
+      'position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 0.06s;background:radial-gradient(circle at center, rgba(255,120,120,0.08) 0%, rgba(200,30,30,0.18) 52%, rgba(120,0,0,0.46) 100%);box-shadow:inset 0 0 140px rgba(150,0,0,0.45);z-index:15;'
     container.appendChild(this.damageOverlay)
 
     this.objectiveCore.castShadow = true
@@ -186,7 +189,9 @@ export class TinyShooterEngine {
 
     this.sound = new ShotSound()
     this.spawnBoxHitSound = new SpawnBoxHitSound()
+    this.playerDamageSound = new PlayerDamageSound()
     this.spawnBoxHitSound.prewarm()
+    this.playerDamageSound.prewarm()
 
     this.loadLevel(this.currentLevel, true)
     window.addEventListener('resize', this.handleResize)
@@ -295,6 +300,7 @@ export class TinyShooterEngine {
     if (resetHealth) {
       this.health = PLAYER_MAX_HEALTH
       this.damageFlashUntil = 0
+      this.damageFlashStrength = 0
     }
 
     this.actors = level.actors.map((spawn) => createLevelActor(spawn, this.world, this.scene, {
@@ -386,6 +392,7 @@ export class TinyShooterEngine {
     let moveX = inputState.moveX
     let moveZ = inputState.moveZ
     const length = Math.hypot(moveX, moveZ)
+    const playerBlockers = this.collectPlayerBlockers()
 
     if (length > 0) {
       moveX /= length
@@ -396,8 +403,7 @@ export class TinyShooterEngine {
       const worldX = moveX * cosYaw + moveZ * sinYaw
       const worldZ = -moveX * sinYaw + moveZ * cosYaw
 
-      this.playerBody.position.x += worldX * PLAYER_SPEED * PHYSICS_DT
-      this.playerBody.position.z += worldZ * PLAYER_SPEED * PHYSICS_DT
+      this.tryMovePlayer(worldX * PLAYER_SPEED * PHYSICS_DT, worldZ * PLAYER_SPEED * PHYSICS_DT, playerBlockers)
     }
 
     this.camera.position.set(
@@ -420,15 +426,98 @@ export class TinyShooterEngine {
     this.spawnProjectile()
   }
 
+  private collectSolidRobots(): SolidRobotSnapshot[] {
+    const solids: SolidRobotSnapshot[] = []
+    for (const actor of this.actors) {
+      solids.push(...actor.getSolidRobots())
+    }
+
+    return solids
+  }
+
+  private collectPlayerBlockers(): PlayerBlockerSnapshot[] {
+    const blockers: PlayerBlockerSnapshot[] = []
+    for (const actor of this.actors) {
+      blockers.push(...actor.getPlayerBlockers())
+    }
+
+    return blockers
+  }
+
+  private tryMovePlayer(
+    deltaX: number,
+    deltaZ: number,
+    playerBlockers: readonly PlayerBlockerSnapshot[],
+  ): void {
+    if (Math.abs(deltaX) < 0.000001 && Math.abs(deltaZ) < 0.000001) {
+      return
+    }
+
+    const nextX = this.playerBody.position.x + deltaX
+    const nextZ = this.playerBody.position.z + deltaZ
+    if (!this.isPlayerPositionBlocked(nextX, nextZ, playerBlockers)) {
+      this.playerBody.position.x = nextX
+      this.playerBody.position.z = nextZ
+      return
+    }
+
+    const prioritizeX = Math.abs(deltaX) >= Math.abs(deltaZ)
+    if (this.tryMovePlayerAxis(prioritizeX ? deltaX : 0, prioritizeX ? 0 : deltaZ, playerBlockers)) {
+      return
+    }
+
+    this.tryMovePlayerAxis(prioritizeX ? 0 : deltaX, prioritizeX ? deltaZ : 0, playerBlockers)
+  }
+
+  private tryMovePlayerAxis(
+    deltaX: number,
+    deltaZ: number,
+    playerBlockers: readonly PlayerBlockerSnapshot[],
+  ): boolean {
+    if (Math.abs(deltaX) < 0.000001 && Math.abs(deltaZ) < 0.000001) {
+      return false
+    }
+
+    const nextX = this.playerBody.position.x + deltaX
+    const nextZ = this.playerBody.position.z + deltaZ
+    if (this.isPlayerPositionBlocked(nextX, nextZ, playerBlockers)) {
+      return false
+    }
+
+    this.playerBody.position.x = nextX
+    this.playerBody.position.z = nextZ
+    return true
+  }
+
+  private isPlayerPositionBlocked(
+    playerX: number,
+    playerZ: number,
+    playerBlockers: readonly PlayerBlockerSnapshot[],
+  ): boolean {
+    for (const blocker of playerBlockers) {
+      const nearestX = THREE.MathUtils.clamp(playerX, blocker.minX, blocker.maxX)
+      const nearestZ = THREE.MathUtils.clamp(playerZ, blocker.minZ, blocker.maxZ)
+      const dx = playerX - nearestX
+      const dz = playerZ - nearestZ
+      if (dx * dx + dz * dz < PLAYER_BODY_RADIUS * PLAYER_BODY_RADIUS) {
+        return true
+      }
+    }
+
+    return false
+  }
+
   private updateActors(): void {
     this.playerPosition.set(this.camera.position.x, 0, this.camera.position.z)
 
     for (const actor of this.actors) {
+      const solidRobots = this.collectSolidRobots()
       actor.update(PHYSICS_DT, {
         playerPosition: this.playerPosition,
         objectivePosition: this.objectivePosition,
         objectiveRadius: this.currentLevel.objective.radius,
         arenaSize: this.currentLevel.arenaSize,
+        solidRobots,
       })
     }
   }
@@ -473,6 +562,11 @@ export class TinyShooterEngine {
 
     this.health = Math.max(0, this.health - amount)
     this.damageFlashUntil = nowSeconds + DAMAGE_FLASH_SECONDS
+    this.damageFlashStrength = Math.max(
+      this.damageFlashStrength,
+      THREE.MathUtils.clamp(0.28 + amount / 24, 0.32, 0.78),
+    )
+    this.playerDamageSound.play()
     this.emitState()
 
     if (this.health === 0) {
@@ -533,8 +627,15 @@ export class TinyShooterEngine {
 
   private updateDamageOverlay(now: number): void {
     const nowSeconds = now / 1000
-    this.damageOverlay.style.background =
-      nowSeconds < this.damageFlashUntil ? 'rgba(255,0,0,0.4)' : 'rgba(255,0,0,0)'
+    if (nowSeconds >= this.damageFlashUntil) {
+      this.damageFlashStrength = 0
+      this.damageOverlay.style.opacity = '0'
+      return
+    }
+
+    const remainingRatio = (this.damageFlashUntil - nowSeconds) / DAMAGE_FLASH_SECONDS
+    const opacity = THREE.MathUtils.clamp(remainingRatio * this.damageFlashStrength, 0, 0.85)
+    this.damageOverlay.style.opacity = opacity.toFixed(3)
   }
 
   private updateObjectiveVisual(now: number): void {
@@ -614,6 +715,7 @@ export class TinyShooterEngine {
     this.input.dispose()
     this.sound.dispose()
     this.spawnBoxHitSound.dispose()
+    this.playerDamageSound.dispose()
     this.clearProjectiles()
     this.clearActors()
     this.damageOverlay.remove()
