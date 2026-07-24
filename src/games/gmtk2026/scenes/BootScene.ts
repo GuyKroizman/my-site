@@ -19,6 +19,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('young-adult', '/gmtk_2026/young-adult.png')
     this.load.image('adult', '/gmtk_2026/adult.png')
     this.load.image('adult-plus', '/gmtk_2026/adulter.png')
+    this.load.image('middle-aged', '/gmtk_2026/middle_aged.png')
+    this.load.image('middle-ager', '/gmtk_2026/middle_ager.png')
+    this.load.image('elderly', '/gmtk_2026/elderly.png')
   }
 
   create() {

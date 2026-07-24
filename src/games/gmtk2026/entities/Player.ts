@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 
-export type PlayerStage = 'baby' | 'young-adult' | 'adult' | 'adult-plus'
+export type PlayerStage = 'baby' | 'young-adult' | 'adult' | 'adult-plus' | 'middle-aged' | 'middle-ager' | 'elderly'
 
 export class Player {
   sprite: Phaser.Physics.Arcade.Sprite
@@ -21,6 +21,10 @@ export class Player {
     this.sprite.setCollideWorldBounds(true)
     this.sprite.setBounce(0.1)
     this.sprite.play('baby-idle')
+
+    // Consistent bottom-aligned body for all stages
+    this.sprite.setBodySize(60, 70, false)
+    this.sprite.setOffset(20, 15)
 
     this.keys = {
       left: scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
@@ -46,10 +50,23 @@ export class Player {
     })
 
     this.scene.time.delayedCall(150, () => {
+      const oldBody = this.sprite.body as Phaser.Physics.Arcade.Body
+      const oldBottomY = oldBody.y + oldBody.height
+
       this.sprite.stop()
       this.sprite.setTexture(textureKey)
       this.sprite.setScale(scale)
-      this.sprite.refreshBody()
+
+      // Keep a consistent body size so the feet always collide at the same spot
+      this.sprite.setBodySize(60, 80, false)
+      this.sprite.setOffset(
+        (this.sprite.displayWidth - 60) / 2,
+        this.sprite.displayHeight - 80
+      )
+
+      // Preserve body-bottom world position so feet stay on ground
+      const newBody = this.sprite.body as Phaser.Physics.Arcade.Body
+      this.sprite.y = oldBottomY - newBody.height / 2
     })
   }
 
@@ -69,6 +86,24 @@ export class Player {
     if (this.stage !== 'adult') return
     this.stage = 'adult-plus'
     this.flashTransition('adult-plus', 0.5, 180)
+  }
+
+  ageUpToMiddleAged() {
+    if (this.stage !== 'adult-plus') return
+    this.stage = 'middle-aged'
+    this.flashTransition('middle-aged', 0.5, 160)
+  }
+
+  ageUpToMiddleAger() {
+    if (this.stage !== 'middle-aged') return
+    this.stage = 'middle-ager'
+    this.flashTransition('middle-ager', 0.5, 140)
+  }
+
+  ageUpToElderly() {
+    if (this.stage !== 'middle-ager') return
+    this.stage = 'elderly'
+    this.flashTransition('elderly', 0.5, 100)
   }
 
   update() {

@@ -12,6 +12,9 @@ export class GameScene extends Phaser.Scene {
   private departureTriggered = false
   private adultTransitionTriggered = false
   private adultPlusTransitionTriggered = false
+  private middleAgedTransitionTriggered = false
+  private middleAgerTransitionTriggered = false
+  private elderlyTransitionTriggered = false
   private distanceText!: Phaser.GameObjects.Text
 
   constructor() {
@@ -33,8 +36,8 @@ export class GameScene extends Phaser.Scene {
       this.music.play()
     }
 
-    // Ground
-    this.ground = this.add.rectangle(0, height - 40, 5000, 80, 0x4ade80) as Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.Body }
+    // Ground — spans full world width
+    this.ground = this.add.rectangle(5000, height - 40, 10000, 80, 0x4ade80) as Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.Body }
     this.physics.add.existing(this.ground, true)
 
     // Player
@@ -52,8 +55,8 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player.sprite, this.ground)
 
     // Camera
-    this.cameras.main.setBounds(0, 0, 5000, height)
-    this.physics.world.setBounds(0, 0, 5000, height)
+    this.cameras.main.setBounds(0, 0, 10000, height)
+    this.physics.world.setBounds(0, 0, 10000, height)
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1)
     this.cameras.main.setDeadzone(100, 50)
 
@@ -75,6 +78,15 @@ export class GameScene extends Phaser.Scene {
       { x: 1600, y: height - 100 },
       { x: 2200, y: height - 110 },
       { x: 2800, y: height - 100 },
+      { x: 3500, y: height - 100 },
+      { x: 4200, y: height - 110 },
+      { x: 5000, y: height - 100 },
+      { x: 5800, y: height - 110 },
+      { x: 6500, y: height - 100 },
+      { x: 7200, y: height - 110 },
+      { x: 8000, y: height - 100 },
+      { x: 8800, y: height - 110 },
+      { x: 9500, y: height - 100 },
     ]
     for (const pos of positions) {
       this.enemies.push(new Enemy(this, pos.x, pos.y))
@@ -105,6 +117,24 @@ export class GameScene extends Phaser.Scene {
     if (!this.adultPlusTransitionTriggered && px > 4000) {
       this.adultPlusTransitionTriggered = true
       this.player.ageUpToAdultPlus()
+    }
+
+    // Middle-aged transition at X ≈ 5,500
+    if (!this.middleAgedTransitionTriggered && px > 5500) {
+      this.middleAgedTransitionTriggered = true
+      this.player.ageUpToMiddleAged()
+    }
+
+    // Middle-ager transition at X ≈ 7,000
+    if (!this.middleAgerTransitionTriggered && px > 7000) {
+      this.middleAgerTransitionTriggered = true
+      this.player.ageUpToMiddleAger()
+    }
+
+    // Elderly transition at X ≈ 8,500
+    if (!this.elderlyTransitionTriggered && px > 8500) {
+      this.elderlyTransitionTriggered = true
+      this.player.ageUpToElderly()
     }
 
     // Update parents
