@@ -7,8 +7,8 @@ export class BootScene extends Phaser.Scene {
 
   preload() {
     this.load.spritesheet('baby', '/gmtk_2026/baby.png', {
-      frameWidth: 100,
-      frameHeight: 85,
+      frameWidth: 768,
+      frameHeight: 448,
     })
 
     this.load.audio(
@@ -38,17 +38,18 @@ export class BootScene extends Phaser.Scene {
   }
 
   private createAnimations() {
+    // New sheet: 21 frames, all a single crawl cycle — no separate idle pose
     this.anims.create({
       key: 'baby-idle',
-      frames: this.anims.generateFrameNumbers('baby', { start: 0, end: 4 }),
-      frameRate: 8,
+      frames: this.anims.generateFrameNumbers('baby', { start: 0, end: 0 }),
+      frameRate: 1,
       repeat: -1,
     })
 
     this.anims.create({
       key: 'baby-run',
-      frames: this.anims.generateFrameNumbers('baby', { start: 5, end: 9 }),
-      frameRate: 10,
+      frames: this.anims.generateFrameNumbers('baby', { start: 0, end: 20 }),
+      frameRate: 14,
       repeat: -1,
     })
   }

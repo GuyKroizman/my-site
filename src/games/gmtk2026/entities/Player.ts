@@ -36,9 +36,13 @@ export class Player {
     this.sprite.setBounce(0.1)
     this.sprite.play('baby-idle')
 
-    // Consistent bottom-aligned body for all stages
-    this.sprite.setBodySize(60, 70, false)
-    this.sprite.setOffset(20, 15)
+    // New sheet frames are 768x448 with the baby content at x≈184-557, y≈39-383
+    // Scale down so the baby appears roughly the old 100x85 size
+    this.sprite.setScale(0.25)
+
+    // Consistent bottom-aligned body for all stages (frame units, scaled by 0.25)
+    this.sprite.setBodySize(240, 280, false)
+    this.sprite.setOffset(250, 103)
 
     // Attack slash visual (hidden by default)
     this.attackSlash = scene.add.rectangle(0, 0, 70, 20, 0xffffff)
