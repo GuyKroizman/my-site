@@ -16,7 +16,16 @@ export class GameScene extends Phaser.Scene {
 
     // Spring music — Childhood stage
     this.music = this.sound.add('spring-music', { loop: true, volume: 0.5 }) as Phaser.Sound.WebAudioSound
-    this.music.play()
+
+    if (this.sound.locked) {
+      // Browser autoplay policy: wait for first key press inside the game
+      this.input.keyboard?.once('keydown', () => {
+        this.sound.unlock()
+        this.music.play()
+      })
+    } else {
+      this.music.play()
+    }
 
     // Ground
     this.ground = this.add.rectangle(0, height - 40, 5000, 80, 0x4ade80) as Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.Body }
