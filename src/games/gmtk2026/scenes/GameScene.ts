@@ -2,6 +2,8 @@ import Phaser from 'phaser'
 import { Player } from '../entities/Player'
 import { Parent } from '../entities/Parent'
 import { Enemy } from '../entities/Enemy'
+import { Woman } from '../entities/Woman'
+import { Baby } from '../entities/Baby'
 
 export class GameScene extends Phaser.Scene {
   private player!: Player
@@ -21,6 +23,17 @@ export class GameScene extends Phaser.Scene {
   private healthBarGhost!: Phaser.GameObjects.Graphics
   private healthText!: Phaser.GameObjects.Text
   private ghostHealth = 100
+  private woman: Woman | null = null
+  private baby: Baby | null = null
+  private womanMet = false
+  private pregnancyStage = 0
+  private pregnancyStartX = 0
+  private pregnancyDistanceForStage = 300
+  private babySpawned = false
+  private womanHealthBar!: Phaser.GameObjects.Graphics
+  private babyHealthBar!: Phaser.GameObjects.Graphics
+  private womanLabel!: Phaser.GameObjects.Text
+  private babyLabel!: Phaser.GameObjects.Text
 
   constructor() {
     super('game-scene')
@@ -56,6 +69,9 @@ export class GameScene extends Phaser.Scene {
     // Shadowy enemies ahead
     this.spawnEnemies()
 
+    // Woman narrative event at X ≈ 3,000 (adulthood)
+    this.woman = new Woman(this, 3000, height - 120)
+
     // Collisions
     this.physics.add.collider(this.player.sprite, this.ground)
 
@@ -76,6 +92,37 @@ export class GameScene extends Phaser.Scene {
 
     // Health bar — Dead Cells style
     this.createHealthBar()
+
+    // Companion health bars (hidden by default)
+    this.womanHealthBar = this.add.graphics()
+    this.womanHealthBar.setScrollFactor(0)
+    this.womanHealthBar.setDepth(91)
+    this.womanHealthBar.setAlpha(0)
+
+    this.babyHealthBar = this.add.graphics()
+    this.babyHealthBar.setScrollFactor(0)
+    this.babyHealthBar.setDepth(91)
+    this.babyHealthBar.setAlpha(0)
+
+    this.womanLabel = this.add.text(0, 0, 'MOM', {
+      fontSize: '10px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+    })
+    this.womanLabel.setOrigin(1, 0.5)
+    this.womanLabel.setScrollFactor(0)
+    this.womanLabel.setDepth(92)
+    this.womanLabel.setAlpha(0)
+
+    this.babyLabel = this.add.text(0, 0, 'BABY', {
+      fontSize: '10px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+    })
+    this.babyLabel.setOrigin(1, 0.5)
+    this.babyLabel.setScrollFactor(0)
+    this.babyLabel.setDepth(92)
+    this.babyLabel.setAlpha(0)
   }
 
   private createHealthBar() {
@@ -101,6 +148,39 @@ export class GameScene extends Phaser.Scene {
     this.healthText.setDepth(93)
 
     this.drawHealthBar()
+  }
+
+  private drawCompanionHealthBar(
+    graphics: Phaser.GameObjects.Graphics,
+    labelText: Phaser.GameObjects.Text,
+    health: number,
+    maxHealth: number,
+    x: number,
+    y: number
+  ) {
+    const width = 180
+    const height = 16
+    const radius = 4
+    const pct = Math.max(0, health / maxHealth)
+
+    graphics.clear()
+
+    // Background
+    graphics.fillStyle(0x1a1a2e, 0.85)
+    graphics.fillRoundedRect(x, y, width, height, radius)
+    graphics.lineStyle(1, 0x444466, 1)
+    graphics.strokeRoundedRect(x, y, width, height, radius)
+
+    // Fill
+    let fillColor = 0x22c55e
+    if (pct <= 0.3) fillColor = 0xef4444
+    else if (pct <= 0.6) fillColor = 0xeab308
+
+    graphics.fillStyle(fillColor, 0.9)
+    graphics.fillRoundedRect(x + 2, y + 2, (width - 4) * pct, height - 4, radius - 2)
+
+    // Position label
+    labelText.setPosition(x - 5, y + height / 2)
   }
 
   private drawHealthBar() {
@@ -229,6 +309,59 @@ export class GameScene extends Phaser.Scene {
 
     // Update distance HUD
     this.distanceText.setText(`Distance: ${Math.floor(px)}`)
+
+    // Woman narrative event
+    if (this.woman && !this.womanMet && px > 2900) {
+      this.womanMet = true
+      this.woman.startFollowing()
+      this.pregnancyStartX = px
+      this.womanHealthBar.setAlpha(1)
+      this.womanLabel.setAlpha(1)
+    }
+
+    if (this.woman && this.womanMet) {
+      this.woman.update(px, py)
+
+      // Pregnancy progression
+      const togetherDistance = px - this.pregnancyStartX
+      if (togetherDistance > this.pregnancyDistanceForStage && this.pregnancyStage === 0) {
+        this.pregnancyStage = 1
+        this.woman.setPregnancyStage(1)
+      } else if (togetherDistance > this.pregnancyDistanceForStage * 2 && this.pregnancyStage === 1) {
+        this.pregnancyStage = 2
+        this.woman.setPregnancyStage(2)
+      } else if (togetherDistance > this.pregnancyDistanceForStage * 3 && !this.babySpawned) {
+        // Birth!
+        this.babySpawned = true
+        this.baby = new Baby(this, this.woman.x, this.woman.y)
+        this.woman.setPregnancyStage(0)
+        this.babyHealthBar.setAlpha(1)
+        this.babyLabel.setAlpha(1)
+      }
+
+      // Draw woman health bar
+      this.drawCompanionHealthBar(
+        this.womanHealthBar,
+        this.womanLabel,
+        this.woman.health,
+        100,
+        this.cameras.main.width / 2 - 160,
+        48
+      )
+
+      // Update baby
+      if (this.baby) {
+        this.baby.update(this.woman.x, this.woman.y)
+        this.drawCompanionHealthBar(
+          this.babyHealthBar,
+          this.babyLabel,
+          this.baby.health,
+          50,
+          this.cameras.main.width / 2 - 160,
+          70
+        )
+      }
+    }
 
     // Ghost health slowly catches up
     if (this.ghostHealth > this.player.health) {
