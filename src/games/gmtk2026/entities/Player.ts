@@ -7,11 +7,25 @@ export class Player {
   private keys: {
     left: Phaser.Input.Keyboard.Key
     right: Phaser.Input.Keyboard.Key
+    up: Phaser.Input.Keyboard.Key
+    down: Phaser.Input.Keyboard.Key
     jump: Phaser.Input.Keyboard.Key
+    attack: Phaser.Input.Keyboard.Key
   }
   private speed = 120
   private jumpStrength = 400
   private isGrounded = false
+  private canAttack = false
+  private isAttacking = false
+  private attackCooldown = 400
+  private lastAttackTime = 0
+  private attackSlash!: Phaser.GameObjects.Rectangle
+  private attackAngle = 0 // radians
+  private attackDistance = 60
+  private maxHealth = 100
+  health = 100
+  private invincibleUntil = 0
+  private invincibleDuration = 800
   stage: PlayerStage = 'baby'
   private scene: Phaser.Scene
 
@@ -26,10 +40,19 @@ export class Player {
     this.sprite.setBodySize(60, 70, false)
     this.sprite.setOffset(20, 15)
 
+    // Attack slash visual (hidden by default)
+    this.attackSlash = scene.add.rectangle(0, 0, 70, 20, 0xffffff)
+    this.attackSlash.setBlendMode('ADD')
+    this.attackSlash.setAlpha(0)
+    this.attackSlash.setDepth(10)
+
     this.keys = {
       left: scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
       right: scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+      up: scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+      down: scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
       jump: scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+      attack: scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Z),
     }
   }
 
@@ -73,6 +96,7 @@ export class Player {
   ageUp() {
     if (this.stage !== 'baby') return
     this.stage = 'young-adult'
+    this.canAttack = true
     this.flashTransition('young-adult', 0.5, 220)
   }
 
@@ -130,12 +154,100 @@ export class Player {
       }
     }
 
-    // Jump
-    if (Phaser.Input.Keyboard.JustDown(this.keys.jump) && this.isGrounded) {
+    // Jump — only from young-adult onwards
+    if (Phaser.Input.Keyboard.JustDown(this.keys.jump) && this.isGrounded && this.stage !== 'baby') {
       this.sprite.setVelocityY(-this.jumpStrength)
-      if (this.stage === 'baby') {
-        this.sprite.play('baby-run', true)
+    }
+
+    // Attack — Z key, only from young-adult onwards
+    if (Phaser.Input.Keyboard.JustDown(this.keys.attack) && this.canAttack && !this.isAttacking) {
+      const now = this.scene.time.now
+      if (now - this.lastAttackTime >= this.attackCooldown) {
+        this.lastAttackTime = now
+        this.performAttack()
       }
     }
+
+    // Update attack slash position and rotation
+    if (this.isAttacking) {
+      const cx = this.sprite.x
+      const cy = this.sprite.y - 20
+      this.attackSlash.x = cx + Math.cos(this.attackAngle) * this.attackDistance
+      this.attackSlash.y = cy + Math.sin(this.attackAngle) * this.attackDistance
+      this.attackSlash.setRotation(this.attackAngle)
+    }
+  }
+
+  private performAttack() {
+    this.isAttacking = true
+
+    // Compute 8-direction angle from held keys
+    let dx = 0
+    let dy = 0
+    if (this.keys.left.isDown) dx = -1
+    else if (this.keys.right.isDown) dx = 1
+    if (this.keys.up.isDown) dy = -1
+    else if (this.keys.down.isDown) dy = 1
+
+    // Default to right if no direction held
+    if (dx === 0 && dy === 0) {
+      dx = 1
+    }
+
+    this.attackAngle = Math.atan2(dy, dx)
+
+    const cx = this.sprite.x
+    const cy = this.sprite.y - 20
+    this.attackSlash.x = cx + Math.cos(this.attackAngle) * this.attackDistance
+    this.attackSlash.y = cy + Math.sin(this.attackAngle) * this.attackDistance
+    this.attackSlash.setRotation(this.attackAngle)
+    this.attackSlash.setAlpha(0.9)
+    this.attackSlash.setScale(1, 1)
+
+    this.scene.tweens.add({
+      targets: this.attackSlash,
+      alpha: 0,
+      scaleX: 1.5,
+      scaleY: 1.5,
+      duration: 150,
+      onComplete: () => {
+        this.isAttacking = false
+      },
+    })
+  }
+
+  getAttackHitbox(): { x: number; y: number; radius: number } | null {
+    if (!this.isAttacking) return null
+    // Circular hitbox centered on slash tip
+    return {
+      x: this.attackSlash.x,
+      y: this.attackSlash.y,
+      radius: 40,
+    }
+  }
+
+  takeDamage(amount: number) {
+    const now = this.scene.time.now
+    if (now < this.invincibleUntil) return
+
+    this.health -= amount
+    this.invincibleUntil = now + this.invincibleDuration
+
+    // Flash red
+    this.sprite.setTint(0xff0055)
+    this.scene.time.delayedCall(150, () => {
+      this.sprite.clearTint()
+    })
+
+    // Knockback slightly
+    this.sprite.setVelocityY(-150)
+  }
+
+  getHealthPercent() {
+    return Math.max(0, this.health / this.maxHealth)
+  }
+
+  isDead() {
+    return this.health <= 0
   }
 }

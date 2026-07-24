@@ -16,6 +16,11 @@ export class GameScene extends Phaser.Scene {
   private middleAgerTransitionTriggered = false
   private elderlyTransitionTriggered = false
   private distanceText!: Phaser.GameObjects.Text
+  private healthBarBg!: Phaser.GameObjects.Graphics
+  private healthBarFill!: Phaser.GameObjects.Graphics
+  private healthBarGhost!: Phaser.GameObjects.Graphics
+  private healthText!: Phaser.GameObjects.Text
+  private ghostHealth = 100
 
   constructor() {
     super('game-scene')
@@ -68,6 +73,81 @@ export class GameScene extends Phaser.Scene {
       padding: { x: 6, y: 3 },
     })
     this.distanceText.setScrollFactor(0)
+
+    // Health bar — Dead Cells style
+    this.createHealthBar()
+  }
+
+  private createHealthBar() {
+    this.healthBarBg = this.add.graphics()
+    this.healthBarBg.setScrollFactor(0)
+    this.healthBarBg.setDepth(90)
+
+    this.healthBarGhost = this.add.graphics()
+    this.healthBarGhost.setScrollFactor(0)
+    this.healthBarGhost.setDepth(91)
+
+    this.healthBarFill = this.add.graphics()
+    this.healthBarFill.setScrollFactor(0)
+    this.healthBarFill.setDepth(92)
+
+    this.healthText = this.add.text(this.cameras.main.width / 2, 16 + 12, '100', {
+      fontSize: '12px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+    })
+    this.healthText.setOrigin(0.5)
+    this.healthText.setScrollFactor(0)
+    this.healthText.setDepth(93)
+
+    this.drawHealthBar()
+  }
+
+  private drawHealthBar() {
+    const width = 320
+    const height = 24
+    const x = this.cameras.main.width / 2 - width / 2
+    const y = 16
+    const radius = 6
+
+    const hp = this.player.health
+    const pct = Math.max(0, hp / 100)
+    const ghostPct = Math.max(0, this.ghostHealth / 100)
+
+    // Background
+    this.healthBarBg.clear()
+    this.healthBarBg.fillStyle(0x1a1a2e, 0.9)
+    this.healthBarBg.fillRoundedRect(x, y, width, height, radius)
+    this.healthBarBg.lineStyle(2, 0x444466, 1)
+    this.healthBarBg.strokeRoundedRect(x, y, width, height, radius)
+
+    // Ghost bar (recent damage, lags behind)
+    if (ghostPct > pct) {
+      this.healthBarGhost.clear()
+      this.healthBarGhost.fillStyle(0xffffff, 0.35)
+      this.healthBarGhost.fillRoundedRect(x + 2, y + 2, (width - 4) * ghostPct, height - 4, radius - 2)
+    }
+
+    // Health fill with color based on percentage
+    this.healthBarFill.clear()
+    let fillColor: number
+    if (pct > 0.6) {
+      fillColor = 0x22c55e // green
+    } else if (pct > 0.3) {
+      fillColor = 0xeab308 // yellow
+    } else {
+      fillColor = 0xef4444 // red
+    }
+    this.healthBarFill.fillStyle(fillColor, 0.95)
+    this.healthBarFill.fillRoundedRect(x + 2, y + 2, (width - 4) * pct, height - 4, radius - 2)
+
+    // Inner glow highlight
+    this.healthBarFill.fillStyle(0xffffff, 0.15)
+    this.healthBarFill.fillRoundedRect(x + 2, y + 2, (width - 4) * pct, (height - 4) / 2, radius - 2)
+
+    // Text
+    this.healthText.setText(`${Math.max(0, Math.ceil(hp))}`)
+    this.healthText.setColor(pct > 0.3 ? '#ffffff' : '#ffcccc')
   }
 
   private spawnEnemies() {
@@ -150,6 +230,25 @@ export class GameScene extends Phaser.Scene {
     // Update distance HUD
     this.distanceText.setText(`Distance: ${Math.floor(px)}`)
 
+    // Ghost health slowly catches up
+    if (this.ghostHealth > this.player.health) {
+      this.ghostHealth = Math.max(this.player.health, this.ghostHealth - 0.5)
+    }
+
+    // Redraw health bar
+    this.drawHealthBar()
+
+    // Enemy-player contact damage
+    for (const enemy of this.enemies) {
+      if (enemy.dead) continue
+      const dx = enemy.x - px
+      const dy = enemy.y - py
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < 40) {
+        this.player.takeDamage(10)
+      }
+    }
+
     // Projectile-enemy collision
     for (const parent of this.parents) {
       for (const projectile of parent.getProjectiles()) {
@@ -167,6 +266,20 @@ export class GameScene extends Phaser.Scene {
             if (idx > -1) parent.getProjectiles().splice(idx, 1)
             break
           }
+        }
+      }
+    }
+
+    // Player melee attack vs enemies
+    const attackBox = this.player.getAttackHitbox()
+    if (attackBox) {
+      for (const enemy of this.enemies) {
+        if (enemy.dead) continue
+        const dx = enemy.x - attackBox.x
+        const dy = enemy.y - attackBox.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < attackBox.radius + 25) {
+          enemy.takeDamage()
         }
       }
     }
