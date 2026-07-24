@@ -32,6 +32,7 @@ export class GameScene extends Phaser.Scene {
   private babySpawned = false
   private toddlerTransitionTriggered = false
   private daughterYoungAdultTransitionTriggered = false
+  private daughterDeparted = false
   private womanHealthBar!: Phaser.GameObjects.Graphics
   private babyHealthBar!: Phaser.GameObjects.Graphics
   private womanLabel!: Phaser.GameObjects.Text
@@ -332,6 +333,14 @@ export class GameScene extends Phaser.Scene {
       this.middleAgedTransitionTriggered = true
       this.player.ageUpToMiddleAged()
       this.woman?.ageUpToMiddleAged()
+    }
+
+    // Daughter leaves home soon after the parents become middle-aged (X ≈ 5,900)
+    if (!this.daughterDeparted && this.middleAgedTransitionTriggered && this.baby && px > 5900) {
+      this.daughterDeparted = true
+      this.baby.depart()
+      this.babyHealthBar.setAlpha(0)
+      this.babyLabel.setAlpha(0)
     }
 
     // Middle-ager transition at X ≈ 7,000

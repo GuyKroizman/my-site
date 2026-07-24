@@ -5,6 +5,9 @@ export class Baby {
   health = 50
   private followOffset = 30
   private sprite!: Phaser.GameObjects.Image
+  private isDeparted = false
+  private departureVx = 0
+  private departureVy = 0
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.container = scene.add.container(x, y)
@@ -33,7 +36,21 @@ export class Baby {
     })
   }
 
+  depart() {
+    if (this.isDeparted) return
+    this.isDeparted = true
+    // She heads off on her own path — ahead and up, away from the family
+    this.departureVx = 160
+    this.departureVy = -110
+  }
+
   update(womanX: number, womanY: number) {
+    if (this.isDeparted) {
+      this.container.x += this.departureVx * 0.016
+      this.container.y += this.departureVy * 0.016
+      return
+    }
+
     const targetX = womanX - this.followOffset
     const targetY = womanY + 5
 
