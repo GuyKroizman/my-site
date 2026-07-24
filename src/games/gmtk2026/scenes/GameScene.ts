@@ -10,6 +10,9 @@ export class GameScene extends Phaser.Scene {
   private parents: Parent[] = []
   private enemies: Enemy[] = []
   private departureTriggered = false
+  private adultTransitionTriggered = false
+  private adultPlusTransitionTriggered = false
+  private distanceText!: Phaser.GameObjects.Text
 
   constructor() {
     super('game-scene')
@@ -53,6 +56,15 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, 5000, height)
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1)
     this.cameras.main.setDeadzone(100, 50)
+
+    // Distance HUD
+    this.distanceText = this.add.text(10, 10, 'Distance: 0', {
+      fontSize: '16px',
+      color: '#ffffff',
+      backgroundColor: '#00000088',
+      padding: { x: 6, y: 3 },
+    })
+    this.distanceText.setScrollFactor(0)
   }
 
   private spawnEnemies() {
@@ -80,6 +92,19 @@ export class GameScene extends Phaser.Scene {
     if (!this.departureTriggered && px > 1200) {
       this.departureTriggered = true
       this.parents.forEach((p) => p.depart())
+      this.player.ageUp()
+    }
+
+    // Adult transition at X ≈ 2,500
+    if (!this.adultTransitionTriggered && px > 2500) {
+      this.adultTransitionTriggered = true
+      this.player.ageUpToAdult()
+    }
+
+    // Adult-plus transition at X ≈ 4,000
+    if (!this.adultPlusTransitionTriggered && px > 4000) {
+      this.adultPlusTransitionTriggered = true
+      this.player.ageUpToAdultPlus()
     }
 
     // Update parents
@@ -91,6 +116,9 @@ export class GameScene extends Phaser.Scene {
     for (const enemy of this.enemies) {
       enemy.update(px, py)
     }
+
+    // Update distance HUD
+    this.distanceText.setText(`Distance: ${Math.floor(px)}`)
 
     // Projectile-enemy collision
     for (const parent of this.parents) {
