@@ -86,4 +86,14 @@ export const projects: Project[] = [
     color: '#ec4899',
     availability: 'vr',
   },
+  {
+    id: 'gmtk-2026',
+    emoji: '🍂',
+    title: 'Seasons of Life',
+    subtitle: 'Side-Scroller Life Journey',
+    description: 'A GMTK 2026 entry. Grow older as you move right, from childhood to the grave.',
+    path: '/gmtk-2026',
+    color: '#8b5cf6',
+    availability: 'desktop',
+  },
 ]
