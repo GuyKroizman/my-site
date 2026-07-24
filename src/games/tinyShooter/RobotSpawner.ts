@@ -4,6 +4,7 @@ import { AnimatedEnemy } from './AnimatedEnemy'
 import { PROJECTILE_RADIUS } from './constants'
 import { createEnemyBehavior } from './enemyBehaviors'
 import { getEnemyArchetype } from './enemyRegistry'
+import type { RobotHitSound } from './RobotHitSound'
 import type { EnemyArchetype } from './enemyTypes'
 import type {
   ActorUpdateContext,
@@ -107,6 +108,7 @@ export class RobotSpawner implements LevelActor {
     scene: THREE.Scene,
     private readonly spawn: RobotSpawnerSpawnDefinition,
     private readonly hitSound: SpawnBoxHitSound,
+    private readonly robotHitSound: RobotHitSound,
   ) {
     this.scene = scene
     this.world = world
@@ -178,6 +180,7 @@ export class RobotSpawner implements LevelActor {
       this.spawn.position,
       this.config,
       createEnemyBehavior(this.spawn.position, this.spawn.behavior, this.config),
+      { onHit: () => this.robotHitSound.play() },
     )
     enemy.root.position.set(this.spawn.position.x, STAGED_START_Y, this.spawn.position.z)
 

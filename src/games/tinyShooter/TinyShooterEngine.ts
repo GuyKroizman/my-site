@@ -5,6 +5,7 @@ import type { GamepadStatus } from './InputManager'
 import { ShotSound } from './ShotSound'
 import { SpawnBoxHitSound } from './SpawnBoxHitSound'
 import { PlayerDamageSound } from './PlayerDamageSound'
+import { RobotHitSound } from './RobotHitSound'
 import {
   GROUND_SIZE,
   PLAYER_BODY_RADIUS,
@@ -58,6 +59,7 @@ export class TinyShooterEngine {
   private readonly sound: ShotSound
   private readonly spawnBoxHitSound: SpawnBoxHitSound
   private readonly playerDamageSound: PlayerDamageSound
+  private readonly robotHitSound: RobotHitSound
   private readonly projectileGeometry: THREE.CylinderGeometry
   private readonly projectileMaterial: THREE.MeshStandardMaterial
   private readonly damageOverlay: HTMLDivElement
@@ -192,8 +194,10 @@ export class TinyShooterEngine {
     this.sound = new ShotSound()
     this.spawnBoxHitSound = new SpawnBoxHitSound()
     this.playerDamageSound = new PlayerDamageSound()
+    this.robotHitSound = new RobotHitSound()
     this.spawnBoxHitSound.prewarm()
     this.playerDamageSound.prewarm()
+    this.robotHitSound.prewarm()
 
     this.loadLevel(this.currentLevel, true)
     window.addEventListener('resize', this.handleResize)
@@ -306,6 +310,7 @@ export class TinyShooterEngine {
     }
 
     this.actors = level.actors.map((spawn) => createLevelActor(spawn, this.world, this.scene, {
+      robotHitSound: this.robotHitSound,
       spawnBoxHitSound: this.spawnBoxHitSound,
     }))
     this.setPhase('playing')
@@ -805,6 +810,7 @@ export class TinyShooterEngine {
     this.sound.dispose()
     this.spawnBoxHitSound.dispose()
     this.playerDamageSound.dispose()
+    this.robotHitSound.dispose()
     this.clearProjectiles()
     this.clearActors()
     this.damageOverlay.remove()

@@ -32,6 +32,7 @@ export interface AnimatedEnemyOptions {
   keepFallbackVisible?: boolean
   labelHeight?: number
   debugColor?: number
+  onHit?: () => void
 }
 
 async function loadModelAsset(modelPath: string): Promise<{ scene: THREE.Group; animations: THREE.AnimationClip[] }> {
@@ -476,6 +477,7 @@ export class AnimatedEnemy implements LevelActor {
       }
 
       this.health = Math.max(0, this.health - projectile.damage)
+      this.options.onHit?.()
       if (this.health === 0) {
         this.die()
       } else {
