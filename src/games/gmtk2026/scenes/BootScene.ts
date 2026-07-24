@@ -16,7 +16,14 @@ export class BootScene extends Phaser.Scene {
       '/gmtk_2026/Classicals.de-Vivaldi-The-Four-Seasons-01-John-Harrison-with-the-Wichita-State-University-Chamber-Players-Spring-Mvt-1-Allegro.mp3'
     )
 
+    this.load.image('baby-girl', '/gmtk_2026/baby_girl.png')
+    this.load.image('daughter-toddler', '/gmtk_2026/daugther_toddler.png')
+    this.load.image('daughter-young-adult', '/gmtk_2026/daugther_young_adult.png')
     this.load.image('woman-adult', '/gmtk_2026/woman-adult.png')
+    this.load.image('woman-adult-pregnant-half', '/gmtk_2026/woman-adult-pregnant-half.png')
+    this.load.image('woman-adult-pregnant-full', '/gmtk_2026/woman-adult-pregnant-full.png')
+    this.load.image('woman-middle-aged', '/gmtk_2026/woman_middle_aged.png')
+    this.load.image('woman-elderly', '/gmtk_2026/woman-elderly.png')
     this.load.image('young-adult', '/gmtk_2026/young-adult.png')
     this.load.image('adult', '/gmtk_2026/adult.png')
     this.load.image('adult-plus', '/gmtk_2026/adulter.png')

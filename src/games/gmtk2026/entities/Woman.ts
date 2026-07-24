@@ -29,21 +29,44 @@ export class Woman {
     this.isFollowing = true
   }
 
+  flashRed() {
+    this.body.setTint(0xff0055)
+    this.body.scene.time.delayedCall(150, () => {
+      this.body.clearTint()
+    })
+  }
+
   setPregnancyStage(stage: PregnancyStage) {
     this.pregnancyStage = stage
 
     if (stage === 0) {
+      this.body.setTexture('woman-adult')
+      this.body.setDisplaySize(46, 80)
       this.bump.setAlpha(0)
       this.bump.setSize(20, 16)
     } else if (stage === 1) {
-      this.bump.setAlpha(1)
-      this.bump.setSize(24, 20)
-      this.bump.setFillStyle(0xf472b6)
+      // Half-pregnant sprite (no bump overlay needed)
+      this.body.setTexture('woman-adult-pregnant-half')
+      this.body.setDisplaySize(41, 80)
+      this.bump.setAlpha(0)
     } else {
-      this.bump.setAlpha(1)
-      this.bump.setSize(32, 26)
-      this.bump.setFillStyle(0xf9a8d4)
+      // Full-pregnancy sprite (no bump overlay needed)
+      this.body.setTexture('woman-adult-pregnant-full')
+      this.body.setDisplaySize(42, 80)
+      this.bump.setAlpha(0)
     }
+  }
+
+  ageUpToMiddleAged() {
+    this.body.setTexture('woman-middle-aged')
+    this.body.setDisplaySize(59, 80)
+    this.bump.setAlpha(0)
+  }
+
+  ageUpToElderly() {
+    this.body.setTexture('woman-elderly')
+    this.body.setDisplaySize(53, 80)
+    this.bump.setAlpha(0)
   }
 
   getPregnancyStage(): PregnancyStage {

@@ -45,6 +45,7 @@ export default function Gmtk2026() {
 
       const game = new Phaser.Game(config)
       phaserRef.current = game
+      ;(window as any).game = game
     }
   }, [isMobile])
 

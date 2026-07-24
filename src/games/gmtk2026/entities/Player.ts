@@ -226,9 +226,9 @@ export class Player {
     }
   }
 
-  takeDamage(amount: number) {
+  takeDamage(amount: number): boolean {
     const now = this.scene.time.now
-    if (now < this.invincibleUntil) return
+    if (now < this.invincibleUntil) return false
 
     this.health -= amount
     this.invincibleUntil = now + this.invincibleDuration
@@ -241,6 +241,8 @@ export class Player {
 
     // Knockback slightly
     this.sprite.setVelocityY(-150)
+
+    return true
   }
 
   getHealthPercent() {

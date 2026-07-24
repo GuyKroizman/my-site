@@ -4,19 +4,33 @@ export class Baby {
   container: Phaser.GameObjects.Container
   health = 50
   private followOffset = 30
+  private sprite!: Phaser.GameObjects.Image
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.container = scene.add.container(x, y)
 
-    // Body — tiny rectangle
-    const body = scene.add.rectangle(0, 0, 20, 25, 0x60a5fa)
-    body.setStrokeStyle(2, 0x93c5fd)
+    // Baby girl sprite
+    this.sprite = scene.add.image(0, 0, 'baby-girl')
+    this.sprite.setDisplaySize(28, 28)
 
-    // Head
-    const head = scene.add.circle(0, -18, 10, 0xfbbf24)
-    head.setStrokeStyle(2, 0xf59e0b)
+    this.container.add([this.sprite])
+  }
 
-    this.container.add([body, head])
+  ageUpToToddler() {
+    this.sprite.setTexture('daughter-toddler')
+    this.sprite.setDisplaySize(26, 40)
+  }
+
+  ageUpToYoungAdult() {
+    this.sprite.setTexture('daughter-young-adult')
+    this.sprite.setDisplaySize(33, 60)
+  }
+
+  flashRed() {
+    this.sprite.setTint(0xff0055)
+    this.container.scene.time.delayedCall(150, () => {
+      this.sprite.clearTint()
+    })
   }
 
   update(womanX: number, womanY: number) {

@@ -30,6 +30,8 @@ export class GameScene extends Phaser.Scene {
   private pregnancyStartX = 0
   private pregnancyDistanceForStage = 300
   private babySpawned = false
+  private toddlerTransitionTriggered = false
+  private daughterYoungAdultTransitionTriggered = false
   private womanHealthBar!: Phaser.GameObjects.Graphics
   private babyHealthBar!: Phaser.GameObjects.Graphics
   private womanLabel!: Phaser.GameObjects.Text
@@ -230,6 +232,52 @@ export class GameScene extends Phaser.Scene {
     this.healthText.setColor(pct > 0.3 ? '#ffffff' : '#ffcccc')
   }
 
+  private showMeetingHeart() {
+    if (!this.woman) return
+
+    const midX = (this.player.sprite.x + this.woman.x) / 2
+    const midY = Math.min(this.player.sprite.y, this.woman.y) - 80
+
+    const heart = this.add.text(midX, midY, '\u2665', {
+      fontSize: '48px',
+      color: '#ef4444',
+    })
+    heart.setOrigin(0.5)
+    heart.setScale(0)
+    heart.setDepth(95)
+
+    // Grow in
+    this.tweens.add({
+      targets: heart,
+      scale: 1.4,
+      duration: 400,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Throb
+        this.tweens.add({
+          targets: heart,
+          scale: 1.1,
+          duration: 220,
+          yoyo: true,
+          repeat: 3,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            // Disappear (float up + fade + shrink)
+            this.tweens.add({
+              targets: heart,
+              scale: 0,
+              alpha: 0,
+              y: midY - 40,
+              duration: 400,
+              ease: 'Sine.easeIn',
+              onComplete: () => heart.destroy(),
+            })
+          },
+        })
+      },
+    })
+  }
+
   private spawnEnemies() {
     const height = this.cameras.main.height
     const positions = [
@@ -283,6 +331,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.middleAgedTransitionTriggered && px > 5500) {
       this.middleAgedTransitionTriggered = true
       this.player.ageUpToMiddleAged()
+      this.woman?.ageUpToMiddleAged()
     }
 
     // Middle-ager transition at X ≈ 7,000
@@ -295,6 +344,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.elderlyTransitionTriggered && px > 8500) {
       this.elderlyTransitionTriggered = true
       this.player.ageUpToElderly()
+      this.woman?.ageUpToElderly()
     }
 
     // Update parents
@@ -317,6 +367,7 @@ export class GameScene extends Phaser.Scene {
       this.pregnancyStartX = px
       this.womanHealthBar.setAlpha(1)
       this.womanLabel.setAlpha(1)
+      this.showMeetingHeart()
     }
 
     if (this.woman && this.womanMet) {
@@ -352,6 +403,22 @@ export class GameScene extends Phaser.Scene {
       // Update baby
       if (this.baby) {
         this.baby.update(this.woman.x, this.woman.y)
+
+        // Toddler transition one stage after birth
+        if (!this.toddlerTransitionTriggered && togetherDistance > this.pregnancyDistanceForStage * 4) {
+          this.toddlerTransitionTriggered = true
+          this.baby.ageUpToToddler()
+        }
+
+        // Young adult transition another stage later
+        if (
+          !this.daughterYoungAdultTransitionTriggered &&
+          togetherDistance > this.pregnancyDistanceForStage * 5
+        ) {
+          this.daughterYoungAdultTransitionTriggered = true
+          this.baby.ageUpToYoungAdult()
+        }
+
         this.drawCompanionHealthBar(
           this.babyHealthBar,
           this.babyLabel,
@@ -378,7 +445,10 @@ export class GameScene extends Phaser.Scene {
       const dy = enemy.y - py
       const dist = Math.sqrt(dx * dx + dy * dy)
       if (dist < 40) {
-        this.player.takeDamage(10)
+        if (this.player.takeDamage(10)) {
+          this.woman?.flashRed()
+          this.baby?.flashRed()
+        }
       }
     }
 
