@@ -84,12 +84,19 @@ export class Player {
       this.sprite.setTexture(textureKey)
       this.sprite.setScale(scale)
 
-      // Keep a consistent body size so the feet always collide at the same spot
-      this.sprite.setBodySize(60, 80, false)
-      this.sprite.setOffset(
-        (this.sprite.displayWidth - 60) / 2,
-        this.sprite.displayHeight - 80
-      )
+      if (textureKey === 'young-adult') {
+        // Spritesheet frames are 768x448, character content at x≈170-619, y≈2-400
+        // Body in frame units (scaled by 0.22 → ~31x40 world, matching other stages)
+        this.sprite.setBodySize(140, 180, false)
+        this.sprite.setOffset(325, 220)
+      } else {
+        // Keep a consistent body size so the feet always collide at the same spot
+        this.sprite.setBodySize(60, 80, false)
+        this.sprite.setOffset(
+          (this.sprite.displayWidth - 60) / 2,
+          this.sprite.displayHeight - 80
+        )
+      }
 
       // Preserve body-bottom world position so feet stay on ground
       const newBody = this.sprite.body as Phaser.Physics.Arcade.Body
@@ -101,7 +108,8 @@ export class Player {
     if (this.stage !== 'baby') return
     this.stage = 'young-adult'
     this.canAttack = true
-    this.flashTransition('young-adult', 0.5, 220)
+    // 768x448 frames, ~399px-tall character → scale 0.22 ≈ 88px on screen
+    this.flashTransition('young-adult', 0.22, 220)
   }
 
   ageUpToAdult() {
@@ -134,27 +142,34 @@ export class Player {
     this.flashTransition('elderly', 0.5, 100)
   }
 
+  private animPrefix(): string | null {
+    if (this.stage === 'baby') return 'baby'
+    if (this.stage === 'young-adult') return 'young-adult'
+    return null
+  }
+
   update() {
     const body = this.sprite.body as Phaser.Physics.Arcade.Body
     this.isGrounded = body.blocked.down || body.touching.down
+    const animPrefix = this.animPrefix()
 
     // Movement
     if (this.keys.left.isDown) {
       this.sprite.setVelocityX(-this.speed)
       this.sprite.setFlipX(false)
-      if (this.isGrounded && this.stage === 'baby') {
-        this.sprite.play('baby-run', true)
+      if (this.isGrounded && animPrefix) {
+        this.sprite.play(`${animPrefix}-run`, true)
       }
     } else if (this.keys.right.isDown) {
       this.sprite.setVelocityX(this.speed)
       this.sprite.setFlipX(false)
-      if (this.isGrounded && this.stage === 'baby') {
-        this.sprite.play('baby-run', true)
+      if (this.isGrounded && animPrefix) {
+        this.sprite.play(`${animPrefix}-run`, true)
       }
     } else {
       this.sprite.setVelocityX(0)
-      if (this.isGrounded && this.stage === 'baby') {
-        this.sprite.play('baby-idle', true)
+      if (this.isGrounded && animPrefix) {
+        this.sprite.play(`${animPrefix}-idle`, true)
       }
     }
 

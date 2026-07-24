@@ -24,7 +24,10 @@ export class BootScene extends Phaser.Scene {
     this.load.image('woman-adult-pregnant-full', '/gmtk_2026/woman-adult-pregnant-full.png')
     this.load.image('woman-middle-aged', '/gmtk_2026/woman_middle_aged.png')
     this.load.image('woman-elderly', '/gmtk_2026/woman-elderly.png')
-    this.load.image('young-adult', '/gmtk_2026/young-adult.png')
+    this.load.spritesheet('young-adult', '/gmtk_2026/young-adult.png', {
+      frameWidth: 768,
+      frameHeight: 448,
+    })
     this.load.image('adult', '/gmtk_2026/adult.png')
     this.load.image('adult-plus', '/gmtk_2026/adulter.png')
     this.load.image('middle-aged', '/gmtk_2026/middle_aged.png')
@@ -49,6 +52,21 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({
       key: 'baby-run',
       frames: this.anims.generateFrameNumbers('baby', { start: 0, end: 20 }),
+      frameRate: 14,
+      repeat: -1,
+    })
+
+    // Young adult: 21 frames, single run cycle — no separate idle pose
+    this.anims.create({
+      key: 'young-adult-idle',
+      frames: this.anims.generateFrameNumbers('young-adult', { start: 0, end: 0 }),
+      frameRate: 1,
+      repeat: -1,
+    })
+
+    this.anims.create({
+      key: 'young-adult-run',
+      frames: this.anims.generateFrameNumbers('young-adult', { start: 0, end: 20 }),
       frameRate: 14,
       repeat: -1,
     })
