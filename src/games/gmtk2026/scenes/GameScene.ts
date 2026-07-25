@@ -10,6 +10,7 @@ export class GameScene extends Phaser.Scene {
   private player!: Player
   private ground!: Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.Body }
   private music!: Phaser.Sound.WebAudioSound
+  private currentMusicSeason = 'spring'
   private parents: Parent[] = []
   private enemies: Enemy[] = []
   private departureTriggered = false
@@ -40,7 +41,7 @@ export class GameScene extends Phaser.Scene {
   private babyLabel!: Phaser.GameObjects.Text
   private cameraOffsetPending = false
   private cameraOffsetTime = 0
-  private nextEnemySpawnX = 600
+  private targetEnemyCount = 2
 
   constructor() {
     super('game-scene')
@@ -55,7 +56,8 @@ export class GameScene extends Phaser.Scene {
     const startStage = debugData.startStage
     const startX = debugData.startX
 
-    // Spring music — Childhood stage
+    // Seasonal music — starts with Spring (childhood)
+    this.currentMusicSeason = 'spring'
     this.music = this.sound.add('spring-music', { loop: true, volume: 0.5 }) as Phaser.Sound.WebAudioSound
 
     if (this.sound.locked) {
@@ -116,8 +118,8 @@ export class GameScene extends Phaser.Scene {
       dad.depart()
     }
 
-    // Enemies spawn dynamically as the player moves forward
-    this.nextEnemySpawnX = 600
+    // Keep a couple of enemies on screen at all times
+    this.targetEnemyCount = 2
 
     // Woman narrative event at X ≈ 3,000 (adulthood)
     this.woman = new Woman(this, 3000, height - 80) // feet on the ground
@@ -415,18 +417,22 @@ export class GameScene extends Phaser.Scene {
       enemy.update(px, py)
     }
 
+    // Seasonal music switching based on player position
+    this.updateSeasonalMusic(px)
+
     // Apply pending camera offset after stage transition animation completes
     if (this.cameraOffsetPending && time >= this.cameraOffsetTime) {
       this.cameraOffsetPending = false
       this.updateCameraOffset()
     }
 
-    // Spawn enemies dynamically just off the right edge of the screen
+    // Keep a steady count of enemies on the right side of the screen
     const camRight = this.cameras.main.scrollX + this.cameras.main.width
-    if (camRight + 80 >= this.nextEnemySpawnX && px > 300) {
-      const h = this.cameras.main.height
-      this.enemies.push(new Enemy(this, camRight + 120, h - 80))
-      this.nextEnemySpawnX = camRight + 300 + Math.random() * 500
+    var i = 0;
+    while (this.enemies.filter(e => !e.dead).length < this.targetEnemyCount) {
+      const spawnX = camRight + 360 * i + Math.random() * 400
+      this.enemies.push(new Enemy(this, spawnX, this.cameras.main.height - 40))
+      i += 1
     }
 
     // Update distance HUD
@@ -591,6 +597,46 @@ export class GameScene extends Phaser.Scene {
     const cameraOffsetY = babyRef - groundSpriteY
 
     this.cameras.main.setFollowOffset(0, cameraOffsetY)
+  }
+
+  private updateSeasonalMusic(px: number) {
+    let season: string
+    if (px < 2900) {
+      season = 'spring'
+    } else if (px < 5500) {
+      season = 'summer'
+    } else if (px < 8500) {
+      season = 'autumn'
+    } else {
+      season = 'winter'
+    }
+
+    if (season === this.currentMusicSeason) return
+    this.currentMusicSeason = season
+
+    // Fade out current music
+    this.tweens.add({
+      targets: this.music,
+      volume: 0,
+      duration: 800,
+      onComplete: () => {
+        this.music.stop()
+        this.music.destroy()
+
+        // Start new seasonal track
+        this.music = this.sound.add(`${season}-music`, {
+          loop: true,
+          volume: 0,
+        }) as Phaser.Sound.WebAudioSound
+        this.music.play()
+
+        this.tweens.add({
+          targets: this.music,
+          volume: 0.5,
+          duration: 800,
+        })
+      },
+    })
   }
 
   // Schedule a camera offset update after the flashTransition delay (200ms)
