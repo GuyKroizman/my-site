@@ -76,9 +76,9 @@ export class Parent {
       this.container.y += this.departureVy * 0.016
       // Shrink as they walk away together
       const elapsed = time - this.departureTime
-      const shrink = Math.max(0.15, 1 - elapsed / 4000)
+      const shrink = Math.max(0.05, 1 - elapsed / 2000)
       this.container.setScale(shrink)
-      this.container.setAlpha(Math.max(0.2, shrink))
+      this.container.setAlpha(Math.max(0.1, shrink))
       return
     }
 
@@ -233,9 +233,9 @@ export class Parent {
   depart() {
     if (this.isDeparted) return
     this.isDeparted = true
-    // Both parents walk away together to the right and fade into the distance
-    this.departureVx = 80
-    this.departureVy = -80
+    // Both parents walk away together to the left and fade into the distance
+    this.departureVx = -140
+    this.departureVy = -60
     this.departureTime = this.scene.time.now
   }
 
