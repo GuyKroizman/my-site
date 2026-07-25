@@ -356,14 +356,11 @@ export class Player {
     this.health -= amount
     this.invincibleUntil = now + this.invincibleDuration
 
-    // Flash red
+    // Flash red — keep the current sprite/animation, just tint it
     this.sprite.setTint(0xff0055)
     this.scene.time.delayedCall(150, () => {
       this.sprite.clearTint()
     })
-
-    // Knockback slightly
-    this.sprite.setVelocityY(-150)
 
     return true
   }
