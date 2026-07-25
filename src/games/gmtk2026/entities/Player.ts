@@ -133,8 +133,9 @@ export class Player {
       this.sprite.setOffset(visuals.bodyX, visuals.bodyY)
 
       // Preserve body-bottom world position so feet stay on ground
-      const newBody = this.sprite.body as Phaser.Physics.Arcade.Body
-      this.sprite.y = oldBottomY - newBody.height / 2
+      // body.bottom = sprite.y - displayOriginY + (offsetY + bodyH) * scale
+      // so: sprite.y = oldBottomY + displayOriginY - (offsetY + bodyH) * scale
+      this.sprite.y = oldBottomY + this.sprite.displayOriginY - (visuals.bodyY + visuals.bodyH) * visuals.scale
     })
   }
 
@@ -191,12 +192,17 @@ export class Player {
       this.sprite.setOffset(103, 103)
       this.speed = 180
     } else {
+      const oldBody = this.sprite.body as Phaser.Physics.Arcade.Body
+      const oldBottomY = oldBody.y + oldBody.height
+
       const visuals = Player.STAGE_VISUALS[stage]
       this.sprite.stop()
       this.sprite.setTexture(stage)
       this.sprite.setScale(visuals.scale)
       this.sprite.setBodySize(visuals.bodyW, visuals.bodyH, false)
       this.sprite.setOffset(visuals.bodyX, visuals.bodyY)
+      // Preserve body-bottom so feet stay at same world position
+      this.sprite.y = oldBottomY + this.sprite.displayOriginY - (visuals.bodyY + visuals.bodyH) * visuals.scale
       this.speed = {
         'young-adult': 220,
         adult: 200,

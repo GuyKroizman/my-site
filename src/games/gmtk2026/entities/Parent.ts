@@ -29,7 +29,7 @@ export class Parent {
     x: number,
     y: number,
     bodyColor: number,
-    private flip: boolean,
+    flip: boolean,
     textureKey?: string
   ) {
     this.scene = scene
@@ -65,9 +65,9 @@ export class Parent {
 
   update(
     playerX: number,
-    playerY: number,
+    _playerY: number,
     offsetX: number,
-    offsetY: number,
+    _offsetY: number,
     enemies: EnemyTarget[],
     time: number
   ) {
@@ -84,7 +84,7 @@ export class Parent {
 
     if (this.isFather) {
       // Father: melee behavior — chase enemies, hit them close-up
-      this.updateMeleeBehavior(playerX, playerY, offsetX, offsetY, enemies, time)
+      this.updateMeleeBehavior(playerX, offsetX, enemies, time)
     } else {
       // Mother: follow player horizontally, stay at ground level
       const targetX = playerX + offsetX
@@ -136,9 +136,7 @@ export class Parent {
 
   private updateMeleeBehavior(
     playerX: number,
-    playerY: number,
     offsetX: number,
-    offsetY: number,
     enemies: EnemyTarget[],
     time: number
   ) {

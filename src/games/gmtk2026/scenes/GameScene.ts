@@ -38,6 +38,8 @@ export class GameScene extends Phaser.Scene {
   private babyHealthBar!: Phaser.GameObjects.Graphics
   private womanLabel!: Phaser.GameObjects.Text
   private babyLabel!: Phaser.GameObjects.Text
+  private cameraOffsetPending = false
+  private cameraOffsetTime = 0
 
   constructor() {
     super('game-scene')
@@ -122,11 +124,13 @@ export class GameScene extends Phaser.Scene {
     // Collisions
     this.physics.add.collider(this.player.sprite, this.ground)
 
-    // Camera
+    // Camera — follow with Y offset to keep ground at consistent screen position
     this.cameras.main.setBounds(0, 0, 10000, height)
     this.physics.world.setBounds(0, 0, 10000, height)
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1)
     this.cameras.main.setDeadzone(100, 50)
+    // Track the camera offset so the ground stays at same screen Y regardless of player height
+    this.updateCameraOffset()
 
     // Distance HUD
     this.distanceText = this.add.text(10, 10, 'Distance: 0', {
@@ -343,20 +347,20 @@ export class GameScene extends Phaser.Scene {
   private spawnEnemies() {
     const height = this.cameras.main.height
     const positions = [
-      { x: 480, y: height - 100 },
-      { x: 750, y: height - 110 },
-      { x: 1600, y: height - 100 },
-      { x: 2200, y: height - 110 },
-      { x: 2800, y: height - 100 },
-      { x: 3500, y: height - 100 },
-      { x: 4200, y: height - 110 },
-      { x: 5000, y: height - 100 },
-      { x: 5800, y: height - 110 },
-      { x: 6500, y: height - 100 },
-      { x: 7200, y: height - 110 },
-      { x: 8000, y: height - 100 },
-      { x: 8800, y: height - 110 },
-      { x: 9500, y: height - 100 },
+      { x: 480, y: height - 80 },
+      { x: 750, y: height - 80 },
+      { x: 1600, y: height - 80 },
+      { x: 2200, y: height - 80 },
+      { x: 2800, y: height - 80 },
+      { x: 3500, y: height - 80 },
+      { x: 4200, y: height - 80 },
+      { x: 5000, y: height - 80 },
+      { x: 5800, y: height - 80 },
+      { x: 6500, y: height - 80 },
+      { x: 7200, y: height - 80 },
+      { x: 8000, y: height - 80 },
+      { x: 8800, y: height - 80 },
+      { x: 9500, y: height - 80 },
     ]
     for (const pos of positions) {
       this.enemies.push(new Enemy(this, pos.x, pos.y))
@@ -375,18 +379,21 @@ export class GameScene extends Phaser.Scene {
       this.departureTriggered = true
       this.parents.forEach((p) => p.depart())
       this.player.ageUp()
+      this.scheduleCameraOffsetUpdate()
     }
 
     // Adult transition at X ≈ 2,500
     if (!this.adultTransitionTriggered && px > 2500) {
       this.adultTransitionTriggered = true
       this.player.ageUpToAdult()
+      this.scheduleCameraOffsetUpdate()
     }
 
     // Adult-plus transition at X ≈ 4,000
     if (!this.adultPlusTransitionTriggered && px > 4000) {
       this.adultPlusTransitionTriggered = true
       this.player.ageUpToAdultPlus()
+      this.scheduleCameraOffsetUpdate()
     }
 
     // Middle-aged transition at X ≈ 5,500
@@ -394,6 +401,7 @@ export class GameScene extends Phaser.Scene {
       this.middleAgedTransitionTriggered = true
       this.player.ageUpToMiddleAged()
       this.woman?.ageUpToMiddleAged()
+      this.scheduleCameraOffsetUpdate()
     }
 
     // Daughter leaves home soon after the parents become middle-aged (X ≈ 5,900)
@@ -408,6 +416,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.middleAgerTransitionTriggered && px > 7000) {
       this.middleAgerTransitionTriggered = true
       this.player.ageUpToMiddleAger()
+      this.scheduleCameraOffsetUpdate()
     }
 
     // Elderly transition at X ≈ 8,500
@@ -415,6 +424,7 @@ export class GameScene extends Phaser.Scene {
       this.elderlyTransitionTriggered = true
       this.player.ageUpToElderly()
       this.woman?.ageUpToElderly()
+      this.scheduleCameraOffsetUpdate()
     }
 
     // Update parents
@@ -425,6 +435,12 @@ export class GameScene extends Phaser.Scene {
     // Update enemies
     for (const enemy of this.enemies) {
       enemy.update(px, py)
+    }
+
+    // Apply pending camera offset after stage transition animation completes
+    if (this.cameraOffsetPending && time >= this.cameraOffsetTime) {
+      this.cameraOffsetPending = false
+      this.updateCameraOffset()
     }
 
     // Update distance HUD
@@ -559,6 +575,42 @@ export class GameScene extends Phaser.Scene {
 
     // Clean up dead enemies
     this.enemies = this.enemies.filter((e) => !e.dead)
+  }
+
+  // Adjust camera follow Y-offset so the ground stays at the same screen position
+  // regardless of how tall the player character becomes.
+  private updateCameraOffset() {
+    // Baby reference: sprite.y at ground = height - 119.75
+    // For any stage, offset = babyRef - currentSpriteY
+    const h = this.cameras.main.height
+    const babyRef = h - 119.75 // baby sprite center Y when feet on ground
+
+    // Current player sprite.y if feet were on the ground:
+    // bodyBottom = sprite.y - displayOriginY + (offsetY + bodyH) * scale
+    // When bodyBottom = groundTop (h - 80): sprite.y = h - 80 + displayOriginY - (offsetY + bodyH) * scale
+    const stage = this.player.stage
+    if (stage === 'baby') {
+      this.cameras.main.setFollowOffset(0, 0)
+      return
+    }
+
+    // Use the player's current sprite to compute the ideal ground-level sprite.y
+    const displayOriginY = this.player.sprite.displayOriginY
+    const body = this.player.sprite.body as Phaser.Physics.Arcade.Body
+    const scale = this.player.sprite.scaleY
+    const offsetY = body.offset.y / scale // frame units
+    const bodyH = body.height / scale   // frame units
+
+    const groundSpriteY = (h - 80) + displayOriginY - (offsetY + bodyH) * scale
+    const cameraOffsetY = babyRef - groundSpriteY
+
+    this.cameras.main.setFollowOffset(0, cameraOffsetY)
+  }
+
+  // Schedule a camera offset update after the flashTransition delay (200ms)
+  private scheduleCameraOffsetUpdate() {
+    this.cameraOffsetPending = true
+    this.cameraOffsetTime = this.time.now + 200
   }
 
   private renderLevel() {

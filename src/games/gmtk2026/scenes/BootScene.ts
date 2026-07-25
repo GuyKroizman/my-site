@@ -60,6 +60,19 @@ export class BootScene extends Phaser.Scene {
 
     this.load.image('elderly', '/gmtk_2026/elderly.png')
 
+    // Mimic enemy
+    this.load.spritesheet('mimic-walk', '/gmtk_2026/Mimic/walk.png', {
+      frameWidth: 146,
+      frameHeight: 146,
+    })
+    this.load.spritesheet('mimic-hurt', '/gmtk_2026/Mimic/hurt.png', {
+      frameWidth: 146,
+      frameHeight: 146,
+    })
+
+    this.load.audio('mimic-hurt-sfx', '/gmtk_2026/mimic_hurt.wav')
+    this.load.audio('mimic-death-sfx', '/gmtk_2026/mimic_death.wav')
+
     // Spring assets
     const spring = [
       'grass-1', 'grass-2', 'grass-3', 'grass-4',
@@ -200,6 +213,14 @@ export class BootScene extends Phaser.Scene {
       frames: this.anims.generateFrameNumbers('father-attack', { start: 0, end: 28 }),
       frameRate: 16,
       repeat: 0,
+    })
+
+    // Mimic walk: 6 frames
+    this.anims.create({
+      key: 'mimic-walk',
+      frames: this.anims.generateFrameNumbers('mimic-walk', { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat: -1,
     })
   }
 }
