@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { LEVEL } from '../data/levels'
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -33,6 +34,11 @@ export class BootScene extends Phaser.Scene {
       frameWidth: 768,
       frameHeight: 448,
     })
+
+    this.load.spritesheet('young-adult-attack', '/gmtk_2026/young-adult-attach-sheet.png', {
+      frameWidth: 768,
+      frameHeight: 448,
+    })
     this.load.image('adult', '/gmtk_2026/adult.png')
     this.load.image('adult-plus', '/gmtk_2026/adulter.png')
     this.load.image('middle-aged', '/gmtk_2026/middle_aged.png')
@@ -41,9 +47,40 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    this.createPlaceholderTextures()
     this.createAnimations()
     const debug = (window as any).__GMTK2026_DEBUG || {}
     this.scene.start('game-scene', debug)
+  }
+
+  private createPlaceholderTextures() {
+    const gfx = this.add.graphics()
+    const colors: Record<string, number> = {
+      grass: 0x4ade80,
+      sun: 0xfacc15,
+      'tree-1': 0x166534,
+      'tree-2': 0x15803d,
+      rock: 0x78716c,
+      'mountain-far': 0x64748b,
+      cloud: 0xffffff,
+    }
+    const seen = new Set<string>()
+
+    Object.values(LEVEL.layers).forEach((layer) => {
+      layer.forEach((row) => {
+        row.forEach((cell) => {
+          cell?.forEach((obj) => {
+            if (seen.has(obj.type) || this.textures.exists(obj.type)) return
+            seen.add(obj.type)
+            gfx.clear()
+            gfx.fillStyle(colors[obj.type] ?? 0xff00ff, 1)
+            gfx.fillRect(0, 0, 32, 32)
+            gfx.generateTexture(obj.type, 32, 32)
+          })
+        })
+      })
+    })
+    gfx.destroy()
   }
 
   private createAnimations() {
@@ -82,6 +119,14 @@ export class BootScene extends Phaser.Scene {
       key: 'young-adult-jump',
       frames: this.anims.generateFrameNumbers('young-adult-jump', { start: 0, end: 20 }),
       frameRate: 16,
+      repeat: 0,
+    })
+
+    // Attack: 17 frames, right-facing, play once
+    this.anims.create({
+      key: 'young-adult-attack',
+      frames: this.anims.generateFrameNumbers('young-adult-attack', { start: 0, end: 16 }),
+      frameRate: 18,
       repeat: 0,
     })
   }

@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { Player, type PlayerStage } from '../entities/Player'
+import { LEVEL } from '../data/levels'
 import { Parent } from '../entities/Parent'
 import { Enemy } from '../entities/Enemy'
 import { Woman } from '../entities/Woman'
@@ -69,6 +70,10 @@ export class GameScene extends Phaser.Scene {
 
     // Player
     this.player = new Player(this, 200, height - 120)
+    this.player.sprite.setDepth(10)
+
+    // Render level decoration layers
+    this.renderLevel()
 
     if (startStage) {
       this.player.setStage(startStage)
@@ -551,5 +556,52 @@ export class GameScene extends Phaser.Scene {
 
     // Clean up dead enemies
     this.enemies = this.enemies.filter((e) => !e.dead)
+  }
+
+  private renderLevel() {
+    const groundTop = this.ground.y - this.ground.height / 2
+
+    const layerDepths: Record<string, number> = {
+      sky: -100,
+      background: -50,
+      ground: 0,
+      foreground: 50,
+    }
+    const layerScrollFactors: Record<string, number> = {
+      sky: 0.1,
+      background: 0.5,
+      ground: 1,
+      foreground: 1,
+    }
+
+    Object.entries(LEVEL.layers).forEach(([layerName, layer]) => {
+      const depth = layerDepths[layerName] ?? 0
+      const scrollFactor = layerScrollFactors[layerName] ?? 1
+
+      layer.forEach((row, r) => {
+        row.forEach((cell, c) => {
+          if (!cell) return
+
+          const wx = c * LEVEL.cellSize + LEVEL.cellSize / 2
+          const wy = groundTop - (r * LEVEL.cellSize + LEVEL.cellSize / 2)
+
+          cell.forEach((obj) => {
+            if (!this.textures.exists(obj.type)) return
+
+            const img = this.add.image(
+              wx + (obj.offsetX ?? 0),
+              wy + (obj.offsetY ?? 0),
+              obj.type
+            )
+            img.setDepth(depth)
+            img.setScrollFactor(scrollFactor)
+            if (obj.scale !== undefined) img.setScale(obj.scale)
+            if (obj.rotation !== undefined) img.setAngle(obj.rotation)
+            if (obj.flipX) img.setFlipX(true)
+            if (obj.tint !== undefined) img.setTint(obj.tint)
+          })
+        })
+      })
+    })
   }
 }

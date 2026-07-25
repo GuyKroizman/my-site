@@ -227,19 +227,19 @@ export class Player {
     // Movement
     if (this.keys.left.isDown) {
       this.sprite.setVelocityX(-this.speed)
-      this.sprite.setFlipX(false)
-      if (this.isGrounded && animPrefix) {
+      this.sprite.setFlipX(true)
+      if (!this.isAttacking && this.isGrounded && animPrefix) {
         this.sprite.play(`${animPrefix}-run`, true)
       }
     } else if (this.keys.right.isDown) {
       this.sprite.setVelocityX(this.speed)
       this.sprite.setFlipX(false)
-      if (this.isGrounded && animPrefix) {
+      if (!this.isAttacking && this.isGrounded && animPrefix) {
         this.sprite.play(`${animPrefix}-run`, true)
       }
     } else {
       this.sprite.setVelocityX(0)
-      if (this.isGrounded && animPrefix) {
+      if (!this.isAttacking && this.isGrounded && animPrefix) {
         this.sprite.play(`${animPrefix}-idle`, true)
       }
     }
@@ -251,7 +251,7 @@ export class Player {
 
     // Jump animation while airborne (young-adult stage), rendered 2x bigger
     // On landing, the movement code above resumes run/idle, which also restores the run texture
-    if (!this.isGrounded && this.stage === 'young-adult') {
+    if (!this.isAttacking && !this.isGrounded && this.stage === 'young-adult') {
       this.setJumpScale(true)
       this.sprite.play('young-adult-jump', true)
     } else if (this.isGrounded && this.isJumpScaled) {
@@ -269,18 +269,46 @@ export class Player {
 
     // Update attack slash position and rotation
     if (this.isAttacking) {
-      const cx = this.sprite.x
-      const cy = this.sprite.y - 20
-      this.attackSlash.x = cx + Math.cos(this.attackAngle) * this.attackDistance
-      this.attackSlash.y = cy + Math.sin(this.attackAngle) * this.attackDistance
-      this.attackSlash.setRotation(this.attackAngle)
+      this.updateAttackSlashPosition()
     }
+  }
+
+  private updateAttackSlashPosition() {
+    const cx = this.sprite.x
+    const cy = this.sprite.y - 20
+    this.attackSlash.x = cx + Math.cos(this.attackAngle) * this.attackDistance
+    this.attackSlash.y = cy + Math.sin(this.attackAngle) * this.attackDistance
+    this.attackSlash.setRotation(this.attackAngle)
   }
 
   private performAttack() {
     this.isAttacking = true
+    this.lastAttackTime = this.scene.time.now
 
-    // Compute 8-direction angle from held keys
+    if (this.stage === 'young-adult') {
+      // Horizontal-only attack for the young-adult stage
+      const facingLeft = this.keys.left.isDown
+      this.sprite.setFlipX(facingLeft)
+      this.attackAngle = facingLeft ? Math.PI : 0
+
+      this.sprite.stop()
+      this.sprite.setTexture('young-adult-attack')
+      this.sprite.setScale(Player.STAGE_VISUALS['young-adult'].scale)
+      this.sprite.play('young-adult-attack', true)
+
+      // The sprite sheet already contains the sword slash, so hide the generic slash
+      this.attackSlash.setAlpha(0)
+      this.updateAttackSlashPosition()
+
+      this.sprite.once('animationcomplete-young-adult-attack', () => {
+        this.isAttacking = false
+        this.sprite.setTexture('young-adult')
+        // The next update frame will resume run/idle
+      })
+      return
+    }
+
+    // Compute 8-direction angle from held keys (used for adult+ stages)
     let dx = 0
     let dy = 0
     if (this.keys.left.isDown) dx = -1
@@ -295,11 +323,7 @@ export class Player {
 
     this.attackAngle = Math.atan2(dy, dx)
 
-    const cx = this.sprite.x
-    const cy = this.sprite.y - 20
-    this.attackSlash.x = cx + Math.cos(this.attackAngle) * this.attackDistance
-    this.attackSlash.y = cy + Math.sin(this.attackAngle) * this.attackDistance
-    this.attackSlash.setRotation(this.attackAngle)
+    this.updateAttackSlashPosition()
     this.attackSlash.setAlpha(0.9)
     this.attackSlash.setScale(1, 1)
 
