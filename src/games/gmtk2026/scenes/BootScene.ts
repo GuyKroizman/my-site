@@ -69,8 +69,8 @@ export class BootScene extends Phaser.Scene {
 
     // Autumn assets
     const autumn = [
-      'grass-autumn-1', 'grass-autumn-2', 'grass-autumn-3', 'grass-autumn-4',
-      'rock-moss-1', 'rock-moss-2', 'rock-moss-3', 'rock-moss-4',
+      'grass-autumn-1', 'grass-autumn-3', 'grass-autumn-4',
+      'rock-moss-1', 'rock-moss-2', 'rock-moss-4',
       'tree-autumn-small', 'tree-autumn-large', 'tree-autumn-bare',
       'bush-autumn-1', 'bush-autumn-2', 'grass-wheat-autumn',
       'leaf-pile', 'leaves-scattered',

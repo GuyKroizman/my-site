@@ -84,8 +84,8 @@ const ASSETS: Record<
     background: ['tree-green-1', 'tree-green-3'],
   },
   autumn: {
-    grass: ['grass-autumn-1', 'grass-autumn-2', 'grass-autumn-3', 'grass-autumn-4'],
-    rock: ['rock-moss-1', 'rock-moss-2', 'rock-moss-3', 'rock-moss-4'],
+    grass: ['grass-autumn-1', 'grass-autumn-3', 'grass-autumn-4'],
+    rock: ['rock-moss-1', 'rock-moss-2', 'rock-moss-4'],
     tree: ['tree-autumn-small', 'tree-autumn-large', 'tree-autumn-bare'],
     bush: ['bush-autumn-1', 'bush-autumn-2', 'grass-wheat-autumn'],
     prop: ['leaf-pile', 'leaves-scattered'],
