@@ -17,6 +17,7 @@ export class Parent {
   private isDeparted = false
   private departureVx = 0
   private departureVy = 0
+  private departureTime = 0
   private sprite?: Phaser.GameObjects.Sprite
   private isAttacking = false
   private detectionRange = 500
@@ -73,6 +74,11 @@ export class Parent {
     if (this.isDeparted) {
       this.container.x += this.departureVx * 0.016
       this.container.y += this.departureVy * 0.016
+      // Shrink as they walk away together
+      const elapsed = time - this.departureTime
+      const shrink = Math.max(0.15, 1 - elapsed / 4000)
+      this.container.setScale(shrink)
+      this.container.setAlpha(Math.max(0.2, shrink))
       return
     }
 
@@ -227,8 +233,10 @@ export class Parent {
   depart() {
     if (this.isDeparted) return
     this.isDeparted = true
-    this.departureVx = this.flip ? -80 : 120
-    this.departureVy = -90
+    // Both parents walk away together to the right and fade into the distance
+    this.departureVx = 80
+    this.departureVy = -80
+    this.departureTime = this.scene.time.now
   }
 
   getProjectiles() {
