@@ -104,9 +104,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Parents flank the baby
-    const mom = new Parent(this, 120, height - 120, 0xe91e63, false, 'mother-walk')
-    const dad = new Parent(this, 280, height - 120, 0x2196f3, true, 'father-walk')
+    // Parents flank the baby — feet aligned to ground (height - 80)
+    const mom = new Parent(this, 120, height - 121, 0xe91e63, false, 'mother-walk')
+    const dad = new Parent(this, 280, height - 121, 0x2196f3, true, 'father-walk')
     this.parents.push(mom, dad)
     if (startStage && startStage !== 'baby') {
       mom.depart()

@@ -36,13 +36,16 @@ export class Parent {
 
     if (textureKey === 'father-walk') {
       this.isFather = true
-      this.sprite = scene.add.sprite(0, 100, textureKey)
+      // sprite.y = 93 offsets the empty padding below the feet so visual bottom
+      // aligns with the baby at container y = height - 120 (feet at height - 80)
+      this.sprite = scene.add.sprite(0, 93, textureKey)
       this.sprite.setScale(0.8)
       this.sprite.setOrigin(0.5, 1)
       this.sprite.play('father-walk', true)
       this.container.add([this.sprite])
     } else if (textureKey === 'mother-walk') {
-      this.sprite = scene.add.sprite(0, 100, textureKey)
+      // sprite.y = 65 offsets the empty padding so feet align with ground
+      this.sprite = scene.add.sprite(0, 65, textureKey)
       this.sprite.setScale(0.8)
       this.sprite.setOrigin(0.5, 1)
       this.sprite.play('mother-walk', true)
@@ -77,9 +80,12 @@ export class Parent {
       // Father: melee behavior — chase enemies, hit them close-up
       this.updateMeleeBehavior(playerX, playerY, offsetX, offsetY, enemies, time)
     } else {
-      // Mother: follow player and shoot projectiles
-      this.container.x = Phaser.Math.Linear(this.container.x, playerX + offsetX, 0.08)
-      this.container.y = Phaser.Math.Linear(this.container.y, playerY + offsetY, 0.08)
+      // Mother: follow player horizontally, stay at ground level
+      const targetX = playerX + offsetX
+      this.container.x = Phaser.Math.Linear(this.container.x, targetX, 0.08)
+      if (Math.abs(targetX - this.container.x) > 5 && this.sprite) {
+        this.sprite.setFlipX(targetX < this.container.x)
+      }
 
       let nearest: EnemyTarget | null = null
       let nearestDist = Infinity
@@ -155,11 +161,9 @@ export class Parent {
         this.sprite?.setFlipX(nearest.x < this.container.x)
       }
     } else {
-      // Follow player
+      // Follow player horizontally, stay at ground level
       const targetX = playerX + offsetX
-      const targetY = playerY + offsetY
       this.container.x = Phaser.Math.Linear(this.container.x, targetX, 0.08)
-      this.container.y = Phaser.Math.Linear(this.container.y, targetY, 0.08)
       if (Math.abs(targetX - this.container.x) > 5) {
         this.sprite?.setFlipX(targetX < this.container.x)
       }
@@ -173,7 +177,7 @@ export class Parent {
     this.isAttacking = true
     this.sprite?.setFlipX(target.x < this.container.x)
     this.sprite?.setScale(2) // attack sprites are much smaller in-frame
-    this.sprite?.setY(225)   // push down so feet align with ground
+    this.sprite?.setY(198)   // keep feet at same ground level during attack
     this.sprite?.play('father-attack', true)
 
     // Deal damage at the start of the swing
@@ -182,7 +186,7 @@ export class Parent {
     this.sprite?.once('animationcomplete-father-attack', () => {
       this.isAttacking = false
       this.sprite?.setScale(0.8) // restore walk scale
-      this.sprite?.setY(130)
+      this.sprite?.setY(93)
       this.sprite?.play('father-walk', true)
     })
   }

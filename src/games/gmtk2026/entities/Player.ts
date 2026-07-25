@@ -40,9 +40,9 @@ export class Player {
     // Scale down so the baby appears roughly the old 100x85 size
     this.sprite.setScale(0.25)
 
-    // Consistent bottom-aligned body for all stages (frame units, scaled by 0.25)
+    // Baby body: hitbox aligned with visual content (rows 48-382 in 448px frame)
     this.sprite.setBodySize(240, 280, false)
-    this.sprite.setOffset(250, 103)
+    this.sprite.setOffset(103, 103)
 
     // Attack slash visual (hidden by default)
     this.attackSlash = scene.add.rectangle(0, 0, 70, 20, 0xffffff)
