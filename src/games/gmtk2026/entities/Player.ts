@@ -293,7 +293,7 @@ export class Player {
 
       this.sprite.stop()
       this.sprite.setTexture('young-adult-attack')
-      this.sprite.setScale(Player.STAGE_VISUALS['young-adult'].scale)
+      this.sprite.setScale(Player.STAGE_VISUALS['young-adult'].scale * 1.6)
       this.sprite.play('young-adult-attack', true)
 
       // The sprite sheet already contains the sword slash, so hide the generic slash
