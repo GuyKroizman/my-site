@@ -48,6 +48,11 @@ export class BootScene extends Phaser.Scene {
       frameHeight: 448,
     })
 
+    this.load.spritesheet('mother-walk', '/gmtk_2026/mother_walking_sheet.png', {
+      frameWidth: 768,
+      frameHeight: 448,
+    })
+
     this.load.spritesheet('father-attack', '/gmtk_2026/father-attack-sheet.png', {
       frameWidth: 768,
       frameHeight: 448,
@@ -177,6 +182,14 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({
       key: 'father-walk',
       frames: this.anims.generateFrameNumbers('father-walk', { start: 0, end: 20 }),
+      frameRate: 12,
+      repeat: -1,
+    })
+
+    // Mother walk: 21 frames, continuous walk cycle
+    this.anims.create({
+      key: 'mother-walk',
+      frames: this.anims.generateFrameNumbers('mother-walk', { start: 0, end: 20 }),
       frameRate: 12,
       repeat: -1,
     })

@@ -21,6 +21,7 @@ export class Parent {
   private isAttacking = false
   private detectionRange = 500
   private meleeRange = 90
+  private isFather = false
 
   constructor(
     scene: Phaser.Scene,
@@ -33,15 +34,21 @@ export class Parent {
     this.scene = scene
     this.container = scene.add.container(x, y)
 
-    if (textureKey) {
-      // Father — sprite sheet
+    if (textureKey === 'father-walk') {
+      this.isFather = true
       this.sprite = scene.add.sprite(0, 100, textureKey)
       this.sprite.setScale(0.8)
       this.sprite.setOrigin(0.5, 1)
       this.sprite.play('father-walk', true)
       this.container.add([this.sprite])
+    } else if (textureKey === 'mother-walk') {
+      this.sprite = scene.add.sprite(0, 100, textureKey)
+      this.sprite.setScale(0.8)
+      this.sprite.setOrigin(0.5, 1)
+      this.sprite.play('mother-walk', true)
+      this.container.add([this.sprite])
     } else {
-      // Mother — simple shape
+      // Fallback shape
       const body = scene.add.rectangle(0, 0, 44, 64, bodyColor)
       const gun = scene.add.rectangle(flip ? -22 : 22, 8, 40, 14, 0x444444)
       const leftEye = scene.add.circle(-10, -18, 6, 0xffffff)
@@ -66,7 +73,7 @@ export class Parent {
       return
     }
 
-    if (this.sprite) {
+    if (this.isFather) {
       // Father: melee behavior — chase enemies, hit them close-up
       this.updateMeleeBehavior(playerX, playerY, offsetX, offsetY, enemies, time)
     } else {
@@ -89,6 +96,9 @@ export class Parent {
 
       if (nearest) {
         this.shootAt(nearest.x, nearest.y, time)
+        if (this.sprite) {
+          this.sprite.setFlipX(nearest.x < this.container.x)
+        }
       }
     }
 
@@ -163,7 +173,7 @@ export class Parent {
     this.isAttacking = true
     this.sprite?.setFlipX(target.x < this.container.x)
     this.sprite?.setScale(2) // attack sprites are much smaller in-frame
-    this.sprite?.setY(205)   // push down so feet align with ground
+    this.sprite?.setY(225)   // push down so feet align with ground
     this.sprite?.play('father-attack', true)
 
     // Deal damage at the start of the swing
@@ -172,7 +182,7 @@ export class Parent {
     this.sprite?.once('animationcomplete-father-attack', () => {
       this.isAttacking = false
       this.sprite?.setScale(0.8) // restore walk scale
-      this.sprite?.setY(100)
+      this.sprite?.setY(130)
       this.sprite?.play('father-walk', true)
     })
   }
