@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { LEVEL } from '../data/levels'
+import { LEVEL, TILE_MAP } from '../data/levels'
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -101,16 +101,16 @@ export class BootScene extends Phaser.Scene {
 
     Object.values(LEVEL.layers).forEach((layer) => {
       layer.forEach((row) => {
-        row.forEach((cell) => {
-          cell?.forEach((obj) => {
-            if (seen.has(obj.type) || this.textures.exists(obj.type)) return
-            seen.add(obj.type)
-            gfx.clear()
-            gfx.fillStyle(0xff00ff, 1)
-            gfx.fillRect(0, 0, 32, 32)
-            gfx.generateTexture(obj.type, 32, 32)
-          })
-        })
+        for (const char of row) {
+          if (char === ' ') continue
+          const obj = TILE_MAP[char]
+          if (!obj || seen.has(obj.type) || this.textures.exists(obj.type)) continue
+          seen.add(obj.type)
+          gfx.clear()
+          gfx.fillStyle(0xff00ff, 1)
+          gfx.fillRect(0, 0, 32, 32)
+          gfx.generateTexture(obj.type, 32, 32)
+        }
       })
     })
     gfx.destroy()

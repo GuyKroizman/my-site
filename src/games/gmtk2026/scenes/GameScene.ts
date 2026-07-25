@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { Player, type PlayerStage } from '../entities/Player'
-import { LEVEL } from '../data/levels'
+import { LEVEL, TILE_MAP } from '../data/levels'
 import { Parent } from '../entities/Parent'
 import { Enemy } from '../entities/Enemy'
 import { Woman } from '../entities/Woman'
@@ -578,30 +578,33 @@ export class GameScene extends Phaser.Scene {
       const depth = layerDepths[layerName] ?? 0
       const scrollFactor = layerScrollFactors[layerName] ?? 1
 
-      layer.forEach((row, r) => {
-        row.forEach((cell, c) => {
-          if (!cell) return
+      for (let r = 0; r < layer.length; r++) {
+        const row = layer[r]
+        for (let c = 0; c < row.length; c++) {
+          const char = row[c]
+          if (char === ' ') continue
+
+          const obj = TILE_MAP[char]
+          if (!obj) continue
 
           const wx = c * LEVEL.cellSize + LEVEL.cellSize / 2
           const wy = groundTop - (r * LEVEL.cellSize + LEVEL.cellSize / 2)
 
-          cell.forEach((obj) => {
-            if (!this.textures.exists(obj.type)) return
+          if (!this.textures.exists(obj.type)) continue
 
-            const img = this.add.image(
-              wx + (obj.offsetX ?? 0),
-              wy + (obj.offsetY ?? 0),
-              obj.type
-            )
-            img.setDepth(depth)
-            img.setScrollFactor(scrollFactor)
-            if (obj.scale !== undefined) img.setScale(obj.scale)
-            if (obj.rotation !== undefined) img.setAngle(obj.rotation)
-            if (obj.flipX) img.setFlipX(true)
-            if (obj.tint !== undefined) img.setTint(obj.tint)
-          })
-        })
-      })
+          const img = this.add.image(
+            wx + (obj.offsetX ?? 0),
+            wy + (obj.offsetY ?? 0),
+            obj.type
+          )
+          img.setDepth(depth)
+          img.setScrollFactor(scrollFactor)
+          if (obj.scale !== undefined) img.setScale(obj.scale)
+          if (obj.rotation !== undefined) img.setAngle(obj.rotation)
+          if (obj.flipX) img.setFlipX(true)
+          if (obj.tint !== undefined) img.setTint(obj.tint)
+        }
+      }
     })
   }
 }
