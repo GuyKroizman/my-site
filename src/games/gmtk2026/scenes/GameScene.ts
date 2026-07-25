@@ -40,6 +40,7 @@ export class GameScene extends Phaser.Scene {
   private babyLabel!: Phaser.GameObjects.Text
   private cameraOffsetPending = false
   private cameraOffsetTime = 0
+  private nextEnemySpawnX = 600
 
   constructor() {
     super('game-scene')
@@ -115,8 +116,8 @@ export class GameScene extends Phaser.Scene {
       dad.depart()
     }
 
-    // Shadowy enemies ahead
-    this.spawnEnemies()
+    // Enemies spawn dynamically as the player moves forward
+    this.nextEnemySpawnX = 600
 
     // Woman narrative event at X ≈ 3,000 (adulthood)
     this.woman = new Woman(this, 3000, height - 80) // feet on the ground
@@ -344,29 +345,6 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  private spawnEnemies() {
-    const height = this.cameras.main.height
-    const positions = [
-      { x: 480, y: height - 80 },
-      { x: 750, y: height - 80 },
-      { x: 1600, y: height - 80 },
-      { x: 2200, y: height - 80 },
-      { x: 2800, y: height - 80 },
-      { x: 3500, y: height - 80 },
-      { x: 4200, y: height - 80 },
-      { x: 5000, y: height - 80 },
-      { x: 5800, y: height - 80 },
-      { x: 6500, y: height - 80 },
-      { x: 7200, y: height - 80 },
-      { x: 8000, y: height - 80 },
-      { x: 8800, y: height - 80 },
-      { x: 9500, y: height - 80 },
-    ]
-    for (const pos of positions) {
-      this.enemies.push(new Enemy(this, pos.x, pos.y))
-    }
-  }
-
   update() {
     this.player.update()
 
@@ -441,6 +419,14 @@ export class GameScene extends Phaser.Scene {
     if (this.cameraOffsetPending && time >= this.cameraOffsetTime) {
       this.cameraOffsetPending = false
       this.updateCameraOffset()
+    }
+
+    // Spawn enemies dynamically just off the right edge of the screen
+    const camRight = this.cameras.main.scrollX + this.cameras.main.width
+    if (camRight + 80 >= this.nextEnemySpawnX && px > 300) {
+      const h = this.cameras.main.height
+      this.enemies.push(new Enemy(this, camRight + 120, h - 80))
+      this.nextEnemySpawnX = camRight + 300 + Math.random() * 500
     }
 
     // Update distance HUD

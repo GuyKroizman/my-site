@@ -110,7 +110,7 @@ export class Enemy {
   }
 
   takeDamage(): boolean {
-    if (this.dead || this.isHurt) return false
+    if (this.dead || this.isHurt || this.isDying) return false
     this.health -= 50
 
     // Switch to hurt spritesheet and cycle frames every 500ms
