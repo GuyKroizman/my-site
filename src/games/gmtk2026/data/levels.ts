@@ -81,7 +81,7 @@ const ASSETS: Record<
     tree: ['tree-green-1', 'tree-green-3'],
     bush: ['wheat-bush-small', 'wheat-bush-medium', 'wheat-bush-large'],
     prop: ['wheat-sheaf-small', 'wheat-sheaf-medium', 'wheat-sheaf-large', 'corn-stalk-bottom-small'],
-    background: ['tree-green-1', 'tree-green-3'],
+    background: ['tree-green-1', 'tree-green-3', 'barn'],
   },
   autumn: {
     grass: ['grass-autumn-1', 'grass-autumn-3', 'grass-autumn-4'],
@@ -191,3 +191,11 @@ export const LEVEL: LevelData = {
 fillGroundLayer(LEVEL.layers.ground)
 fillBackground(LEVEL.layers.background)
 fillForeground(LEVEL.layers.foreground)
+
+// One prominent barn in the middle of the summer zone
+addObject(LEVEL.layers.background, 3, 55, {
+  type: 'barn',
+  scale: 0.7,
+  offsetX: 0,
+  offsetY: 0,
+})

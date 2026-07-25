@@ -64,6 +64,7 @@ export class BootScene extends Phaser.Scene {
       'wheat-sheaf-small', 'wheat-sheaf-medium', 'wheat-sheaf-large',
       'corn-stalk-bottom-small',
       'corn-stalk-top-large',
+      'barn',
     ]
     summer.forEach((k) => this.load.image(k, `/gmtk_2026/summer-assets/${k}.png`))
 
