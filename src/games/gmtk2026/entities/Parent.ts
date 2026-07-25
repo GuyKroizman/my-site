@@ -35,8 +35,8 @@ export class Parent {
 
     if (textureKey) {
       // Father — sprite sheet
-      this.sprite = scene.add.sprite(0, 0, textureKey)
-      this.sprite.setScale(0.7)
+      this.sprite = scene.add.sprite(0, 100, textureKey)
+      this.sprite.setScale(0.8)
       this.sprite.setOrigin(0.5, 1)
       this.sprite.play('father-walk', true)
       this.container.add([this.sprite])
@@ -162,6 +162,7 @@ export class Parent {
 
     this.isAttacking = true
     this.sprite?.setFlipX(target.x < this.container.x)
+    this.sprite?.setScale(2) // attack sprites are much smaller in-frame
     this.sprite?.play('father-attack', true)
 
     // Deal damage at the start of the swing
@@ -169,6 +170,7 @@ export class Parent {
 
     this.sprite?.once('animationcomplete-father-attack', () => {
       this.isAttacking = false
+      this.sprite?.setScale(0.8) // restore walk scale
       this.sprite?.play('father-walk', true)
     })
   }
