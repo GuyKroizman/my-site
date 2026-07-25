@@ -1,5 +1,12 @@
 import Phaser from 'phaser'
 
+interface EnemyTarget {
+  x: number
+  y: number
+  dead: boolean
+  takeDamage(): boolean
+}
+
 export class Parent {
   container: Phaser.GameObjects.Container
   private scene: Phaser.Scene
@@ -10,25 +17,39 @@ export class Parent {
   private isDeparted = false
   private departureVx = 0
   private departureVy = 0
+  private sprite?: Phaser.GameObjects.Sprite
+  private isAttacking = false
+  private detectionRange = 500
+  private meleeRange = 90
 
   constructor(
     scene: Phaser.Scene,
     x: number,
     y: number,
     bodyColor: number,
-    private flip: boolean
+    private flip: boolean,
+    textureKey?: string
   ) {
     this.scene = scene
     this.container = scene.add.container(x, y)
 
-    const body = scene.add.rectangle(0, 0, 44, 64, bodyColor)
-    const gun = scene.add.rectangle(flip ? -22 : 22, 8, 40, 14, 0x444444)
-    const leftEye = scene.add.circle(-10, -18, 6, 0xffffff)
-    const rightEye = scene.add.circle(10, -18, 6, 0xffffff)
-    const leftPupil = scene.add.circle(-10, -18, 3, 0x000000)
-    const rightPupil = scene.add.circle(10, -18, 3, 0x000000)
-
-    this.container.add([body, gun, leftEye, rightEye, leftPupil, rightPupil])
+    if (textureKey) {
+      // Father — sprite sheet
+      this.sprite = scene.add.sprite(0, 0, textureKey)
+      this.sprite.setScale(0.7)
+      this.sprite.setOrigin(0.5, 1)
+      this.sprite.play('father-walk', true)
+      this.container.add([this.sprite])
+    } else {
+      // Mother — simple shape
+      const body = scene.add.rectangle(0, 0, 44, 64, bodyColor)
+      const gun = scene.add.rectangle(flip ? -22 : 22, 8, 40, 14, 0x444444)
+      const leftEye = scene.add.circle(-10, -18, 6, 0xffffff)
+      const rightEye = scene.add.circle(10, -18, 6, 0xffffff)
+      const leftPupil = scene.add.circle(-10, -18, 3, 0x000000)
+      const rightPupil = scene.add.circle(10, -18, 3, 0x000000)
+      this.container.add([body, gun, leftEye, rightEye, leftPupil, rightPupil])
+    }
   }
 
   update(
@@ -36,33 +57,42 @@ export class Parent {
     playerY: number,
     offsetX: number,
     offsetY: number,
-    enemies: { x: number; y: number }[],
+    enemies: EnemyTarget[],
     time: number
   ) {
-    if (!this.isDeparted) {
-      this.container.x = Phaser.Math.Linear(this.container.x, playerX + offsetX, 0.08)
-      this.container.y = Phaser.Math.Linear(this.container.y, playerY + offsetY, 0.08)
-    } else {
+    if (this.isDeparted) {
       this.container.x += this.departureVx * 0.016
       this.container.y += this.departureVy * 0.016
+      return
     }
 
-    // Find nearest enemy
-    let nearest: { x: number; y: number; dist: number } | null = null
-    for (const e of enemies) {
-      const dx = e.x - this.container.x
-      const dy = e.y - this.container.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist <= this.range && (!nearest || dist < nearest.dist)) {
-        nearest = { x: e.x, y: e.y, dist }
+    if (this.sprite) {
+      // Father: melee behavior — chase enemies, hit them close-up
+      this.updateMeleeBehavior(playerX, playerY, offsetX, offsetY, enemies, time)
+    } else {
+      // Mother: follow player and shoot projectiles
+      this.container.x = Phaser.Math.Linear(this.container.x, playerX + offsetX, 0.08)
+      this.container.y = Phaser.Math.Linear(this.container.y, playerY + offsetY, 0.08)
+
+      let nearest: EnemyTarget | null = null
+      let nearestDist = Infinity
+      for (const e of enemies) {
+        if (e.dead) continue
+        const dx = e.x - this.container.x
+        const dy = e.y - this.container.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist <= this.range && dist < nearestDist) {
+          nearest = e
+          nearestDist = dist
+        }
+      }
+
+      if (nearest) {
+        this.shootAt(nearest.x, nearest.y, time)
       }
     }
 
-    if (nearest) {
-      this.shootAt(nearest.x, nearest.y, time)
-    }
-
-    // Update projectiles
+    // Update projectiles (mother only)
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i]
       p.x += (p as any).vx
@@ -80,6 +110,67 @@ export class Parent {
         this.projectiles.splice(i, 1)
       }
     }
+  }
+
+  private updateMeleeBehavior(
+    playerX: number,
+    playerY: number,
+    offsetX: number,
+    offsetY: number,
+    enemies: EnemyTarget[],
+    time: number
+  ) {
+    if (this.isAttacking) return
+
+    let nearest: EnemyTarget | null = null
+    let nearestDist = Infinity
+    for (const e of enemies) {
+      if (e.dead) continue
+      const dx = e.x - this.container.x
+      const dy = e.y - this.container.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist <= this.detectionRange && dist < nearestDist) {
+        nearest = e
+        nearestDist = dist
+      }
+    }
+
+    if (nearest) {
+      if (nearestDist <= this.meleeRange) {
+        this.performMeleeAttack(nearest, time)
+      } else {
+        // Chase enemy
+        this.container.x = Phaser.Math.Linear(this.container.x, nearest.x, 0.12)
+        this.container.y = Phaser.Math.Linear(this.container.y, nearest.y, 0.12)
+        this.sprite?.setFlipX(nearest.x < this.container.x)
+      }
+    } else {
+      // Follow player
+      const targetX = playerX + offsetX
+      const targetY = playerY + offsetY
+      this.container.x = Phaser.Math.Linear(this.container.x, targetX, 0.08)
+      this.container.y = Phaser.Math.Linear(this.container.y, targetY, 0.08)
+      if (Math.abs(targetX - this.container.x) > 5) {
+        this.sprite?.setFlipX(targetX < this.container.x)
+      }
+    }
+  }
+
+  private performMeleeAttack(target: EnemyTarget, time: number) {
+    if (time - this.lastShotTime < this.fireRate) return
+    this.lastShotTime = time
+
+    this.isAttacking = true
+    this.sprite?.setFlipX(target.x < this.container.x)
+    this.sprite?.play('father-attack', true)
+
+    // Deal damage at the start of the swing
+    target.takeDamage()
+
+    this.sprite?.once('animationcomplete-father-attack', () => {
+      this.isAttacking = false
+      this.sprite?.play('father-walk', true)
+    })
   }
 
   private shootAt(targetX: number, targetY: number, time: number) {
@@ -110,8 +201,8 @@ export class Parent {
     // Projectile
     const speed = 14
     const projectile = this.scene.add.rectangle(muzzleX, muzzleY, 20, 5, 0xffdd44)
-    ;(projectile as any).vx = dirX * speed
-    ;(projectile as any).vy = dirY * speed
+      ; (projectile as any).vx = dirX * speed
+      ; (projectile as any).vy = dirY * speed
     this.projectiles.push(projectile)
   }
 

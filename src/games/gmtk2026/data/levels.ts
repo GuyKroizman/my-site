@@ -22,7 +22,7 @@ export const TILE_MAP: Record<string, LevelObject> = {
   t: { type: 'tree-blossom-1', scale: 1.4, offsetY: 26 },
   T: { type: 'tree-blossom-3', scale: 1.9, offsetY: 26 },
   b: { type: 'bush-flowers-2', scale: 1.0, offsetY: 22 },
-  B: { type: 'barn', scale: 0.7, offsetY: 0 },
+  B: { type: 'barn', scale: 0.7, offsetY: -40 },
   f: { type: 'flowers-1', scale: 0.8, offsetY: 22 },
 
   // Summer ─────────────────────────────────────────
@@ -210,4 +210,4 @@ fillBackground(LEVEL.layers.background)
 fillForeground(LEVEL.layers.foreground)
 
 // One prominent barn in the middle of the summer zone
-setChar(LEVEL.layers.background, 3, 55, 'B')
+setChar(LEVEL.layers.background, 1, 15, 'B')

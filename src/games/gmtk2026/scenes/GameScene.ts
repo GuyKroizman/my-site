@@ -75,6 +75,9 @@ export class GameScene extends Phaser.Scene {
     // Render level decoration layers
     this.renderLevel()
 
+    // Draw the full-world sky gradient
+    this.drawSkyGradient()
+
     if (startStage) {
       this.player.setStage(startStage)
 
@@ -103,7 +106,7 @@ export class GameScene extends Phaser.Scene {
 
     // Parents flank the baby
     const mom = new Parent(this, 120, height - 120, 0xe91e63, false)
-    const dad = new Parent(this, 280, height - 120, 0x2196f3, true)
+    const dad = new Parent(this, 280, height - 120, 0x2196f3, true, 'father-walk')
     this.parents.push(mom, dad)
     if (startStage && startStage !== 'baby') {
       mom.depart()
@@ -415,9 +418,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Update parents
-    const enemyPositions = this.enemies.filter((e) => !e.dead).map((e) => ({ x: e.x, y: e.y }))
-    this.parents[0]?.update(px, py, -80, -10, enemyPositions, time)
-    this.parents[1]?.update(px, py, 80, -10, enemyPositions, time)
+    const liveEnemies = this.enemies.filter((e) => !e.dead)
+    this.parents[0]?.update(px, py, -80, -10, liveEnemies, time)
+    this.parents[1]?.update(px, py, 80, -10, liveEnemies, time)
 
     // Update enemies
     for (const enemy of this.enemies) {
@@ -606,5 +609,58 @@ export class GameScene extends Phaser.Scene {
         }
       }
     })
+  }
+
+  private drawSkyGradient() {
+    const gfx = this.add.graphics()
+    gfx.setDepth(-200)
+
+    const groundTop = this.ground.y - this.ground.height / 2
+    const topY = -2000
+    const bottomY = groundTop + 300
+    const stripH = bottomY - topY
+
+    // Season colors: top (sky) → bottom (horizon/ground)
+    const zones = [
+      { start: 0, end: 39, top: 0x87ceeb, bottom: 0xe0f7fa },   // spring — fresh blue → cyan
+      { start: 40, end: 78, top: 0x1e90ff, bottom: 0xffd700 },  // summer — deep blue → gold
+      { start: 79, end: 117, top: 0xff4500, bottom: 0x8b4513 }, // autumn — orange-red → brown
+      { start: 118, end: 156, top: 0xb0c4de, bottom: 0xf0f8ff },// winter — steel blue → white
+    ]
+
+    const lerpColor = (a: number, b: number, t: number): number => {
+      const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff
+      const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff
+      return (
+        (Math.round(ar + (br - ar) * t) << 16) |
+        (Math.round(ag + (bg - ag) * t) << 8) |
+        Math.round(ab + (bb - ab) * t)
+      )
+    }
+
+    for (let c = 0; c < 157; c++) {
+      let topColor = zones[0].top
+      let bottomColor = zones[0].bottom
+
+      for (let z = 0; z < zones.length; z++) {
+        const zone = zones[z]
+        if (c >= zone.start && c <= zone.end) {
+          topColor = zone.top
+          bottomColor = zone.bottom
+          // Smooth 4-column blend at the transition to the next season
+          if (z < zones.length - 1 && c >= zone.end - 3) {
+            const next = zones[z + 1]
+            const t = (c - (zone.end - 3)) / 4
+            topColor = lerpColor(zone.top, next.top, t)
+            bottomColor = lerpColor(zone.bottom, next.bottom, t)
+          }
+          break
+        }
+      }
+
+      const x = c * 64
+      gfx.fillGradientStyle(topColor, topColor, bottomColor, bottomColor, 1)
+      gfx.fillRect(x, topY, 64, stripH)
+    }
   }
 }

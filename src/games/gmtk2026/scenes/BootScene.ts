@@ -43,6 +43,16 @@ export class BootScene extends Phaser.Scene {
     this.load.image('adult-plus', '/gmtk_2026/adulter.png')
     this.load.image('middle-aged', '/gmtk_2026/middle_aged.png')
     this.load.image('middle-ager', '/gmtk_2026/middle_ager.png')
+    this.load.spritesheet('father-walk', '/gmtk_2026/father-walk-sheet.png', {
+      frameWidth: 768,
+      frameHeight: 448,
+    })
+
+    this.load.spritesheet('father-attack', '/gmtk_2026/father-attack-sheet.png', {
+      frameWidth: 768,
+      frameHeight: 448,
+    })
+
     this.load.image('elderly', '/gmtk_2026/elderly.png')
 
     // Spring assets
@@ -160,6 +170,22 @@ export class BootScene extends Phaser.Scene {
       key: 'young-adult-attack',
       frames: this.anims.generateFrameNumbers('young-adult-attack', { start: 0, end: 16 }),
       frameRate: 18,
+      repeat: 0,
+    })
+
+    // Father walk: 21 frames, continuous walk cycle
+    this.anims.create({
+      key: 'father-walk',
+      frames: this.anims.generateFrameNumbers('father-walk', { start: 0, end: 20 }),
+      frameRate: 12,
+      repeat: -1,
+    })
+
+    // Father attack: 29 frames (4 cols × 8 rows, last 3 cells empty), play once
+    this.anims.create({
+      key: 'father-attack',
+      frames: this.anims.generateFrameNumbers('father-attack', { start: 0, end: 28 }),
+      frameRate: 16,
       repeat: 0,
     })
   }
