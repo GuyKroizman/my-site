@@ -78,10 +78,10 @@ const ASSETS: Record<
   summer: {
     grass: ['grass-gold-1', 'grass-gold-2', 'grass-gold-3', 'grass-gold-4'],
     rock: ['rock-yellow-1', 'rock-yellow-2', 'rock-yellow-3', 'rock-yellow-4'],
-    tree: ['tree-green-1', 'tree-green-2', 'tree-green-3'],
+    tree: ['tree-green-1', 'tree-green-3'],
     bush: ['wheat-bush-small', 'wheat-bush-medium', 'wheat-bush-large'],
-    prop: ['wheat-sheaf-small', 'wheat-sheaf-medium', 'wheat-sheaf-large', 'corn-stalk-bottom-small', 'corn-stalk-bottom-large'],
-    background: ['tree-green-1', 'tree-green-2', 'tree-green-3'],
+    prop: ['wheat-sheaf-small', 'wheat-sheaf-medium', 'wheat-sheaf-large', 'corn-stalk-bottom-small'],
+    background: ['tree-green-1', 'tree-green-3'],
   },
   autumn: {
     grass: ['grass-autumn-1', 'grass-autumn-2', 'grass-autumn-3', 'grass-autumn-4'],
@@ -92,11 +92,11 @@ const ASSETS: Record<
     background: ['tree-autumn-small', 'tree-autumn-large', 'tree-autumn-bare'],
   },
   winter: {
-    grass: ['grass-ice-1', 'grass-ice-2', 'grass-ice-3', 'grass-ice-4'],
-    rock: ['rock-snow-1', 'rock-snow-2', 'rock-snow-3', 'rock-snow-4'],
+    grass: ['grass-ice-1', 'grass-ice-2'],
+    rock: ['rock-snow-1'],
     tree: ['tree-pine-small', 'tree-pine-medium', 'tree-pine-large'],
-    bush: ['branches-bare', 'bush-thorny-ice', 'snow-mound'],
-    prop: ['crystal-ice-small', 'crystal-ice-large', 'snow-mound'],
+    bush: ['branches-bare', 'bush-thorny-ice'],
+    prop: [],
     background: ['tree-pine-small', 'tree-pine-medium', 'tree-pine-large'],
   },
 }
