@@ -73,7 +73,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnEnemies()
 
     // Woman narrative event at X ≈ 3,000 (adulthood)
-    this.woman = new Woman(this, 3000, height - 120)
+    this.woman = new Woman(this, 3000, height - 80) // feet on the ground
 
     // Collisions
     this.physics.add.collider(this.player.sprite, this.ground)
@@ -237,7 +237,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.woman) return
 
     const midX = (this.player.sprite.x + this.woman.x) / 2
-    const midY = Math.min(this.player.sprite.y, this.woman.y) - 80
+    const midY = Math.min(this.player.sprite.y, this.woman.y) - 520
 
     const heart = this.add.text(midX, midY, '\u2665', {
       fontSize: '48px',
@@ -380,7 +380,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.woman && this.womanMet) {
-      this.woman.update(px, py)
+      this.woman.update(px, this.player.getFeetY())
 
       // Pregnancy progression
       const togetherDistance = px - this.pregnancyStartX

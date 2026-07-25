@@ -60,7 +60,27 @@ export class Player {
     }
   }
 
-  private flashTransition(textureKey: string, scale: number, newSpeed: number) {
+  // Per-stage visuals: scale (baby = 86px tall on screen; young-adult = 5x baby;
+  // adult = young-adult +10%; middle-aged/-ager = adult; elderly = middle-aged -10%)
+  // Body box is in frame units: ~45% of content width, full content height, bottom-aligned
+  private static STAGE_VISUALS: Record<
+    string,
+    { scale: number; bodyX: number; bodyY: number; bodyW: number; bodyH: number }
+  > = {
+    'young-adult': { scale: 1.077, bodyX: 294, bodyY: 2, bodyW: 202, bodyH: 399 },
+    adult: { scale: 1.582, bodyX: 41, bodyY: 20, bodyW: 67, bodyH: 299 },
+    'adult-plus': { scale: 1.272, bodyX: 63, bodyY: 0, bodyW: 94, bodyH: 372 },
+    'middle-aged': { scale: 1.582, bodyX: 49, bodyY: 19, bodyW: 80, bodyH: 299 },
+    'middle-ager': { scale: 1.255, bodyX: 71, bodyY: 0, bodyW: 116, bodyH: 377 },
+    elderly: { scale: 1.136, bodyX: 79, bodyY: 0, bodyW: 129, bodyH: 375 },
+  }
+
+  getFeetY(): number {
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body
+    return body.y + body.height
+  }
+
+  private flashTransition(textureKey: string, newSpeed: number) {
     this.speed = newSpeed
 
     this.sprite.setTint(0xffffff)
@@ -82,21 +102,11 @@ export class Player {
 
       this.sprite.stop()
       this.sprite.setTexture(textureKey)
-      this.sprite.setScale(scale)
 
-      if (textureKey === 'young-adult') {
-        // Spritesheet frames are 768x448, character content at x≈170-619, y≈2-400
-        // Body in frame units (scaled by 0.22 → ~31x40 world, matching other stages)
-        this.sprite.setBodySize(140, 180, false)
-        this.sprite.setOffset(325, 220)
-      } else {
-        // Keep a consistent body size so the feet always collide at the same spot
-        this.sprite.setBodySize(60, 80, false)
-        this.sprite.setOffset(
-          (this.sprite.displayWidth - 60) / 2,
-          this.sprite.displayHeight - 80
-        )
-      }
+      const visuals = Player.STAGE_VISUALS[textureKey]
+      this.sprite.setScale(visuals.scale)
+      this.sprite.setBodySize(visuals.bodyW, visuals.bodyH, false)
+      this.sprite.setOffset(visuals.bodyX, visuals.bodyY)
 
       // Preserve body-bottom world position so feet stay on ground
       const newBody = this.sprite.body as Phaser.Physics.Arcade.Body
@@ -109,37 +119,37 @@ export class Player {
     this.stage = 'young-adult'
     this.canAttack = true
     // 768x448 frames, ~399px-tall character → scale 0.22 ≈ 88px on screen
-    this.flashTransition('young-adult', 0.22, 220)
+    this.flashTransition('young-adult', 220)
   }
 
   ageUpToAdult() {
     if (this.stage !== 'young-adult') return
     this.stage = 'adult'
-    this.flashTransition('adult', 0.5, 200)
+    this.flashTransition('adult', 200)
   }
 
   ageUpToAdultPlus() {
     if (this.stage !== 'adult') return
     this.stage = 'adult-plus'
-    this.flashTransition('adult-plus', 0.5, 180)
+    this.flashTransition('adult-plus', 180)
   }
 
   ageUpToMiddleAged() {
     if (this.stage !== 'adult-plus') return
     this.stage = 'middle-aged'
-    this.flashTransition('middle-aged', 0.5, 160)
+    this.flashTransition('middle-aged', 160)
   }
 
   ageUpToMiddleAger() {
     if (this.stage !== 'middle-aged') return
     this.stage = 'middle-ager'
-    this.flashTransition('middle-ager', 0.5, 140)
+    this.flashTransition('middle-ager', 140)
   }
 
   ageUpToElderly() {
     if (this.stage !== 'middle-ager') return
     this.stage = 'elderly'
-    this.flashTransition('elderly', 0.5, 100)
+    this.flashTransition('elderly', 100)
   }
 
   private animPrefix(): string | null {
@@ -176,6 +186,12 @@ export class Player {
     // Jump — only from young-adult onwards
     if (Phaser.Input.Keyboard.JustDown(this.keys.jump) && this.isGrounded && this.stage !== 'baby') {
       this.sprite.setVelocityY(-this.jumpStrength)
+    }
+
+    // Jump animation while airborne (young-adult stage)
+    // On landing, the movement code above resumes run/idle, which also restores the run texture
+    if (!this.isGrounded && this.stage === 'young-adult') {
+      this.sprite.play('young-adult-jump', true)
     }
 
     // Attack — Z key, only from young-adult onwards

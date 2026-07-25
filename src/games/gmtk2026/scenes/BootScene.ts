@@ -28,6 +28,11 @@ export class BootScene extends Phaser.Scene {
       frameWidth: 768,
       frameHeight: 448,
     })
+
+    this.load.spritesheet('young-adult-jump', '/gmtk_2026/young-adult-jump-sheet.png', {
+      frameWidth: 768,
+      frameHeight: 448,
+    })
     this.load.image('adult', '/gmtk_2026/adult.png')
     this.load.image('adult-plus', '/gmtk_2026/adulter.png')
     this.load.image('middle-aged', '/gmtk_2026/middle_aged.png')
@@ -69,6 +74,14 @@ export class BootScene extends Phaser.Scene {
       frames: this.anims.generateFrameNumbers('young-adult', { start: 0, end: 20 }),
       frameRate: 14,
       repeat: -1,
+    })
+
+    // Jump: 21 frames, play once (crouch → leap → fall → land)
+    this.anims.create({
+      key: 'young-adult-jump',
+      frames: this.anims.generateFrameNumbers('young-adult-jump', { start: 0, end: 20 }),
+      frameRate: 16,
+      repeat: 0,
     })
   }
 }
