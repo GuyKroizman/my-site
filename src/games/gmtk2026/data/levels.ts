@@ -22,7 +22,7 @@ export const TILE_MAP: Record<string, LevelObject> = {
   t: { type: 'tree-blossom-1', scale: 1.4, offsetY: 26 },
   T: { type: 'tree-blossom-3', scale: 1.9, offsetY: 26 },
   b: { type: 'bush-flowers-2', scale: 1.0, offsetY: 22 },
-  B: { type: 'barn', scale: 0.7, offsetY: -40 },
+  B: { type: 'barn', scale: 1, offsetY: -100 },
   f: { type: 'flowers-1', scale: 0.8, offsetY: 22 },
 
   // Summer ─────────────────────────────────────────
@@ -61,6 +61,9 @@ export const TILE_MAP: Record<string, LevelObject> = {
   x: { type: 'crystal-ice-small', scale: 0.8, offsetY: 22 },
   X: { type: 'crystal-ice-large', scale: 1.0, offsetY: 22 },
   S: { type: 'snow-mound', scale: 1.1, offsetY: 22 },
+
+  // Scenery
+  '^': { type: 'mountain', scale: 2, offsetY: -100 },
 }
 
 export interface LevelData {
@@ -208,6 +211,10 @@ export const LEVEL: LevelData = {
 fillGroundLayer(LEVEL.layers.ground)
 fillBackground(LEVEL.layers.background)
 fillForeground(LEVEL.layers.foreground)
+
+// Mountains staggered across the sky layer for parallax depth
+const skyLayer = LEVEL.layers.sky
+setChar(skyLayer, 1, 15, '^')
 
 // One prominent barn in the middle of the summer zone
 setChar(LEVEL.layers.background, 1, 15, 'B')

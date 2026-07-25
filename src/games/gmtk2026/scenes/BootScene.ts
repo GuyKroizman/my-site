@@ -87,6 +87,8 @@ export class BootScene extends Phaser.Scene {
     ]
     spring.forEach((k) => this.load.image(k, `/gmtk_2026/spring-assets/${k}.png`))
 
+    this.load.image('mountain', '/gmtk_2026/spring-assets/mountain.png')
+
     // Summer assets
     const summer = [
       'grass-gold-1', 'grass-gold-2', 'grass-gold-3', 'grass-gold-4',

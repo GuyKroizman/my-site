@@ -6,9 +6,11 @@ export class Enemy {
   private glow: Phaser.GameObjects.Ellipse
   private scene: Phaser.Scene
   private isHurt = false
+  private isDying = false
+  private deathAnimStarted = false
   private hurtFrame = 0
   private hurtNextTime = 0
-  private static readonly SCALE = 4
+  private static readonly SCALE = 8
   // Padding below the visual content within the 146px frame (feet at row ~82)
   private static readonly PAD_BELOW = 63
 
@@ -59,17 +61,36 @@ export class Enemy {
       if (now >= this.hurtNextTime) {
         this.hurtFrame++
         if (this.hurtFrame >= 3) {
-          // Hurt animation complete — die
-          this.die()
+          // Hurt complete — switch to death animation
+          this.isHurt = false
+          this.isDying = true
+          this.sprite.clearTint()
+          this.sprite.setTexture('mimic-death')
+          this.sprite.setOrigin(0.5, 1)
+          this.sprite.setScale(Enemy.SCALE)
+          this.sprite.y = Enemy.PAD_BELOW * Enemy.SCALE
+          this.sprite.play('mimic-death')
+          this.deathAnimStarted = false
+          this.scene.sound.play('mimic-death-sfx', { volume: 0.45 })
           return
         }
         this.sprite.setFrame(this.hurtFrame)
         this.hurtNextTime = now + 500
-        // Play hurt sound on each frame change (pitch shifts up)
         this.scene.sound.play('mimic-hurt-sfx', {
           volume: 0.35,
           detune: -300 + this.hurtFrame * 300,
         })
+      }
+      return
+    }
+
+    // Death animation playing — wait for it to actually start, then finish
+    if (this.isDying) {
+      if (this.sprite.anims.isPlaying) {
+        this.deathAnimStarted = true
+      } else if (this.deathAnimStarted) {
+        // Animation played through and stopped — destroy
+        this.finalDie()
       }
       return
     }
@@ -97,7 +118,6 @@ export class Enemy {
     this.hurtFrame = 0
     this.hurtNextTime = this.scene.time.now + 500
     this.sprite.setTexture('mimic-hurt', 0)
-    // Keep same scale and origin
     this.sprite.setOrigin(0.5, 1)
     this.sprite.setScale(Enemy.SCALE)
     this.sprite.y = Enemy.PAD_BELOW * Enemy.SCALE
@@ -122,11 +142,9 @@ export class Enemy {
     return true
   }
 
-  private die() {
+  private finalDie() {
+    if (this.dead) return
     this.dead = true
-
-    // Death sound
-    this.scene.sound.play('mimic-death-sfx', { volume: 0.45 })
 
     for (let i = 0; i < 14; i++) {
       const angle = (Math.PI * 2 * i) / 14
