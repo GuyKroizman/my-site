@@ -69,6 +69,10 @@ export class BootScene extends Phaser.Scene {
       frameWidth: 146,
       frameHeight: 146,
     })
+    this.load.spritesheet('mimic-death', '/gmtk_2026/Mimic/death.png', {
+      frameWidth: 146,
+      frameHeight: 146,
+    })
 
     this.load.audio('mimic-hurt-sfx', '/gmtk_2026/mimic_hurt.wav')
     this.load.audio('mimic-death-sfx', '/gmtk_2026/mimic_death.wav')
@@ -221,6 +225,14 @@ export class BootScene extends Phaser.Scene {
       frames: this.anims.generateFrameNumbers('mimic-walk', { start: 0, end: 5 }),
       frameRate: 8,
       repeat: -1,
+    })
+
+    // Mimic death: 6 frames, play once
+    this.anims.create({
+      key: 'mimic-death',
+      frames: this.anims.generateFrameNumbers('mimic-death', { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat: 0,
     })
   }
 }
