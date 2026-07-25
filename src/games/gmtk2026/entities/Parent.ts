@@ -163,6 +163,7 @@ export class Parent {
     this.isAttacking = true
     this.sprite?.setFlipX(target.x < this.container.x)
     this.sprite?.setScale(2) // attack sprites are much smaller in-frame
+    this.sprite?.setY(205)   // push down so feet align with ground
     this.sprite?.play('father-attack', true)
 
     // Deal damage at the start of the swing
@@ -171,6 +172,7 @@ export class Parent {
     this.sprite?.once('animationcomplete-father-attack', () => {
       this.isAttacking = false
       this.sprite?.setScale(0.8) // restore walk scale
+      this.sprite?.setY(100)
       this.sprite?.play('father-walk', true)
     })
   }
