@@ -67,12 +67,35 @@ export class Player {
     string,
     { scale: number; bodyX: number; bodyY: number; bodyW: number; bodyH: number }
   > = {
-    'young-adult': { scale: 1.077, bodyX: 294, bodyY: 2, bodyW: 202, bodyH: 399 },
-    adult: { scale: 1.582, bodyX: 41, bodyY: 20, bodyW: 67, bodyH: 299 },
-    'adult-plus': { scale: 1.272, bodyX: 63, bodyY: 0, bodyW: 94, bodyH: 372 },
-    'middle-aged': { scale: 1.582, bodyX: 49, bodyY: 19, bodyW: 80, bodyH: 299 },
-    'middle-ager': { scale: 1.255, bodyX: 71, bodyY: 0, bodyW: 116, bodyH: 377 },
-    elderly: { scale: 1.136, bodyX: 79, bodyY: 0, bodyW: 129, bodyH: 375 },
+      'young-adult': { scale: 0.5385, bodyX: 294, bodyY: 2, bodyW: 202, bodyH: 399 },
+      adult: { scale: 1, bodyX: 41, bodyY: 20, bodyW: 67, bodyH: 299 },
+      'adult-plus': { scale: 0.8, bodyX: 63, bodyY: 0, bodyW: 94, bodyH: 372 },
+      'middle-aged': { scale: 1, bodyX: 49, bodyY: 19, bodyW: 80, bodyH: 299 },
+      'middle-ager': { scale: 0.8, bodyX: 71, bodyY: 0, bodyW: 116, bodyH: 377 },
+      elderly: { scale: 0.7, bodyX: 79, bodyY: 0, bodyW: 129, bodyH: 375 },
+    }
+
+  // Jump sprite is rendered 2x the base young-adult scale while airborne
+  private static JUMP_SCALE_MULTIPLIER = 2
+  private isJumpScaled = false
+
+  private setJumpScale(on: boolean) {
+    if (this.isJumpScaled === on) return
+    this.isJumpScaled = on
+
+    const v = Player.STAGE_VISUALS['young-adult']
+    const baseScale = v.scale
+    const jumpScale = baseScale * Player.JUMP_SCALE_MULTIPLIER
+    // Distance from sprite center to body bottom, per unit scale (frame units)
+    const bottomOffset = v.bodyY + v.bodyH - 448 / 2
+
+    if (on) {
+      this.sprite.y += (baseScale - jumpScale) * bottomOffset // keep feet planted
+      this.sprite.setScale(jumpScale)
+    } else {
+      this.sprite.y += (jumpScale - baseScale) * bottomOffset // restore on landing
+      this.sprite.setScale(baseScale)
+    }
   }
 
   getFeetY(): number {
@@ -102,6 +125,7 @@ export class Player {
 
       this.sprite.stop()
       this.sprite.setTexture(textureKey)
+      this.isJumpScaled = false // stage change cancels any jump scaling
 
       const visuals = Player.STAGE_VISUALS[textureKey]
       this.sprite.setScale(visuals.scale)
@@ -152,6 +176,43 @@ export class Player {
     this.flashTransition('elderly', 100)
   }
 
+  setStage(stage: PlayerStage) {
+    if (this.stage === stage) return
+
+    this.stage = stage
+    this.canAttack = stage !== 'baby'
+    this.isJumpScaled = false
+
+    if (stage === 'baby') {
+      this.sprite.stop()
+      this.sprite.setTexture('baby')
+      this.sprite.setScale(0.25)
+      this.sprite.setBodySize(240, 280, false)
+      this.sprite.setOffset(103, 103)
+      this.speed = 180
+    } else {
+      const visuals = Player.STAGE_VISUALS[stage]
+      this.sprite.stop()
+      this.sprite.setTexture(stage)
+      this.sprite.setScale(visuals.scale)
+      this.sprite.setBodySize(visuals.bodyW, visuals.bodyH, false)
+      this.sprite.setOffset(visuals.bodyX, visuals.bodyY)
+      this.speed = {
+        'young-adult': 220,
+        adult: 200,
+        'adult-plus': 180,
+        'middle-aged': 160,
+        'middle-ager': 140,
+        elderly: 100,
+      }[stage]!
+    }
+
+    const prefix = this.animPrefix()
+    if (prefix) {
+      this.sprite.play(`${prefix}-idle`, true)
+    }
+  }
+
   private animPrefix(): string | null {
     if (this.stage === 'baby') return 'baby'
     if (this.stage === 'young-adult') return 'young-adult'
@@ -188,10 +249,13 @@ export class Player {
       this.sprite.setVelocityY(-this.jumpStrength)
     }
 
-    // Jump animation while airborne (young-adult stage)
+    // Jump animation while airborne (young-adult stage), rendered 2x bigger
     // On landing, the movement code above resumes run/idle, which also restores the run texture
     if (!this.isGrounded && this.stage === 'young-adult') {
+      this.setJumpScale(true)
       this.sprite.play('young-adult-jump', true)
+    } else if (this.isGrounded && this.isJumpScaled) {
+      this.setJumpScale(false)
     }
 
     // Attack — Z key, only from young-adult onwards

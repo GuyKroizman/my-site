@@ -22,6 +22,20 @@ export default function Gmtk2026() {
   useEffect(() => {
     if (isMobile) return
     if (!phaserRef.current) {
+      const search = new URLSearchParams(window.location.search)
+      const startStage = search.get('stage') as
+        | 'baby'
+        | 'young-adult'
+        | 'adult'
+        | 'adult-plus'
+        | 'middle-aged'
+        | 'middle-ager'
+        | 'elderly'
+        | null
+      const startXParam = search.get('x')
+      const startX = startXParam ? Number(startXParam) : undefined
+      ;(window as any).__GMTK2026_DEBUG = { startStage, startX }
+
       const container = document.getElementById('gmtk2026-phaser')
       const containerWidth = container?.clientWidth || window.innerWidth
       const containerHeight = container?.clientHeight || window.innerHeight

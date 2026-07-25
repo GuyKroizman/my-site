@@ -13,8 +13,8 @@ export class Baby {
   // young adult = 430px (5x baby, same as the player young adult)
   private static SCALES: Record<string, number> = {
     'baby-girl': 0.915,
-    'daughter-toddler': 1.593,
-    'daughter-young-adult': 1.734,
+    'daughter-toddler': 1,
+    'daughter-young-adult': 1,
   }
 
   constructor(scene: Phaser.Scene, x: number, y: number) {

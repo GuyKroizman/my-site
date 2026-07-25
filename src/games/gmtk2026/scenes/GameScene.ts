@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { Player } from '../entities/Player'
+import { Player, type PlayerStage } from '../entities/Player'
 import { Parent } from '../entities/Parent'
 import { Enemy } from '../entities/Enemy'
 import { Woman } from '../entities/Woman'
@@ -44,6 +44,12 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const height = this.cameras.main.height
+    const debugData = (this.scene.settings.data as {
+      startStage?: PlayerStage
+      startX?: number
+    }) || {}
+    const startStage = debugData.startStage
+    const startX = debugData.startX
 
     // Spring music — Childhood stage
     this.music = this.sound.add('spring-music', { loop: true, volume: 0.5 }) as Phaser.Sound.WebAudioSound
@@ -64,10 +70,40 @@ export class GameScene extends Phaser.Scene {
     // Player
     this.player = new Player(this, 200, height - 120)
 
+    if (startStage) {
+      this.player.setStage(startStage)
+
+      const stages: PlayerStage[] = [
+        'baby',
+        'young-adult',
+        'adult',
+        'adult-plus',
+        'middle-aged',
+        'middle-ager',
+        'elderly',
+      ]
+      const idx = stages.indexOf(startStage)
+      if (idx >= 1) this.departureTriggered = true
+      if (idx >= 2) this.adultTransitionTriggered = true
+      if (idx >= 3) this.adultPlusTransitionTriggered = true
+      if (idx >= 4) this.middleAgedTransitionTriggered = true
+      if (idx >= 5) this.middleAgerTransitionTriggered = true
+      if (idx >= 6) this.elderlyTransitionTriggered = true
+
+      if (startX !== undefined && !isNaN(startX)) {
+        this.player.sprite.x = startX
+        this.cameras.main.scrollX = startX - this.cameras.main.width / 2
+      }
+    }
+
     // Parents flank the baby
     const mom = new Parent(this, 120, height - 120, 0xe91e63, false)
     const dad = new Parent(this, 280, height - 120, 0x2196f3, true)
     this.parents.push(mom, dad)
+    if (startStage && startStage !== 'baby') {
+      mom.depart()
+      dad.depart()
+    }
 
     // Shadowy enemies ahead
     this.spawnEnemies()
@@ -126,6 +162,23 @@ export class GameScene extends Phaser.Scene {
     this.babyLabel.setScrollFactor(0)
     this.babyLabel.setDepth(92)
     this.babyLabel.setAlpha(0)
+
+    // Debug start: spawn the woman next to the player for adult+ stages
+    if (startStage && ['adult', 'adult-plus', 'middle-aged', 'middle-ager', 'elderly'].includes(startStage)) {
+      this.woman.container.destroy(true)
+      this.woman = new Woman(this, this.player.sprite.x - 120, height - 80)
+      this.woman.startFollowing()
+      this.womanMet = true
+      this.pregnancyStartX = this.player.sprite.x
+      if (['middle-aged', 'middle-ager', 'elderly'].includes(startStage)) {
+        this.woman.ageUpToMiddleAged()
+      }
+      if (startStage === 'elderly') {
+        this.woman.ageUpToElderly()
+      }
+      this.womanHealthBar.setAlpha(1)
+      this.womanLabel.setAlpha(1)
+    }
   }
 
   private createHealthBar() {

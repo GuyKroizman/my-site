@@ -42,7 +42,8 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     this.createAnimations()
-    this.scene.start('game-scene')
+    const debug = (window as any).__GMTK2026_DEBUG || {}
+    this.scene.start('game-scene', debug)
   }
 
   private createAnimations() {

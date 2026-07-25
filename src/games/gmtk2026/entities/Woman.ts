@@ -13,11 +13,11 @@ export class Woman {
 
   // Scale so her on-screen height matches the man's (473px; 426px when elderly)
   private static SCALES: Record<string, number> = {
-    'woman-adult': 1.962,
-    'woman-adult-pregnant-half': 1.915,
-    'woman-adult-pregnant-full': 1.923,
-    'woman-middle-aged': 1.907,
-    'woman-elderly': 1.732,
+    'woman-adult': 1.2,
+    'woman-adult-pregnant-half': 1.2,
+    'woman-adult-pregnant-full': 1.2,
+    'woman-middle-aged': 1.2,
+    'woman-elderly': 1.1,
   }
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
