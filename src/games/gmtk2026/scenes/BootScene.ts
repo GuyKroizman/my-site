@@ -44,6 +44,48 @@ export class BootScene extends Phaser.Scene {
     this.load.image('middle-aged', '/gmtk_2026/middle_aged.png')
     this.load.image('middle-ager', '/gmtk_2026/middle_ager.png')
     this.load.image('elderly', '/gmtk_2026/elderly.png')
+
+    // Spring assets
+    const spring = [
+      'grass-1','grass-2','grass-3','grass-4',
+      'rock-1','rock-2','rock-3','rock-4',
+      'tree-blossom-1','tree-blossom-2','tree-blossom-3',
+      'bush-flowers-1','bush-flowers-2','bush-flowers-3','bush-flowers-4',
+      'flowers-1','flowers-2','flowers-3','flowers-4',
+    ]
+    spring.forEach((k) => this.load.image(k, `/gmtk_2026/spring-assets/${k}.png`))
+
+    // Summer assets
+    const summer = [
+      'grass-gold-1','grass-gold-2','grass-gold-3','grass-gold-4',
+      'rock-yellow-1','rock-yellow-2','rock-yellow-3','rock-yellow-4',
+      'tree-green-1','tree-green-2','tree-green-3',
+      'wheat-bush-small','wheat-bush-medium','wheat-bush-large',
+      'wheat-sheaf-small','wheat-sheaf-medium','wheat-sheaf-large',
+      'corn-stalk-bottom-small','corn-stalk-bottom-large',
+      'corn-stalk-top-small','corn-stalk-top-large',
+    ]
+    summer.forEach((k) => this.load.image(k, `/gmtk_2026/summer-assets/${k}.png`))
+
+    // Autumn assets
+    const autumn = [
+      'grass-autumn-1','grass-autumn-2','grass-autumn-3','grass-autumn-4',
+      'rock-moss-1','rock-moss-2','rock-moss-3','rock-moss-4',
+      'tree-autumn-small','tree-autumn-large','tree-autumn-bare',
+      'bush-autumn-1','bush-autumn-2','grass-wheat-autumn',
+      'leaf-pile','leaves-scattered',
+    ]
+    autumn.forEach((k) => this.load.image(k, `/gmtk_2026/autumn-assets/${k}.png`))
+
+    // Winter assets
+    const winter = [
+      'grass-ice-1','grass-ice-2','grass-ice-3','grass-ice-4',
+      'rock-snow-1','rock-snow-2','rock-snow-3','rock-snow-4',
+      'tree-pine-small','tree-pine-medium','tree-pine-large',
+      'branches-bare','bush-thorny-ice','snow-mound',
+      'crystal-ice-small','crystal-ice-large',
+    ]
+    winter.forEach((k) => this.load.image(k, `/gmtk_2026/winter-assets/extracted/${k}.png`))
   }
 
   create() {
@@ -55,15 +97,6 @@ export class BootScene extends Phaser.Scene {
 
   private createPlaceholderTextures() {
     const gfx = this.add.graphics()
-    const colors: Record<string, number> = {
-      grass: 0x4ade80,
-      sun: 0xfacc15,
-      'tree-1': 0x166534,
-      'tree-2': 0x15803d,
-      rock: 0x78716c,
-      'mountain-far': 0x64748b,
-      cloud: 0xffffff,
-    }
     const seen = new Set<string>()
 
     Object.values(LEVEL.layers).forEach((layer) => {
@@ -73,7 +106,7 @@ export class BootScene extends Phaser.Scene {
             if (seen.has(obj.type) || this.textures.exists(obj.type)) return
             seen.add(obj.type)
             gfx.clear()
-            gfx.fillStyle(colors[obj.type] ?? 0xff00ff, 1)
+            gfx.fillStyle(0xff00ff, 1)
             gfx.fillRect(0, 0, 32, 32)
             gfx.generateTexture(obj.type, 32, 32)
           })
