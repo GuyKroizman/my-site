@@ -7,7 +7,7 @@ html, body {
   padding: 0;
   width: 100%;
   min-height: 100%;
-  background: #07070f;
+  background: #fffef9;
 }
 
 #root {
@@ -16,176 +16,139 @@ html, body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Caveat', cursive;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
-
-/* Floating Arcade Scene */
-.arcade-container {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: #07070f;
-  overflow: hidden;
-}
-
-.arcade-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.arcade-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.arcade-card-wrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: auto;
-  will-change: transform, opacity;
-  transition: opacity 0.1s linear;
-}
-
-.arcade-cabinet {
+/* Notebook */
+.notebook {
+  min-height: 100vh;
+  background: #fffef9;
+  background-image:
+    repeating-linear-gradient(
+      transparent,
+      transparent 27px,
+      #e8ecf1 27px,
+      #e8ecf1 28px
+    );
+  background-position: 0 0;
+  padding: 20px 16px 60px;
   position: relative;
-  width: 180px;
-  padding: 16px;
-  background: rgba(10, 10, 30, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  text-align: center;
-  cursor: pointer;
-  user-select: none;
-  box-shadow:
-    0 0 15px rgba(var(--cabinet-color-rgb, 100, 100, 255), 0.15),
-    inset 0 0 20px rgba(0, 0, 0, 0.3);
-  border-color: var(--cabinet-color, #666);
-  border-width: 1px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow-x: hidden;
 }
 
-.arcade-cabinet:hover {
-  transform: scale(1.08);
-  box-shadow:
-    0 0 25px color-mix(in srgb, var(--cabinet-color) 40%, transparent),
-    0 0 50px color-mix(in srgb, var(--cabinet-color) 20%, transparent),
-    inset 0 0 20px rgba(0, 0, 0, 0.3);
-}
-
-.arcade-cabinet-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #f59e0b;
-  color: #000;
-  font-size: 0.6rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
-}
-
-.arcade-cabinet-emoji {
-  font-size: 2.5rem;
-  margin-bottom: 8px;
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
-}
-
-.arcade-cabinet-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 2px;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-}
-
-.arcade-cabinet-subtitle {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 6px;
-}
-
-.arcade-cabinet-description {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.4);
-  line-height: 1.4;
-  margin-bottom: 12px;
-}
-
-.arcade-cabinet-disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.arcade-cabinet-disabled:hover {
-  transform: none;
-  box-shadow:
-    0 0 15px rgba(var(--cabinet-color-rgb, 100, 100, 255), 0.15),
-    inset 0 0 20px rgba(0, 0, 0, 0.3);
-}
-
-.arcade-cabinet-button {
-  padding: 6px 16px;
-  border-radius: 6px;
-  color: #fff;
-  font-weight: 600;
-  font-size: 0.85rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  transition: filter 0.2s ease;
-}
-
-.arcade-cabinet:hover .arcade-cabinet-button {
-  filter: brightness(1.2);
-}
-
-.arcade-cabinet-unavailable {
-  padding: 6px 16px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.arcade-title {
-  position: absolute;
-  top: 24px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  z-index: 2;
+/* Red margin line */
+.notebook-margin {
+  position: fixed;
+  top: 0;
+  left: 40px;
+  width: 2px;
+  height: 100%;
+  background: #ffb3b3;
+  opacity: 0.5;
   pointer-events: none;
 }
 
-.arcade-title h1 {
-  font-size: 2rem;
+/* Margin doodles */
+.doodle {
+  position: absolute;
+  font-family: monospace;
+  font-size: 9px;
+  line-height: 1.1;
+  color: #c4b5a5;
+  opacity: 0.7;
+  pointer-events: none;
+  white-space: pre;
+}
+.doodle-top { top: 30px; left: 6px; }
+.doodle-bot { bottom: 100px; left: 6px; }
+.doodle-foot { bottom: 20px; right: 20px; }
+
+/* Name tag */
+.name-tag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 30px;
+  margin-left: 20px;
+}
+.name-tag-text {
+  font-size: 1.3rem;
+  color: #999;
+}
+.name-tag-name {
+  font-size: 3.5rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
-  text-shadow: 0 0 20px rgba(100, 140, 255, 0.4);
-  margin: 0 0 4px 0;
+  color: #ff6b6b;
+  letter-spacing: 8px;
+  line-height: 1;
+}
+.name-tag-underline {
+  margin-top: -6px;
+}
+.name-tag-sub {
+  font-size: 1.1rem;
+  color: #c4b5a5;
+  margin-top: 6px;
 }
 
-.arcade-title p {
+/* Project list */
+.notebook-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 20px 0 60px;
+}
+
+.notebook-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px dashed #e8dcc8;
+  cursor: pointer;
+  font-family: 'Caveat', cursive;
+  font-size: 1.3rem;
+  color: #5c4d3c;
+  text-align: left;
+  transition: background 0.15s, transform 0.15s;
+}
+.notebook-entry:hover,
+.entry-open {
+  background: rgba(255,200,150,0.15);
+  transform: translateX(4px);
+}
+
+.entry-bullet {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.35);
-  margin: 0;
+  flex-shrink: 0;
+}
+.entry-emoji {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+.entry-title {
+  flex: 1;
+  font-weight: 600;
+}
+.entry-arrow {
+  color: #ccc;
+  font-size: 1.1rem;
+  transition: transform 0.2s;
+}
+.notebook-entry:hover .entry-arrow {
+  transform: translateX(3px);
+  color: var(--entry-color);
+}
+
+@media (max-width: 480px) {
+  .notebook-margin { left: 24px; }
+  .notebook-list { padding-left: 40px; }
+  .name-tag-name { font-size: 2.8rem; }
+  .name-tag { margin-left: 8px; }
+  .doodle { display: none; }
 }

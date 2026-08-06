@@ -1,7 +1,7 @@
-import ArcadeScene from './components/arcade/ArcadeScene'
+import Menu from './components/menu/Menu'
 
 function App() {
-  return <ArcadeScene />
+  return <Menu />
 }
 
 export default App
