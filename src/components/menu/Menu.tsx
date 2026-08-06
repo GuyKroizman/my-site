@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { projects } from '../arcade/cabinetData'
+import { projects, type Project } from '../arcade/cabinetData'
+import { isMobileBrowser } from '../../utils/runtime'
 
 const marginDoodle = `
   __...--~~
@@ -22,9 +23,24 @@ const footerDoodle = `
     |
   ~~~|~~~`
 
+const displayOrder = ['hoot', 'racing', 'the-mask', 'snake-bitter', 'rogue0', 'tiny-shooter', 'floaty', 'gmtk-2026']
+
+const constructionIds = new Set(['rogue0', 'tiny-shooter', 'floaty', 'gmtk-2026'])
+const desktopOnlyIds = new Set(['rogue0', 'hoot'])
+
+function orderedProjects(): Project[] {
+  const map = new Map(projects.map((p) => [p.id, p]))
+  return displayOrder.map((id) => map.get(id)!).filter(Boolean)
+}
+
 export default function Menu() {
   const navigate = useNavigate()
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    setIsMobile(isMobileBrowser())
+  }, [])
 
   return (
     <div className="notebook">
@@ -47,21 +63,30 @@ export default function Menu() {
 
       {/* Project list */}
       <div className="notebook-list">
-        {projects.map((project) => (
-          <button
-            key={project.id}
-            className={`notebook-entry ${activeId === project.id ? 'entry-open' : ''}`}
-            style={{ '--entry-color': project.color } as React.CSSProperties}
-            onClick={() => navigate(project.path)}
-            onMouseEnter={() => setActiveId(project.id)}
-            onMouseLeave={() => setActiveId(null)}
-          >
-            <span className="entry-bullet" style={{ color: project.color }}>✦</span>
-            <span className="entry-emoji">{project.emoji}</span>
-            <span className="entry-title">{project.title}</span>
-            <span className="entry-arrow">→</span>
-          </button>
-        ))}
+        {orderedProjects().map((project) => {
+          const desktopOnly = isMobile && desktopOnlyIds.has(project.id)
+          const construction = constructionIds.has(project.id)
+
+          return (
+            <button
+              key={project.id}
+              className={`notebook-entry ${activeId === project.id ? 'entry-open' : ''}`}
+              style={{ '--entry-color': project.color } as React.CSSProperties}
+              onClick={() => navigate(project.path)}
+              onMouseEnter={() => setActiveId(project.id)}
+              onMouseLeave={() => setActiveId(null)}
+            >
+              <span className="entry-bullet" style={{ color: project.color }}>✦</span>
+              <span className="entry-emoji">{project.emoji}</span>
+              <span className="entry-title">
+                {project.title}
+                {construction && <span className="entry-badge badge-wip">wip</span>}
+                {desktopOnly && <span className="entry-badge badge-dt">desktop</span>}
+              </span>
+              <span className="entry-arrow">→</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Footer doodle */}

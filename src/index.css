@@ -140,6 +140,29 @@ body {
   font-size: 1.1rem;
   transition: transform 0.2s;
 }
+
+.entry-badge {
+  display: inline-block;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.55rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+}
+.badge-wip {
+  background: #fff3cd;
+  color: #b8860b;
+  border: 1px solid #f0d060;
+}
+.badge-dt {
+  background: #e8e8f0;
+  color: #666;
+  border: 1px solid #ccc;
+}
 .notebook-entry:hover .entry-arrow {
   transform: translateX(3px);
   color: var(--entry-color);
