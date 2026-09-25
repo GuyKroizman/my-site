@@ -1,4 +1,7 @@
 export const GROUND_SIZE = 200
+// The visible ground extends well past the playable arena so its edge fades
+// into the distance fog instead of ending in a hard line against the sky.
+export const VISUAL_GROUND_SIZE = 800
 
 export const PLAYER_HEIGHT = 1.7
 export const PLAYER_BODY_RADIUS = 0.4

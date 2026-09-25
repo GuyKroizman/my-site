@@ -2,13 +2,14 @@ import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 import { InputManager } from './InputManager'
 import { BrutalistBuilding } from './BrutalistBuilding'
+import { Sky, SKY_HORIZON_COLOR } from './Sky'
 import type { GamepadStatus } from './InputManager'
 import { ShotSound } from './ShotSound'
 import { SpawnBoxHitSound } from './SpawnBoxHitSound'
 import { PlayerDamageSound } from './PlayerDamageSound'
 import { RobotHitSound } from './RobotHitSound'
 import {
-  GROUND_SIZE,
+  VISUAL_GROUND_SIZE,
   PLAYER_BODY_RADIUS,
   PLAYER_HEIGHT,
   PLAYER_MASS,
@@ -54,6 +55,7 @@ export class TinyShooterEngine {
   private readonly scene: THREE.Scene
   private readonly camera: THREE.PerspectiveCamera
   private readonly renderer: THREE.WebGLRenderer
+  private readonly sky: Sky
   private readonly world: CANNON.World
   private readonly playerBody: CANNON.Body
   private readonly input: InputManager
@@ -132,10 +134,15 @@ export class TinyShooterEngine {
       : getFirstTinyShooterLevel()
 
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0xd9d9d9)
+    this.scene.background = SKY_HORIZON_COLOR.clone()
+    this.scene.fog = new THREE.Fog(SKY_HORIZON_COLOR.clone(), 120, 320)
 
     const aspect = Math.max(container.clientWidth, 1) / Math.max(container.clientHeight, 1)
     this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000)
+    this.scene.add(this.camera)
+
+    this.sky = new Sky()
+    this.camera.add(this.sky.mesh)
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.shadowMap.enabled = true
@@ -210,7 +217,7 @@ export class TinyShooterEngine {
   }
 
   private setupScene(): void {
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.6))
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.55))
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8)
     dirLight.position.set(30, 65, 20)
@@ -225,7 +232,7 @@ export class TinyShooterEngine {
     dirLight.shadow.normalBias = 0.06
     this.scene.add(dirLight, dirLight.target)
 
-    this.scene.add(new THREE.HemisphereLight(0xd9d9d9, 0x444444, 0.3))
+    this.scene.add(new THREE.HemisphereLight(0xc2d2e0, 0x3a3a3a, 0.45))
 
     const groundBody = new CANNON.Body({
       mass: 0,
@@ -234,14 +241,14 @@ export class TinyShooterEngine {
     groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0)
     this.world.addBody(groundBody)
 
-    const floorGeo = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE)
+    const floorGeo = new THREE.PlaneGeometry(VISUAL_GROUND_SIZE, VISUAL_GROUND_SIZE)
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x333333 })
     const floor = new THREE.Mesh(floorGeo, floorMat)
     floor.rotation.x = -Math.PI / 2
     floor.receiveShadow = true
     this.scene.add(floor)
 
-    const grid = new THREE.GridHelper(GROUND_SIZE, GROUND_SIZE / 2, 0x555555, 0x444444)
+    const grid = new THREE.GridHelper(VISUAL_GROUND_SIZE, VISUAL_GROUND_SIZE / 2, 0x555555, 0x444444)
     grid.position.y = 0.01
     this.scene.add(grid)
   }
@@ -854,6 +861,7 @@ export class TinyShooterEngine {
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement)
     }
+    this.sky.dispose()
     this.renderer.dispose()
   }
 }
