@@ -20,7 +20,7 @@
     "phaser": "^3.70.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
+    "react-router-dom": "^7.18.4",
     "three": "^0.182.0"
   },
   "devDependencies": {
@@ -38,9 +38,5 @@
     "tailwindcss": "^3.3.5",
     "typescript": "^5.2.2",
     "vite": "^7.2.7"
-  },
-  "packageManager": "yarn@4.0.2",
-  "resolutions": {
-    "cannon-es": "^0.20.0"
   }
 }
