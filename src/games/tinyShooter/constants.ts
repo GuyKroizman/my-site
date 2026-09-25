@@ -15,9 +15,19 @@ export const PHYSICS_SUBSTEPS = 3
 export const PROJECTILE_SPEED = 120
 export const PROJECTILE_RADIUS = 1
 export const PROJECTILE_LENGTH = 20
+export const PROJECTILE_VISUAL_RADIUS = 0.1
 export const PROJECTILE_LIFETIME = 8
 export const MAX_PROJECTILES = 50
 export const SHOOT_COOLDOWN = 0.5
+
+// Where the shot leaves the player, in camera-local space (right, down,
+// forward). Keeping it off-center means the bolt never overlaps the camera.
+export const MUZZLE_OFFSET_X = 0.35
+export const MUZZLE_OFFSET_Y = -0.3
+export const MUZZLE_OFFSET_Z = -0.6
+// Distance down the crosshair ray that the muzzle converges on, so shots from
+// the off-center muzzle still fly toward what the player is aiming at.
+export const PROJECTILE_AIM_DISTANCE = 100
 
 export const MOUSE_SENSITIVITY = 0.002
 export const GAMEPAD_DEADZONE = 0.2

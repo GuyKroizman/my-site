@@ -11,6 +11,8 @@ export interface Projectile {
   damage: number
   knockback: number
   previousPosition: THREE.Vector3
+  /** Seconds for the bolt to stretch from zero to full length. */
+  growSeconds: number
 }
 
 export interface RadarBlip {

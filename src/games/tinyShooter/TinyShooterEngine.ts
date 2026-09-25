@@ -18,6 +18,7 @@ import {
   PHYSICS_DT,
   PHYSICS_SUBSTEPS,
   PROJECTILE_LENGTH,
+  PROJECTILE_VISUAL_RADIUS,
   PROJECTILE_LIFETIME,
   PROJECTILE_RADIUS,
   RADAR_RANGE_ARENA_FACTOR,
@@ -25,6 +26,10 @@ import {
   SHOOT_COOLDOWN,
   MOUSE_SENSITIVITY,
   GAMEPAD_LOOK_SPEED,
+  MUZZLE_OFFSET_X,
+  MUZZLE_OFFSET_Y,
+  MUZZLE_OFFSET_Z,
+  PROJECTILE_AIM_DISTANCE,
 } from './constants'
 import { DEFAULT_WEAPON } from './weapons'
 import type { Projectile, RadarBlip, RadarSnapshot, TinyShooterGameState, TinyShooterPhase } from './gameTypes'
@@ -67,6 +72,8 @@ export class TinyShooterEngine {
   private readonly projectileMaterial: THREE.MeshStandardMaterial
   private readonly damageOverlay: HTMLDivElement
   private readonly tmpDir = new THREE.Vector3()
+  private readonly tmpMuzzle = new THREE.Vector3()
+  private readonly tmpAim = new THREE.Vector3()
   private readonly tmpEuler = new THREE.Euler(0, 0, 0, 'YXZ')
   private readonly playerPosition = new THREE.Vector3()
   private readonly objectivePosition = new THREE.Vector3()
@@ -164,8 +171,8 @@ export class TinyShooterEngine {
     this.world.addBody(this.playerBody)
 
     this.projectileGeometry = new THREE.CylinderGeometry(
-      PROJECTILE_RADIUS,
-      PROJECTILE_RADIUS,
+      PROJECTILE_VISUAL_RADIUS,
+      PROJECTILE_VISUAL_RADIUS,
       PROJECTILE_LENGTH,
       8,
     )
@@ -345,18 +352,33 @@ export class TinyShooterEngine {
       this.removeProjectileAt(0)
     }
 
-    const direction = this.tmpDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize()
-    const spawnPos = this.camera.position.clone().addScaledVector(direction, 1)
+    const cameraForward = this.tmpDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize()
+    const muzzlePosition = this.tmpMuzzle
+      .set(MUZZLE_OFFSET_X, MUZZLE_OFFSET_Y, MUZZLE_OFFSET_Z)
+      .applyQuaternion(this.camera.quaternion)
+      .add(this.camera.position)
+
+    // Aim from the muzzle at a point on the crosshair ray so the off-center
+    // weapon still converges on what the player is pointing at.
+    const direction = this.tmpAim
+      .copy(cameraForward)
+      .multiplyScalar(PROJECTILE_AIM_DISTANCE)
+      .add(this.camera.position)
+      .sub(muzzlePosition)
+      .normalize()
 
     const mesh = new THREE.Mesh(this.projectileGeometry, this.projectileMaterial)
     mesh.quaternion.setFromUnitVectors(UP, direction)
-    mesh.position.copy(spawnPos)
+    mesh.position.copy(muzzlePosition)
+    // Stretch along the bolt's direction: scale.y starts at 0 so it grows out
+    // of the muzzle instead of popping in as a full-size cylinder.
+    mesh.scale.set(1, 0, 1)
     this.scene.add(mesh)
 
     const body = new CANNON.Body({
       mass: 1,
       shape: new CANNON.Sphere(PROJECTILE_RADIUS),
-      position: new CANNON.Vec3(spawnPos.x, spawnPos.y, spawnPos.z),
+      position: new CANNON.Vec3(muzzlePosition.x, muzzlePosition.y, muzzlePosition.z),
     })
     body.velocity.set(
       direction.x * DEFAULT_WEAPON.projectileSpeed,
@@ -371,7 +393,8 @@ export class TinyShooterEngine {
       createdAt: performance.now(),
       damage: DEFAULT_WEAPON.damage,
       knockback: DEFAULT_WEAPON.knockback,
-      previousPosition: spawnPos.clone(),
+      previousPosition: muzzlePosition.clone(),
+      growSeconds: PROJECTILE_LENGTH / (2 * DEFAULT_WEAPON.projectileSpeed),
     })
 
     this.sound.play()
@@ -402,6 +425,9 @@ export class TinyShooterEngine {
         projectile.body.position.y,
         projectile.body.position.z,
       )
+
+      const grow = Math.min(ageSeconds / projectile.growSeconds, 1)
+      projectile.mesh.scale.y = grow
     }
   }
 
