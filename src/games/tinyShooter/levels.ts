@@ -11,6 +11,7 @@ export const tinyShooterLevels: LevelDefinition[] = [
       maxHealth: 120,
     },
     arenaSize: 400,
+    buildings: [{ position: { x: -25, z: -48 } }],
     clearCondition: 'survival',
     nextLevelId: null,
     actors: [

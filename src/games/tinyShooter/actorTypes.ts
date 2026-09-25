@@ -32,6 +32,7 @@ export interface ActorUpdateContext {
   objectiveRadius: number
   arenaSize: number
   solidRobots: readonly SolidRobotSnapshot[]
+  environmentBlockers: readonly PlayerBlockerSnapshot[]
   visionBlockers: readonly VisionBlockerSnapshot[]
 }
 

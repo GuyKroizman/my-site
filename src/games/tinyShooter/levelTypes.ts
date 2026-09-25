@@ -39,6 +39,7 @@ export interface LevelDefinition {
   playerSpawn: { x: number; z: number }
   objective: ObjectiveDefinition
   arenaSize: number
+  buildings?: { position: { x: number; z: number } }[]
   actors: ActorSpawnDefinition[]
   clearCondition: 'defeat-all' | 'survival'
   nextLevelId: string | null

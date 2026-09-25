@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { isBlockedByEnvironment } from './environmentCollision'
 import * as CANNON from 'cannon-es'
 import {
   GIANT_WALK_SPEED,
@@ -494,7 +495,10 @@ export class Giant implements LevelActor {
     const newX = this.group.position.x + this.moveDirX * speed * dt
     const newZ = this.group.position.z + this.moveDirZ * speed * dt
 
-    if (Math.abs(newX) > boundary || Math.abs(newZ) > boundary) {
+    if (
+      Math.abs(newX) > boundary || Math.abs(newZ) > boundary ||
+      isBlockedByEnvironment(newX, newZ, this.playerContactRadius, context.environmentBlockers)
+    ) {
       this.pickNewWanderDirection()
     } else {
       this.group.position.x = newX

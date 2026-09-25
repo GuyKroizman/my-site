@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 import { InputManager } from './InputManager'
+import { BrutalistBuilding } from './BrutalistBuilding'
 import type { GamepadStatus } from './InputManager'
 import { ShotSound } from './ShotSound'
 import { SpawnBoxHitSound } from './SpawnBoxHitSound'
@@ -105,6 +106,7 @@ export class TinyShooterEngine {
 
   private projectiles: Projectile[] = []
   private actors: LevelActor[] = []
+  private buildings: BrutalistBuilding[] = []
   private currentLevel: LevelDefinition
   private phase: TinyShooterPhase = 'playing'
   private health = PLAYER_MAX_HEALTH
@@ -136,6 +138,8 @@ export class TinyShooterEngine {
     this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000)
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
+    this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(Math.max(container.clientWidth, 1), Math.max(container.clientHeight, 1))
     container.appendChild(this.renderer.domElement)
@@ -209,8 +213,17 @@ export class TinyShooterEngine {
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.6))
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8)
-    dirLight.position.set(10, 20, 10)
-    this.scene.add(dirLight)
+    dirLight.position.set(30, 65, 20)
+    dirLight.target.position.set(-10, 0, -35)
+    dirLight.castShadow = true
+    dirLight.shadow.mapSize.set(2048, 2048)
+    dirLight.shadow.camera.left = -85
+    dirLight.shadow.camera.right = 85
+    dirLight.shadow.camera.top = 85
+    dirLight.shadow.camera.bottom = -85
+    dirLight.shadow.camera.far = 180
+    dirLight.shadow.normalBias = 0.06
+    this.scene.add(dirLight, dirLight.target)
 
     this.scene.add(new THREE.HemisphereLight(0xd9d9d9, 0x444444, 0.3))
 
@@ -225,6 +238,7 @@ export class TinyShooterEngine {
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x333333 })
     const floor = new THREE.Mesh(floorGeo, floorMat)
     floor.rotation.x = -Math.PI / 2
+    floor.receiveShadow = true
     this.scene.add(floor)
 
     const grid = new THREE.GridHelper(GROUND_SIZE, GROUND_SIZE / 2, 0x555555, 0x444444)
@@ -288,6 +302,8 @@ export class TinyShooterEngine {
       actor.dispose()
     }
     this.actors = []
+    for (const building of this.buildings) building.dispose()
+    this.buildings = []
   }
 
   private loadLevel(level: LevelDefinition, resetHealth: boolean): void {
@@ -309,6 +325,7 @@ export class TinyShooterEngine {
       this.damageFlashStrength = 0
     }
 
+    this.buildings = (level.buildings ?? []).map(({ position }) => new BrutalistBuilding(this.scene, position))
     this.actors = level.actors.map((spawn) => createLevelActor(spawn, this.world, this.scene, {
       robotHitSound: this.robotHitSound,
       spawnBoxHitSound: this.spawnBoxHitSound,
@@ -443,7 +460,7 @@ export class TinyShooterEngine {
   }
 
   private collectPlayerBlockers(): PlayerBlockerSnapshot[] {
-    const blockers: PlayerBlockerSnapshot[] = []
+    const blockers: PlayerBlockerSnapshot[] = this.buildings.flatMap((building) => building.blockers)
     for (const actor of this.actors) {
       blockers.push(...actor.getPlayerBlockers())
     }
@@ -452,7 +469,7 @@ export class TinyShooterEngine {
   }
 
   private collectVisionBlockers(): VisionBlockerSnapshot[] {
-    const blockers: VisionBlockerSnapshot[] = []
+    const blockers: VisionBlockerSnapshot[] = this.buildings.flatMap((building) => building.blockers)
     for (const actor of this.actors) {
       blockers.push(...actor.getVisionBlockers())
     }
@@ -526,6 +543,7 @@ export class TinyShooterEngine {
   private updateActors(): void {
     this.playerPosition.set(this.camera.position.x, 0, this.camera.position.z)
     const visionBlockers = this.collectVisionBlockers()
+    const environmentBlockers = this.buildings.flatMap((building) => building.blockers)
 
     for (const actor of this.actors) {
       const solidRobots = this.collectSolidRobots()
@@ -535,6 +553,7 @@ export class TinyShooterEngine {
         objectiveRadius: this.currentLevel.objective.radius,
         arenaSize: this.currentLevel.arenaSize,
         solidRobots,
+        environmentBlockers,
         visionBlockers,
       })
     }
@@ -558,6 +577,13 @@ export class TinyShooterEngine {
 
   private resolveProjectileHits(): void {
     const hitIndices = new Set<number>()
+
+    // Solid scenery intercepts shots before they can damage actors behind it.
+    this.projectiles.forEach((projectile, index) => {
+      if (this.buildings.some((building) => building.blocksProjectile(projectile))) {
+        hitIndices.add(index)
+      }
+    })
 
     for (const actor of this.actors) {
       const available = this.buildAvailableProjectiles(hitIndices)

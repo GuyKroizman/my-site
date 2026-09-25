@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { isBlockedByEnvironment } from './environmentCollision'
 import * as CANNON from 'cannon-es'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
@@ -115,6 +116,7 @@ export class AnimatedEnemy implements LevelActor {
   private focusTarget: EnemyFocusTarget = 'none'
   private objectiveRadius = 0
   private solidRobots: readonly SolidRobotSnapshot[] = []
+  private environmentBlockers: readonly PlayerBlockerSnapshot[] = []
   private health: number
   private disposed = false
 
@@ -298,6 +300,9 @@ export class AnimatedEnemy implements LevelActor {
   }
 
   private canOccupy(position: THREE.Vector3): boolean {
+    if (isBlockedByEnvironment(position.x, position.z, this.config.bodyRadius, this.environmentBlockers)) {
+      return false
+    }
     for (const robot of this.solidRobots) {
       if (robot.id === this.solidId) {
         continue
@@ -420,6 +425,7 @@ export class AnimatedEnemy implements LevelActor {
     const prevZ = this.root.position.z
     this.objectiveRadius = context.objectiveRadius
     this.solidRobots = context.solidRobots
+    this.environmentBlockers = context.environmentBlockers
     this.latestPlayerPosition.copy(context.playerPosition)
 
     if (!this.dead) {
