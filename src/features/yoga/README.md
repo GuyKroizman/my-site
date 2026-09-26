@@ -6,11 +6,15 @@ accounts, API calls, or third-party pose assets are needed.
 
 ## Using the page
 
-- Browse 18 essential poses. Search English/Sanskrit names, focus areas, or
+- Browse 42 essential poses. Search English/Sanskrit names, focus areas, or
   difficulty; combine focus chips with the difficulty filter.
 - Open a pose for benefits, a simple cue, and a modification.
+- Add **breath-linked flows** (Cat–Cow, Sun Salutations A and B, Chaturanga
+  Vinyasa, Crescent Lunge, Spinal Balance, Knees to Chest, Seated Spinal Twist,
+  and Reclined Twist) from the dedicated flows section. Flows are fixed presets;
+  you only adjust the round count in the builder.
 - Start with **Everyday reset**, or choose **New** for an empty routine.
-- Add poses with `+` or drag them into insertion slots in the flow. Drag the grip
+- Add poses and flows with `+` or drag them into insertion slots. Drag the grip
   to reorder; up/down buttons provide a keyboard and touch alternative.
 - Set 1–60 breaths per pose. One breath is one inhale plus one exhale. Adjust each
   phase to 2–8 seconds in **Settle into your rhythm** (default: 4s in / 4s out).
@@ -30,15 +34,19 @@ accounts, API calls, or third-party pose assets are needed.
 
 `localStorage` keys:
 
-- `still-yoga-draft-v1`: the current builder draft, persisted after every edit.
-- `still-yoga-library-v1`: `{ version: 1, sessions: Routine[] }`.
+- `still-yoga-draft-v2`: the current builder draft, persisted after every edit.
+- `still-yoga-library-v2`: `{ version: 2, sessions: Routine[] }`.
 
-Saved data is validated, including pose IDs, unique step IDs, timing ranges,
-maximum sizes, and dates. A corrupt saved library is not overwritten; saving is
-disabled and a warning is shown. Blocked/full storage also produces a warning,
-while the in-memory builder/player remains usable. Storage does not sync across
-devices, and clearing browser data removes it. There is no export/import or cloud
-backup. Concurrent editing in multiple tabs is not supported.
+Schema v2 steps are a union: `{ kind: 'pose', poseId, breaths, side? }` or
+`{ kind: 'flow', flowId, rounds }`. On load, the old v1 keys are deleted rather
+than migrated — there are no users to preserve.
+
+Saved data is validated, including pose and flow IDs, unique step IDs, timing
+ranges, maximum sizes, and dates. A corrupt saved library is not overwritten;
+saving is disabled and a warning is shown. Blocked/full storage also produces a
+warning, while the in-memory builder/player remains usable. Storage does not sync
+across devices, and clearing browser data removes it. There is no export/import
+or cloud backup. Concurrent editing in multiple tabs is not supported.
 
 ## Player behavior
 
@@ -51,13 +59,20 @@ it. Full-screen and audio availability depend on browser permissions/support.
 
 The pacer expands on inhale and contracts on exhale, without holds. Reduced-motion
 preferences disable expansion while retaining text and numeric phase cues.
-Web Audio synthesizes a quiet two-tone chime at pose transitions and completion;
-there are no sound downloads. Audio is initialized from the Begin/Resume gesture.
+Web Audio synthesizes a quiet two-tone chime at step transitions and completion.
+Inside a flow, phases change silently with the breath; the chime is reserved for
+the flow's start and end. Audio is initialized from the Begin/Resume gesture.
+
+Flows are timing primitives too: each phase lasts a number of **half-breaths**
+(inhale and exhale are each one half), and single-half phases can pin their first
+half to `inhale` or `exhale` so alignment never drifts. A hold like downward dog
+for four breaths is simply a phase with eight halves.
 
 ## Files
 
 - `poses.ts`: catalog metadata and pose cues.
-- `model.ts`: routine types, validation, persistence, ordering, and timing math.
+- `flows.ts`: fixed flow presets (phases with half-breath timing and breath pins).
+- `model.ts`: routine/step types, validation, persistence, ordering, and timing math.
 - `PoseCatalog.tsx`: discovery, filtering, and native-dialog pose details.
 - `SessionBuilder.tsx`: metadata, sequence controls, and drag-and-drop slots.
 - `SessionLibrary.tsx`: saved routine cards and actions.
@@ -92,6 +107,15 @@ the image will 404, so always add one before shipping.
 The same flow works for AI additions: describe the desired pose to the agent
 and ask it to edit `poses.ts` and the `figures` map together, then run the
 script.
+
+## Adding a flow
+
+Flows are fixed presets defined in `src/features/yoga/flows.ts`. Each `Flow`
+lists ordered `phases`; each phase references an existing pose ID and a duration
+in half-breaths (`1` with a `start` pin for an inhale or exhale transition,
+`2` for one full breath, `8` for a four-breath hold). Side-specific phases set
+`side: 'Left' | 'Right'`. The builder exposes only the round count; phases are
+not user-editable.
 
 ## Verification
 

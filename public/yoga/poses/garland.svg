@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="340" viewBox="0 0 220 170">
+  <title>garland — original Still illustration</title>
+  <path d="M40 147V86a70 70 0 0 1 140 0v61Z" fill="#e6e9dc"/>
+  <circle cx="166" cy="39" r="17" fill="#efcfac" opacity=".65"/>
+  <ellipse cx="111" cy="153" rx="88" ry="5" fill="#ccd4c3" opacity=".65"/>
+  <path d="M108 122 L92 132 L74 148 L84 148 M112 122 L128 132 L146 148 L136 148" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M110 84 L110 122" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
+  <path d="M104 90 L92 112 L104 124 M116 90 L128 112 L116 124" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="110" cy="66" r="11" fill="#cd9678"/>
+  <path d="M100 67 Q95 53 110 54 Q121 54 121 63 Q111 58 105 69Z" fill="#364d41"/>
+  <circle cx="100" cy="58" r="5" fill="#364d41"/>
+</svg>

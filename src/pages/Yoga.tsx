@@ -4,7 +4,8 @@ import PoseCatalog from '../features/yoga/PoseCatalog'
 import SessionBuilder from '../features/yoga/SessionBuilder'
 import SessionLibrary from '../features/yoga/SessionLibrary'
 import GuidedPlayer from '../features/yoga/GuidedPlayer'
-import { createRoutine, createStep, DRAFT_KEY, duplicateRoutine, loadLibrary, MAX_SESSIONS, MAX_STEPS, moveStep, parseRoutine, saveLibrary, uid, type Routine, type Step } from '../features/yoga/model'
+import { createRoutine, createFlowStep, createStep, DRAFT_KEY, duplicateRoutine, loadLibrary, MAX_SESSIONS, MAX_STEPS, moveStep, parseRoutine, saveLibrary, uid, type Routine, type Step } from '../features/yoga/model'
+import { flowById } from '../features/yoga/flows'
 import { poseById } from '../features/yoga/poses'
 import { Icon, PoseImage } from '../features/yoga/ui'
 import '../features/yoga/yoga.css'
@@ -46,6 +47,14 @@ export default function Yoga() {
   }, [])
 
   useEffect(() => {
+    // Schema v2 replaces v1; drop the old keys rather than migrating them.
+    try {
+      localStorage.removeItem('still-yoga-library-v1')
+      localStorage.removeItem('still-yoga-draft-v1')
+    } catch { /* Storage unavailable; nothing to clean up. */ }
+  }, [])
+
+  useEffect(() => {
     // Persist every committed edit so immediate navigation cannot lose the draft.
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...routine, name: routine.name.trim() || 'Untitled flow' }))
@@ -72,6 +81,14 @@ export default function Yoga() {
     steps.splice(slot, 0, createStep(poseId))
     setRoutine({ ...routine, steps })
     setMessage(`${poseById.get(poseId)!.name} added to your flow.`)
+  }
+
+  function addFlow(flowId: string, slot = routine.steps.length) {
+    if (!flowById.has(flowId) || routine.steps.length >= MAX_STEPS) return
+    const steps = [...routine.steps]
+    steps.splice(slot, 0, createFlowStep(flowId))
+    setRoutine({ ...routine, steps })
+    setMessage(`${flowById.get(flowId)!.name} added to your flow.`)
   }
 
   function replaceDraft(next: Routine) {
@@ -111,9 +128,10 @@ export default function Yoga() {
     if (routine.steps.length >= MAX_STEPS) return
     const index = routine.steps.findIndex(item => item.id === step.id)
     const next = [...routine.steps]
-    next.splice(index + 1, 0, { ...step, id: uid(), ...(step.side ? { side: step.side === 'Left' ? 'Right' as const : 'Left' as const } : {}) })
+    const copy: Step = step.kind === 'flow' ? { ...step, id: uid() } : { ...step, id: uid(), ...(step.side ? { side: step.side === 'Left' ? 'Right' as const : 'Left' as const } : {}) }
+    next.splice(index + 1, 0, copy)
     setRoutine({ ...routine, steps: next })
-    setMessage(step.side ? 'Other side added after this pose.' : 'Pose duplicated.')
+    setMessage(step.kind === 'flow' ? 'Flow duplicated.' : step.side ? 'Other side added after this pose.' : 'Pose duplicated.')
   }
 
   function start(item: Routine) {
@@ -132,8 +150,8 @@ export default function Yoga() {
       <nav className="yoga-tabs" aria-label="Yoga workspace"><div><button id="yoga-build-tab" className={tab === 'build' ? 'is-active' : ''} aria-current={tab === 'build' ? 'page' : undefined} onClick={() => setTab('build')}><Icon name="plus" size={18} />Build a session</button><button id="yoga-library-tab" className={tab === 'library' ? 'is-active' : ''} aria-current={tab === 'library' ? 'page' : undefined} onClick={() => setTab('library')}><Icon name="book" size={17} />My sessions <span>{sessions.length}</span></button></div><span className="yoga-device-note"><Icon name="check" size={14} />Private by nature. Saved on your device.</span></nav>
       {(initialLibrary.error || storageError) && <div className="yoga-warning" role="alert"><Icon name="info" /><p>{initialLibrary.error || storageError}</p></div>}
       {tab === 'build' ? <div className="yoga-workspace">
-        <PoseCatalog onAdd={addPose} onDragChange={setDragging} full={routine.steps.length >= MAX_STEPS} />
-        <SessionBuilder routine={routine} saved={saved} savingDisabled={!!initialLibrary.error} dragging={dragging} onChange={setRoutine} onAdd={addPose} onMove={(id, slot) => {
+        <PoseCatalog onAdd={addPose} onAddFlow={addFlow} onDragChange={setDragging} full={routine.steps.length >= MAX_STEPS} />
+        <SessionBuilder routine={routine} saved={saved} savingDisabled={!!initialLibrary.error} dragging={dragging} onChange={setRoutine} onAdd={addPose} onAddFlow={addFlow} onMove={(id, slot) => {
           setRoutine({ ...routine, steps: moveStep(routine.steps, id, slot) })
           setMessage('Pose order updated.')
         }} onDuplicateStep={duplicateStep} onDragChange={setDragging} onSave={save} onStart={() => start(routine)} onNew={() => replaceDraft(createRoutine())} />
@@ -142,7 +160,7 @@ export default function Yoga() {
       }} onBuild={() => setTab('build')} />}
       <footer className="yoga-footer"><span><Icon name="leaf" size={18} /> Small rituals. A little more room.</span><p>Listen to your body. Move within a comfortable range and stop if you feel pain or dizziness.<br />This is a practice companion, not medical advice or a substitute for a qualified teacher.</p></footer>
     </main>
-    {tab === 'build' && !builderVisible && <nav className="yoga-mobile-jump" aria-label="Jump within builder"><a href="#yoga-catalog-title"><Icon name="book" size={15} />Pose library</a><a href="#yoga-flow">Your flow · {routine.steps.length} poses<Icon name="down" size={15} /></a></nav>}
+    {tab === 'build' && !builderVisible && <nav className="yoga-mobile-jump" aria-label="Jump within builder"><a href="#yoga-catalog-title"><Icon name="book" size={15} />Pose library</a><a href="#yoga-flow">Your flow · {routine.steps.length} steps<Icon name="down" size={15} /></a></nav>}
     <div className={`yoga-toast ${message ? 'is-visible' : ''}`} role="status" aria-live="polite" aria-atomic="true">{message && <><Icon name="check" size={18} />{message}</>}</div>
   </div>
 }

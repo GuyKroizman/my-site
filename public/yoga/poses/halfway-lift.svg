@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="340" viewBox="0 0 220 170">
+  <title>halfway lift — original Still illustration</title>
+  <path d="M40 147V86a70 70 0 0 1 140 0v61Z" fill="#e6e9dc"/>
+  <circle cx="166" cy="39" r="17" fill="#efcfac" opacity=".65"/>
+  <ellipse cx="111" cy="153" rx="88" ry="5" fill="#ccd4c3" opacity=".65"/>
+  <path d="M93 84 L90 113 L94 147 L100 147 M99 86 L104 113 L110 147 L116 147" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M96 83 L132 83" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
+  <path d="M124 84 L107 101 L96 115 M130 85 L116 104 L106 119" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="146" cy="82" r="11" fill="#cd9678"/>
+  <path d="M136 83 Q131 69 146 70 Q157 70 157 79 Q147 74 141 85Z" fill="#364d41"/>
+  <circle cx="136" cy="74" r="5" fill="#364d41"/>
+</svg>

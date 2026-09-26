@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="340" viewBox="0 0 220 170">
+  <title>crescent lunge — original Still illustration</title>
+  <path d="M40 147V86a70 70 0 0 1 140 0v61Z" fill="#e6e9dc"/>
+  <circle cx="166" cy="39" r="17" fill="#efcfac" opacity=".65"/>
+  <ellipse cx="111" cy="153" rx="88" ry="5" fill="#ccd4c3" opacity=".65"/>
+  <path d="M110 104 L124 122 L132 147 L138 147 M110 104 L82 146 L56 146 L50 146" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M98 62 L112 104" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
+  <path d="M92 64 L76 42 L80 14 M106 64 L116 42 L114 14" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="96" cy="40" r="11" fill="#cd9678"/>
+  <path d="M86 41 Q81 27 96 28 Q107 28 107 37 Q97 32 91 43Z" fill="#364d41"/>
+  <circle cx="86" cy="32" r="5" fill="#364d41"/>
+</svg>

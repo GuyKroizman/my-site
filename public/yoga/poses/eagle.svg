@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="340" viewBox="0 0 220 170">
+  <title>eagle — original Still illustration</title>
+  <path d="M40 147V86a70 70 0 0 1 140 0v61Z" fill="#e6e9dc"/>
+  <circle cx="166" cy="39" r="17" fill="#efcfac" opacity=".65"/>
+  <ellipse cx="111" cy="153" rx="88" ry="5" fill="#ccd4c3" opacity=".65"/>
+  <path d="M105 100 L103 126 L103 148 L95 148 M115 100 L128 116 L116 130 L108 140" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M110 56 L110 100" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
+  <path d="M102 60 L92 82 L104 96 M118 60 L128 82 L116 96" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="110" cy="38" r="11" fill="#cd9678"/>
+  <path d="M100 39 Q95 25 110 26 Q121 26 121 35 Q111 30 105 41Z" fill="#364d41"/>
+  <circle cx="100" cy="30" r="5" fill="#364d41"/>
+</svg>
