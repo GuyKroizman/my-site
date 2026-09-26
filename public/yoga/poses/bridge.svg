@@ -3,10 +3,10 @@
   <path d="M40 147V86a70 70 0 0 1 140 0v61Z" fill="#e6e9dc"/>
   <circle cx="166" cy="39" r="17" fill="#efcfac" opacity=".65"/>
   <ellipse cx="111" cy="153" rx="88" ry="5" fill="#ccd4c3" opacity=".65"/>
-  <path d="M111 109 L146 91 L163 147 L178 147 M114 116 L141 103 L150 151 L164 151" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M111 109 L146 91 L163 147 L170 147 M114 116 L141 103 L150 151 L159 151" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M56 138 L111 108" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
   <path d="M60 139 L90 149 L124 149 L135 149 M65 143 L95 154 L126 154" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   <circle cx="38" cy="140" r="11" fill="#cd9678"/>
-  <path d="M28 141 Q23 127 38 128 Q49 128 49 137 Q39 132 33 143Z" fill="#364d41"/>
-  <circle cx="28" cy="132" r="5" fill="#364d41"/>
+  <path d="M28 139 Q23 153 38 152 Q49 152 49 143 Q39 148 33 137Z" fill="#364d41"/>
+  <circle cx="28" cy="150" r="5" fill="#364d41"/>
 </svg>
