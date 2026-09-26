@@ -48,6 +48,10 @@ const HIT_RADIUS_SQ = 3.0 * 3.0
 const FALLING_GRAVITY = -40
 const GIANT_TURN_SMOOTHING = 4.5
 
+// Hit feedback flash: the struck block glows white for a moment as it falls.
+const HIT_FLASH_DURATION = 0.2
+const HIT_FLASH_INTENSITY = 3
+
 interface BodyBlock {
   mesh: THREE.Mesh
   alive: boolean
@@ -60,6 +64,10 @@ interface FallingBlock {
   vz: number
   grounded: boolean
   lingerTime: number
+  flashTimeLeft: number
+  flashDuration: number
+  flashMaterial: THREE.MeshStandardMaterial | null
+  originalMaterial: THREE.Material | null
 }
 
 export class Giant implements LevelActor {
@@ -309,7 +317,7 @@ export class Giant implements LevelActor {
     this.wanderTimeLeft = GIANT_WANDER_INTERVAL
   }
 
-  private spawnFallingBlock(mesh: THREE.Mesh, scatter = false): void {
+  private spawnFallingBlock(mesh: THREE.Mesh, scatter = false, flash = false): void {
     mesh.getWorldPosition(this.tmpVec)
     mesh.getWorldQuaternion(this.tmpQuat)
     mesh.removeFromParent()
@@ -317,6 +325,21 @@ export class Giant implements LevelActor {
     mesh.position.copy(this.tmpVec)
     mesh.quaternion.copy(this.tmpQuat)
     this.scene.add(mesh)
+
+    let flashMaterial: THREE.MeshStandardMaterial | null = null
+    let originalMaterial: THREE.Material | null = null
+    if (flash) {
+      originalMaterial = mesh.material as THREE.Material
+      const base = originalMaterial as THREE.MeshStandardMaterial
+      flashMaterial = new THREE.MeshStandardMaterial({
+        color: base.color.clone(),
+        roughness: base.roughness,
+        metalness: base.metalness,
+        emissive: 0xffffff,
+        emissiveIntensity: HIT_FLASH_INTENSITY,
+      })
+      mesh.material = flashMaterial
+    }
 
     const spreadXZ = scatter ? 12 : 0
     const upBoost = scatter ? Math.random() * 10 + 4 : 0
@@ -327,7 +350,22 @@ export class Giant implements LevelActor {
       vz: (Math.random() - 0.5) * spreadXZ,
       grounded: false,
       lingerTime: 0,
+      flashTimeLeft: flash ? HIT_FLASH_DURATION : 0,
+      flashDuration: HIT_FLASH_DURATION,
+      flashMaterial,
+      originalMaterial,
     })
+  }
+
+  private removeFallingBlock(index: number): void {
+    const fb = this.fallingBlocks[index]
+    if (!fb) return
+    this.scene.remove(fb.mesh)
+    if (fb.flashMaterial) {
+      fb.flashMaterial.dispose()
+      fb.flashMaterial = null
+    }
+    this.fallingBlocks.splice(index, 1)
   }
 
   private destroyTorsoBlock(index: number): void {
@@ -335,20 +373,20 @@ export class Giant implements LevelActor {
     if (!block.alive) return
     block.alive = false
     this.torsoAliveCount--
-    this.spawnFallingBlock(block.mesh)
+    this.spawnFallingBlock(block.mesh, false, true)
   }
 
   private destroyArmBlocksFrom(blocks: BodyBlock[], fromIndex: number, cascade: BodyBlock[] | null): void {
     for (let i = fromIndex; i < blocks.length; i++) {
       if (!blocks[i].alive) continue
       blocks[i].alive = false
-      this.spawnFallingBlock(blocks[i].mesh)
+      this.spawnFallingBlock(blocks[i].mesh, false, true)
     }
     if (cascade) {
       for (const block of cascade) {
         if (!block.alive) continue
         block.alive = false
-        this.spawnFallingBlock(block.mesh)
+        this.spawnFallingBlock(block.mesh, false, true)
       }
     }
   }
@@ -366,7 +404,7 @@ export class Giant implements LevelActor {
     })
 
     for (const mesh of meshes) {
-      this.spawnFallingBlock(mesh, true)
+      this.spawnFallingBlock(mesh, true, true)
     }
 
     this.scene.remove(this.group)
@@ -441,11 +479,23 @@ export class Giant implements LevelActor {
     for (let i = this.fallingBlocks.length - 1; i >= 0; i--) {
       const fb = this.fallingBlocks[i]
 
+      // Fade the hit flash back to the block's normal material.
+      if (fb.flashMaterial) {
+        fb.flashTimeLeft -= dt
+        if (fb.flashTimeLeft <= 0) {
+          fb.mesh.material = fb.originalMaterial!
+          fb.flashMaterial.dispose()
+          fb.flashMaterial = null
+          fb.originalMaterial = null
+        } else {
+          fb.flashMaterial.emissiveIntensity = HIT_FLASH_INTENSITY * (fb.flashTimeLeft / fb.flashDuration)
+        }
+      }
+
       if (fb.grounded) {
         fb.lingerTime += dt
         if (fb.lingerTime >= 5) {
-          this.scene.remove(fb.mesh)
-          this.fallingBlocks.splice(i, 1)
+          this.removeFallingBlock(i)
         }
         continue
       }
@@ -563,8 +613,9 @@ export class Giant implements LevelActor {
   dispose(): void {
     if (!this.dead) this.world.removeBody(this.body)
     this.scene.remove(this.group)
-    for (const fb of this.fallingBlocks) this.scene.remove(fb.mesh)
-    this.fallingBlocks.length = 0
+    for (let i = this.fallingBlocks.length - 1; i >= 0; i--) {
+      this.removeFallingBlock(i)
+    }
     for (const geo of this.geometries) geo.dispose()
     for (const mat of this.materials) mat.dispose()
     this.sound.dispose()

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="340" viewBox="0 0 220 170">
+  <title>triangle — original Still illustration</title>
+  <path d="M40 147V86a70 70 0 0 1 140 0v61Z" fill="#e6e9dc"/>
+  <circle cx="166" cy="39" r="17" fill="#efcfac" opacity=".65"/>
+  <ellipse cx="111" cy="153" rx="88" ry="5" fill="#ccd4c3" opacity=".65"/>
+  <path d="M125 109 L88 129 L57 148 L43 148 M132 111 L156 129 L180 149 L194 149" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M99 87 L126 110" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
+  <path d="M100 89 L76 116 L56 141 M104 84 L120 52 L134 24" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="116" cy="77" r="11" fill="#cd9678"/>
+  <path d="M106 78 Q101 64 116 65 Q127 65 127 74 Q117 69 111 80Z" fill="#364d41"/>
+  <circle cx="106" cy="69" r="5" fill="#364d41"/>
+</svg>

@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
 
-// Lazy load game pages for code splitting
+// Lazy load pages for code splitting
 const SnakeBitter = React.lazy(() => import('./pages/SnakeBitter.tsx'))
 const Rogue0 = React.lazy(() => import('./pages/Rogue0.tsx'))
 const Hoot = React.lazy(() => import('./pages/Hoot.tsx'))
@@ -14,6 +14,7 @@ const FloatyMcHandface = React.lazy(() => import('./pages/FloatyMcHandface.tsx')
 const AnimViewer = React.lazy(() => import('./pages/AnimViewer.tsx'))
 const TinyShooter = React.lazy(() => import('./pages/TinyShooter.tsx'))
 const Gmtk2026 = React.lazy(() => import('./pages/Gmtk2026.tsx'))
+const Yoga = React.lazy(() => import('./pages/Yoga.tsx'))
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -40,6 +41,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/anim_viewer" element={<AnimViewer />} />
           <Route path="/tiny-shooter" element={<TinyShooter />} />
           <Route path="/gmtk-2026" element={<Gmtk2026 />} />
+          <Route path="/yoga" element={<Yoga />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

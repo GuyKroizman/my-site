@@ -15,6 +15,16 @@ export interface Project {
 
 export const projects: Project[] = [
   {
+    id: 'yoga',
+    emoji: '🌿',
+    title: 'Yoga Session Builder',
+    subtitle: 'Still · Your Practice, Your Pace',
+    description: 'Build a personal yoga flow and follow along with breath-based visual and audio guidance.',
+    path: '/yoga',
+    color: '#55764b',
+    availability: 'all',
+  },
+  {
     id: 'snake-bitter',
     emoji: '\u{1F40D}',
     title: '\u05E0\u05D5\u05E9\u05DA \u05D4\u05E0\u05D7\u05E9\u05D9\u05DD',

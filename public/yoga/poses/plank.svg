@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="340" viewBox="0 0 220 170">
+  <title>plank — original Still illustration</title>
+  <path d="M40 147V86a70 70 0 0 1 140 0v61Z" fill="#e6e9dc"/>
+  <circle cx="166" cy="39" r="17" fill="#efcfac" opacity=".65"/>
+  <ellipse cx="111" cy="153" rx="88" ry="5" fill="#ccd4c3" opacity=".65"/>
+  <path d="M126 105 L155 123 L188 145 L187 150 M123 109 L153 131 L176 149 L187 149" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M65 88 L126 105" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
+  <path d="M68 91 L61 118 L61 149 L49 149 M75 94 L78 120 L79 147 L68 147" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="47" cy="81" r="11" fill="#cd9678"/>
+  <path d="M37 82 Q32 68 47 69 Q58 69 58 78 Q48 73 42 84Z" fill="#364d41"/>
+  <circle cx="37" cy="73" r="5" fill="#364d41"/>
+</svg>

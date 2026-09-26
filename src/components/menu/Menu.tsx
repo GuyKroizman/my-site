@@ -23,7 +23,7 @@ const footerDoodle = `
     |
   ~~~|~~~`
 
-const displayOrder = ['hoot', 'racing', 'the-mask', 'snake-bitter', 'rogue0', 'tiny-shooter', 'floaty', 'gmtk-2026']
+const displayOrder = ['hoot', 'racing', 'the-mask', 'snake-bitter', 'yoga', 'rogue0', 'tiny-shooter', 'floaty', 'gmtk-2026']
 
 const constructionIds = new Set(['rogue0', 'tiny-shooter', 'floaty', 'gmtk-2026'])
 const desktopOnlyIds = new Set(['rogue0', 'hoot'])

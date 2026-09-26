@@ -1,0 +1,213 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { durationSeconds, formatDuration, playbackAt, stepStartSeconds, totalBreaths, type Routine } from './model'
+import { poseById } from './poses'
+import { Icon, PoseImage } from './ui'
+
+export default function GuidedPlayer({ routine, onExit }: { routine: Routine; onExit: () => void }) {
+  const [elapsed, setElapsed] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [muted, setMuted] = useState(false)
+  const [notice, setNotice] = useState('')
+  const [fullscreen, setFullscreen] = useState(false)
+  const container = useRef<HTMLDivElement>(null)
+  const audio = useRef<AudioContext | null>(null)
+  const base = useRef(0)
+  const started = useRef(0)
+  const lastPose = useRef(0)
+  const finished = useRef(false)
+  const view = playbackAt(routine, elapsed)
+  const step = routine.steps[view.index]
+  const pose = poseById.get(step.poseId)!
+  const nextStep = routine.steps[view.index + 1]
+  const total = durationSeconds(routine)
+
+  const prepareAudio = useCallback(() => {
+    if (muted) return
+    try {
+      audio.current ??= new AudioContext()
+      if (audio.current.state === 'suspended') void audio.current.resume().catch(() => setNotice('Audio is unavailable. Follow the visual breath guide.'))
+    } catch { setNotice('Audio is unavailable. Follow the visual breath guide.') }
+  }, [muted])
+
+  const chime = useCallback(() => {
+    if (muted || !audio.current || audio.current.state !== 'running') return
+    const context = audio.current
+    const now = context.currentTime
+    for (const [frequency, volume] of [[523.25, 0.12], [1046.5, 0.035]]) {
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      oscillator.type = 'sine'
+      oscillator.frequency.value = frequency
+      gain.gain.setValueAtTime(0, now)
+      gain.gain.linearRampToValueAtTime(volume, now + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5)
+      oscillator.connect(gain)
+      gain.connect(context.destination)
+      oscillator.start(now)
+      oscillator.stop(now + 1.6)
+      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
+    }
+  }, [muted])
+
+  const pause = useCallback(() => {
+    if (started.current) base.current = Math.min(total, base.current + (performance.now() - started.current) / 1000)
+    started.current = 0
+    setElapsed(base.current)
+    setPlaying(false)
+  }, [total])
+
+  const togglePlay = useCallback(() => {
+    if (playing) { pause(); return }
+    if (base.current >= total) {
+      base.current = 0
+      lastPose.current = 0
+      finished.current = false
+      setElapsed(0)
+    }
+    setNotice('')
+    prepareAudio()
+    started.current = performance.now()
+    setPlaying(true)
+  }, [playing, pause, prepareAudio, total])
+
+  useEffect(() => {
+    if (!playing) return
+    let frame = 0
+    const tick = () => {
+      const time = Math.min(total, base.current + (performance.now() - started.current) / 1000)
+      setElapsed(time)
+      if (time >= total) {
+        base.current = total
+        started.current = 0
+        setPlaying(false)
+      } else frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [playing, total])
+
+  useEffect(() => {
+    const changed = view.index !== lastPose.current
+    lastPose.current = view.index
+    if (view.complete) {
+      if (!finished.current) { finished.current = true; chime() }
+    } else if (changed) chime()
+  }, [view.index, view.complete, chime])
+
+  useEffect(() => {
+    const hide = () => {
+      if (document.hidden && playing) { pause(); setNotice('Practice paused while this tab was away. Resume when you’re ready.') }
+    }
+    document.addEventListener('visibilitychange', hide)
+    return () => document.removeEventListener('visibilitychange', hide)
+  }, [playing, pause])
+
+  useEffect(() => {
+    if (!playing || !('wakeLock' in navigator)) return
+    let disposed = false
+    let lock: WakeLockSentinel | undefined
+    void navigator.wakeLock.request('screen').then(acquired => {
+      if (disposed) void acquired.release().catch(() => {})
+      else lock = acquired
+    }).catch(() => { /* Optional: unsupported devices still have visual guidance. */ })
+    return () => { disposed = true; void lock?.release().catch(() => {}) }
+  }, [playing])
+
+  useEffect(() => {
+    const fullscreenChanged = () => setFullscreen(document.fullscreenElement === container.current)
+    document.addEventListener('fullscreenchange', fullscreenChanged)
+    return () => document.removeEventListener('fullscreenchange', fullscreenChanged)
+  }, [])
+
+  useEffect(() => {
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const surface = container.current
+    surface?.focus()
+    return () => {
+      document.body.style.overflow = previous
+      if (audio.current) {
+        void audio.current.close().catch(() => {})
+        audio.current = null
+      }
+      if (document.fullscreenElement === surface) void document.exitFullscreen().catch(() => {})
+    }
+  }, [])
+
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement
+      if (event.code === 'Space' && !['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A'].includes(target.tagName)) { event.preventDefault(); togglePlay() }
+      if (event.key === 'Escape' && !document.fullscreenElement) pause()
+    }
+    window.addEventListener('keydown', keydown)
+    return () => window.removeEventListener('keydown', keydown)
+  }, [togglePlay, pause])
+
+  function seek(index: number) {
+    base.current = stepStartSeconds(routine, index)
+    started.current = playing ? performance.now() : 0
+    finished.current = false
+    setElapsed(base.current)
+  }
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+      else if (container.current?.requestFullscreen) await container.current.requestFullscreen()
+      else setNotice('Full-screen is not available in this browser. Practice mode still fills the page.')
+    } catch { setNotice('Full-screen is not available. Practice mode still fills the page.') }
+  }
+
+  function exit() {
+    pause()
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    onExit()
+  }
+
+  return <div className="yoga-player" ref={container} tabIndex={-1}>
+    <header className="yoga-player-header">
+      <button className="yoga-text-button" onClick={exit}><Icon name="arrow" /> Back to session</button>
+      <span className="yoga-player-title">{routine.name}</span>
+      <div className="yoga-button-row">
+        <button className="yoga-icon-button" aria-label={muted ? 'Enable transition chimes' : 'Mute transition chimes'} aria-pressed={!muted} onClick={() => { if (muted) { try { audio.current ??= new AudioContext(); void audio.current.resume().catch(() => {}) } catch { setNotice('Audio is unavailable in this browser.') } } setMuted(!muted) }}><Icon name={muted ? 'mute' : 'sound'} /></button>
+        <button className="yoga-icon-button" onClick={toggleFullscreen} aria-label={fullscreen ? 'Exit full screen' : 'Enter full screen'} aria-pressed={fullscreen}><Icon name="expand" /></button>
+      </div>
+    </header>
+    {notice && <p role="status" className="yoga-player-notice">{notice}</p>}
+    {view.complete ? <div className="yoga-completion">
+      <span className="yoga-completion-symbol"><Icon name="leaf" size={52} /></span>
+      <p className="yoga-eyebrow">A LITTLE TIME, JUST FOR YOU</p>
+      <h1>Carry this calm with you.</h1>
+      <p>You’ve reached the end of your flow. Take a moment before moving on.</p>
+      <div className="yoga-completion-stats"><span>{routine.steps.length} poses</span><span>{totalBreaths(routine)} planned breaths</span><span>{formatDuration(total)} flow</span></div>
+      <div className="yoga-button-row"><button className="yoga-button yoga-primary" onClick={exit}>Back to my session</button><button className="yoga-button yoga-secondary" onClick={togglePlay}><Icon name="play" /> Practice again</button></div>
+    </div> : <>
+      <main className="yoga-practice-stage">
+        <section className="yoga-current-pose" aria-label="Current pose">
+          <p className="yoga-eyebrow">POSE {String(view.index + 1).padStart(2, '0')} OF {String(routine.steps.length).padStart(2, '0')}</p>
+          <PoseImage pose={pose} />
+          <div aria-live="polite" aria-atomic="true" key={step.id}><h1>{pose.name}</h1><p className="yoga-sanskrit">{pose.sanskrit}{step.side && ` · ${step.side} side`}</p></div>
+          <p className="yoga-pose-cue">{pose.cue}</p>
+        </section>
+        <section className="yoga-breath-guide" aria-label="Breath guidance">
+          <div className="yoga-breath-orbit">
+            <div className="yoga-breath-disc" style={{ transform: `scale(${0.7 + view.expansion * 0.3})` }} />
+            <div className="yoga-breath-label"><span>{playing ? (view.inhale ? 'Breathe in' : 'Breathe out') : elapsed === 0 ? 'Find your ease' : 'Take your time'}</span><strong>{playing ? view.phaseRemaining : <Icon name={elapsed === 0 ? 'leaf' : 'pause'} size={36} />}</strong><small>{playing ? `${routine.phaseSeconds} seconds · ${view.inhale ? 'inhale' : 'exhale'}` : elapsed === 0 ? 'Press begin when you’re ready' : 'Your practice is paused'}</small></div>
+          </div>
+          <p className="yoga-breath-count"><strong>{view.remainingBreaths}</strong> {view.remainingBreaths === 1 ? 'breath' : 'breaths'} remaining</p>
+          <p className="yoga-muted">Breath {view.breathNumber} of {step.breaths} · Follow your comfort, not the count.</p>
+          <div className="yoga-player-controls">
+            <button className="yoga-icon-button" disabled={view.index === 0} aria-label="Previous pose" onClick={() => seek(view.index - 1)}><Icon name="previous" size={25} /></button>
+            <button className="yoga-button yoga-primary" onClick={togglePlay}><Icon name={playing ? 'pause' : 'play'} />{playing ? 'Pause' : elapsed === 0 ? 'Begin practice' : 'Resume'}</button>
+            <button className="yoga-icon-button" aria-label={nextStep ? 'Next pose' : 'Finish practice'} onClick={() => seek(view.index + 1)}><Icon name="next" size={25} /></button>
+          </div>
+        </section>
+      </main>
+      <footer className="yoga-player-footer">
+        <div className="yoga-routine-progress"><div><span>YOUR PRACTICE</span><span>{formatDuration(Math.max(0, total - elapsed))} remaining · {Math.round(view.progress * 100)}%</span></div><progress value={view.progress} max="1" aria-label="Routine progress" /></div>
+        <div className="yoga-up-next">{nextStep ? <><PoseImage pose={poseById.get(nextStep.poseId)!} /><div><span className="yoga-eyebrow">UP NEXT</span><strong>{poseById.get(nextStep.poseId)!.name}</strong><small>{nextStep.breaths} breaths{nextStep.side && ` · ${nextStep.side} side`}</small></div></> : <><Icon name="leaf" size={30} /><div><span className="yoga-eyebrow">UP NEXT</span><strong>A moment of stillness</strong><small>Your final pose. No rush.</small></div></>}</div>
+      </footer>
+    </>}
+  </div>
+}

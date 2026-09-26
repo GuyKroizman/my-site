@@ -23,6 +23,13 @@ npm run dev
 npm run build
 ```
 
+## Yoga Session Builder
+
+**Still** is available at `/yoga` and from the home menu. Build breath-based yoga
+flows, save routines locally, and practice with a visual pacer and transition
+chimes. See [the yoga feature guide](src/features/yoga/README.md) for usage
+and storage details.
+
 ## Deployment
 
 1. Build command: `npm run build`
