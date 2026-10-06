@@ -11,7 +11,7 @@ accounts, API calls, or third-party pose assets are needed.
 - Open a pose for benefits, a simple cue, and a modification.
 - Add **breath-linked flows** (Cat–Cow, Sun Salutations A and B, Chaturanga
   Vinyasa, Crescent Lunge, Spinal Balance, Knees to Chest, Seated Spinal Twist,
-  Seated Neck Rolls, and Reclined Twist) from the dedicated flows section. Flows are fixed presets;
+  Seated Neck Rolls, Head-to-Knee & Twist, and Reclined Twist) from the dedicated flows section. Flows are fixed presets;
   you only adjust the round count in the builder.
 - Start with **Everyday reset**, or choose **New** for an empty routine.
 - Add poses and flows with `+` or drag them into insertion slots. Drag the grip

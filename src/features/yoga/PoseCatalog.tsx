@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from 'react'
+import { useRef, useState, type DragEvent } from 'react'
 import { focuses, poseById, poses, type Pose } from './poses'
 import { flows, flowEstimateSeconds, type Flow } from './flows'
 import { formatDuration } from './model'
@@ -26,6 +26,7 @@ export default function PoseCatalog({ onAdd, onAddFlow, onDragChange, full }: Pr
   const [difficulty, setDifficulty] = useState('All levels')
   const [details, setDetails] = useState<Pose | null>(null)
   const [flowDetails, setFlowDetails] = useState<Flow | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
   const normalized = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   const query = normalized(search.trim())
   const filtered = poses.filter(pose => (focus === 'All poses' || pose.focus.some(item => item === focus)) &&
@@ -47,7 +48,7 @@ export default function PoseCatalog({ onAdd, onAddFlow, onDragChange, full }: Pr
   return <section className="yoga-catalog" aria-labelledby="yoga-catalog-title">
     <div className="yoga-section-heading"><div><p className="yoga-eyebrow">01 / EXPLORE</p><h2 id="yoga-catalog-title">Find your next pose</h2></div><span className="yoga-count">{poses.length} essentials</span></div>
     <div className="yoga-catalog-search">
-      <label className="yoga-search"><Icon name="search" /><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search English or Sanskrit name…" aria-label="Search poses by name or focus" /></label>
+      <label className="yoga-search"><Icon name="search" /><input ref={searchRef} type="text" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search English or Sanskrit name…" aria-label="Search poses by name or focus" />{search && <button type="button" className="yoga-search-clear" aria-label="Clear search" onClick={() => { setSearch(''); searchRef.current?.focus() }}><Icon name="close" size={14} /></button>}</label>
       <select value={difficulty} onChange={event => setDifficulty(event.target.value)} aria-label="Filter by difficulty"><option>All levels</option><option>Beginner</option><option>Intermediate</option></select>
     </div>
     <div className="yoga-filter-chips" aria-label="Filter by focus">{['All poses', ...focuses].map(item => <button key={item} className={`yoga-chip ${focus === item ? 'is-active' : ''}`} aria-pressed={focus === item} onClick={() => setFocus(item)}>{item}</button>)}</div>

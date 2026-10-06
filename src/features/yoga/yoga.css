@@ -66,6 +66,9 @@
 .yoga-search { display: flex; gap: 9px; align-items: center; border: 1px solid var(--y-line); border-radius: 7px; padding: 10px 12px; background: #fffefa; flex: 1; min-width: 0; color: #8a9280; }
 .yoga-search input { width: 100%; min-width: 0; background: transparent; font-size: 11px; outline-offset: 8px; }
 .yoga-search svg { flex-shrink: 0; width: 16px; }
+.yoga-search-clear { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; color: #8a9280; background: transparent; }
+.yoga-search-clear:hover { background: #e9eee0; color: var(--y-ink); }
+.yoga-search-clear svg { width: 14px; height: 14px; }
 .yoga-catalog-search select { font-size: 11px; max-width: 125px; }
 .yoga-filter-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .yoga-chip { font-size: 10px; padding: 5px 11px; border: 1px solid #e2e5d9; border-radius: 5px; color: #7d8473; background: transparent; display: inline-block; }

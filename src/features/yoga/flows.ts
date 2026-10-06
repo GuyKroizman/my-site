@@ -102,6 +102,23 @@ export const flows: Flow[] = [
     ],
   },
   {
+    id: 'head-to-knee-twist',
+    name: 'Head-to-Knee & Twist',
+    sanskrit: 'Janu Sirsasana Vinyasa',
+    focus: ['Hips', 'Spine'],
+    difficulty: 'Beginner',
+    defaultRounds: 1,
+    description: 'Settle into Head-to-Knee Pose, rise into a three-breath seated twist, then fold forward over the straight leg before switching sides.',
+    phases: [
+      { poseId: 'janu-sirsasana', halves: 2, start: 'inhale', side: 'Right' },
+      { poseId: 'seated-twist', halves: 6, start: 'inhale', side: 'Right' },
+      { poseId: 'janu-sirsasana', halves: 2, start: 'exhale', side: 'Right' },
+      { poseId: 'janu-sirsasana', halves: 2, start: 'inhale', side: 'Left' },
+      { poseId: 'seated-twist', halves: 6, start: 'inhale', side: 'Left' },
+      { poseId: 'janu-sirsasana', halves: 2, start: 'exhale', side: 'Left' },
+    ],
+  },
+  {
     id: 'sun-salutation-b',
     name: 'Sun Salutation B',
     sanskrit: 'Surya Namaskar B',
