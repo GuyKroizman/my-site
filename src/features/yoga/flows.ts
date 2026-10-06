@@ -88,6 +88,20 @@ export const flows: Flow[] = [
     ],
   },
   {
+    id: 'seated-neck-rolls',
+    name: 'Seated Neck Rolls',
+    sanskrit: 'Griva Sanchalana',
+    focus: ['Spine', 'Rest'],
+    difficulty: 'Beginner',
+    defaultRounds: 3,
+    description: 'Sit tall and roll the head in slow circles — inhale as it rolls back, exhale as it rolls forward — then reverse the direction.',
+    phases: [
+      { poseId: 'easy-seat', halves: 2 },
+      { poseId: 'neck-roll', halves: 2, start: 'inhale', side: 'Right' },
+      { poseId: 'neck-roll', halves: 2, start: 'inhale', side: 'Left' },
+    ],
+  },
+  {
     id: 'sun-salutation-b',
     name: 'Sun Salutation B',
     sanskrit: 'Surya Namaskar B',
