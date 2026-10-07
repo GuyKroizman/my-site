@@ -7,6 +7,6 @@
   <path d="M84 80 L134 80" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
   <path d="M84 80 L66 80 L44 80 M84 80 L84 110 L84 147" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   <circle cx="70" cy="70" r="11" fill="#cd9678"/>
-  <path d="M70 59 Q81 70 70 81 Q76 70 70 59 Z" fill="#364d41"/>
-  <circle cx="85" cy="70" r="5" fill="#364d41"/>
+  <path d="M60 71 Q55 57 70 58 Q81 58 81 67 Q71 62 65 73Z" fill="#364d41"/>
+  <circle cx="60" cy="62" r="5" fill="#364d41"/>
 </svg>
