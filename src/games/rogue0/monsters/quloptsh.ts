@@ -4,7 +4,6 @@ import { Entity } from "../entity";
 import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
 import PF from "pathfinding";
-import level from "../level.js";
 import dungeon from "../dungeon";
 import Shoe from "../items/Shoe";
 
@@ -48,7 +47,7 @@ export default class Quloptsh extends Entity {
       let pX = this.context.player!.x!;
       let pY = this.context.player!.y!;
 
-      const grid = new PF.Grid(level);
+      const grid = new PF.Grid(dungeon.getCurrentLevel());
       const finder = new PF.AStarFinder();
       const path = finder.findPath(oldX!, oldY!, pX, pY, grid);
 
@@ -95,6 +94,7 @@ export default class Quloptsh extends Entity {
   }
 
   onDestroy() {
+    this.context.kills = (this.context.kills ?? 0) + 1;
     dungeon.log(this.context, `${this.name} was killed.`);
     if (this.UISprite) {
       this.UISprite.setAlpha(0.2);

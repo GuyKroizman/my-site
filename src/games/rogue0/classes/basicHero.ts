@@ -270,8 +270,7 @@ export default class BasicHero extends Entity {
   }
 
   onDestroy() {
-    alert("OMG! you died!");
-    location.reload();
+    this.context.scene?.events.emit("player-died");
   }
 
   createUI({ scene, x, y }: {

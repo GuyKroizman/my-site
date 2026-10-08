@@ -1,6 +1,4 @@
-// TypeScript errors after site migration - ignoring for game functionality
 // @ts-nocheck
-import level from "./level.js";
 import type { GameContext } from "./context";
 import PF from "pathfinding";
 import type { Entity } from "./entity";
@@ -14,8 +12,13 @@ export const Sprites = {
 const tileSize = 16;
 
 let dungeon = {
-  initialize: function(context: GameContext) {
-    const level0 = level.map((r) =>
+  currentLevel: [],
+  layer: undefined,
+
+  initialize: function(context, levelArray) {
+    this.currentLevel = levelArray;
+
+    const level0 = levelArray.map((r) =>
       r.map((t) => (t == 1 ? Sprites.wall : Sprites.floor))
     );
 
@@ -24,6 +27,16 @@ let dungeon = {
       tileWidth: tileSize,
       tileHeight: tileSize
     };
+
+    if (this.layer) {
+      this.layer.destroy();
+      this.layer = undefined;
+    }
+
+    if (context.map) {
+      context.map.destroy();
+      context.map = undefined;
+    }
 
     context.map = context.scene!.make.tilemap(config);
 
@@ -41,10 +54,14 @@ let dungeon = {
       return;
     }
 
-    context.map.createLayer(0, tileset, 0, 0);
+    this.layer = context.map.createLayer(0, tileset, 0, 0);
   },
 
-  isWalkableTile: function(context: GameContext, x: number, y: number) {
+  getCurrentLevel: function() {
+    return this.currentLevel;
+  },
+
+  isWalkableTile: function(context, x, y) {
     for (const entity of context.entities) {
       if (entity.sprite && entity.x === x && entity.y === y) return false;
     }
@@ -53,38 +70,32 @@ let dungeon = {
     return tileAtDestination?.index !== Sprites.wall;
   },
 
-  entityAtTile: function(context: GameContext, x: number, y: number) {
+  entityAtTile: function(context, x, y) {
     for (const entity of context.entities) {
       if (entity.sprite && entity.x === x && entity.y === y) return entity;
     }
     return undefined;
   },
 
-  removeEntity: function(context: GameContext, entity: Entity) {
-    const entityIndex = context.entities.findIndex((e) => e === entity);
-    if (entityIndex === -1) {
-      return;
-    }
-    context.entities.splice(entityIndex, 1);
-    entity.sprite?.destroy();
-    entity.sprite = undefined;
-    entity.x = undefined;
-    entity.y = undefined;
-    entity.onDestroy();
-  },
-
-  itemPicked: function(entity: Entity) {
+  itemPicked: function(entity) {
     entity.sprite!.destroy();
     entity.sprite = undefined;
     entity.x = undefined;
     entity.y = undefined;
   },
 
-  distanceBetweenEntities: function(entity1: Entity, entity2: Entity) {
-    if (entity1.x == undefined || entity1.y == undefined || entity2.x == undefined || entity2.y == undefined) {
-      throw new Error(`Error in distanceBetweenEntities: entity ${entity1.name} or ${entity2.name} x or y is undefined`);
+  distanceBetweenEntities: function(entity1, entity2) {
+    if (
+      entity1.x == undefined ||
+      entity1.y == undefined ||
+      entity2.x == undefined ||
+      entity2.y == undefined
+    ) {
+      throw new Error(
+        `Error in distanceBetweenEntities: entity ${entity1.name} or ${entity2.name} x or y is undefined`
+      );
     }
-    const grid = new PF.Grid(level);
+    const grid = new PF.Grid(this.currentLevel);
     const finder = new PF.AStarFinder({
       diagonalMovement: PF.DiagonalMovement.Always
     });
@@ -98,12 +109,7 @@ let dungeon = {
     return path.length >= 2 ? path.length : 0;
   },
 
-  moveEntityTo: function(
-    context: GameContext,
-    entity: Entity,
-    x: number,
-    y: number
-  ) {
+  moveEntityTo: function(context, entity, x, y) {
     if (context.map == undefined || context.scene == undefined) {
       throw new Error("context.map is undefined");
     }
@@ -122,13 +128,8 @@ let dungeon = {
       duration: 50
     });
   },
-  attackEntity: function(
-    context: GameContext,
-    attacker: Entity,
-    victim: Entity,
-    rangedAttack: number,
-    tint: number | undefined
-  ) {
+
+  attackEntity: function(context, attacker, victim, rangedAttack, tint) {
     if (!context.scene || !context.map) {
       throw new Error("context scene or map are missing");
     }
@@ -149,7 +150,10 @@ let dungeon = {
           if (damage > 0) {
             victim.healthPoints -= damage;
 
-            this.log(context, `${attacker.name} does ${damage} damage to ${victim.name}.`);
+            this.log(
+              context,
+              `${attacker.name} does ${damage} damage to ${victim.name}.`
+            );
 
             if (victim.healthPoints <= 0) {
               removeEntity(context, victim);
@@ -167,7 +171,9 @@ let dungeon = {
     } else {
       const x = context.map.tileToWorldX(attacker.x!);
       const y = context.map.tileToWorldY(attacker.y!);
-      const sprite = context.scene.add.sprite(x!, y!, "tiles", rangedAttack).setOrigin(0);
+      const sprite = context.scene.add
+        .sprite(x!, y!, "tiles", rangedAttack)
+        .setOrigin(0);
       if (tint) {
         sprite.tint = tint;
       }
@@ -184,7 +190,10 @@ let dungeon = {
           if (damage > 0) {
             victim.healthPoints -= damage;
 
-            this.log(context, `${attacker.name} does ${damage} damage to ${victim.name}.`);
+            this.log(
+              context,
+              `${attacker.name} does ${damage} damage to ${victim.name}.`
+            );
 
             if (victim.healthPoints <= 0) {
               removeEntity(context, victim);
@@ -202,7 +211,7 @@ let dungeon = {
     }
   },
 
-  log: function(context: GameContext, text: string) {
+  log: function(context, text) {
     context.messages.unshift(text);
     context.messages = context.messages.slice(0, 8);
   }

@@ -1,9 +1,12 @@
-// TypeScript errors after site migration - ignoring for game functionality
 // @ts-nocheck
-import type { Entity } from "entity";
+import type { Entity } from "./entity";
 
 const turnManager = {
   entityIndex: 0,
+
+  reset: () => {
+    turnManager.entityIndex = 0;
+  },
 
   update: (entities: Entity[]) => {
     if (turnManager._isOver(entities)) {
@@ -12,10 +15,10 @@ const turnManager = {
     turnManager._turn(entities);
   },
 
-  _refresh: (entities: Entity[]) => entities.forEach((e) => {
-    e.refresh();
+  _refresh: (entities: Entity[]) => {
+    entities.forEach((e) => e.refresh());
     turnManager.entityIndex = 0;
-  }),
+  },
 
   _turn: (entities: Entity[]) => {
     if (entities.length === 0 || !entities) {
