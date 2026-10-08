@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { durationSeconds, formatDuration, playbackAt, stepPoseId, stepStartSeconds, totalBreaths, type Routine, type Step } from './model'
 import { flowById } from './flows'
 import { poseById, type Pose } from './poses'
+import { AudioEngine, loadAudioPrefs, saveAudioPrefs, type AudioPrefs } from './audio'
 import { Icon, PoseImage } from './ui'
 
 function halfLabel(halves: number, start?: 'inhale' | 'exhale') {
@@ -12,47 +13,26 @@ function halfLabel(halves: number, start?: 'inhale' | 'exhale') {
 export default function GuidedPlayer({ routine, onExit }: { routine: Routine; onExit: () => void }) {
   const [elapsed, setElapsed] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const [muted, setMuted] = useState(false)
+  const [prefs, setPrefs] = useState<AudioPrefs>(loadAudioPrefs)
   const [notice, setNotice] = useState('')
   const [fullscreen, setFullscreen] = useState(false)
   const container = useRef<HTMLDivElement>(null)
-  const audio = useRef<AudioContext | null>(null)
+  const engine = useRef<AudioEngine | null>(null)
+  if (!engine.current) engine.current = new AudioEngine(prefs)
   const base = useRef(0)
   const started = useRef(0)
   const lastPose = useRef(0)
+  const lastHalf = useRef(0)
   const finished = useRef(false)
   const view = playbackAt(routine, elapsed)
   const step = routine.steps[view.index]
   const pose = poseById.get(view.poseId)!
   const total = durationSeconds(routine)
 
-  const prepareAudio = useCallback(() => {
-    if (muted) return
-    try {
-      audio.current ??= new AudioContext()
-      if (audio.current.state === 'suspended') void audio.current.resume().catch(() => setNotice('Audio is unavailable. Follow the visual breath guide.'))
-    } catch { setNotice('Audio is unavailable. Follow the visual breath guide.') }
-  }, [muted])
-
-  const chime = useCallback(() => {
-    if (muted || !audio.current || audio.current.state !== 'running') return
-    const context = audio.current
-    const now = context.currentTime
-    for (const [frequency, volume] of [[523.25, 0.12], [1046.5, 0.035]]) {
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
-      oscillator.type = 'sine'
-      oscillator.frequency.value = frequency
-      gain.gain.setValueAtTime(0, now)
-      gain.gain.linearRampToValueAtTime(volume, now + 0.015)
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5)
-      oscillator.connect(gain)
-      gain.connect(context.destination)
-      oscillator.start(now)
-      oscillator.stop(now + 1.6)
-      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
-    }
-  }, [muted])
+  useEffect(() => {
+    engine.current!.setPrefs(prefs)
+    saveAudioPrefs(prefs)
+  }, [prefs])
 
   const pause = useCallback(() => {
     if (started.current) base.current = Math.min(total, base.current + (performance.now() - started.current) / 1000)
@@ -66,14 +46,15 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
     if (base.current >= total) {
       base.current = 0
       lastPose.current = 0
+      lastHalf.current = 0
       finished.current = false
       setElapsed(0)
     }
     setNotice('')
-    prepareAudio()
+    if (!engine.current!.unlock()) setNotice('Audio is unavailable. Follow the visual breath guide.')
     started.current = performance.now()
     setPlaying(true)
-  }, [playing, pause, prepareAudio, total])
+  }, [playing, pause, total])
 
   useEffect(() => {
     if (!playing) return
@@ -91,13 +72,37 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
     return () => cancelAnimationFrame(frame)
   }, [playing, total])
 
+  // Varied chimes: pose transition, flow start, or completion.
   useEffect(() => {
     const changed = view.index !== lastPose.current
     lastPose.current = view.index
     if (view.complete) {
-      if (!finished.current) { finished.current = true; chime() }
-    } else if (changed) chime()
-  }, [view.index, view.complete, chime])
+      if (!finished.current) { finished.current = true; engine.current!.chime('complete') }
+    } else if (changed) {
+      engine.current!.chime(routine.steps[view.index]?.kind === 'flow' ? 'flow' : 'step')
+    }
+  }, [view.index, view.complete, routine.steps])
+
+  // Breath pacer tone at each half-breath boundary.
+  useEffect(() => {
+    if (!playing) return
+    const half = Math.floor(elapsed / routine.phaseSeconds)
+    if (half !== lastHalf.current) {
+      lastHalf.current = half
+      engine.current!.breath(view.inhale)
+    }
+  }, [playing, elapsed, routine.phaseSeconds, view.inhale])
+
+  // Ambient breath bed, level following the eased expansion.
+  useEffect(() => {
+    const engineRef = engine.current!
+    if (playing && prefs.breathMode === 'ambient') {
+      engineRef.setAmbient(true)
+      engineRef.setAmbientLevel(view.expansion)
+    } else {
+      engineRef.setAmbient(false)
+    }
+  }, [playing, prefs.breathMode, view.expansion])
 
   useEffect(() => {
     const hide = () => {
@@ -131,10 +136,7 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
     surface?.focus()
     return () => {
       document.body.style.overflow = previous
-      if (audio.current) {
-        void audio.current.close().catch(() => {})
-        audio.current = null
-      }
+      engine.current?.dispose()
       if (document.fullscreenElement === surface) void document.exitFullscreen().catch(() => {})
     }
   }, [])
@@ -153,6 +155,7 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
     base.current = stepStartSeconds(routine, index)
     started.current = playing ? performance.now() : 0
     finished.current = false
+    lastHalf.current = Math.floor(base.current / routine.phaseSeconds)
     setElapsed(base.current)
   }
 
@@ -168,6 +171,17 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
     pause()
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
     onExit()
+  }
+
+  function setBreathMode(breathMode: AudioPrefs['breathMode']) {
+    if (breathMode !== 'off') engine.current!.unlock()
+    setPrefs({ ...prefs, breathMode })
+  }
+
+  function toggleChime() {
+    const chimeMuted = !prefs.chimeMuted
+    if (!chimeMuted) engine.current!.unlock()
+    setPrefs({ ...prefs, chimeMuted })
   }
 
   function upcoming(): { pose: Pose; side?: 'Left' | 'Right'; label: string } | null {
@@ -201,7 +215,7 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
       <button className="yoga-text-button" onClick={exit}><Icon name="arrow" /> Back to session</button>
       <span className="yoga-player-title">{routine.name}</span>
       <div className="yoga-button-row">
-        <button className="yoga-icon-button" aria-label={muted ? 'Enable transition chimes' : 'Mute transition chimes'} aria-pressed={!muted} onClick={() => { if (muted) { try { audio.current ??= new AudioContext(); void audio.current.resume().catch(() => {}) } catch { setNotice('Audio is unavailable in this browser.') } } setMuted(!muted) }}><Icon name={muted ? 'mute' : 'sound'} /></button>
+        <button className="yoga-icon-button" aria-label={prefs.chimeMuted ? 'Enable transition chimes' : 'Mute transition chimes'} aria-pressed={!prefs.chimeMuted} onClick={toggleChime}><Icon name={prefs.chimeMuted ? 'mute' : 'sound'} /></button>
         <button className="yoga-icon-button" onClick={toggleFullscreen} aria-label={fullscreen ? 'Exit full screen' : 'Enter full screen'} aria-pressed={fullscreen}><Icon name="expand" /></button>
       </div>
     </header>
@@ -225,6 +239,14 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
           <div className="yoga-breath-orbit">
             <div className="yoga-breath-disc" style={{ transform: `scale(${0.7 + view.expansion * 0.3})` }} />
             <div className="yoga-breath-label"><span>{playing ? (view.inhale ? 'Breathe in' : 'Breathe out') : elapsed === 0 ? 'Find your ease' : 'Take your time'}</span><strong>{playing ? view.phaseRemaining : <Icon name={elapsed === 0 ? 'leaf' : 'pause'} size={36} />}</strong><small>{playing ? `${routine.phaseSeconds} seconds · ${view.inhale ? 'inhale' : 'exhale'}` : elapsed === 0 ? 'Press begin when you’re ready' : 'Your practice is paused'}</small></div>
+          </div>
+          <div className="yoga-breath-audio" role="group" aria-label="Breath sound">
+            <span className="yoga-breath-audio-label"><Icon name="breath" size={14} /> Breath sound</span>
+            <div className="yoga-segmented">
+              <button className={prefs.breathMode === 'tone' ? 'is-active' : ''} aria-pressed={prefs.breathMode === 'tone'} onClick={() => setBreathMode('tone')}>Tone</button>
+              <button className={prefs.breathMode === 'ambient' ? 'is-active' : ''} aria-pressed={prefs.breathMode === 'ambient'} onClick={() => setBreathMode('ambient')}>Ambient</button>
+              <button className={prefs.breathMode === 'off' ? 'is-active' : ''} aria-pressed={prefs.breathMode === 'off'} onClick={() => setBreathMode('off')}>Off</button>
+            </div>
           </div>
           <p className="yoga-breath-count"><strong>{view.remainingBreaths}</strong> {view.remainingBreaths === 1 ? 'breath' : 'breaths'} remaining</p>
           <p className="yoga-muted">Breath {view.breathNumber} of {view.phaseBreaths} · Follow your comfort, not the count.</p>

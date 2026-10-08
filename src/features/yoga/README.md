@@ -27,8 +27,9 @@ accounts, API calls, or third-party pose assets are needed.
 - **Save session** keeps a named routine in **My sessions**, with practice, edit,
   duplicate, and delete actions. Limits: 100 poses per routine, 100 saved routines.
 - **Practice** opens an uncluttered player. Press **Begin practice** when ready.
-  Pause/resume, previous/next pose, chime mute, and optional browser full-screen
-  controls are available. Space toggles playback when focus is not on a control.
+  Pause/resume, previous/next pose, optional browser full-screen, a breath-sound
+  control (tone, ambient, or off) and distinct transition chimes are available.
+  Space toggles playback when focus is not on a control.
 
 ## Persistence and privacy
 
@@ -36,6 +37,8 @@ accounts, API calls, or third-party pose assets are needed.
 
 - `still-yoga-draft-v2`: the current builder draft, persisted after every edit.
 - `still-yoga-library-v2`: `{ version: 2, sessions: Routine[] }`.
+- `still-yoga-audio-v1`: player audio preferences — breath sound mode and chime
+  mute.
 
 Schema v2 steps are a union: `{ kind: 'pose', poseId, breaths, side? }` or
 `{ kind: 'flow', flowId, rounds }`. On load, the old v1 keys are deleted rather
@@ -59,9 +62,12 @@ it. Full-screen and audio availability depend on browser permissions/support.
 
 The pacer expands on inhale and contracts on exhale, without holds. Reduced-motion
 preferences disable expansion while retaining text and numeric phase cues.
-Web Audio synthesizes a quiet two-tone chime at step transitions and completion.
-Inside a flow, phases change silently with the breath; the chime is reserved for
-the flow's start and end. Audio is initialized from the Begin/Resume gesture.
+Web Audio synthesizes quiet, event-specific chimes: a crisp tone on pose
+transitions, a bell at flow starts, and a resolving chord at completion. Inside a
+flow, phases change silently with the breath; the chime is reserved for the
+flow's start and end. A breath pacer adds a rising inhale tone and falling exhale
+tone, or a continuous ambient noise bed, when enabled. Audio is initialized
+from the Begin/Resume gesture.
 
 Flows are timing primitives too: each phase lasts a number of **half-breaths**
 (inhale and exhale are each one half), and single-half phases can pin their first
