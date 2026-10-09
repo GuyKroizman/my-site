@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="340" viewBox="0 0 220 170">
+  <title>butterfly fold — original Still illustration</title>
+  <path d="M40 147V86a70 70 0 0 1 140 0v61Z" fill="#e6e9dc"/>
+  <circle cx="166" cy="39" r="17" fill="#efcfac" opacity=".65"/>
+  <ellipse cx="111" cy="153" rx="88" ry="5" fill="#ccd4c3" opacity=".65"/>
+  <path d="M104 121 Q57 115 62 133 L106 150 M116 121 Q163 115 158 133 L114 150" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M110 76 Q114 91 110 104" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
+  <path d="M101 85 L91 116 L106 147 M119 87 L131 116 L118 147" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="110" cy="106" r="11" fill="#cd9678"/>
+  <path d="M100 107 Q95 93 110 94 Q121 94 121 103 Q111 98 105 109Z" fill="#364d41"/>
+  <circle cx="100" cy="98" r="5" fill="#364d41"/>
+</svg>
