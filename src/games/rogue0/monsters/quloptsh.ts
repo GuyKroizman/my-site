@@ -3,7 +3,7 @@
 import { Entity } from "../entity";
 import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
-import PF from "pathfinding";
+import { enemyTurn } from "../ai";
 import dungeon from "../dungeon";
 import Shoe from "../items/Shoe";
 
@@ -16,6 +16,8 @@ export default class Quloptsh extends Entity {
   type: EntityType = "enemy";
   actionPoints: number = 0;
   healthPoints: number = 10;
+  maxHealthPoints: number = 10;
+  visionRadius: number = 7;
   tweens: number = 1;
   UISprite?: Phaser.GameObjects.Sprite;
   UIText?: Phaser.GameObjects.Text;
@@ -37,37 +39,7 @@ export default class Quloptsh extends Entity {
   }
 
   turn() {
-    if (!this.context.player) {
-      throw new Error("Error in Quloptsh context.player is undefined");
-    }
-    let oldX = this.x;
-    let oldY = this.y;
-
-    if (this.movementPoints > 0) {
-      let pX = this.context.player!.x!;
-      let pY = this.context.player!.y!;
-
-      const grid = new PF.Grid(dungeon.getCurrentLevel());
-      const finder = new PF.AStarFinder();
-      const path = finder.findPath(oldX!, oldY!, pX, pY, grid);
-
-      if (this.movementPoints > 0) {
-        if (path.length > 2) {
-          dungeon.moveEntityTo(this.context, this, path[1][0], path[1][1]);
-        }
-
-        this.movementPoints -= 1;
-      }
-
-      if (this.actionPoints > 0) {
-        if (dungeon.distanceBetweenEntities(this, this.context.player) <= 2) {
-          const NOT_RANGED_ATTACK = 0;
-          const WEAPON_TINT = undefined;
-          dungeon.attackEntity(this.context, this, this.context.player, NOT_RANGED_ATTACK, WEAPON_TINT);
-        }
-        this.actionPoints -= 1;
-      }
-    }
+    enemyTurn(this);
   }
 
   isOver() {

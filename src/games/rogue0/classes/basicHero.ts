@@ -4,6 +4,7 @@ import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import type { GameContext } from "../context";
 import dungeon from "../dungeon";
+import { hasLineOfSight } from "../fov";
 
 const UI_HIGHLIGHT_BACKGROUND_COLOR = "#646059";
 
@@ -24,6 +25,8 @@ export default class BasicHero extends Entity {
   UIItems?: Phaser.GameObjects.Rectangle[] = [];
   UIX: number = 0;
   UIY: number = 0;
+  facingX: number = 0;
+  facingY: number = 1;
 
   constructor(context: GameContext) {
     super();
@@ -153,15 +156,47 @@ export default class BasicHero extends Entity {
 
     if (entity && entity.type == "enemy" && this.actionPoints > 0) {
       const currentWeapon = this.currentWeapon();
-      if (!currentWeapon) {
-        return;
+      if (currentWeapon) {
+        const rangedAttack = currentWeapon.range() > 0 ? currentWeapon.attackTile || currentWeapon.tile : false;
+        const distance = dungeon.distanceBetweenEntities(this, entity);
+        const hasLOS = hasLineOfSight(
+          dungeon.getCurrentLevel(),
+          this.x!,
+          this.y!,
+          entity.x!,
+          entity.y!
+        );
+        if (rangedAttack && hasLOS && distance <= currentWeapon.range()) {
+          dungeon.attackEntity(context, this, entity, rangedAttack, currentWeapon.tint);
+          this.actionPoints -= 1;
+          return;
+        }
       }
-      const rangedAttack = currentWeapon.range() > 0 ? currentWeapon.attackTile || currentWeapon.tile : false;
-      const distance = dungeon.distanceBetweenEntities(this, entity);
-      if (rangedAttack && distance <= currentWeapon.range()) {
-        dungeon.attackEntity(context, this, entity, rangedAttack, currentWeapon.tint);
-        this.actionPoints -= 1;
-      }
+    }
+
+    // Otherwise inspect whatever visible entity is under the pointer.
+    if (entity && entity.type !== "player" && context.visibleTiles?.has(`${x},${y}`)) {
+      context.inspectedEntity = entity;
+    } else {
+      context.inspectedEntity = undefined;
+    }
+  }
+
+  inspectFacing() {
+    if (this.x === undefined || this.y === undefined) return;
+
+    const tx = this.x + this.facingX;
+    const ty = this.y + this.facingY;
+    const entity = dungeon.entityAtTile(this.context, tx, ty);
+
+    if (
+      entity &&
+      entity.type !== "player" &&
+      this.context.visibleTiles?.has(`${tx},${ty}`)
+    ) {
+      this.context.inspectedEntity = entity;
+    } else {
+      this.context.inspectedEntity = undefined;
     }
   }
 
@@ -173,6 +208,12 @@ export default class BasicHero extends Entity {
     let newY = this.y!;
 
     let key = event.key;
+
+    // Inspect the tile in front of the player
+    if (event.key === "x") {
+      this.inspectFacing();
+      return;
+    }
 
     // Equip items
     if (!isNaN(Number(key))) {
@@ -195,21 +236,29 @@ export default class BasicHero extends Entity {
     if (event.key == "ArrowLeft" || event.key === "h") {
       newX -= 1;
       moved = true;
+      this.facingX = -1;
+      this.facingY = 0;
     }
 
     if (event.key == "ArrowRight" || event.key === "l") {
       newX += 1;
       moved = true;
+      this.facingX = 1;
+      this.facingY = 0;
     }
 
     if (event.key == "ArrowUp" || event.key === "k") {
       newY -= 1;
       moved = true;
+      this.facingX = 0;
+      this.facingY = -1;
     }
 
     if (event.key == "ArrowDown" || event.key === "j") {
       newY += 1;
       moved = true;
+      this.facingX = 0;
+      this.facingY = 1;
     }
 
     // Execute movement

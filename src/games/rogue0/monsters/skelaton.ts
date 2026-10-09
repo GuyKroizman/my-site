@@ -2,7 +2,7 @@
 // @ts-nocheck
 import dungeon from "../dungeon";
 import type { GameContext } from "../context";
-import PF from "pathfinding";
+import { enemyTurn } from "../ai";
 import { Entity } from "../entity";
 import type { EntityType } from "../entity";
 import Gem from "../items/gem";
@@ -18,6 +18,7 @@ export default class Skeleton extends Entity {
   type: EntityType = "enemy";
   actionPoints: number;
   healthPoints: number;
+  visionRadius: number = 7;
   tweens: number = 2;
   UISprite?: Phaser.GameObjects.Sprite;
   UIText?: Phaser.GameObjects.Text;
@@ -35,6 +36,7 @@ export default class Skeleton extends Entity {
     this.movementPoints = 1;
     this.actionPoints = 1;
     this.healthPoints = 4;
+    this.maxHealthPoints = 4;
     this.tile = 6 * 49 + 29;
     this.moving = false;
 
@@ -51,35 +53,7 @@ export default class Skeleton extends Entity {
   }
 
   turn() {
-    if (!this.context.player) {
-      throw new Error("Error in Skeleton context.player is undefined");
-    }
-    let oldX = this.x;
-    let oldY = this.y;
-
-    if (this.movementPoints > 0) {
-      let pX = this.context.player!.x!;
-      let pY = this.context.player!.y!;
-
-      const grid = new PF.Grid(dungeon.getCurrentLevel());
-      const finder = new PF.AStarFinder();
-      const path = finder.findPath(oldX!, oldY!, pX, pY, grid);
-
-      if (path.length > 2) {
-        dungeon.moveEntityTo(this.context, this, path[1][0], path[1][1]);
-      }
-
-      this.movementPoints -= 1;
-
-      if (this.actionPoints > 0) {
-        if (path.length <= 2) {
-          const NOT_RANGED_ATTACK = 0;
-          const WEAPON_TINT = undefined;
-          dungeon.attackEntity(this.context, this, this.context.player, NOT_RANGED_ATTACK, WEAPON_TINT);
-        }
-        this.actionPoints -= 1;
-      }
-    }
+    enemyTurn(this);
   }
 
   isOver() {

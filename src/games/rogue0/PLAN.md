@@ -39,20 +39,22 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 - [x] Win state (escape at the bottom)
 - [x] Class selection screen
 - [x] Proper death/victory screen (floor reached + kills)
-- [ ] Field of view / fog of war (deferred to Phase 2)
+- [x] Field of view / fog of war
 
 ### Phase 2 — Combat & AI depth
 
-- [ ] Monster variety (ranged, chaser, bruiser, boss)
-- [ ] Enemy behaviors (patrol, flee, alert allies)
+- [x] Monster variety (ranged archer, fast ghoul, tanky brute, floor boss)
+- [x] Enemy behaviors (last-known-position pursuit + idle wander)
+- [x] Inspect command (hover / tap / X) showing entity status
+- [ ] Enemy alert allies / flee
 - [ ] XP / leveling or per-floor stat progression
-- [ ] Enemy health bars + floating damage numbers
+- Health bars / floating damage numbers — intentionally skipped (use inspect instead)
 
 ### Phase 3 — Feel & presentation
 
 - [ ] Audio (steps, hits, potions, death sting)
-- [ ] Juice (hit flash, screen shake, particles, item glow)
-- [ ] HUD overhaul (HP bar, floor #, turn count)
+- [x] Juice (hit flash, screen shake, impact particles, item glow, death fade)
+- [~] HUD overhaul (floor # + status panel done; HP bar / turn count pending)
 - [ ] Mobile controls (virtual D-pad + tap)
 
 ### Phase 4 — Meta & architecture
@@ -72,3 +74,5 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
   rest of the site.
 - The sidebar now shows only the player panel + message log (no more full
   entity list).
+- Field of view: player vision radius is 7; monsters only act when they have
+  line-of-sight to the player. Ranged attacks require line-of-sight too.

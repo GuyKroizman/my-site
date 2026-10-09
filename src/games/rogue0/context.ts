@@ -20,6 +20,8 @@ export type GameContext = {
   heroClass: string;
   stairsX?: number;
   stairsY?: number;
+  inspectedEntity?: Entity;
+  visibleTiles: Set<string>;
   onEnd?: (result: EndResult) => void;
 };
 
@@ -29,6 +31,7 @@ export function createGameContext(): GameContext {
     map: undefined,
     entities: [],
     messages: [],
+    visibleTiles: new Set(),
     floor: 1,
     maxFloor: 3,
     kills: 0,

@@ -78,7 +78,10 @@ let dungeon = {
   },
 
   itemPicked: function(entity) {
-    entity.sprite!.destroy();
+    if (entity.sprite) {
+      entity.context?.scene?.tweens.killTweensOf(entity.sprite);
+      entity.sprite.destroy();
+    }
     entity.sprite = undefined;
     entity.x = undefined;
     entity.y = undefined;
@@ -155,6 +158,8 @@ let dungeon = {
               `${attacker.name} does ${damage} damage to ${victim.name}.`
             );
 
+            this.applyHitEffects(context, victim);
+
             if (victim.healthPoints <= 0) {
               removeEntity(context, victim);
             }
@@ -195,6 +200,8 @@ let dungeon = {
               `${attacker.name} does ${damage} damage to ${victim.name}.`
             );
 
+            this.applyHitEffects(context, victim);
+
             if (victim.healthPoints <= 0) {
               removeEntity(context, victim);
             }
@@ -214,6 +221,36 @@ let dungeon = {
   log: function(context, text) {
     context.messages.unshift(text);
     context.messages = context.messages.slice(0, 8);
+  },
+
+  applyHitEffects: function(context, victim) {
+    if (!context.scene) return;
+
+    // White flash on the victim's sprite.
+    if (victim.sprite) {
+      const prevTint = victim.sprite.tint;
+      victim.sprite.setTint(0xffffff);
+      context.scene.time.delayedCall(90, () => {
+        if (victim.sprite) victim.sprite.setTint(prevTint);
+      });
+    }
+
+    // Red impact sparks at the victim's position.
+    if (context.map && victim.x !== undefined && victim.y !== undefined) {
+      const wx = context.map.tileToWorldX(victim.x) + 8;
+      const wy = context.map.tileToWorldY(victim.y) + 8;
+      const emitter = context.scene.add.particles(wx, wy, "spark", {
+        speed: { min: 20, max: 70 },
+        angle: { min: 0, max: 360 },
+        scale: { start: 1.2, end: 0 },
+        lifespan: 260,
+        quantity: 6,
+        tint: 0xff6a6a,
+        emitting: false
+      });
+      emitter.explode(6);
+      context.scene.time.delayedCall(400, () => emitter.destroy());
+    }
   }
 };
 

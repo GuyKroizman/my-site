@@ -6,6 +6,7 @@ export type EntityType = "player" | "enemy" | "item";
 
 export abstract class Entity {
   healthPoints: number = 0;
+  maxHealthPoints: number = 0;
   tweens: number = 0;
   x?: number;
   y?: number;
@@ -23,6 +24,8 @@ export abstract class Entity {
   active: boolean = false;
   tint: number | undefined = undefined;
   consumable: boolean = false;
+  lastSeenX?: number;
+  lastSeenY?: number;
 
   init(context: GameContext, x?: number, y?: number) {
 
@@ -34,6 +37,18 @@ export abstract class Entity {
     // (not on the map)
     if (this.x !== undefined && this.y !== undefined) {
       this.sprite = createSprite(context, this.x, this.y, this.tile, this.tint);
+
+      // Floor items pulse gently so they stand out.
+      if (this.type === "item" && this.sprite) {
+        context.scene?.tweens.add({
+          targets: this.sprite,
+          alpha: { from: 0.7, to: 1 },
+          duration: 700,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut"
+        });
+      }
     } else {
       this.sprite = undefined;
     }
@@ -68,12 +83,33 @@ export function removeEntity(context: GameContext, entity: Entity) {
 
   context.entities.splice(victimIndexInEntities, 1);
 
-  entity.sprite?.destroy();
+  const sprite = entity.sprite;
   entity.sprite = undefined;
+
+  if (sprite) {
+    context.scene?.tweens.killTweensOf(sprite);
+
+    // Fade and shrink the sprite out before destroying it.
+    context.scene?.tweens.add({
+      targets: sprite,
+      alpha: 0,
+      scaleX: 0.5,
+      scaleY: 0.5,
+      duration: 180,
+      onComplete: () => sprite.destroy()
+    });
+  }
+
+  // onDestroy may drop loot at the entity's position, so keep x/y intact
+  // until after it has run.
+  entity.onDestroy();
+
   entity.x = undefined;
   entity.y = undefined;
 
-  entity.onDestroy();
+  if (context.inspectedEntity === entity) {
+    context.inspectedEntity = undefined;
+  }
 }
 
 function createSprite(context: GameContext, x: number, y: number, tile: number, tint?: number): Phaser.GameObjects.Sprite {

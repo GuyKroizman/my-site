@@ -16,6 +16,10 @@ import Bow from "./items/bow";
 import Shield from "./items/shield";
 import Shoe from "./items/Shoe";
 import Quloptsh from "./monsters/quloptsh";
+import Archer from "./monsters/archer";
+import Ghoul from "./monsters/ghoul";
+import Brute from "./monsters/brute";
+import Boss from "./monsters/boss";
 import classes from "./classes";
 import level1 from "./level";
 import {
@@ -23,6 +27,7 @@ import {
   findFarthestWalkable,
   randomWalkableTiles
 } from "./mapgen";
+import { computeFOV } from "./fov";
 
 // Keep the player spawn, stairs and procedural content out of the right-hand
 // columns that sit underneath the UI sidebar.
@@ -33,7 +38,13 @@ export class Scene0 extends Phaser.Scene {
   private key: string;
   private active: boolean;
   private ended: boolean = false;
-  private stairsLabel?: Phaser.GameObjects.Text;
+  private stairsLabel?: Phaser.GameObjects.Graphics;
+  private fog!: Phaser.GameObjects.Graphics;
+  private seen: boolean[][] = [];
+  private visible: Set<string> = new Set();
+  private lastFovX?: number;
+  private lastFovY?: number;
+  private readonly visionRadius = 7;
 
   constructor(context: GameContext) {
     super("scene0");
@@ -57,11 +68,17 @@ export class Scene0 extends Phaser.Scene {
     this.context.kills = 0;
     this.ended = false;
 
+    this.makeSparkTexture();
+
     // Build the first map before creating the hero (its sprite needs the map).
     dungeon.initialize(this.context, level1);
 
+    // Fog-of-war overlay drawn above tiles and entities.
+    this.fog = this.add.graphics().setDepth(100);
+
     const HeroClass = classes[this.context.heroClass] ?? classes.Wizard;
     const player = new HeroClass(this.context, 15, 15);
+    player.sprite!.setDepth(200);
     this.context.player = player;
 
     this.setupFloor(1, level1, { x: 15, y: 15 });
@@ -69,6 +86,9 @@ export class Scene0 extends Phaser.Scene {
 
     this.events.on("player-died", () => this.endGame(false));
     this.events.on("player-won", () => this.endGame(true));
+
+    // Hovering over a visible creature shows its status in the sidebar.
+    this.input.on("pointermove", (pointer) => this.inspectAtPointer(pointer));
 
     // Set camera, causing the game viewport to shrink on the right side
     // freeing space for the UI scene.
@@ -83,10 +103,16 @@ export class Scene0 extends Phaser.Scene {
 
     turnManager.update(this.context.entities);
     this.checkStairs();
+    this.refreshFovIfNeeded();
   }
 
   private setupFloor(floor, levelArray, spawn) {
     this.context.floor = floor;
+
+    this.seen = [];
+    this.visible = new Set();
+    this.lastFovX = undefined;
+    this.lastFovY = undefined;
 
     const player = this.context.player!;
     const kept = new Set([player, ...player.items]);
@@ -119,6 +145,7 @@ export class Scene0 extends Phaser.Scene {
     this.spawnFloorContent(floor, levelArray, spawn);
 
     turnManager.reset();
+    this.recomputeFOV();
     this.events.emit("floor-changed", { floor });
   }
 
@@ -153,6 +180,115 @@ export class Scene0 extends Phaser.Scene {
     }
   }
 
+  private refreshFovIfNeeded() {
+    const p = this.context.player;
+    if (!p || p.x === undefined || p.y === undefined) return;
+
+    if (p.x !== this.lastFovX || p.y !== this.lastFovY) {
+      this.recomputeFOV();
+    }
+  }
+
+  private inspectAtPointer(pointer) {
+    if (!this.context.map || !pointer) return;
+
+    // Inspect only during the player's turn.
+    const player = this.context.player;
+    if (!player || player.isOver()) return;
+
+    const x = this.context.map.worldToTileX(pointer.worldX);
+    const y = this.context.map.worldToTileY(pointer.worldY);
+    const entity = dungeon.entityAtTile(this.context, x, y);
+
+    if (entity && entity.type !== "player" && this.visible.has(`${x},${y}`)) {
+      this.context.inspectedEntity = entity;
+    } else {
+      this.context.inspectedEntity = undefined;
+    }
+  }
+
+  private recomputeFOV() {
+    const p = this.context.player;
+    if (!p || p.x === undefined || p.y === undefined) return;
+
+    const map = dungeon.getCurrentLevel();
+    this.visible = computeFOV(map, p.x, p.y, this.visionRadius);
+    this.context.visibleTiles = this.visible;
+
+    for (const key of this.visible) {
+      const [x, y] = key.split(",").map(Number);
+      if (!this.seen[y]) this.seen[y] = [];
+      this.seen[y][x] = true;
+    }
+
+    this.lastFovX = p.x;
+    this.lastFovY = p.y;
+
+    this.redrawFog();
+    this.applyEntityVisibility();
+  }
+
+  private redrawFog() {
+    const map = dungeon.getCurrentLevel();
+    const t = 16;
+    const unseen = [];
+    const remembered = [];
+
+    for (let y = 0; y < map.length; y++) {
+      for (let x = 0; x < map[0].length; x++) {
+        if (this.visible.has(`${x},${y}`)) continue;
+        if (this.seen[y] && this.seen[y][x]) {
+          remembered.push([x, y]);
+        } else {
+          unseen.push([x, y]);
+        }
+      }
+    }
+
+    this.fog.clear();
+
+    this.fog.fillStyle(0x000000, 1);
+    for (const [x, y] of unseen) {
+      this.fog.fillRect(x * t, y * t, t, t);
+    }
+
+    this.fog.fillStyle(0x000000, 0.55);
+    for (const [x, y] of remembered) {
+      this.fog.fillRect(x * t, y * t, t, t);
+    }
+  }
+
+  private applyEntityVisibility() {
+    const player = this.context.player;
+
+    for (const entity of this.context.entities) {
+      if (entity === player) continue;
+
+      if (entity.x === undefined || entity.y === undefined) {
+        entity.sprite?.setVisible(false);
+        continue;
+      }
+
+      const key = `${entity.x},${entity.y}`;
+      const seen = this.seen[entity.y]?.[entity.x] === true;
+      const visible = this.visible.has(key);
+
+      // Monsters are only shown while actually visible; items stay
+      // remembered (dimmed by fog) once discovered.
+      entity.sprite?.setVisible(entity.type === "enemy" ? visible : seen);
+    }
+
+    if (
+      this.stairsLabel &&
+      this.context.stairsX !== undefined &&
+      this.context.stairsY !== undefined
+    ) {
+      const sx = this.context.stairsX;
+      const sy = this.context.stairsY;
+      this.stairsLabel.setVisible(this.seen[sy]?.[sx] === true);
+    }
+  }
+
   private findSpawn(levelArray) {
     const h = levelArray.length;
     const w = levelArray[0].length;
@@ -176,22 +312,34 @@ export class Scene0 extends Phaser.Scene {
     }
   }
 
+  private makeSparkTexture() {
+    if (this.textures.exists("spark")) return;
+
+    const g = this.make.graphics({ add: false });
+    g.fillStyle(0xffffff, 1);
+    g.fillRect(0, 0, 6, 6);
+    g.generateTexture("spark", 6, 6);
+    g.destroy();
+  }
+
   private renderStairs(x, y) {
     this.stairsLabel?.destroy();
 
     if (!this.context.map) return;
 
     const isExit = this.context.floor >= this.context.maxFloor;
-    const color = isExit ? "#00ff00" : "#00ffff";
+    const color = isExit ? 0x00ff00 : 0x00ffff;
+    const wx = this.context.map.tileToWorldX(x);
+    const wy = this.context.map.tileToWorldY(y);
 
-    this.stairsLabel = this.add
-      .text(
-        this.context.map.tileToWorldX(x) + 1,
-        this.context.map.tileToWorldY(y) - 2,
-        "▼",
-        { font: "16px Arial", color, backgroundColor: "#000000" }
-      )
-      .setOrigin(0);
+    const g = this.add.graphics();
+    g.fillStyle(color, 1);
+    // Descending staircase drawn as narrowing steps.
+    g.fillRect(wx + 1, wy + 1, 14, 3);
+    g.fillRect(wx + 1, wy + 5, 11, 3);
+    g.fillRect(wx + 1, wy + 9, 8, 3);
+    g.fillRect(wx + 1, wy + 13, 5, 3);
+    this.stairsLabel = g;
   }
 
   private spawnFloorContent(floor, levelArray, spawn) {
@@ -219,25 +367,35 @@ export class Scene0 extends Phaser.Scene {
       `${this.context.stairsX},${this.context.stairsY}`
     ]);
 
-    const skeletonCount = 3 + floor * 2;
-    const quloptshCount = Math.max(0, floor - 1);
+    const skeletonCount = 2 + floor;
+    const archerCount = Math.max(0, floor - 1);
+    const ghoulCount = floor >= 3 ? 1 : 0;
+    const bruteCount = floor >= 3 ? 1 : 0;
+    const bossCount = floor === this.context.maxFloor ? 1 : 0;
+    const quloptshCount = Math.max(0, floor - 2);
     const itemCount = 3;
 
     const tiles = randomWalkableTiles(
       levelArray,
-      skeletonCount + quloptshCount + itemCount,
+      skeletonCount + archerCount + ghoulCount + bruteCount + bossCount + quloptshCount + itemCount,
       exclude,
       MAX_VISIBLE_X
     );
 
     let i = 0;
 
-    for (let s = 0; s < skeletonCount && i < tiles.length; s++, i++) {
-      context.entities.push(new Skeleton(context, tiles[i].x, tiles[i].y));
-    }
-    for (let q = 0; q < quloptshCount && i < tiles.length; q++, i++) {
-      context.entities.push(new Quloptsh(context, tiles[i].x, tiles[i].y));
-    }
+    const spawnGroup = (Cls, count) => {
+      for (let n = 0; n < count && i < tiles.length; n++, i++) {
+        context.entities.push(new Cls(context, tiles[i].x, tiles[i].y));
+      }
+    };
+
+    spawnGroup(Skeleton, skeletonCount);
+    spawnGroup(Quloptsh, quloptshCount);
+    spawnGroup(Archer, archerCount);
+    spawnGroup(Ghoul, ghoulCount);
+    spawnGroup(Brute, bruteCount);
+    spawnGroup(Boss, bossCount);
 
     const lootPool = [
       Sword,

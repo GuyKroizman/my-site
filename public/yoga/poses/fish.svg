@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="340" viewBox="0 0 220 170">
+  <title>fish — original Still illustration</title>
+  <path d="M40 147V86a70 70 0 0 1 140 0v61Z" fill="#e6e9dc"/>
+  <circle cx="166" cy="39" r="17" fill="#efcfac" opacity=".65"/>
+  <ellipse cx="111" cy="153" rx="88" ry="5" fill="#ccd4c3" opacity=".65"/>
+  <path d="M122 140 L162 140 L194 146 L204 150 M122 143 L160 145 L190 150 L200 154" stroke="#3e6051" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M60 140 Q102 96 122 140" stroke="#bb7960" stroke-width="19" fill="none" stroke-linecap="round"/>
+  <path d="M62 142 L92 154 L122 154 M64 144 L96 156 L124 156" stroke="#cd9678" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="40" cy="126" r="11" fill="#cd9678"/>
+  <path d="M30 125 Q25 139 40 138 Q51 138 51 129 Q41 134 35 123Z" fill="#364d41"/>
+  <circle cx="30" cy="136" r="5" fill="#364d41"/>
+</svg>
