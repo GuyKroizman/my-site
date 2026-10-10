@@ -77,7 +77,7 @@ export class UI extends Phaser.Scene {
 
     const e = this.context.inspectedEntity;
     if (!e) {
-      this.statusText.setText("Hover a creature, tap it, or press X to inspect.");
+      this.statusText.setText("Hover a creature, or tap it with Inspect on.");
       return;
     }
 

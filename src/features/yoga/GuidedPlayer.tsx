@@ -236,16 +236,18 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
           <p className="yoga-pose-cue">{pose.cue}</p>
         </section>
         <section className="yoga-breath-guide" aria-label="Breath guidance">
-          <div className="yoga-breath-orbit">
-            <div className="yoga-breath-disc" style={{ transform: `scale(${0.7 + view.expansion * 0.3})` }} />
-            <div className="yoga-breath-label"><span>{playing ? (view.inhale ? 'Breathe in' : 'Breathe out') : elapsed === 0 ? 'Find your ease' : 'Take your time'}</span><strong>{playing ? view.phaseRemaining : <Icon name={elapsed === 0 ? 'leaf' : 'pause'} size={36} />}</strong><small>{playing ? `${routine.phaseSeconds} seconds · ${view.inhale ? 'inhale' : 'exhale'}` : elapsed === 0 ? 'Press begin when you’re ready' : 'Your practice is paused'}</small></div>
-          </div>
-          <div className="yoga-breath-audio" role="group" aria-label="Breath sound">
-            <span className="yoga-breath-audio-label"><Icon name="breath" size={14} /> Breath sound</span>
-            <div className="yoga-segmented">
-              <button className={prefs.breathMode === 'tone' ? 'is-active' : ''} aria-pressed={prefs.breathMode === 'tone'} onClick={() => setBreathMode('tone')}>Tone</button>
-              <button className={prefs.breathMode === 'ambient' ? 'is-active' : ''} aria-pressed={prefs.breathMode === 'ambient'} onClick={() => setBreathMode('ambient')}>Ambient</button>
-              <button className={prefs.breathMode === 'off' ? 'is-active' : ''} aria-pressed={prefs.breathMode === 'off'} onClick={() => setBreathMode('off')}>Off</button>
+          <div className="yoga-breath-top">
+            <div className="yoga-breath-orbit">
+              <div className="yoga-breath-disc" style={{ transform: `scale(${0.7 + view.expansion * 0.3})` }} />
+              <div className="yoga-breath-label"><span>{playing ? (view.inhale ? 'Breathe in' : 'Breathe out') : elapsed === 0 ? 'Find your ease' : 'Take your time'}</span><strong>{playing ? view.phaseRemaining : <Icon name={elapsed === 0 ? 'leaf' : 'pause'} size={36} />}</strong><small>{playing ? `${routine.phaseSeconds} seconds · ${view.inhale ? 'inhale' : 'exhale'}` : elapsed === 0 ? 'Press begin when you’re ready' : 'Your practice is paused'}</small></div>
+            </div>
+            <div className="yoga-breath-audio" role="group" aria-label="Breath sound">
+              <span className="yoga-breath-audio-label"><Icon name="breath" size={14} /><span className="yoga-breath-audio-text"> Breath sound</span></span>
+              <div className="yoga-segmented">
+                <button className={prefs.breathMode === 'tone' ? 'is-active' : ''} aria-pressed={prefs.breathMode === 'tone'} onClick={() => setBreathMode('tone')}>Tone</button>
+                <button className={prefs.breathMode === 'ambient' ? 'is-active' : ''} aria-pressed={prefs.breathMode === 'ambient'} onClick={() => setBreathMode('ambient')}>Ambient</button>
+                <button className={prefs.breathMode === 'off' ? 'is-active' : ''} aria-pressed={prefs.breathMode === 'off'} onClick={() => setBreathMode('off')}>Off</button>
+              </div>
             </div>
           </div>
           <p className="yoga-breath-count"><strong>{view.remainingBreaths}</strong> {view.remainingBreaths === 1 ? 'breath' : 'breaths'} remaining</p>

@@ -342,6 +342,11 @@ button.yoga-chip:hover { background: #edf0e5; border-color: #bfcbb5; }
   .yoga-mobile-jump a + a { border-left: 1px solid #ffffff30; }
   .yoga-toast { bottom: 78px; }
   .yoga-practice-stage { gap: 20px; }
+  .yoga-breath-top { display: flex; align-items: center; justify-content: center; gap: 18px; }
+  .yoga-breath-top .yoga-breath-orbit { margin: 0; }
+  .yoga-breath-top .yoga-breath-audio { margin: 0; flex-direction: column; align-items: center; gap: 8px; }
+  .yoga-segmented { flex-direction: column; }
+  .yoga-segmented button + button { border-left: 0; border-top: 1px solid #e2e7d9; }
   .yoga-breath-orbit { width: 270px; height: 270px; }
   .yoga-breath-label > span { font-size: 24px; }
   .yoga-current-pose h1 { font-size: 32px; }
@@ -405,6 +410,8 @@ button.yoga-chip:hover { background: #edf0e5; border-color: #bfcbb5; }
   .yoga-pose-cue { display: none; }
   .yoga-sanskrit { font-size: 12px; }
   .yoga-breath-orbit { width: 210px; height: 210px; margin-bottom: 12px; }
+  .yoga-breath-top { gap: 8px; margin-bottom: 10px; }
+  .yoga-segmented button { padding: 5px 8px; font-size: 9px; }
   .yoga-breath-label > span { font-size: 22px; }
   .yoga-breath-label strong { height: 53px; font-size: 40px; }
   .yoga-breath-label small { font-size: 9px; }

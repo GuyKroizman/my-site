@@ -175,3 +175,268 @@ body {
   .name-tag { margin-left: 8px; }
   .doodle { display: none; }
 }
+
+/* ===================== Rogue0 ===================== */
+.rogue0-shell {
+  min-height: 100vh;
+  background-color: #2f1d28;
+  background-image:
+    linear-gradient(rgba(207, 198, 184, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(207, 198, 184, 0.04) 1px, transparent 1px);
+  background-size: 16px 16px;
+  color: #cfc6b8;
+  font-family: 'VT323', monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.rogue0-panel {
+  width: 100%;
+  max-width: 680px;
+  background: #472d3c;
+  border: 3px solid #646059;
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.45);
+  padding: 28px 32px 30px;
+}
+
+.rogue0-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  color: #cfc6b8;
+  text-align: center;
+  text-shadow: 3px 3px 0 #2f1d28;
+  margin: 0 0 8px;
+  line-height: 1.35;
+}
+
+.rogue0-subtitle {
+  text-align: center;
+  font-size: 1.35rem;
+  color: #b6ad9d;
+  margin: 0 0 26px;
+}
+
+.rogue0-classes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.rogue0-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  padding: 14px 12px;
+  color: #cfc6b8;
+  background: #2f1d28;
+  border: 2px solid #646059;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-decoration: none;
+  text-align: center;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.rogue0-btn:hover {
+  background: #5b3547;
+  color: #ffffff;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.35);
+}
+
+.rogue0-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.rogue0-btn-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.72rem;
+}
+
+.rogue0-btn-desc {
+  font-family: 'VT323', monospace;
+  font-size: 1.15rem;
+  color: #b6ad9d;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rogue0-instructions {
+  margin-top: 28px;
+  border-top: 2px dashed #646059;
+  padding-top: 18px;
+  font-size: 1.25rem;
+  color: #b6ad9d;
+}
+
+.rogue0-instructions h2 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.7rem;
+  color: #e8dfcf;
+  margin: 0 0 14px;
+  letter-spacing: 1px;
+}
+
+.rogue0-instructions ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.rogue0-instructions li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rogue0-key {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.55rem;
+  color: #e8dfcf;
+  background: #2f1d28;
+  border: 1px solid #646059;
+  border-bottom-width: 3px;
+  padding: 4px 7px;
+  min-width: 22px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.rogue0-foot {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 1.15rem;
+}
+
+.rogue0-foot a {
+  color: #b6ad9d;
+  text-decoration: none;
+}
+
+.rogue0-foot a:hover {
+  color: #ffffff;
+}
+
+.rogue0-win { color: #f4b41b; }
+.rogue0-lose { color: #e6482e; }
+
+.rogue0-stats {
+  text-align: center;
+  font-size: 1.4rem;
+  color: #e8dfcf;
+  margin: 18px 0 26px;
+}
+
+.rogue0-actions {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.rogue0-game {
+  min-height: 100vh;
+  background: #2f1d28;
+  color: #cfc6b8;
+  font-family: 'VT323', monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 16px;
+  box-sizing: border-box;
+}
+
+.rogue0-game-head {
+  width: 100%;
+  max-width: 1280px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.rogue0-game-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.8rem;
+  color: #cfc6b8;
+  letter-spacing: 1px;
+}
+
+.rogue0-game-head a {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.55rem;
+  color: #b6ad9d;
+  text-decoration: none;
+  border: 2px solid #646059;
+  background: #472d3c;
+  padding: 7px 9px;
+}
+
+.rogue0-game-head a:hover {
+  color: #ffffff;
+}
+
+.rogue0-game-stage {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.rogue0-game-foot {
+  margin-top: 10px;
+  font-size: 1.1rem;
+  color: #8d8378;
+}
+
+.rogue0-game-foot a {
+  color: #b6ad9d;
+  text-decoration: none;
+}
+
+.rogue0-game-foot a:hover {
+  color: #ffffff;
+}
+
+.rogue0-game-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rogue0-game-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.55rem;
+  color: #b6ad9d;
+  border: 2px solid #646059;
+  background: #472d3c;
+  padding: 7px 9px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.rogue0-game-btn:hover {
+  color: #ffffff;
+}
+
+.rogue0-game-btn.is-on {
+  color: #f4b41b;
+  border-color: #f4b41b;
+  background: #2f1d28;
+}
+
+.rogue0-game-btn.off {
+  color: #8d8378;
+}

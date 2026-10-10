@@ -7,7 +7,7 @@ import dungeon from "../dungeon";
 export default class HealthPotion extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = 13 * 49 + 33;
+    this.tile = 13 * 49 + 37;
     this.name = "Health Potion";
     this.description = "A potion that restores health."
     this.weapon = false;

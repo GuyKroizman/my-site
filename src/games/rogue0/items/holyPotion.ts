@@ -11,7 +11,7 @@ export default class HolyPotion extends Entity {
   description: string = "A potion that removes cursed items when equipped.";
   moving: boolean = false;
   type: EntityType = "item";
-  tile = 13 * 49 + 33;
+  tile = 13 * 49 + 32;
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();

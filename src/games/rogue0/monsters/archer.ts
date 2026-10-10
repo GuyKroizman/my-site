@@ -9,8 +9,7 @@ export default class Archer extends Monster {
     super(context, {
       name: "Archer",
       description: "A skeleton archer. Shoots bolts from a distance.",
-      tile: 6 * 49 + 29,
-      tint: 0xff8844,
+      tile: 6 * 49 + 24,
       healthPoints: 6,
       movementPoints: 1,
       actionPoints: 1,

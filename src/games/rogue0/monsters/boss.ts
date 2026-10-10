@@ -10,8 +10,7 @@ export default class Boss extends Monster {
     super(context, {
       name: "Bone Lord",
       description: "The guardian of the dungeon depths. Extremely dangerous.",
-      tile: 6 * 49 + 30,
-      tint: 0xffcc00,
+      tile: 6 * 49 + 10,
       healthPoints: 30,
       movementPoints: 1,
       actionPoints: 1,

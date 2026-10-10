@@ -3,6 +3,7 @@ import type { GameContext } from "./context";
 import PF from "pathfinding";
 import type { Entity } from "./entity";
 import { removeEntity } from "./entity";
+import { sfx } from "./audio";
 
 export const Sprites = {
   floor: 0,
@@ -78,6 +79,7 @@ let dungeon = {
   },
 
   itemPicked: function(entity) {
+    sfx.pickup();
     if (entity.sprite) {
       entity.context?.scene?.tweens.killTweensOf(entity.sprite);
       entity.sprite.destroy();
@@ -115,6 +117,9 @@ let dungeon = {
   moveEntityTo: function(context, entity, x, y) {
     if (context.map == undefined || context.scene == undefined) {
       throw new Error("context.map is undefined");
+    }
+    if (entity.type === "player") {
+      sfx.step();
     }
     entity.moving = true;
 
@@ -225,6 +230,12 @@ let dungeon = {
 
   applyHitEffects: function(context, victim) {
     if (!context.scene) return;
+
+    if (victim.type === "player") {
+      sfx.hurt();
+    } else {
+      sfx.hit();
+    }
 
     // White flash on the victim's sprite.
     if (victim.sprite) {

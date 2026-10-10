@@ -10,8 +10,7 @@ export default class Brute extends Monster {
     super(context, {
       name: "Brute",
       description: "A hulking brute. Slow, but hits very hard.",
-      tile: 6 * 49 + 29,
-      tint: 0x9944ff,
+      tile: 6 * 49 + 28,
       healthPoints: 18,
       movementPoints: 1,
       actionPoints: 1,

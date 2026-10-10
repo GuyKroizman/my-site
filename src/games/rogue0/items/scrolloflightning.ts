@@ -12,7 +12,6 @@ export default class ScrollOfLightning extends Entity {
     this.description = "A scroll of Lightning. Causes between 1 and 2 damage. Range is seven tiles."
     this.weapon = true;
 
-    this.tint = 0xffff00;
     this.attackTile = 413;
 
     this.init(context, x, y);

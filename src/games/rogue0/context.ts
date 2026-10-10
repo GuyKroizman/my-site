@@ -22,6 +22,7 @@ export type GameContext = {
   stairsY?: number;
   inspectedEntity?: Entity;
   visibleTiles: Set<string>;
+  inspectMode: boolean;
   onEnd?: (result: EndResult) => void;
 };
 
@@ -32,6 +33,7 @@ export function createGameContext(): GameContext {
     entities: [],
     messages: [],
     visibleTiles: new Set(),
+    inspectMode: false,
     floor: 1,
     maxFloor: 3,
     kills: 0,

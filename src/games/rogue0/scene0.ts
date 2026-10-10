@@ -28,6 +28,7 @@ import {
   randomWalkableTiles
 } from "./mapgen";
 import { computeFOV } from "./fov";
+import { sfx } from "./audio";
 
 // Keep the player spawn, stairs and procedural content out of the right-hand
 // columns that sit underneath the UI sidebar.
@@ -168,6 +169,7 @@ export class Scene0 extends Phaser.Scene {
 
     dungeon.initialize(this.context, levelArray);
     this.setupFloor(next, levelArray, spawn);
+    sfx.stairs();
     dungeon.log(this.context, `You descend to floor ${next}.`);
   }
 
@@ -191,10 +193,6 @@ export class Scene0 extends Phaser.Scene {
 
   private inspectAtPointer(pointer) {
     if (!this.context.map || !pointer) return;
-
-    // Inspect only during the player's turn.
-    const player = this.context.player;
-    if (!player || player.isOver()) return;
 
     const x = this.context.map.worldToTileX(pointer.worldX);
     const y = this.context.map.worldToTileY(pointer.worldY);
@@ -418,6 +416,13 @@ export class Scene0 extends Phaser.Scene {
   private endGame(victory) {
     if (this.ended) return;
     this.ended = true;
+
+    if (victory) {
+      sfx.victory();
+    } else {
+      sfx.gameover();
+    }
+
     this.cameras.main.stopFollow();
     this.context.onEnd?.({
       victory,

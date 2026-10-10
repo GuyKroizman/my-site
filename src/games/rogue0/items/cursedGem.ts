@@ -10,7 +10,7 @@ export default class CursedGem extends Entity {
   description: string = "A cursed gem that is now stuck to your hand. You can only remove it by finding a potion.";
   moving: boolean = false;
   type: EntityType = "item";
-  tile = 4 * 49 + 23;
+  tile = 4 * 49 + 22;
   actionPoints: number = 1;
   cursed: boolean = true;
   active: boolean = false;

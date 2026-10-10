@@ -5,6 +5,7 @@ import { Entity, removeEntity } from "../entity";
 import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import { hasLineOfSight } from "../fov";
+import { sfx } from "../audio";
 
 const UI_HIGHLIGHT_BACKGROUND_COLOR = "#646059";
 
@@ -25,8 +26,6 @@ export default class BasicHero extends Entity {
   UIItems?: Phaser.GameObjects.Rectangle[] = [];
   UIX: number = 0;
   UIY: number = 0;
-  facingX: number = 0;
-  facingY: number = 1;
 
   constructor(context: GameContext) {
     super();
@@ -42,9 +41,7 @@ export default class BasicHero extends Entity {
     });
 
     context.scene.input.on("pointerup", (event: Phaser.Input.Pointer) => {
-      if (!this.isOver()) {
-        this.processTouchInput(context, event);
-      }
+      this.processTouchInput(context, event);
     });
   }
 
@@ -80,6 +77,7 @@ export default class BasicHero extends Entity {
           return;
         }
         item.equip();
+        sfx.potion();
         this.actionPoints -= 1;
         return;
       }
@@ -91,6 +89,7 @@ export default class BasicHero extends Entity {
 
       if (item.active) {
         dungeon.log(context, `${this.name} equips ${item.name}: ${item.description}.`);
+        sfx.equip();
         item.equip();
       }
     }
@@ -154,6 +153,19 @@ export default class BasicHero extends Entity {
 
     let entity = dungeon.entityAtTile(context, x!, y!);
 
+    // Inspect is a UI action: always available, on any turn.
+    if (context.inspectMode) {
+      if (entity && entity.type !== "player" && context.visibleTiles?.has(`${x},${y}`)) {
+        context.inspectedEntity = entity;
+      } else {
+        context.inspectedEntity = undefined;
+      }
+      return;
+    }
+
+    // Otherwise this is a player action (attack): only during the player's turn.
+    if (this.isOver()) return;
+
     if (entity && entity.type == "enemy" && this.actionPoints > 0) {
       const currentWeapon = this.currentWeapon();
       if (currentWeapon) {
@@ -169,34 +181,8 @@ export default class BasicHero extends Entity {
         if (rangedAttack && hasLOS && distance <= currentWeapon.range()) {
           dungeon.attackEntity(context, this, entity, rangedAttack, currentWeapon.tint);
           this.actionPoints -= 1;
-          return;
         }
       }
-    }
-
-    // Otherwise inspect whatever visible entity is under the pointer.
-    if (entity && entity.type !== "player" && context.visibleTiles?.has(`${x},${y}`)) {
-      context.inspectedEntity = entity;
-    } else {
-      context.inspectedEntity = undefined;
-    }
-  }
-
-  inspectFacing() {
-    if (this.x === undefined || this.y === undefined) return;
-
-    const tx = this.x + this.facingX;
-    const ty = this.y + this.facingY;
-    const entity = dungeon.entityAtTile(this.context, tx, ty);
-
-    if (
-      entity &&
-      entity.type !== "player" &&
-      this.context.visibleTiles?.has(`${tx},${ty}`)
-    ) {
-      this.context.inspectedEntity = entity;
-    } else {
-      this.context.inspectedEntity = undefined;
     }
   }
 
@@ -208,12 +194,6 @@ export default class BasicHero extends Entity {
     let newY = this.y!;
 
     let key = event.key;
-
-    // Inspect the tile in front of the player
-    if (event.key === "x") {
-      this.inspectFacing();
-      return;
-    }
 
     // Equip items
     if (!isNaN(Number(key))) {
@@ -236,29 +216,21 @@ export default class BasicHero extends Entity {
     if (event.key == "ArrowLeft" || event.key === "h") {
       newX -= 1;
       moved = true;
-      this.facingX = -1;
-      this.facingY = 0;
     }
 
     if (event.key == "ArrowRight" || event.key === "l") {
       newX += 1;
       moved = true;
-      this.facingX = 1;
-      this.facingY = 0;
     }
 
     if (event.key == "ArrowUp" || event.key === "k") {
       newY -= 1;
       moved = true;
-      this.facingX = 0;
-      this.facingY = -1;
     }
 
     if (event.key == "ArrowDown" || event.key === "j") {
       newY += 1;
       moved = true;
-      this.facingX = 0;
-      this.facingY = 1;
     }
 
     // Execute movement
@@ -282,8 +254,8 @@ export default class BasicHero extends Entity {
 
         // Check if entity at destination is an item
         if (entity && entity.type == "item" && this.actionPoints > 0) {
-          this.addItem(entity);
           dungeon.itemPicked(entity);
+          this.addItem(entity);
           dungeon.log(this.context, `${this.name} picked ${entity.name}: ${entity.description}`);
           this.actionPoints -= 1;
         } else {

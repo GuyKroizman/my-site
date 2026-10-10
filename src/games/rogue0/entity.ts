@@ -1,6 +1,7 @@
 // TypeScript errors after site migration - ignoring for game functionality
 // @ts-nocheck
 import type { GameContext } from "context";
+import { sfx } from "./audio";
 
 export type EntityType = "player" | "enemy" | "item";
 
@@ -103,6 +104,10 @@ export function removeEntity(context: GameContext, entity: Entity) {
   // onDestroy may drop loot at the entity's position, so keep x/y intact
   // until after it has run.
   entity.onDestroy();
+
+  if (entity.type === "enemy") {
+    sfx.death();
+  }
 
   entity.x = undefined;
   entity.y = undefined;
