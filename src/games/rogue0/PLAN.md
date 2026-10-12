@@ -21,14 +21,10 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 
 ## Known issues
 
-- `BerserkPotion.isOver()` has side effects and is called every frame by
-  `turnManager._isOver()`, so its "10 turns" duration elapses almost instantly.
-- All files still use `@ts-nocheck`; type safety is effectively off.
 - Potion naming is confusing: `healingPotion` (full heal) vs `healthpotion`
   (heal 3–5).
-- The turn manager is still poll-based, with `isOver()` side effects driving
-  turn advancement (fragile; see Phase 4).
-- Pathfinding grids are rebuilt per entity per turn (works, but wasteful).
+- The turn manager is still poll-based (fine now that `isOver()` is
+  side-effect free; a full event-driven rewrite remains optional).
 
 ## Roadmap
 
@@ -36,9 +32,9 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 
 - [x] Fix `turnManager._refresh` entityIndex placement
 - [x] Remove dead `dungeon.removeEntity`
-- [ ] Fix the BerserkPotion frame-rate bug
+- [x] Fix the BerserkPotion frame-rate bug
 - [ ] Rename/clarify the two healing-potion files
-- [ ] Re-enable TypeScript (drop `@ts-nocheck`, fix imports)
+- [x] Re-enable TypeScript (drop `@ts-nocheck`, fix imports)
 
 ### Phase 1 — Make it a real game
 
@@ -68,8 +64,8 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 ### Phase 4 — Meta & architecture
 
 - [ ] Save/load via localStorage + high-score table
-- [ ] Event-driven turn manager (remove `isOver()` side effects)
-- [ ] Cache pathfinding grids
+- [x] Remove `isOver()` side effects (pure predicates)
+- [x] Cache pathfinding grids (built once per floor)
 
 ## Decisions & notes
 
@@ -86,4 +82,6 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 - Inspect is a UI action (mouse/touch only): hover anytime, or toggle the
   Inspect button and click/tap a tile. No keyboard inspect.
 - Screen shake was removed by request; hit flash + particles remain.
+- Responsiveness: keyboard input is buffered (max 4), enemy attack tweens are
+  shortened, and the tween timeScale fast-forwards while input is buffered.
 - Audio is procedural (Web Audio API, no files); toggle via the Sound button.

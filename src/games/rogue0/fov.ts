@@ -1,9 +1,13 @@
-// @ts-nocheck
 // Field-of-view and line-of-sight helpers for tile-based maps.
 // `map` is a 2D array where 0 = walkable, 1 = wall.
 
-function bresenhamLine(x0, y0, x1, y1) {
-  const points = [];
+function bresenhamLine(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number
+): Array<[number, number]> {
+  const points: Array<[number, number]> = [];
   const dx = Math.abs(x1 - x0);
   const dy = -Math.abs(y1 - y0);
   const sx = x0 < x1 ? 1 : -1;
@@ -29,7 +33,13 @@ function bresenhamLine(x0, y0, x1, y1) {
   return points;
 }
 
-export function hasLineOfSight(map, x0, y0, x1, y1) {
+export function hasLineOfSight(
+  map: number[][],
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number
+): boolean {
   const points = bresenhamLine(x0, y0, x1, y1);
 
   // Intermediate tiles block vision; the endpoints themselves are visible.
@@ -41,15 +51,27 @@ export function hasLineOfSight(map, x0, y0, x1, y1) {
   return true;
 }
 
-export function canSee(map, x0, y0, x1, y1, radius) {
+export function canSee(
+  map: number[][],
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  radius: number
+): boolean {
   const dx = x1 - x0;
   const dy = y1 - y0;
   if (dx * dx + dy * dy > radius * radius) return false;
   return hasLineOfSight(map, x0, y0, x1, y1);
 }
 
-export function computeFOV(map, px, py, radius) {
-  const visible = new Set();
+export function computeFOV(
+  map: number[][],
+  px: number,
+  py: number,
+  radius: number
+): Set<string> {
+  const visible = new Set<string>();
   const r = Math.floor(radius);
 
   for (let y = py - r; y <= py + r; y++) {

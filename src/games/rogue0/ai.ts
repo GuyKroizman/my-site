@@ -1,10 +1,10 @@
-// @ts-nocheck
-import PF from "pathfinding";
 import dungeon from "./dungeon";
 import { canSee } from "./fov";
+import type { Entity } from "./entity";
+import type { GameContext } from "./context";
 
-export function enemyCanSeePlayer(entity) {
-  const player = entity.context?.player;
+export function enemyCanSeePlayer(entity: Entity): boolean {
+  const player = entity.context.player;
   if (
     !player ||
     player.x === undefined ||
@@ -25,11 +25,11 @@ export function enemyCanSeePlayer(entity) {
   );
 }
 
-function chebyshev(aX, aY, bX, bY) {
+function chebyshev(aX: number, aY: number, bX: number, bY: number): number {
   return Math.max(Math.abs(aX - bX), Math.abs(aY - bY));
 }
 
-function isAdjacentToPlayer(entity, player) {
+function isAdjacentToPlayer(entity: Entity, player: Entity): boolean {
   if (
     entity.x === undefined ||
     entity.y === undefined ||
@@ -41,7 +41,7 @@ function isAdjacentToPlayer(entity, player) {
   return chebyshev(entity.x, entity.y, player.x, player.y) <= 1;
 }
 
-function inRange(entity, player) {
+function inRange(entity: Entity, player: Entity): boolean {
   if (
     entity.x === undefined ||
     entity.y === undefined ||
@@ -53,8 +53,8 @@ function inRange(entity, player) {
   return chebyshev(entity.x, entity.y, player.x, player.y) <= entity.range();
 }
 
-export function enemyTurn(entity) {
-  const player = entity.context?.player;
+export function enemyTurn(entity: Entity): void {
+  const player = entity.context.player;
   if (!player || player.x === undefined || player.y === undefined) {
     entity.movementPoints = 0;
     entity.actionPoints = 0;
@@ -99,19 +99,14 @@ export function enemyTurn(entity) {
       entity.lastSeenX = player.x;
       entity.lastSeenY = player.y;
       if (!isAdjacentToPlayer(entity, player)) {
-        const step = nextStepToward(entity.context, entity, player.x, player.y);
+        const step = nextStepToward(entity, player.x, player.y);
         if (step) {
           dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
           acted = true;
         }
       }
     } else if (entity.lastSeenX !== undefined && entity.lastSeenY !== undefined) {
-      const step = nextStepToward(
-        entity.context,
-        entity,
-        entity.lastSeenX,
-        entity.lastSeenY
-      );
+      const step = nextStepToward(entity, entity.lastSeenX, entity.lastSeenY);
       if (step) {
         dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
         acted = true;
@@ -136,7 +131,7 @@ export function enemyTurn(entity) {
   }
 }
 
-function wanderStep(entity) {
+function wanderStep(entity: Entity): boolean {
   if (Math.random() >= 0.5) return false;
 
   const step = randomAdjacentStep(entity.context, entity);
@@ -146,11 +141,15 @@ function wanderStep(entity) {
   return true;
 }
 
-export function nextStepToward(context, entity, tx, ty) {
+export function nextStepToward(
+  entity: Entity,
+  tx: number,
+  ty: number
+): { x: number; y: number } | null {
   if (entity.x === undefined || entity.y === undefined) return null;
 
-  const grid = new PF.Grid(dungeon.getCurrentLevel());
-  const finder = new PF.AStarFinder();
+  const grid = dungeon.getPathGrid();
+  const finder = dungeon.getCardinalFinder();
   const path = finder.findPath(entity.x, entity.y, tx, ty, grid);
 
   if (path.length > 1) {
@@ -159,10 +158,13 @@ export function nextStepToward(context, entity, tx, ty) {
   return null;
 }
 
-export function randomAdjacentStep(context, entity) {
+export function randomAdjacentStep(
+  context: GameContext,
+  entity: Entity
+): { x: number; y: number } | null {
   if (entity.x === undefined || entity.y === undefined) return null;
 
-  const dirs = [
+  const dirs: Array<[number, number]> = [
     [1, 0],
     [-1, 0],
     [0, 1],

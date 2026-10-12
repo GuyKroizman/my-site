@@ -1,5 +1,4 @@
 // TypeScript errors after site migration - ignoring for game functionality
-// @ts-nocheck
 import Phaser from "phaser";
 import { Scene0 } from "./scene0";
 import type { GameContext } from "./context";

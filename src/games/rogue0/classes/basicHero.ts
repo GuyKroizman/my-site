@@ -1,5 +1,4 @@
 // TypeScript errors after site migration - ignoring for game functionality
-// @ts-nocheck
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import type { GameContext } from "../context";
@@ -26,6 +25,7 @@ export default class BasicHero extends Entity {
   UIItems?: Phaser.GameObjects.Rectangle[] = [];
   UIX: number = 0;
   UIY: number = 0;
+  inputBuffer: string[] = [];
 
   constructor(context: GameContext) {
     super();
@@ -35,8 +35,10 @@ export default class BasicHero extends Entity {
     }
 
     context.scene.input.keyboard.on("keydown", (event: KeyboardEvent) => {
-      if (!this.isOver()) {
-        this.processInput(event);
+      if (this.canAct()) {
+        this.processInput(event.key);
+      } else {
+        this.bufferKey(event.key);
       }
     });
 
@@ -56,6 +58,27 @@ export default class BasicHero extends Entity {
     // update item display
     this.ensureInventorySlots(Math.max(10, this.items.length));
     this.refreshUI();
+
+    // Execute buffered input as soon as the player can act.
+    this.drainInputBuffer();
+  }
+
+  canAct(): boolean {
+    return this.movementPoints > 0 && !this.moving;
+  }
+
+  bufferKey(key: string) {
+    if (this.inputBuffer.length < 4) {
+      this.inputBuffer.push(key);
+    }
+  }
+
+  drainInputBuffer() {
+    if (!this.canAct() || this.inputBuffer.length === 0) return;
+    const key = this.inputBuffer.shift();
+    if (key !== undefined) {
+      this.processInput(key);
+    }
   }
 
   addItem(item: Entity) {
@@ -105,13 +128,13 @@ export default class BasicHero extends Entity {
   }
 
   removeItemsByProperty(property: string, value: any) {
-    const removedItems = this.items.filter((item) => item[property] === value);
+    const removedItems = this.items.filter((item) => (item as any)[property] === value);
 
     this.items.forEach(i => {
       i.UISprite?.destroy();
       delete i.UISprite;
     });
-    this.items = this.items.filter((item) => item[property] !== value);
+    this.items = this.items.filter((item) => (item as any)[property] !== value);
     removedItems.forEach((item) => removeEntity(this.context, item));
     this.refreshUI();
   }
@@ -186,14 +209,12 @@ export default class BasicHero extends Entity {
     }
   }
 
-  processInput(event: KeyboardEvent) {
+  processInput(key: string) {
     let oldX = this.x!;
     let oldY = this.y!;
     let moved = false;
     let newX = this.x!;
     let newY = this.y!;
-
-    let key = event.key;
 
     // Equip items
     if (!isNaN(Number(key))) {
@@ -207,28 +228,28 @@ export default class BasicHero extends Entity {
     }
 
     // Pass the turn
-    if (event.key == " ") {
+    if (key == " ") {
       this.movementPoints = 0;
       this.actionPoints = 0;
     }
 
     // Movement decision
-    if (event.key == "ArrowLeft" || event.key === "h") {
+    if (key == "ArrowLeft" || key === "h") {
       newX -= 1;
       moved = true;
     }
 
-    if (event.key == "ArrowRight" || event.key === "l") {
+    if (key == "ArrowRight" || key === "l") {
       newX += 1;
       moved = true;
     }
 
-    if (event.key == "ArrowUp" || event.key === "k") {
+    if (key == "ArrowUp" || key === "k") {
       newY -= 1;
       moved = true;
     }
 
-    if (event.key == "ArrowDown" || event.key === "j") {
+    if (key == "ArrowDown" || key === "j") {
       newY += 1;
       moved = true;
     }
@@ -273,21 +294,17 @@ export default class BasicHero extends Entity {
   }
 
   isOver() {
-    let isOver = this.movementPoints == 0 && !this.moving;
+    return this.movementPoints == 0 && !this.moving;
+  }
 
+  updateUI() {
+    const over = this.movementPoints == 0 && !this.moving;
     if (this.UIHeader) {
-      if (isOver) {
-        this.UIHeader.setColor(UI_HIGHLIGHT_BACKGROUND_COLOR);
-        this.actionPoints = 0;
-      } else {
-        this.UIHeader.setColor("#fff");
-      }
+      this.UIHeader.setColor(over ? UI_HIGHLIGHT_BACKGROUND_COLOR : "#fff");
     }
-
     if (this.UIStatsText) {
       this.UIStatsText.setText(`Hp: ${this.healthPoints}\nMp: ${this.movementPoints}\nAp: ${this.actionPoints}`);
     }
-    return isOver;
   }
 
   onDestroy() {
@@ -297,7 +314,8 @@ export default class BasicHero extends Entity {
   createUI({ scene, x, y }: {
     scene: Phaser.Scene;
     x: number;
-    y: number
+    y: number;
+    width?: number
   }) {
     this.UIScene = scene;
     this.UIX = x;

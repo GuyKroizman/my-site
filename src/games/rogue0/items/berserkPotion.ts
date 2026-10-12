@@ -1,5 +1,4 @@
 // TypeScript errors after site migration - ignoring for game functionality
-// @ts-nocheck
 import { Entity } from "../entity";
 import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
@@ -13,6 +12,7 @@ export default class BerserkPotion extends Entity {
   type: EntityType = "item";
   tile = 13 * 49 + 33;
   remainingTurns: number = 10;
+  actionPoints: number = 1;
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
@@ -33,23 +33,22 @@ export default class BerserkPotion extends Entity {
   }
 
   turn() {
+    if (this.active) {
+      this.remainingTurns -= 1;
+      if (this.remainingTurns <= 0) {
+        this.context.player?.removeItem(this);
+        removeEntity(this.context, this);
+      }
+    }
+    this.actionPoints = 0;
   }
 
   refresh() {
+    this.actionPoints = 1;
   }
 
   isOver() {
-    if (!this.context.player || !this.active) {
-      return true;
-    }
-
-    if (this.remainingTurns <= 0) {
-      this.context.player.removeItem(this);
-      removeEntity(this.context, this);
-    }
-    this.remainingTurns--;
-
-    return true;
+    return this.actionPoints === 0;
   }
 
   attack(): number {

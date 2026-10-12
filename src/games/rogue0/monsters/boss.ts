@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Monster from "./monster";
 import type { GameContext } from "../context";
 import Gem from "../items/gem";

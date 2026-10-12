@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Phaser from "phaser";
 import dungeon from "./dungeon";
 import type { GameContext } from "./context";
@@ -36,8 +35,6 @@ const MAX_VISIBLE_X = 67;
 
 export class Scene0 extends Phaser.Scene {
   context: GameContext;
-  private key: string;
-  private active: boolean;
   private ended: boolean = false;
   private stairsLabel?: Phaser.GameObjects.Graphics;
   private fog!: Phaser.GameObjects.Graphics;
@@ -51,8 +48,6 @@ export class Scene0 extends Phaser.Scene {
     super("scene0");
 
     this.context = context;
-    this.key = "scene0";
-    this.active = true;
   }
 
   preload() {
@@ -77,7 +72,7 @@ export class Scene0 extends Phaser.Scene {
     // Fog-of-war overlay drawn above tiles and entities.
     this.fog = this.add.graphics().setDepth(100);
 
-    const HeroClass = classes[this.context.heroClass] ?? classes.Wizard;
+    const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
     const player = new HeroClass(this.context, 15, 15);
     player.sprite!.setDepth(200);
     this.context.player = player;
@@ -89,14 +84,14 @@ export class Scene0 extends Phaser.Scene {
     this.events.on("player-won", () => this.endGame(true));
 
     // Hovering over a visible creature shows its status in the sidebar.
-    this.input.on("pointermove", (pointer) => this.inspectAtPointer(pointer));
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => this.inspectAtPointer(pointer));
 
     // Set camera, causing the game viewport to shrink on the right side
     // freeing space for the UI scene.
     let camera = this.cameras.main;
     camera.setViewport(0, 0, camera.worldView.width - 200, camera.worldView.height);
     camera.setBounds(0, 0, camera.worldView.width, camera.worldView.height);
-    camera.startFollow(this.context.player.sprite!);
+    camera.startFollow(this.context.player!.sprite!);
   }
 
   update() {
@@ -105,9 +100,13 @@ export class Scene0 extends Phaser.Scene {
     turnManager.update(this.context.entities);
     this.checkStairs();
     this.refreshFovIfNeeded();
+
+    // Fast-forward animations while the player is waiting on buffered input.
+    const p = this.context.player;
+    this.tweens.timeScale = p && p.inputBuffer && p.inputBuffer.length > 0 ? 2 : 1;
   }
 
-  private setupFloor(floor, levelArray, spawn) {
+  private setupFloor(floor: number, levelArray: number[][], spawn: { x: number; y: number }) {
     this.context.floor = floor;
 
     this.seen = [];
@@ -191,11 +190,11 @@ export class Scene0 extends Phaser.Scene {
     }
   }
 
-  private inspectAtPointer(pointer) {
+  private inspectAtPointer(pointer: Phaser.Input.Pointer) {
     if (!this.context.map || !pointer) return;
 
-    const x = this.context.map.worldToTileX(pointer.worldX);
-    const y = this.context.map.worldToTileY(pointer.worldY);
+    const x = this.context.map.worldToTileX(pointer.worldX)!;
+    const y = this.context.map.worldToTileY(pointer.worldY)!;
     const entity = dungeon.entityAtTile(this.context, x, y);
 
     if (entity && entity.type !== "player" && this.visible.has(`${x},${y}`)) {
@@ -229,8 +228,8 @@ export class Scene0 extends Phaser.Scene {
   private redrawFog() {
     const map = dungeon.getCurrentLevel();
     const t = 16;
-    const unseen = [];
-    const remembered = [];
+    const unseen: Array<[number, number]> = [];
+    const remembered: Array<[number, number]> = [];
 
     for (let y = 0; y < map.length; y++) {
       for (let x = 0; x < map[0].length; x++) {
@@ -287,7 +286,7 @@ export class Scene0 extends Phaser.Scene {
     }
   }
 
-  private findSpawn(levelArray) {
+  private findSpawn(levelArray: number[][]): { x: number; y: number } {
     const h = levelArray.length;
     const w = levelArray[0].length;
     for (let y = Math.floor(h / 2); y < h; y++) {
@@ -298,14 +297,14 @@ export class Scene0 extends Phaser.Scene {
     return { x: 15, y: 15 };
   }
 
-  private placePlayer(x, y) {
+  private placePlayer(x: number, y: number) {
     const player = this.context.player!;
     player.x = x;
     player.y = y;
     if (player.sprite && this.context.map) {
       player.sprite.setPosition(
-        this.context.map.tileToWorldX(x),
-        this.context.map.tileToWorldY(y)
+        this.context.map.tileToWorldX(x)!,
+        this.context.map.tileToWorldY(y)!
       );
     }
   }
@@ -313,22 +312,22 @@ export class Scene0 extends Phaser.Scene {
   private makeSparkTexture() {
     if (this.textures.exists("spark")) return;
 
-    const g = this.make.graphics({ add: false });
+    const g = this.make.graphics(undefined, false);
     g.fillStyle(0xffffff, 1);
     g.fillRect(0, 0, 6, 6);
     g.generateTexture("spark", 6, 6);
     g.destroy();
   }
 
-  private renderStairs(x, y) {
+  private renderStairs(x: number, y: number) {
     this.stairsLabel?.destroy();
 
     if (!this.context.map) return;
 
     const isExit = this.context.floor >= this.context.maxFloor;
     const color = isExit ? 0x00ff00 : 0x00ffff;
-    const wx = this.context.map.tileToWorldX(x);
-    const wy = this.context.map.tileToWorldY(y);
+    const wx = this.context.map.tileToWorldX(x)!;
+    const wy = this.context.map.tileToWorldY(y)!;
 
     const g = this.add.graphics();
     g.fillStyle(color, 1);
@@ -340,7 +339,7 @@ export class Scene0 extends Phaser.Scene {
     this.stairsLabel = g;
   }
 
-  private spawnFloorContent(floor, levelArray, spawn) {
+  private spawnFloorContent(floor: number, levelArray: number[][], spawn: { x: number; y: number }) {
     const context = this.context;
 
     if (floor === 1) {
@@ -382,7 +381,7 @@ export class Scene0 extends Phaser.Scene {
 
     let i = 0;
 
-    const spawnGroup = (Cls, count) => {
+    const spawnGroup = (Cls: any, count: number) => {
       for (let n = 0; n < count && i < tiles.length; n++, i++) {
         context.entities.push(new Cls(context, tiles[i].x, tiles[i].y));
       }
@@ -413,7 +412,7 @@ export class Scene0 extends Phaser.Scene {
     }
   }
 
-  private endGame(victory) {
+  private endGame(victory: boolean) {
     if (this.ended) return;
     this.ended = true;
 

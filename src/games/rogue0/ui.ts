@@ -1,9 +1,7 @@
-// @ts-nocheck
 import type { GameContext } from "./context";
 
 export class UI extends Phaser.Scene {
   context: GameContext;
-  private key: string;
   active: boolean;
   private log: Phaser.GameObjects.Text | undefined;
   private floorText: Phaser.GameObjects.Text | undefined;
@@ -13,7 +11,6 @@ export class UI extends Phaser.Scene {
     super("ui-scene");
 
     this.context = context;
-    this.key = "ui-scene";
     this.active = true;
     this.log = undefined;
     this.floorText = undefined;
@@ -69,6 +66,7 @@ export class UI extends Phaser.Scene {
     if (!this.log) return;
 
     this.log.setText(this.context.messages.join(`\n\n`));
+    this.context.player?.updateUI?.();
     this.updateStatus();
   }
 

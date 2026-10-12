@@ -1,6 +1,6 @@
 // TypeScript errors after site migration - ignoring for game functionality
-// @ts-nocheck
-import type { GameContext } from "context";
+import Phaser from "phaser";
+import type { GameContext } from "./context";
 import { sfx } from "./audio";
 
 export type EntityType = "player" | "enemy" | "item";
@@ -8,6 +8,9 @@ export type EntityType = "player" | "enemy" | "item";
 export abstract class Entity {
   healthPoints: number = 0;
   maxHealthPoints: number = 0;
+  movementPoints: number = 0;
+  actionPoints: number = 0;
+  visionRadius: number = 0;
   tweens: number = 0;
   x?: number;
   y?: number;
@@ -73,7 +76,7 @@ export abstract class Entity {
 
   abstract onDestroy(): void;
 
-  createUI?(options: { scene: Phaser.Scene, x: number, y: number, width: number }): number;
+  createUI?(options: { scene: Phaser.Scene, x: number, y: number, width?: number }): number;
 }
 
 export function removeEntity(context: GameContext, entity: Entity) {

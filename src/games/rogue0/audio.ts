@@ -1,5 +1,4 @@
 // Procedural retro sound effects using the Web Audio API (no audio files).
-// @ts-nocheck
 
 let ctx: AudioContext | null = null;
 let muted = false;

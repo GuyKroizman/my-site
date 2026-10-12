@@ -1,5 +1,4 @@
 // TypeScript errors after site migration - ignoring for game functionality
-// @ts-nocheck
 import dungeon from "../dungeon";
 import type { GameContext } from "../context";
 import { enemyTurn } from "../ai";
@@ -10,18 +9,11 @@ import HolyPotion from "../items/holyPotion";
 import BerserkPotion from "../items/berserkPotion";
 
 export default class Skeleton extends Entity {
-  private movementPoints: number;
-  tile: number;
-  moving: boolean;
   readonly name: string = "Skeleton";
   description: string = "A skeleton";
   type: EntityType = "enemy";
-  actionPoints: number;
-  healthPoints: number;
   visionRadius: number = 7;
   tweens: number = 2;
-  UISprite?: Phaser.GameObjects.Sprite;
-  UIText?: Phaser.GameObjects.Text;
 
   constructor(context: GameContext, x: number, y: number) {
     super();
@@ -43,7 +35,7 @@ export default class Skeleton extends Entity {
     this.init(context, x, y);
   }
 
-  equip(itemNumber: number) {
+  equip() {
     return;
   }
 
@@ -57,18 +49,7 @@ export default class Skeleton extends Entity {
   }
 
   isOver() {
-    const isOver =
-      this.movementPoints == 0 && this.actionPoints == 0 && !this.moving;
-
-    if (this.UIText) {
-      if (isOver) {
-        this.UIText.setColor("#cfc6b8");
-      } else {
-        this.UIText.setColor("#fff");
-      }
-    }
-
-    return isOver;
+    return this.movementPoints == 0 && this.actionPoints == 0 && !this.moving;
   }
 
   attack() {

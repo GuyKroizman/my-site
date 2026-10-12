@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Entity } from "./entity";
 import type BasicHero from "./classes/basicHero";
 

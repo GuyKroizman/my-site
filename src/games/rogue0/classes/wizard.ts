@@ -1,5 +1,4 @@
 // TypeScript errors after site migration - ignoring for game functionality
-// @ts-nocheck
 import BasicHero from "./basicHero";
 import type { GameContext } from "../context";
 import scrollofFireball from "../items/scrolloffireball";

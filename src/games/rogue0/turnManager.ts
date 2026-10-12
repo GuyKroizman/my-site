@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Entity } from "./entity";
 
 const turnManager = {
@@ -21,11 +20,19 @@ const turnManager = {
   },
 
   _turn: (entities: Entity[]) => {
-    if (entities.length === 0 || !entities) {
+    if (!entities || entities.length === 0) {
       return;
     }
 
+    if (turnManager.entityIndex >= entities.length) {
+      turnManager.entityIndex = 0;
+    }
+
     let e = entities[turnManager.entityIndex];
+
+    if (!e) {
+      return;
+    }
 
     if (!e.isOver()) {
       e.turn();

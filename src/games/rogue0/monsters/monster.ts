@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Phaser from "phaser";
 import { Entity } from "../entity";
 import type { EntityType } from "../entity";

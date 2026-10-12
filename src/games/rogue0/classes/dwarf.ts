@@ -1,5 +1,4 @@
 // TypeScript errors after site migration - ignoring for game functionality
-// @ts-nocheck
 import type { GameContext } from "../context";
 import Axe from "../items/axe";
 import Shield from "../items/shield";

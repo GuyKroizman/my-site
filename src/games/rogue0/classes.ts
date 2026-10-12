@@ -1,5 +1,4 @@
 // TypeScript errors after site migration - ignoring for game functionality
-// @ts-nocheck
 import Warrior from "./classes/warrior";
 import Dwarf from "./classes/dwarf";
 import Cleric from "./classes/cleric";

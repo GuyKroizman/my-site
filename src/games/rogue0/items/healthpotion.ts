@@ -1,5 +1,4 @@
 // TypeScript errors after site migration - ignoring for game functionality
-// @ts-nocheck
 import type { GameContext } from "../context";
 import { Entity, removeEntity } from "../entity";
 import dungeon from "../dungeon";
