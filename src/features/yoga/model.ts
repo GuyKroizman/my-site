@@ -16,6 +16,7 @@ export interface Routine {
 
 export const STORAGE_KEY = 'still-yoga-library-v2'
 export const DRAFT_KEY = 'still-yoga-draft-v2'
+export const COMPLETIONS_KEY = 'still-yoga-completions-v1'
 export const MAX_STEPS = 100
 export const MAX_SESSIONS = 100
 export const MAX_ROUNDS = 60
@@ -232,4 +233,30 @@ export function saveLibrary(sessions: Routine[]): boolean {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, sessions }))
     return true
   } catch { return false }
+}
+
+function parseCompletions(raw: string | null): Record<string, number> {
+  if (!raw) return {}
+  const value: unknown = JSON.parse(raw)
+  if (!record(value)) return {}
+  const counts: Record<string, number> = {}
+  for (const [id, count] of Object.entries(value)) {
+    if (typeof count === 'number' && Number.isInteger(count) && count >= 0 && count <= 100000) counts[id] = count
+  }
+  return counts
+}
+
+export function loadCompletionCount(id: string): number {
+  try {
+    return parseCompletions(localStorage.getItem(COMPLETIONS_KEY))[id] ?? 0
+  } catch { return 0 }
+}
+
+export function recordCompletion(id: string): number {
+  let counts: Record<string, number> = {}
+  try { counts = parseCompletions(localStorage.getItem(COMPLETIONS_KEY)) } catch { /* Start fresh when storage is unreadable. */ }
+  const next = Math.min((counts[id] ?? 0) + 1, 100000)
+  counts[id] = next
+  try { localStorage.setItem(COMPLETIONS_KEY, JSON.stringify(counts)) } catch { /* Non-fatal: the count still shows for this session. */ }
+  return next
 }
