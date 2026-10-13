@@ -21,8 +21,6 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 
 ## Known issues
 
-- Potion naming is confusing: `healingPotion` (full heal) vs `healthpotion`
-  (heal 3–5).
 - The turn manager is still poll-based (fine now that `isOver()` is
   side-effect free; a full event-driven rewrite remains optional).
 
@@ -33,7 +31,7 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 - [x] Fix `turnManager._refresh` entityIndex placement
 - [x] Remove dead `dungeon.removeEntity`
 - [x] Fix the BerserkPotion frame-rate bug
-- [ ] Rename/clarify the two healing-potion files
+- [x] Rename/clarify the two healing-potion files
 - [x] Re-enable TypeScript (drop `@ts-nocheck`, fix imports)
 
 ### Phase 1 — Make it a real game
@@ -85,3 +83,5 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 - Responsiveness: keyboard input is buffered (max 4), enemy attack tweens are
   shortened, and the tween timeScale fast-forwards while input is buffered.
 - Audio is procedural (Web Audio API, no files); toggle via the Sound button.
+- The two healing potions have distinct names: `FullHealPotion` (restores all
+  HP) and `MinorHealPotion` (restores 3–5 HP).

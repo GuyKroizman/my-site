@@ -4,8 +4,8 @@ import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import { removeEntity , Entity} from "../entity";
 
-export default class HealingPotion extends Entity {
-  name: string = "Healing Potion";
+export default class FullHealPotion extends Entity {
+  name: string = "Full Heal Potion";
   description: string = "That feels refreshing!";
   moving: boolean = false;
   type: EntityType = "item";

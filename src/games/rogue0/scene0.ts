@@ -7,8 +7,8 @@ import LongSword from "./items/longSword";
 import Gem from "./items/gem";
 import CursedGem from "./items/cursedGem";
 import HolyPotion from "./items/holyPotion";
-import HealingPotion from "./items/healingPotion";
-import HealthPotion from "./items/healthpotion";
+import FullHealPotion from "./items/fullHealPotion";
+import MinorHealPotion from "./items/minorHealPotion";
 import Sword from "./items/sword";
 import Axe from "./items/axe";
 import Bow from "./items/bow";
@@ -353,7 +353,7 @@ export class Scene0 extends Phaser.Scene {
       context.entities.push(new CursedGem(context, 15, 20));
       context.entities.push(new HolyPotion(context, 18, 18));
       context.entities.push(new LongSword(context, 18, 22));
-      context.entities.push(new HealingPotion(context, 18, 23));
+      context.entities.push(new FullHealPotion(context, 18, 23));
       context.entities.push(new Shoe(context, 15, 16));
       context.entities.push(new Quloptsh(context, 12, 17));
       return;
@@ -402,8 +402,8 @@ export class Scene0 extends Phaser.Scene {
       Gem,
       CursedGem,
       HolyPotion,
-      HealingPotion,
-      HealthPotion,
+      FullHealPotion,
+      MinorHealPotion,
       Shoe
     ];
     for (let l = 0; l < itemCount && i < tiles.length; l++, i++) {

@@ -2,7 +2,7 @@ import Monster from "./monster";
 import type { GameContext } from "../context";
 import Gem from "../items/gem";
 import HolyPotion from "../items/holyPotion";
-import HealingPotion from "../items/healingPotion";
+import FullHealPotion from "../items/fullHealPotion";
 
 export default class Boss extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -18,7 +18,7 @@ export default class Boss extends Monster {
       protection: 2,
       range: 0,
       scale: 1.4,
-      loot: [Gem, HolyPotion, HealingPotion]
+      loot: [Gem, HolyPotion, FullHealPotion]
     }, x, y);
   }
 }

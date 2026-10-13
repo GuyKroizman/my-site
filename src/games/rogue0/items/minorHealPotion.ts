@@ -3,12 +3,12 @@ import type { GameContext } from "../context";
 import { Entity, removeEntity } from "../entity";
 import dungeon from "../dungeon";
 
-export default class HealthPotion extends Entity {
+export default class MinorHealPotion extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 13 * 49 + 37;
-    this.name = "Health Potion";
-    this.description = "A potion that restores health."
+    this.name = "Minor Heal Potion";
+    this.description = "A potion that restores a small amount of health."
     this.weapon = false;
     this.consumable = true;
 

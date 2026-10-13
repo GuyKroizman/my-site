@@ -3,7 +3,7 @@ import BasicHero from "./basicHero";
 import type { GameContext } from "../context";
 import scrollofFireball from "../items/scrolloffireball";
 import scrollofLightning from "../items/scrolloflightning";
-import healthPotion from "../items/healthpotion";
+import MinorHealPotion from "../items/minorHealPotion";
 
 export default class Wizard extends BasicHero {
   constructor(context : GameContext, x: number, y: number) {
@@ -18,8 +18,8 @@ export default class Wizard extends BasicHero {
 
     this.items.push(new scrollofFireball(context));
     this.items.push(new scrollofLightning(context));
-    this.items.push(new healthPotion(context));
-    this.items.push(new healthPotion(context));
+    this.items.push(new MinorHealPotion(context));
+    this.items.push(new MinorHealPotion(context));
     this.toggleItem(context,1)
 
     this.init(context, x, y);
