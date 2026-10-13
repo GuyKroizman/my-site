@@ -242,6 +242,8 @@ button.yoga-chip:hover { background: #edf0e5; border-color: #bfcbb5; }
 .yoga-breath-label > span { font-family: Georgia, serif; font-size: 28px; color: #4d6a42; }
 .yoga-breath-label strong { font-family: Georgia, serif; font-size: 53px; font-weight: 400; color: #58754b; height: 78px; display: flex; align-items: center; justify-content: center; }
 .yoga-breath-label small { font-size: 10px; color: #7e906d; }
+.yoga-breath-count { font-size: 16px; color: #6c805e; }
+.yoga-breath-count strong { font-family: Georgia, serif; font-size: 28px; font-weight: 400; margin-right: 3px; color: #446138; }
 .yoga-breath-guide > .yoga-muted { font-size: 10px; margin-top: 4px; }
 .yoga-breath-audio { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 auto 24px; }
 .yoga-breath-audio-label { display: inline-flex; align-items: center; gap: 6px; font-size: 9px; letter-spacing: 1px; color: #8b937e; }

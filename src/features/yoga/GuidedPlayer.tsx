@@ -240,7 +240,7 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
           <div className="yoga-breath-top">
             <div className="yoga-breath-orbit">
               <div className="yoga-breath-disc" style={{ transform: `scale(${0.7 + view.expansion * 0.3})` }} />
-              <div className="yoga-breath-label"><span>{playing ? (view.inhale ? 'Breathe in' : 'Breathe out') : elapsed === 0 ? 'Find your ease' : 'Take your time'}</span><strong>{playing ? view.phaseRemaining : <Icon name={elapsed === 0 ? 'leaf' : 'pause'} size={36} />}</strong><small>{playing ? `${view.remainingBreaths} ${view.remainingBreaths === 1 ? 'breath' : 'breaths'} left` : elapsed === 0 ? 'Press begin when you’re ready' : 'Your practice is paused'}</small></div>
+              <div className="yoga-breath-label"><span>{playing ? (view.inhale ? 'Breathe in' : 'Breathe out') : elapsed === 0 ? 'Find your ease' : 'Take your time'}</span><strong>{playing ? view.phaseRemaining : <Icon name={elapsed === 0 ? 'leaf' : 'pause'} size={36} />}</strong><small>{playing ? `${routine.phaseSeconds} seconds · ${view.inhale ? 'inhale' : 'exhale'}` : elapsed === 0 ? 'Press begin when you’re ready' : 'Your practice is paused'}</small></div>
             </div>
             <div className="yoga-breath-audio" role="group" aria-label="Breath sound">
               <span className="yoga-breath-audio-label"><Icon name="breath" size={14} /><span className="yoga-breath-audio-text"> Breath sound</span></span>
@@ -251,6 +251,7 @@ export default function GuidedPlayer({ routine, onExit }: { routine: Routine; on
               </div>
             </div>
           </div>
+          <p className="yoga-breath-count"><strong>{view.remainingBreaths}</strong> {view.remainingBreaths === 1 ? 'breath' : 'breaths'} remaining</p>
           <p className="yoga-muted">Breath {view.breathNumber} of {view.phaseBreaths} · Follow your comfort, not the count.</p>
           <div className="yoga-player-controls">
             <button className="yoga-icon-button" disabled={view.index === 0} aria-label="Previous pose" onClick={() => seek(view.index - 1)}><Icon name="previous" size={25} /></button>
