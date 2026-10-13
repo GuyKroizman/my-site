@@ -14,6 +14,7 @@ export default class Skeleton extends Entity {
   type: EntityType = "enemy";
   visionRadius: number = 7;
   tweens: number = 2;
+  xpValue: number = 2;
 
   constructor(context: GameContext, x: number, y: number) {
     super();
@@ -62,6 +63,7 @@ export default class Skeleton extends Entity {
 
   onDestroy() {
     this.context.kills = (this.context.kills ?? 0) + 1;
+    this.context.player?.gainXp(this.xpValue);
     dungeon.log(this.context, `${this.name} was killed.`);
     if (this.UISprite) {
       this.UISprite.setAlpha(0.2);

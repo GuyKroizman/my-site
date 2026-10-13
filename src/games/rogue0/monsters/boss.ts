@@ -16,6 +16,7 @@ export default class Boss extends Monster {
       visionRadius: 9,
       attackDamage: 4,
       protection: 2,
+      xp: 25,
       range: 0,
       scale: 1.4,
       loot: [Gem, HolyPotion, FullHealPotion]

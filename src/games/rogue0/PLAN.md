@@ -48,8 +48,7 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 - [x] Monster variety (archer, ghoul, brute, boss)
 - [x] Enemy behaviors (last-known-position pursuit + idle wander)
 - [x] Inspect command (hover / Inspect button)
-- [ ] Enemy alert allies / flee
-- [ ] XP / leveling or per-floor stat progression
+- [x] XP / leveling
 - Health bars / floating damage numbers — intentionally skipped (use inspect)
 
 ### Phase 3 — Feel & presentation
@@ -85,3 +84,6 @@ A turn-based, tile-based roguelike (Phaser 3 + React), ported from
 - Audio is procedural (Web Audio API, no files); toggle via the Sound button.
 - The two healing potions have distinct names: `FullHealPotion` (restores all
   HP) and `MinorHealPotion` (restores 3–5 HP).
+- Enemy alert-allies and flee behavior were intentionally removed from scope.
+- XP/leveling: kills grant XP (see `xpValue` per monster); level-ups grant
+  +5 max HP and +1 attack (no healing). XP-to-next scales with level.

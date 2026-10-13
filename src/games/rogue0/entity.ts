@@ -30,6 +30,7 @@ export abstract class Entity {
   consumable: boolean = false;
   lastSeenX?: number;
   lastSeenY?: number;
+  xpValue: number = 0;
 
   init(context: GameContext, x?: number, y?: number) {
 

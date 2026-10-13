@@ -20,6 +20,7 @@ export type MonsterConfig = {
   attackTile?: number;
   scale?: number;
   loot?: any[];
+  xp?: number;
 };
 
 export default class Monster extends Entity {
@@ -61,6 +62,7 @@ export default class Monster extends Entity {
     this.rangeValue = config.range;
     this.attackTile = config.attackTile ?? this.attackTile;
     this.loot = config.loot ?? [];
+    this.xpValue = config.xp ?? 5;
 
     this.init(context, x, y);
 
@@ -104,6 +106,7 @@ export default class Monster extends Entity {
 
   onDestroy() {
     this.context.kills = (this.context.kills ?? 0) + 1;
+    this.context.player?.gainXp(this.xpValue);
     dungeon.log(this.context, `${this.name} was killed.`);
 
     const x = this.x;

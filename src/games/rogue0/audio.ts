@@ -125,4 +125,7 @@ export const sfx = {
   equip(): void {
     tone(1000, 0.04, 'square', 0.045);
   },
+  levelUp(): void {
+    [440, 554, 659, 880].forEach((f, i) => tone(f, 0.12, 'square', 0.09, i * 0.09));
+  },
 };

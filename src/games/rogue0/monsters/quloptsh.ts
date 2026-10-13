@@ -18,6 +18,7 @@ export default class Quloptsh extends Entity {
   maxHealthPoints: number = 10;
   visionRadius: number = 7;
   tweens: number = 1;
+  xpValue: number = 4;
 
   constructor(context: GameContext, x: number, y: number) {
     super();
@@ -53,6 +54,7 @@ export default class Quloptsh extends Entity {
 
   onDestroy() {
     this.context.kills = (this.context.kills ?? 0) + 1;
+    this.context.player?.gainXp(this.xpValue);
     dungeon.log(this.context, `${this.name} was killed.`);
     if (this.UISprite) {
       this.UISprite.setAlpha(0.2);

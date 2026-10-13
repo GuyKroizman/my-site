@@ -14,6 +14,7 @@ export default class Ghoul extends Monster {
       visionRadius: 8,
       attackDamage: 1,
       protection: 0,
+      xp: 5,
       range: 0,
       loot: [false, false, Gem]
     }, x, y);

@@ -15,6 +15,7 @@ export default class Archer extends Monster {
       visionRadius: 8,
       attackDamage: 2,
       protection: 0,
+      xp: 5,
       range: 5,
       attackTile: 10 * 49 + 15,
       loot: [false, Gem, HolyPotion]

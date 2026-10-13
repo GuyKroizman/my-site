@@ -15,6 +15,9 @@ export default class BasicHero extends Entity {
   actionPoints: number = 1;
   healthPoints: number = 30;
   maxHealthPoints: number = 30;
+  xp: number = 0;
+  level: number = 1;
+  baseAttack: number = 0;
   tile: number = 26;
   moving: boolean = false;
   type: EntityType = "player";
@@ -152,7 +155,7 @@ export default class BasicHero extends Entity {
     const items = this.equippedItems();
     const combineDamage = (total: number, item: Entity) => total + item.damage();
 
-    return items.reduce(combineDamage, 0);
+    return items.reduce(combineDamage, this.baseAttack);
   }
 
   protection() {
@@ -165,6 +168,23 @@ export default class BasicHero extends Entity {
   refresh() {
     this.movementPoints = 1;
     this.actionPoints = 1;
+  }
+
+  xpForNextLevel(): number {
+    return 8 + (this.level - 1) * 8;
+  }
+
+  gainXp(amount: number) {
+    if (amount <= 0) return;
+    this.xp += amount;
+    while (this.xp >= this.xpForNextLevel()) {
+      this.xp -= this.xpForNextLevel();
+      this.level += 1;
+      this.maxHealthPoints += 5;
+      this.baseAttack += 1;
+      sfx.levelUp();
+      dungeon.log(this.context, `You leveled up! You are now level ${this.level} (+5 HP, +1 ATK).`);
+    }
   }
 
   processTouchInput(context: GameContext, event: Phaser.Input.Pointer) {
@@ -297,13 +317,17 @@ export default class BasicHero extends Entity {
     return this.movementPoints == 0 && !this.moving;
   }
 
+  statsText(): string {
+    return `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}\nMp: ${this.movementPoints}\nAp: ${this.actionPoints}`;
+  }
+
   updateUI() {
     const over = this.movementPoints == 0 && !this.moving;
     if (this.UIHeader) {
       this.UIHeader.setColor(over ? UI_HIGHLIGHT_BACKGROUND_COLOR : "#fff");
     }
     if (this.UIStatsText) {
-      this.UIStatsText.setText(`Hp: ${this.healthPoints}\nMp: ${this.movementPoints}\nAp: ${this.actionPoints}`);
+      this.UIStatsText.setText(this.statsText());
     }
   }
 
@@ -338,7 +362,7 @@ export default class BasicHero extends Entity {
     this.UIStatsText = scene.add.text(
       x + 20,
       y + 20,
-      `Hp: ${this.healthPoints}\nMp: ${this.movementPoints}\nAp: ${this.actionPoints}`,
+      this.statsText(),
       {
         font: "12px Arial",
         backgroundColor: UI_HIGHLIGHT_BACKGROUND_COLOR
