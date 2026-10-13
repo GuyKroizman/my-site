@@ -21,7 +21,8 @@ const HERO_CLASSES = [
 
 const CONTROLS = [
   ['Move', 'Arrow keys / HJKL'],
-  ['Attack', 'Walk into enemy'],
+  ['Melee attack', 'Walk into enemy'],
+  ['Ranged attack', 'Equip bow/scroll, then click/tap enemy'],
   ['Equip', '1–0'],
   ['Inspect', 'Hover or Inspect button'],
   ['Wait', 'Space'],
