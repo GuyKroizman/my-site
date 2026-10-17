@@ -7,6 +7,14 @@ import { tickEffects as tickStatusEffects } from "./effects";
 
 export type EntityType = "player" | "enemy" | "item";
 
+export type EquipSlot =
+  | "weapon"
+  | "armor"
+  | "ring"
+  | "artifact"
+  | "consumable"
+  | "junk";
+
 export abstract class Entity {
   healthPoints: number = 0;
   maxHealthPoints: number = 0;
@@ -25,14 +33,22 @@ export abstract class Entity {
   UISprite?: Phaser.GameObjects.Sprite;
   UIText?: Phaser.GameObjects.Text;
   context!: GameContext;
-  weapon: boolean = false;
   attackTile: number = 11 * 49 + 11;
-  active: boolean = false;
   tint: number | undefined = undefined;
   consumable: boolean = false;
   lastSeenX?: number;
   lastSeenY?: number;
   xpValue: number = 0;
+
+  // Item model v2 (G3). Optional with defaults so existing items still
+  // compile without setting them.
+  tier: number = 1;
+  identified: boolean = true;
+  cursed: boolean = false;
+  blessed: boolean = false;
+  level: number = 0;
+  charges: number = 0;
+  equipSlot: EquipSlot = "junk";
 
   // Status effects and combat stats used by effects.ts / combat.ts.
   effects: StatusEffect[] = [];
@@ -42,8 +58,25 @@ export abstract class Entity {
   vulnerability: Partial<Record<DamageType, number>> = {};
   damageType: DamageType = "physical";
 
-  get armor(): number {
-    return 0;
+  // Hidden-style name used before an item is identified ("?scroll", "?ring").
+  get displayName(): string {
+    if (this.identified) {
+      return this.name;
+    }
+    switch (this.equipSlot) {
+      case "weapon":
+        return "?weapon";
+      case "armor":
+        return "?armor";
+      case "ring":
+        return "?ring";
+      case "artifact":
+        return "?artifact";
+      case "consumable":
+        return /scroll/i.test(this.name) ? "?scroll" : "?potion";
+      default:
+        return "?item";
+    }
   }
 
   init(context: GameContext, x?: number, y?: number) {
@@ -74,6 +107,9 @@ export abstract class Entity {
   }
 
   abstract equip(): void;
+
+  // Optional hook called when this item is removed from an equipment slot.
+  unequip?(): void;
 
   abstract refresh(): void;
 
@@ -148,6 +184,25 @@ export function removeEntity(context: GameContext, entity: Entity) {
   if (context.inspectedEntity === entity) {
     context.inspectedEntity = undefined;
   }
+}
+
+function logMessage(context: GameContext, text: string): void {
+  context.messages.unshift(text);
+  context.messages = context.messages.slice(0, 8);
+}
+
+// Reveals an item's real name and description (the G3 identify loop).
+export function identify(item: Entity): void {
+  item.identified = true;
+  logMessage(item.context, `Identified: ${item.name} — ${item.description}`);
+}
+
+// Upgrade rule: +1 `level`. Weapons and armour convert each level into a
+// +1 damage / +1 protection bonus inside their own damage()/protection()
+// methods (see the weapon and armour item files).
+export function upgrade(item: Entity): void {
+  item.level += 1;
+  logMessage(item.context, `${item.name} upgraded to level ${item.level}.`);
 }
 
 function createSprite(context: GameContext, x: number, y: number, tile: number, tint?: number): Phaser.GameObjects.Sprite {

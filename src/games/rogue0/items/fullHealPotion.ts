@@ -10,6 +10,8 @@ export default class FullHealPotion extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile = 18 * 49 + 33;
+  tier = 1;
+  equipSlot: "consumable" = "consumable";
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();

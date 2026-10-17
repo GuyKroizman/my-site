@@ -16,8 +16,7 @@ export default class Cleric extends BasicHero {
     this.maxHealthPoints = 40
     this.tile = 2 * 49 + 24;
 
-    this.items.push(new Hammer(context))
-    this.toggleItem(context, 0)
+    this.addItem(new Hammer(context))
 
     this.resistance = { magic: 1 };
 

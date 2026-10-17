@@ -139,7 +139,7 @@ export function resolveAttack(
   }
 
   // Reduction: armor (physical only) + resistance, offset by vulnerability.
-  const armor = damageType === "physical" ? defender.armor : 0;
+  const armor = damageType === "physical" ? defender.protection() : 0;
   const resistance = defender.resistance[damageType] ?? 0;
   const vulnerability = defender.vulnerability[damageType] ?? 0;
   const reduction = armor + resistance - vulnerability;

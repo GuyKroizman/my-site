@@ -16,11 +16,13 @@ export default class Wizard extends BasicHero {
     this.maxHealthPoints = 20;
     this.tile = 49 + 24;
 
-    this.items.push(new scrollofFireball(context));
-    this.items.push(new scrollofLightning(context));
-    this.items.push(new MinorHealPotion(context));
-    this.items.push(new MinorHealPotion(context));
-    this.toggleItem(context,1)
+    const fireball = new scrollofFireball(context);
+    const lightning = new scrollofLightning(context);
+    this.addItem(fireball);
+    this.addItem(lightning);
+    this.addItem(new MinorHealPotion(context));
+    this.addItem(new MinorHealPotion(context));
+    this.equipItem(lightning);
 
     this.vulnerability = { physical: 1 };
 

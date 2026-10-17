@@ -1,14 +1,18 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import type { GameContext } from "../context";
+import type { EntityType } from "../entity";
 import { Entity } from "../entity";
 
 export default class Bow extends Entity {
+  type: EntityType = "item";
+  tier = 1;
+  equipSlot: "weapon" = "weapon";
+
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 6 * 49 + 37;
     this.name = "A Bow";
-    this.description = "A bow and arrows. Causes between 1 and 3 damage. Range is five tiles."
-    this.weapon = true;
+    this.description = "A bow and arrows. Causes between 1 and 3 damage. Range is five tiles.";
 
     this.init(context, x, y);
   }
@@ -17,7 +21,7 @@ export default class Bow extends Entity {
   }
 
   damage() {
-    return Phaser.Math.Between(1, 3);
+    return Phaser.Math.Between(1, 3) + this.level;
   }
 
   turn() {

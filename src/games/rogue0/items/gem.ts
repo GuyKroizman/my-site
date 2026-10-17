@@ -8,6 +8,8 @@ export default class Gem extends Entity {
   description: string = "A gem";
   type: EntityType = "item";
   tile = 4 * 49 + 23;
+  tier = 1;
+  equipSlot: "ring" = "ring";
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
