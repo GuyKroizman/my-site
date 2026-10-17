@@ -17,11 +17,38 @@ import Shoe from "./items/Shoe";
 import ScrollOfIdentify from "./items/ScrollOfIdentify";
 import ScrollOfUpgrade from "./items/ScrollOfUpgrade";
 import ScrollOfRemoveCurse from "./items/ScrollOfRemoveCurse";
+import PotionOfHealing from "./items/PotionOfHealing";
+import PotionOfStrength from "./items/PotionOfStrength";
+import PotionOfInvisibility from "./items/PotionOfInvisibility";
+import PotionOfToxicGas from "./items/PotionOfToxicGas";
+import PotionOfLiquidFlame from "./items/PotionOfLiquidFlame";
+import PotionOfFrost from "./items/PotionOfFrost";
+import PotionOfLevitation from "./items/PotionOfLevitation";
+import PotionOfExperience from "./items/PotionOfExperience";
+import ScrollOfTeleport from "./items/ScrollOfTeleport";
+import ScrollOfRage from "./items/ScrollOfRage";
+import ScrollOfTerror from "./items/ScrollOfTerror";
+import ScrollOfRecharging from "./items/ScrollOfRecharging";
+import WandOfFirebolt from "./items/WandOfFirebolt";
+import WandOfFrost from "./items/WandOfFrost";
+import WandOfLightning from "./items/WandOfLightning";
+import RingOfAccuracy from "./items/RingOfAccuracy";
+import RingOfEvasion from "./items/RingOfEvasion";
+import RingOfElements from "./items/RingOfElements";
+import RingOfHaste from "./items/RingOfHaste";
+import RingOfMight from "./items/RingOfMight";
+import ChaliceOfBlood from "./items/ChaliceOfBlood";
+import FangOfTheBeast from "./items/FangOfTheBeast";
 import Quloptsh from "./monsters/quloptsh";
 import Archer from "./monsters/archer";
 import Ghoul from "./monsters/ghoul";
 import Brute from "./monsters/brute";
 import Boss from "./monsters/boss";
+import Cultist from "./monsters/cultist";
+import FireElemental, { IceElemental, ShockElemental } from "./monsters/elemental";
+import Mimic from "./monsters/mimic";
+import SwarmOfFlies from "./monsters/swarmOfFlies";
+import Wraith from "./monsters/wraith";
 import classes from "./classes";
 import level1 from "./level";
 import {
@@ -373,11 +400,17 @@ export class Scene0 extends Phaser.Scene {
     const bruteCount = floor >= 3 ? 1 : 0;
     const bossCount = floor === this.context.maxFloor ? 1 : 0;
     const quloptshCount = Math.max(0, floor - 2);
+    const swarmCount = floor >= 2 ? 1 : 0;
+    const mimicCount = floor >= 2 ? 1 : 0;
+    const cultistCount = floor >= 3 ? 1 : 0;
+    const elementalCount = floor >= 3 ? 1 : 0;
+    const wraithCount = floor >= 3 ? 1 : 0;
     const itemCount = 3;
 
     const tiles = randomWalkableTiles(
       levelArray,
-      skeletonCount + archerCount + ghoulCount + bruteCount + bossCount + quloptshCount + itemCount,
+      skeletonCount + archerCount + ghoulCount + bruteCount + bossCount + quloptshCount +
+        swarmCount + mimicCount + cultistCount + elementalCount + wraithCount + itemCount,
       exclude,
       MAX_VISIBLE_X
     );
@@ -396,6 +429,18 @@ export class Scene0 extends Phaser.Scene {
     spawnGroup(Ghoul, ghoulCount);
     spawnGroup(Brute, bruteCount);
     spawnGroup(Boss, bossCount);
+    spawnGroup(SwarmOfFlies, swarmCount);
+    spawnGroup(Mimic, mimicCount);
+    spawnGroup(Cultist, cultistCount);
+    spawnGroup(Wraith, wraithCount);
+
+    // Elementals: pick a random variant per spawn.
+    for (let n = 0; n < elementalCount && i < tiles.length; n++, i++) {
+      const Elemental = [FireElemental, IceElemental, ShockElemental][
+        Math.floor(Math.random() * 3)
+      ];
+      context.entities.push(new Elemental(context, tiles[i].x, tiles[i].y));
+    }
 
     const lootPool = [
       Sword,
@@ -410,7 +455,29 @@ export class Scene0 extends Phaser.Scene {
       Shoe,
       ScrollOfIdentify,
       ScrollOfUpgrade,
-      ScrollOfRemoveCurse
+      ScrollOfRemoveCurse,
+      PotionOfHealing,
+      PotionOfStrength,
+      PotionOfInvisibility,
+      PotionOfToxicGas,
+      PotionOfLiquidFlame,
+      PotionOfFrost,
+      PotionOfLevitation,
+      PotionOfExperience,
+      ScrollOfTeleport,
+      ScrollOfRage,
+      ScrollOfTerror,
+      ScrollOfRecharging,
+      WandOfFirebolt,
+      WandOfFrost,
+      WandOfLightning,
+      RingOfAccuracy,
+      RingOfEvasion,
+      RingOfElements,
+      RingOfHaste,
+      RingOfMight,
+      ChaliceOfBlood,
+      FangOfTheBeast
     ];
     for (let l = 0; l < itemCount && i < tiles.length; l++, i++) {
       const Loot = lootPool[Math.floor(Math.random() * lootPool.length)];
