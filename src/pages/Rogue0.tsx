@@ -92,9 +92,16 @@ export default function Rogue0() {
               ? 'The dungeon is behind you. Legendary.'
               : 'The dungeon claims another adventurer.'}
           </p>
-          <p className="rogue0-stats">
-            Floor {result.floor} · Kills {result.kills}
-          </p>
+          <div className="rogue0-stats">
+            <span className="rogue0-stat">
+              <span className="rogue0-stat-label">Floor</span>
+              <span className="rogue0-stat-value">{result.floor}</span>
+            </span>
+            <span className="rogue0-stat">
+              <span className="rogue0-stat-label">Kills</span>
+              <span className="rogue0-stat-value">{result.kills}</span>
+            </span>
+          </div>
           <div className="rogue0-actions">
             <button
               className="rogue0-btn"
@@ -139,8 +146,8 @@ export default function Rogue0() {
             <ul>
               {CONTROLS.map(([action, keys]) => (
                 <li key={action}>
-                  <span className="rogue0-key">{action}</span>
-                  <span>{keys}</span>
+                  <span className="rogue0-ctl-action">{action}</span>
+                  <span className="rogue0-ctl-keys">{keys}</span>
                 </li>
               ))}
             </ul>
