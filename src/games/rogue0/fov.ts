@@ -1,5 +1,9 @@
 // Field-of-view and line-of-sight helpers for tile-based maps.
 // `map` is a 2D array where 0 = walkable, 1 = wall.
+//
+// Simplification (terrain pass): doors do NOT block line-of-sight. FOV is
+// intentionally left unchanged so terrain features never weaken the player's
+// visibility model.
 
 function bresenhamLine(
   x0: number,
