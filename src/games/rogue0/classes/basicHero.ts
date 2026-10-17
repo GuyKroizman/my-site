@@ -5,7 +5,9 @@ import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
-import { removeEffect } from "../effects";
+import { applyEffect, removeEffect } from "../effects";
+import type { DamageType, StatusEffect } from "../effects";
+import { resolveAttack } from "../combat";
 
 const UI_HIGHLIGHT_BACKGROUND_COLOR = "#646059";
 
@@ -44,6 +46,13 @@ export default class BasicHero extends Entity {
   UIY: number = 0;
   inputBuffer: string[] = [];
   onBackpackToggle?: () => void;
+
+  // Per-class active skill (Phase 9). Triggered with `f` / `F`; the cooldown
+  // ticks down once per round in refresh() and is shown in statsText().
+  skill: string = "";
+  skillDescription: string = "";
+  skillCooldown: number = 0;
+  skillMaxCooldown: number = 0;
 
   constructor(context: GameContext) {
     super();
@@ -426,6 +435,9 @@ export default class BasicHero extends Entity {
   refresh() {
     this.movementPoints = 1;
     this.actionPoints = 1;
+    if (this.skillCooldown > 0) {
+      this.skillCooldown -= 1;
+    }
   }
 
   xpForNextLevel(): number {
@@ -494,12 +506,159 @@ export default class BasicHero extends Entity {
     }
   }
 
+  // --- Per-class active skill (Phase 9) ---
+
+  // `f` / `F` entry point. Guards cooldown + action points, then delegates to
+  // the per-class useSkill() override.
+  tryUseSkill(): void {
+    if (this.skill === "") return;
+
+    if (this.skillCooldown > 0) {
+      dungeon.log(
+        this.context,
+        `${this.skill} is recharging (${this.skillCooldown} turn${this.skillCooldown === 1 ? "" : "s"}).`
+      );
+      return;
+    }
+
+    if (this.actionPoints <= 0) {
+      dungeon.log(this.context, "You have no action points to use a skill.");
+      return;
+    }
+
+    this.useSkill();
+  }
+
+  // Overridden by each class. The base hero has no active skill.
+  useSkill(): void {
+  }
+
+  // Resolve a skill attack synchronously (no tween) and apply the result:
+  // damage, on-hit status effects and death cleanup. Bonus damage is applied
+  // by temporarily raising baseAttack while resolveAttack reads attack().
+  protected resolveSkillAttack(
+    victim: Entity,
+    opts: {
+      bonusDamage?: number;
+      damageType?: DamageType;
+      onHitEffects?: StatusEffect[];
+    } = {}
+  ): void {
+    const previous = this.baseAttack;
+    this.baseAttack += opts.bonusDamage ?? 0;
+
+    let result: ReturnType<typeof resolveAttack>;
+    try {
+      result = resolveAttack(this.context, this, victim, {
+        damageType: opts.damageType ?? "physical",
+        onHitEffects: opts.onHitEffects ?? []
+      });
+    } finally {
+      this.baseAttack = previous;
+    }
+
+    if (!result.hit) return;
+
+    if (result.damage > 0) {
+      victim.healthPoints -= result.damage;
+      dungeon.log(
+        this.context,
+        `${this.name} hits ${victim.name} for ${result.damage} ${result.damageType} damage.`
+      );
+      dungeon.applyHitEffects(this.context, victim);
+    } else {
+      dungeon.log(
+        this.context,
+        `${this.name} hits ${victim.name} but deals no damage.`
+      );
+    }
+
+    for (const effect of result.appliedEffects) {
+      if (victim.healthPoints > 0) {
+        applyEffect(victim, effect);
+      }
+    }
+
+    if (victim.healthPoints <= 0) {
+      removeEntity(this.context, victim);
+    }
+  }
+
+  // Nearest visible enemy within `maxRange` tiles (chebyshev distance).
+  protected nearestVisibleEnemy(maxRange: number): Entity | undefined {
+    if (this.x === undefined || this.y === undefined) return undefined;
+
+    let best: Entity | undefined;
+    let bestDistance = Infinity;
+
+    for (const entity of this.context.entities) {
+      if (entity.type !== "enemy" || !entity.sprite) continue;
+      if (entity.x === undefined || entity.y === undefined) continue;
+      if (!this.context.visibleTiles.has(`${entity.x},${entity.y}`)) continue;
+
+      const distance = Math.max(
+        Math.abs(entity.x - this.x),
+        Math.abs(entity.y - this.y)
+      );
+      if (distance <= maxRange && distance < bestDistance) {
+        best = entity;
+        bestDistance = distance;
+      }
+    }
+
+    return best;
+  }
+
+  // An enemy on one of the eight tiles adjacent to the hero.
+  protected adjacentEnemy(): Entity | undefined {
+    if (this.x === undefined || this.y === undefined) return undefined;
+
+    for (const entity of this.context.entities) {
+      if (entity.type !== "enemy" || !entity.sprite) continue;
+      if (entity.x === undefined || entity.y === undefined) continue;
+
+      const distance = Math.max(
+        Math.abs(entity.x - this.x),
+        Math.abs(entity.y - this.y)
+      );
+      if (distance === 1) return entity;
+    }
+
+    return undefined;
+  }
+
+  // Visible enemies within `radius` tiles (chebyshev distance).
+  protected visibleEnemiesInRadius(radius: number): Entity[] {
+    if (this.x === undefined || this.y === undefined) return [];
+
+    const enemies: Entity[] = [];
+    for (const entity of this.context.entities) {
+      if (entity.type !== "enemy" || !entity.sprite) continue;
+      if (entity.x === undefined || entity.y === undefined) continue;
+      if (!this.context.visibleTiles.has(`${entity.x},${entity.y}`)) continue;
+
+      const distance = Math.max(
+        Math.abs(entity.x - this.x),
+        Math.abs(entity.y - this.y)
+      );
+      if (distance <= radius) enemies.push(entity);
+    }
+
+    return enemies;
+  }
+
   processInput(key: string) {
     let oldX = this.x!;
     let oldY = this.y!;
     let moved = false;
     let newX = this.x!;
     let newY = this.y!;
+
+    // Active class skill (f / F).
+    if (key === "f" || key === "F") {
+      this.tryUseSkill();
+      return;
+    }
 
     // Numbered keys 1-0 act on backpack slots 1-10 (use/equip).
     if (/^[0-9]$/.test(key)) {
@@ -592,7 +751,15 @@ export default class BasicHero extends Entity {
   }
 
   statsText(): string {
-    return `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}\nMp: ${this.movementPoints}\nAp: ${this.actionPoints}`;
+    let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}\nMp: ${this.movementPoints}\nAp: ${this.actionPoints}`;
+    if (this.skill !== "") {
+      const state =
+        this.skillCooldown > 0
+          ? `cooldown ${this.skillCooldown}`
+          : "ready [f]";
+      text += `\n${this.skill}: ${state}`;
+    }
+    return text;
   }
 
   updateUI() {
