@@ -204,7 +204,7 @@ export class UI extends Phaser.Scene {
 
     const e = this.context.inspectedEntity;
     if (!e) {
-      this.statusText.setColor(COL.dim);
+      this.statusText.setColor(COL.muted);
       this.statusText.setText("Hover a creature, or tap it with Inspect on.");
       return;
     }

@@ -249,10 +249,15 @@ body {
 }
 
 .rogue0-classes {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
   margin-top: 22px;
+}
+
+.rogue0-classes .rogue0-btn {
+  flex: 0 1 190px;
 }
 
 .rogue0-btn {
@@ -450,7 +455,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 14px 16px 20px;
+  padding: 14px 0 20px;
   box-sizing: border-box;
 }
 
@@ -461,6 +466,8 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
 .rogue0-game-title {
@@ -499,17 +506,21 @@ body {
 }
 
 .rogue0-game-stage {
+  width: max-content;
   max-width: 100%;
   overflow-x: auto;
   line-height: 0;
-  border: 2px solid var(--r0-border-strong);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
+  box-shadow:
+    inset 0 0 0 2px var(--r0-border-strong),
+    0 14px 34px rgba(0, 0, 0, 0.65);
 }
 
 .rogue0-game-foot {
   margin-top: 12px;
   font-size: 1.1rem;
-  color: var(--r0-dim);
+  color: var(--r0-muted);
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
 .rogue0-game-foot a {
