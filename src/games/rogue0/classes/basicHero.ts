@@ -12,6 +12,7 @@ import { resolveAttack } from "../combat";
 // UI palette — kept in sync with the --r0-* variables in src/index.css and
 // the constants in src/games/rogue0/ui.ts. Hex strings are CSS colors, 0x
 // numbers are rectangle fills.
+const UI_HIGHLIGHT_BACKGROUND_COLOR = "#a29a8e";
 const UI_COL = {
   text: "#e8e1d5",
   muted: "#a29a8e",
@@ -782,8 +783,7 @@ export default class BasicHero extends Entity {
   updateUI() {
     const over = this.movementPoints == 0 && !this.moving;
     if (this.UIHeader) {
-      // Gold = the hero can act; dim = waiting for the turn to resolve.
-      this.UIHeader.setColor(over ? UI_COL.dim : UI_COL.gold);
+      this.UIHeader.setColor(over ? UI_HIGHLIGHT_BACKGROUND_COLOR : "#fff");
     }
     if (this.UIStatsText) {
       this.UIStatsText.setText(this.statsText());
@@ -807,10 +807,11 @@ export default class BasicHero extends Entity {
     const w = width ?? 160;
     let yy = y;
 
-    // Portrait + name. Gold while the hero can act, dim while waiting.
+    // Portrait + pixel-font name aligned on a single header row.
     this.UISprite = scene.add.sprite(x, yy, "tiles", this.tile).setOrigin(0);
     this.UIHeader = scene.add.text(x + 20, yy + 4, this.name, {
-      font: `10px '${UI_FONT_PIXEL}'`,
+      fontFamily: `"${UI_FONT_PIXEL}", monospace`,
+      fontSize: 10,
       color: UI_COL.gold
     });
     yy += 18;
@@ -821,7 +822,8 @@ export default class BasicHero extends Entity {
       .setOrigin(0)
       .setStrokeStyle(1, UI_C.border, 1);
     this.UIStatsText = scene.add.text(x + 6, yy + 6, this.statsText(), {
-      font: `13px '${UI_FONT_MONO}'`,
+      fontFamily: `${UI_FONT_MONO}, monospace`,
+      fontSize: 16,
       color: UI_COL.text,
       lineSpacing: 2,
       wordWrap: { width: w - 12 }
@@ -830,7 +832,8 @@ export default class BasicHero extends Entity {
 
     // Active status effects under the portrait (buff/debuff icons + turns).
     scene.add.text(x, yy, "Status", {
-      font: `8px '${UI_FONT_PIXEL}'`,
+      fontFamily: `"${UI_FONT_PIXEL}", monospace`,
+      fontSize: 8,
       color: UI_COL.muted
     });
     yy += 12;
@@ -841,13 +844,14 @@ export default class BasicHero extends Entity {
       const ex = x + i * 20;
       const icon = scene.add.sprite(ex, yy, "tiles", 0).setOrigin(0).setVisible(false);
       const label = scene.add.text(ex + 4, yy + 18, "", {
-        font: `9px '${UI_FONT_MONO}'`,
+        fontFamily: `${UI_FONT_MONO}, monospace`,
+        fontSize: 12,
         color: UI_COL.text
       }).setOrigin(0).setVisible(false);
       this.UIEffectIcons.push(icon);
       this.UIEffectTexts.push(label);
     }
-    yy += 30;
+    yy += 36;
 
     // Backpack button opens/closes the inventory window (i/b toggles too).
     const button = scene.add
@@ -856,7 +860,8 @@ export default class BasicHero extends Entity {
       .setStrokeStyle(1, UI_C.borderStrong, 1);
     const backpackLabel = scene.add
       .text(x + w / 2, yy + 11, "Backpack  [i/b]", {
-        font: `9px '${UI_FONT_PIXEL}'`,
+        fontFamily: `${UI_FONT_MONO}, monospace`,
+        fontSize: 16,
         color: UI_COL.muted
       })
       .setOrigin(0.5);
@@ -878,6 +883,9 @@ export default class BasicHero extends Entity {
 
   refreshUI() {
     if (!this.UIScene) return;
+    this.UIHeader?.setColor(
+      this.movementPoints === 0 && !this.moving ? UI_COL.muted : UI_COL.gold
+    );
 
     // Render active status effects (icon + remaining duration). Manual-expiry
     // effects (frozen / curse) show ∞ instead of a turn count.

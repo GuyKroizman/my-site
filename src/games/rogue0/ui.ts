@@ -31,8 +31,6 @@ export class UI extends Phaser.Scene {
   private log: Phaser.GameObjects.Text | undefined;
   private floorText: Phaser.GameObjects.Text | undefined;
   private statusText: Phaser.GameObjects.Text | undefined;
-  private inspectLabel: Phaser.GameObjects.Text | undefined;
-  private logLabel: Phaser.GameObjects.Text | undefined;
   private inventoryWindow: InventoryWindow | undefined;
 
   constructor(context: GameContext) {
@@ -43,8 +41,6 @@ export class UI extends Phaser.Scene {
     this.log = undefined;
     this.floorText = undefined;
     this.statusText = undefined;
-    this.inspectLabel = undefined;
-    this.logLabel = undefined;
     this.inventoryWindow = undefined;
   }
 
@@ -89,7 +85,8 @@ export class UI extends Phaser.Scene {
     // Floor header.
     this.floorText = this.add
       .text(SIDEBAR_X + SIDEBAR_W / 2, y, `Floor ${this.context.floor}`, {
-        font: `11px '${FONT_PIXEL}'`,
+        fontFamily: `"${FONT_PIXEL}", monospace`,
+        fontSize: 11,
         color: COL.gold
       })
       .setOrigin(0.5, 0);
@@ -105,7 +102,7 @@ export class UI extends Phaser.Scene {
     const heroW = SIDEBAR_W - PAD * 2;
     const heroPad = 6;
     this.add
-      .rectangle(heroX, y, heroW, 186, C.panel, 1)
+      .rectangle(heroX, y, heroW, 194, C.panel, 1)
       .setOrigin(0)
       .setStrokeStyle(1, C.border, 1);
 
@@ -115,23 +112,17 @@ export class UI extends Phaser.Scene {
       y: y + heroPad,
       width: heroW - heroPad * 2
     });
-    y += 186 + 12;
+    y += 194 + 12;
 
     y = this.buildInspectPanel(y);
     this.buildLogPanel(y);
 
-    // Web fonts can load after the first paint; re-render static labels once
-    // they are ready so pixel fonts snap in.
-    if (typeof document !== "undefined" && document.fonts?.ready) {
-      document.fonts.ready
-        .then(() => this.rerenderStaticText())
-        .catch(() => undefined);
-    }
+    // Rogue0 waits for the fonts before starting this scene.
   }
 
   private buildInspectPanel(y: number): number {
     const w = SIDEBAR_W - PAD * 2;
-    const h = 118;
+    const h = 180;
     const px = SIDEBAR_X + PAD;
 
     this.add
@@ -139,21 +130,17 @@ export class UI extends Phaser.Scene {
       .setOrigin(0)
       .setStrokeStyle(1, C.border, 1);
 
-    this.inspectLabel = this.add.text(px + 8, y + 8, "Inspect", {
-      font: `8px '${FONT_PIXEL}'`,
+    this.add.text(px + 8, y + 8, "Inspect", {
+      fontFamily: `"${FONT_PIXEL}", monospace`,
+      fontSize: 8,
       color: COL.gold
     });
 
     this.add.rectangle(px + 8, y + 24, w - 16, 1, C.border, 1).setOrigin(0);
 
-    this.statusText = this.add.text(px + 8, y + 32, "", {
-      font: `15px '${FONT_MONO}'`,
-      color: COL.muted,
-      wordWrap: { width: w - 16 },
-      lineSpacing: 2
-    });
+    this.statusText = this.scrollableText(px + 8, y + 32, w - 16, h - 40);
 
-    return y + h;
+    return y + h + 12;
   }
 
   private buildLogPanel(y: number): void {
@@ -167,32 +154,56 @@ export class UI extends Phaser.Scene {
       .setOrigin(0)
       .setStrokeStyle(1, C.border, 1);
 
-    this.logLabel = this.add.text(px + 8, y + 8, "Log", {
-      font: `8px '${FONT_PIXEL}'`,
+    this.add.text(px + 8, y + 8, "Log", {
+      fontFamily: `"${FONT_PIXEL}", monospace`,
+      fontSize: 8,
       color: COL.gold
     });
 
     this.add.rectangle(px + 8, y + 24, w - 16, 1, C.border, 1).setOrigin(0);
 
-    this.log = this.add.text(px + 8, y + 32, "", {
-      font: `15px '${FONT_MONO}'`,
-      color: COL.muted,
-      wordWrap: { width: w - 16 },
-      lineSpacing: 2
-    });
+    this.log = this.scrollableText(px + 8, y + 32, w - 16, h - 40);
   }
 
-  private rerenderStaticText(): void {
-    if (!this.floorText) return;
-    this.floorText.setText(`Floor ${this.context.floor}`);
-    this.inspectLabel?.setText("Inspect");
-    this.logLabel?.setText("Log");
+  // Keep long descriptions and message history inside their own panels.
+  // Scroll (wheel or touch drag) rather than shrinking text or losing details.
+  private scrollableText(x: number, y: number, width: number, height: number) {
+    const text = this.add.text(x, y, "", {
+      fontFamily: `${FONT_MONO}, monospace`,
+      fontSize: 16,
+      color: COL.muted,
+      wordWrap: { width, useAdvancedWrap: true },
+      lineSpacing: 2
+    });
+    const clip = this.make.graphics({ x: 0, y: 0 });
+    clip.fillRect(x, y, width, height - 20);
+    text.setMask(clip.createGeometryMask());
+    const hint = this.add.text(x, y + height - 16, "Scroll for more", {
+      fontFamily: `${FONT_MONO}, monospace`, fontSize: 14, color: COL.muted
+    }).setVisible(false);
+    text.setData({ top: y, viewport: height - 20, hint });
+    const scroll = (delta: number) => {
+      text.y = Phaser.Math.Clamp(text.y - delta, y - Math.max(0, text.height - (height - 20)), y);
+    };
+    this.add.zone(x, y, width, height).setOrigin(0).setInteractive()
+      .on("wheel", (_pointer: Phaser.Input.Pointer, _dx: number, dy: number) => scroll(dy))
+      .on("pointermove", (pointer: Phaser.Input.Pointer) => {
+        if (pointer.isDown) scroll(pointer.prevPosition.y - pointer.position.y);
+      });
+    return text;
+  }
+
+  private setPanelText(text: Phaser.GameObjects.Text, value: string) {
+    if (text.text === value) return;
+    text.setText(value).setY(text.getData("top"));
+    (text.getData("hint") as Phaser.GameObjects.Text)
+      .setVisible(text.height > text.getData("viewport"));
   }
 
   update() {
     if (!this.log) return;
 
-    this.log.setText(this.context.messages.join(`\n\n`));
+    this.setPanelText(this.log, this.context.messages.join(`\n\n`));
     this.context.player?.updateUI?.();
     this.context.player?.refreshUI?.();
     this.updateStatus();
@@ -205,7 +216,7 @@ export class UI extends Phaser.Scene {
     const e = this.context.inspectedEntity;
     if (!e) {
       this.statusText.setColor(COL.muted);
-      this.statusText.setText("Hover a creature, or tap it with Inspect on.");
+      this.setPanelText(this.statusText, "Hover a creature, or tap it with Inspect on.");
       return;
     }
 
@@ -217,12 +228,12 @@ export class UI extends Phaser.Scene {
       const atk = typeof e.attack === "function" ? e.attack() : 0;
       const prot = typeof e.protection === "function" ? e.protection() : 0;
       const range = typeof e.range === "function" ? e.range() : 0;
-      this.statusText.setText(
+      this.setPanelText(this.statusText,
         `${e.name}\n${e.description}\nHP: ${hp}/${maxHp}\nATK: ${atk}  DEF: ${prot}  Range: ${range}`
       );
     } else {
       const desc = e.identified ? e.description : "You have not identified this item.";
-      this.statusText.setText(`${e.displayName}\n${desc}`);
+      this.setPanelText(this.statusText, `${e.displayName}\n${desc}`);
     }
   }
 }

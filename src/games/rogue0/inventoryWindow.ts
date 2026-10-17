@@ -161,23 +161,27 @@ export class InventoryWindow {
     );
     this.add(
       this.scene.add.text(WINDOW_X + PAD, WINDOW_Y + 11, "INVENTORY", {
-        font: `9px '${FONT_PIXEL}'`,
+        fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 9,
         color: COL.gold
       })
     );
     this.add(
       this.scene.add
         .text(WINDOW_X + WINDOW_W - PAD, WINDOW_Y + 10, "[Esc] close", {
-          font: `14px '${FONT_MONO}'`,
+          fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
           color: COL.muted
         })
         .setOrigin(1, 0)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerover", function (this: Phaser.GameObjects.Text) { this.setColor(COL.gold); })
+        .on("pointerout", function (this: Phaser.GameObjects.Text) { this.setColor(COL.muted); })
+        .on("pointerup", () => this.close())
     );
 
     // Equipped slots row.
     this.add(
       this.scene.add.text(WINDOW_X + PAD, equipLabelY, "EQUIPPED", {
-        font: `8px '${FONT_PIXEL}'`,
+        fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8,
         color: COL.muted
       })
     );
@@ -195,7 +199,7 @@ export class InventoryWindow {
       this.add(
         this.scene.add
           .text(cx + CELL / 2, slotLabelY, EQUIP_LABELS[i], {
-            font: `12px '${FONT_MONO}'`,
+            fontFamily: `${FONT_MONO}, monospace`, fontSize: 14,
             color: COL.muted
           })
           .setOrigin(0.5, 0)
@@ -209,7 +213,7 @@ export class InventoryWindow {
         gridX,
         backpackLabelY,
         `BACKPACK (${player.backpack.length}/${player.capacity})`,
-        { font: `8px '${FONT_PIXEL}'`, color: COL.muted }
+        { fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8, color: COL.muted }
       )
     );
 
@@ -256,7 +260,7 @@ export class InventoryWindow {
         this.add(
           this.scene.add
             .text(x + CELL / 2, y + CELL / 2, "?", {
-              font: `20px '${FONT_PIXEL}'`,
+              fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 20,
               color: COL.muted
             })
             .setOrigin(0.5)
@@ -266,8 +270,8 @@ export class InventoryWindow {
       if (cornerLabel !== undefined) {
         this.add(
           this.scene.add.text(x + 4, y + 3, cornerLabel, {
-            font: `8px '${FONT_PIXEL}'`,
-            color: COL.dim
+            fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8,
+            color: COL.muted
           })
         );
       }
@@ -285,8 +289,8 @@ export class InventoryWindow {
       this.add(
         this.scene.add
           .text(x + CELL / 2, y + CELL / 2, cornerLabel, {
-            font: `12px '${FONT_MONO}'`,
-            color: COL.dim
+            fontFamily: `${FONT_MONO}, monospace`, fontSize: 14,
+            color: COL.muted
           })
           .setOrigin(0.5)
       );
@@ -305,7 +309,7 @@ export class InventoryWindow {
     const mw = 190;
     const mh = 280;
 
-    this.add(
+    const panel = this.add(
       this.scene.add
         .rectangle(mx, my, mw, mh, C.panel, 0.98)
         .setOrigin(0)
@@ -315,9 +319,9 @@ export class InventoryWindow {
     let ay = my + 12;
     const title = this.add(
       this.scene.add.text(mx + 12, ay, item.displayName, {
-        font: `15px '${FONT_MONO}'`,
+        fontFamily: `${FONT_MONO}, monospace`, fontSize: 18,
         color: COL.text,
-        wordWrap: { width: mw - 24 }
+        wordWrap: { width: mw - 24, useAdvancedWrap: true }
       })
     );
     ay += Math.max(title.height, 18) + 6;
@@ -325,7 +329,7 @@ export class InventoryWindow {
     if (item.cursed) {
       this.add(
         this.scene.add.text(mx + 12, ay, "(cursed)", {
-          font: `13px '${FONT_MONO}'`,
+          fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
           color: COL.red
         })
       );
@@ -366,7 +370,7 @@ export class InventoryWindow {
       );
       const labelText = this.add(
         this.scene.add.text(mx + 16, ay + 6, label, {
-          font: `15px '${FONT_MONO}'`,
+          fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
           color: enabled ? COL.text : COL.dim
         })
       );
@@ -388,6 +392,8 @@ export class InventoryWindow {
 
       ay += rowH + 6;
     }
+    // Wrapped names and curse labels must not push actions past the frame.
+    panel.setSize(mw, Math.max(mh, ay - my + 6));
   }
 
   private doAction(action: Action, item: Entity): void {
