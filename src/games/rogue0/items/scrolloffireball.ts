@@ -10,6 +10,7 @@ export default class ScrollOfFireball extends Entity {
     this.description = "A scroll of fireball. Causes between 1 and 4 damage. Range is four tiles.";
     this.weapon = true;
     this.attackTile = 10 * 49 + 15;
+    this.damageType = "fire";
 
     this.init(context, x, y);
   }

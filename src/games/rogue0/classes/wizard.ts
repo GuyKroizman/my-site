@@ -22,6 +22,8 @@ export default class Wizard extends BasicHero {
     this.items.push(new MinorHealPotion(context));
     this.toggleItem(context,1)
 
+    this.vulnerability = { physical: 1 };
+
     this.init(context, x, y);
   }
 

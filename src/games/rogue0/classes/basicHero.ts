@@ -165,6 +165,10 @@ export default class BasicHero extends Entity {
     return items.reduce(combineProtection, 0);
   }
 
+  get armor(): number {
+    return this.protection();
+  }
+
   refresh() {
     this.movementPoints = 1;
     this.actionPoints = 1;
@@ -222,7 +226,14 @@ export default class BasicHero extends Entity {
           entity.y!
         );
         if (rangedAttack && hasLOS && distance <= currentWeapon.range()) {
-          dungeon.attackEntity(context, this, entity, rangedAttack, currentWeapon.tint);
+          dungeon.attackEntity(
+            context,
+            this,
+            entity,
+            rangedAttack,
+            currentWeapon.tint,
+            currentWeapon.damageType
+          );
           this.actionPoints -= 1;
         }
       }
@@ -288,7 +299,14 @@ export default class BasicHero extends Entity {
             return;
           }
           const rangedAttack = currentWeapon.range() > 0 ? currentWeapon.attackTile || currentWeapon.tile : 0;
-          dungeon.attackEntity(this.context, this, entity, rangedAttack, currentWeapon.tint);
+          dungeon.attackEntity(
+            this.context,
+            this,
+            entity,
+            rangedAttack,
+            currentWeapon.tint,
+            currentWeapon.damageType
+          );
           this.actionPoints -= 1;
           this.movementPoints += 1;
         }

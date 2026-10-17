@@ -17,6 +17,8 @@ export default class Elf extends BasicHero {
     this.items.push(new Bow(context));
     this.toggleItem(context,0)
 
+    this.evasion = 10;
+
     this.init(context, x, y);
   }
 

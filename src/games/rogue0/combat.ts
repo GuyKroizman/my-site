@@ -1,0 +1,164 @@
+// Centralised combat model.
+//
+// `resolveAttack` owns the pure number math (accuracy/evasion, crits, armor,
+// resistances/vulnerabilities, surprise attacks and on-hit status effects).
+// `dungeon.attackEntity` keeps the tweens/animation and calls this for the
+// numbers, then applies the returned status effects to the victim.
+
+import type { Entity } from "./entity";
+import type { GameContext } from "./context";
+import { canSee } from "./fov";
+import {
+  hasEffect,
+  createBleedingEffect
+} from "./effects";
+import type { DamageType, StatusEffect } from "./effects";
+
+export type CombatOptions = {
+  damageType?: DamageType;
+  isRanged?: boolean;
+  onHitEffects?: StatusEffect[];
+};
+
+export type CombatResult = {
+  hit: boolean;
+  damage: number;
+  crit: boolean;
+  damageType: DamageType;
+  appliedEffects: StatusEffect[];
+};
+
+const CRIT_CHANCE = 0.1;
+const CRIT_MULTIPLIER = 1.5;
+const SURPRISE_BONUS_DAMAGE = 2;
+const SURPRISE_BLEED_CHANCE = 0.5;
+const WEAKENED_ATTACK_PENALTY = 1;
+const STRENGTHENED_ATTACK_BONUS = 2;
+
+function log(context: GameContext, text: string): void {
+  context.messages.unshift(text);
+  context.messages = context.messages.slice(0, 8);
+}
+
+export function isSurpriseAttack(
+  context: GameContext,
+  attacker: Entity,
+  defender: Entity
+): boolean {
+  if (
+    attacker.x === undefined ||
+    attacker.y === undefined ||
+    defender.x === undefined ||
+    defender.y === undefined
+  ) {
+    return false;
+  }
+
+  // A player defender is surprised when the attacker is outside the player's
+  // current field of view.
+  if (defender.type === "player") {
+    return !context.visibleTiles.has(`${attacker.x},${attacker.y}`);
+  }
+
+  // A monster defender is surprised when it has no line of sight to the
+  // attacker within its own vision radius.
+  const map = context.currentLevel;
+  if (!map) return false;
+
+  return !canSee(
+    map,
+    defender.x,
+    defender.y,
+    attacker.x,
+    attacker.y,
+    defender.visionRadius
+  );
+}
+
+export function resolveAttack(
+  context: GameContext,
+  attacker: Entity,
+  defender: Entity,
+  opts: CombatOptions = {}
+): CombatResult {
+  const damageType = opts.damageType ?? "physical";
+  const appliedEffects: StatusEffect[] = [];
+  const surprise = isSurpriseAttack(context, attacker, defender);
+
+  // Hit roll (skipped for surprise attacks, which always connect).
+  if (!surprise) {
+    const roll = Math.random() * 100;
+    if (roll >= attacker.accuracy - defender.evasion) {
+      if (defender.evasion > 0) {
+        log(context, `${defender.name} dodges ${attacker.name}'s attack.`);
+      } else {
+        log(context, `${attacker.name} misses ${defender.name}.`);
+      }
+      return {
+        hit: false,
+        damage: 0,
+        crit: false,
+        damageType,
+        appliedEffects
+      };
+    }
+  } else {
+    log(
+      context,
+      `Surprise! ${attacker.name} catches ${defender.name} off guard.`
+    );
+  }
+
+  // Base damage (already aggregates equipped gear for heroes).
+  let damage = attacker.attack();
+  if (hasEffect(attacker, "weakened")) {
+    damage = Math.max(0, damage - WEAKENED_ATTACK_PENALTY);
+  }
+  if (hasEffect(attacker, "strengthened")) {
+    damage += STRENGTHENED_ATTACK_BONUS;
+  }
+
+  // Crit roll.
+  const crit = Math.random() < CRIT_CHANCE;
+  if (crit) {
+    damage = Math.round(damage * CRIT_MULTIPLIER);
+    log(context, `${attacker.name} lands a critical hit!`);
+  }
+
+  // Surprise bonus: extra damage and (physical only) a chance to bleed.
+  if (surprise) {
+    damage += SURPRISE_BONUS_DAMAGE;
+    if (damageType === "physical" && Math.random() < SURPRISE_BLEED_CHANCE) {
+      appliedEffects.push(createBleedingEffect(2));
+    }
+  }
+
+  // Attacker-declared on-hit effects (e.g. a ghoul's bleed).
+  for (const effect of opts.onHitEffects ?? []) {
+    appliedEffects.push(effect);
+  }
+
+  // Reduction: armor (physical only) + resistance, offset by vulnerability.
+  const armor = damageType === "physical" ? defender.armor : 0;
+  const resistance = defender.resistance[damageType] ?? 0;
+  const vulnerability = defender.vulnerability[damageType] ?? 0;
+  const reduction = armor + resistance - vulnerability;
+
+  if (reduction > 0) {
+    const absorbed = Math.min(damage, reduction);
+    damage -= absorbed;
+    log(context, `${defender.name} absorbs ${absorbed} damage.`);
+  } else if (reduction < 0) {
+    damage += -reduction;
+  }
+
+  damage = Math.max(0, damage);
+
+  return {
+    hit: true,
+    damage,
+    crit,
+    damageType,
+    appliedEffects
+  };
+}

@@ -4,6 +4,7 @@ import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import { removeEntity } from "../entity";
+import { applyEffect, createStrengthenedEffect } from "../effects";
 
 export default class BerserkPotion extends Entity {
   name: string = "Berserk Potion";
@@ -11,8 +12,6 @@ export default class BerserkPotion extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile = 13 * 49 + 33;
-  remainingTurns: number = 10;
-  actionPoints: number = 1;
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
@@ -25,30 +24,23 @@ export default class BerserkPotion extends Entity {
       return;
     }
     dungeon.log(this.context, `You drink the potion and feel as strong as a bear!`);
-    this.active = true;
+    applyEffect(this.context.player, createStrengthenedEffect(10));
+    this.context.player.removeItem(this);
+    removeEntity(this.context, this);
   }
 
   damage() {
-    return 5;
+    return 0;
   }
 
   turn() {
-    if (this.active) {
-      this.remainingTurns -= 1;
-      if (this.remainingTurns <= 0) {
-        this.context.player?.removeItem(this);
-        removeEntity(this.context, this);
-      }
-    }
-    this.actionPoints = 0;
   }
 
   refresh() {
-    this.actionPoints = 1;
   }
 
   isOver() {
-    return this.actionPoints === 0;
+    return true;
   }
 
   attack(): number {

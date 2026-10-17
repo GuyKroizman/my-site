@@ -1,4 +1,6 @@
 import type { Entity } from "./entity";
+import dungeon from "./dungeon";
+import { hasEffect, removeEffect } from "./effects";
 
 const turnManager = {
   entityIndex: 0,
@@ -15,7 +17,13 @@ const turnManager = {
   },
 
   _refresh: (entities: Entity[]) => {
-    entities.forEach((e) => e.refresh());
+    // Effects tick once per round, right after each entity refreshes its
+    // turn resources (movement/action points). Iterating over a copy keeps
+    // the loop safe when a status tick kills and removes an entity.
+    entities.slice().forEach((e) => {
+      e.refresh();
+      e.tickEffects();
+    });
     turnManager.entityIndex = 0;
   },
 
@@ -35,7 +43,14 @@ const turnManager = {
     }
 
     if (!e.isOver()) {
-      e.turn();
+      if (hasEffect(e, "frozen")) {
+        dungeon.log(e.context, `${e.name} is frozen and skips their turn.`);
+        removeEffect(e, "frozen");
+        e.movementPoints = 0;
+        e.actionPoints = 0;
+      } else {
+        e.turn();
+      }
     } else {
       turnManager.entityIndex++;
     }

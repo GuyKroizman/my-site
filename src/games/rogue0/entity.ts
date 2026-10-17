@@ -2,6 +2,8 @@
 import Phaser from "phaser";
 import type { GameContext } from "./context";
 import { sfx } from "./audio";
+import type { DamageType, StatusEffect } from "./effects";
+import { tickEffects as tickStatusEffects } from "./effects";
 
 export type EntityType = "player" | "enemy" | "item";
 
@@ -31,6 +33,18 @@ export abstract class Entity {
   lastSeenX?: number;
   lastSeenY?: number;
   xpValue: number = 0;
+
+  // Status effects and combat stats used by effects.ts / combat.ts.
+  effects: StatusEffect[] = [];
+  accuracy: number = 95;
+  evasion: number = 0;
+  resistance: Partial<Record<DamageType, number>> = {};
+  vulnerability: Partial<Record<DamageType, number>> = {};
+  damageType: DamageType = "physical";
+
+  get armor(): number {
+    return 0;
+  }
 
   init(context: GameContext, x?: number, y?: number) {
 
@@ -78,6 +92,21 @@ export abstract class Entity {
   abstract onDestroy(): void;
 
   createUI?(options: { scene: Phaser.Scene, x: number, y: number, width?: number }): number;
+
+  // Ticks this entity's status effects once per round. Death from a status
+  // tick (burn/poison/bleed) is cleaned up here via removeEntity.
+  tickEffects(): void {
+    tickStatusEffects(this, this.context);
+    if (this.type !== "item" && this.healthPoints <= 0) {
+      removeEntity(this.context, this);
+    }
+  }
+
+  // Status effects this entity applies on a successful attack. Overridden by
+  // monsters with on-hit abilities (e.g. Ghoul bleeding).
+  onHitEffects(): StatusEffect[] {
+    return [];
+  }
 }
 
 export function removeEntity(context: GameContext, entity: Entity) {

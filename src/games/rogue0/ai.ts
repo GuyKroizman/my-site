@@ -81,13 +81,21 @@ export function enemyTurn(entity: Entity): void {
           entity,
           player,
           entity.attackTile,
-          entity.tint
+          entity.tint,
+          entity.damageType
         );
         entity.actionPoints -= 1;
         acted = true;
       }
     } else if (isAdjacentToPlayer(entity, player)) {
-      dungeon.attackEntity(entity.context, entity, player, 0, undefined);
+      dungeon.attackEntity(
+        entity.context,
+        entity,
+        player,
+        0,
+        undefined,
+        entity.damageType
+      );
       entity.actionPoints -= 1;
       acted = true;
     }
