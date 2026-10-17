@@ -1,6 +1,7 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
 import Gem from "../items/gem";
+import { createBleedingEffect } from "../effects";
 
 export default class Ghoul extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -16,7 +17,12 @@ export default class Ghoul extends Monster {
       protection: 0,
       xp: 5,
       range: 0,
+      vulnerability: { fire: 1 },
       loot: [false, false, Gem]
     }, x, y);
+  }
+
+  onHitEffects() {
+    return [createBleedingEffect(2)];
   }
 }

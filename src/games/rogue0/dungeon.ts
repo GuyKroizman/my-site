@@ -3,6 +3,9 @@ import PF from "pathfinding";
 import type { Entity } from "./entity";
 import { removeEntity } from "./entity";
 import { sfx } from "./audio";
+import { resolveAttack } from "./combat";
+import { applyEffect } from "./effects";
+import type { DamageType } from "./effects";
 
 export const Sprites = {
   floor: 0,
@@ -20,6 +23,7 @@ let dungeon = {
 
   initialize: function (context: GameContext, levelArray: number[][]) {
     this.currentLevel = levelArray;
+    context.currentLevel = levelArray;
     this.pathGrid = new PF.Grid(levelArray);
     this.diagonalFinder = new PF.AStarFinder({
       diagonalMovement: PF.DiagonalMovement.Always
@@ -155,7 +159,8 @@ let dungeon = {
     attacker: Entity,
     victim: Entity,
     rangedAttack: number,
-    tint: number | undefined
+    tint: number | undefined,
+    damageType?: DamageType
   ): void {
     if (!context.scene || !context.map) {
       throw new Error("context scene or map are missing");
@@ -173,21 +178,13 @@ let dungeon = {
           attacker.moving = false;
           attacker.tweens -= 1;
 
-          let damage = attacker.attack() - victim.protection();
-          if (damage > 0) {
-            victim.healthPoints -= damage;
-
-            this.log(
-              context,
-              `${attacker.name} does ${damage} damage to ${victim.name}.`
-            );
-
-            this.applyHitEffects(context, victim);
-
-            if (victim.healthPoints <= 0) {
-              removeEntity(context, victim);
-            }
-          }
+          this.resolveAndApplyAttack(
+            context,
+            attacker,
+            victim,
+            rangedAttack,
+            damageType
+          );
         },
         x: context.map.tileToWorldX(victim.x!)!,
         y: context.map.tileToWorldY(victim.y!)!,
@@ -213,23 +210,13 @@ let dungeon = {
           attacker.moving = false;
           attacker.tweens -= 1;
 
-          let attack = attacker.attack();
-          let protection = victim.protection();
-          let damage = attack - protection;
-          if (damage > 0) {
-            victim.healthPoints -= damage;
-
-            this.log(
-              context,
-              `${attacker.name} does ${damage} damage to ${victim.name}.`
-            );
-
-            this.applyHitEffects(context, victim);
-
-            if (victim.healthPoints <= 0) {
-              removeEntity(context, victim);
-            }
-          }
+          this.resolveAndApplyAttack(
+            context,
+            attacker,
+            victim,
+            rangedAttack,
+            damageType
+          );
           sprite.destroy();
         },
         x: context.map.tileToWorldX(victim.x!)!,
@@ -239,6 +226,48 @@ let dungeon = {
         duration: 120,
         delay: 0
       });
+    }
+  },
+
+  resolveAndApplyAttack: function (
+    context: GameContext,
+    attacker: Entity,
+    victim: Entity,
+    rangedAttack: number,
+    damageType?: DamageType
+  ): void {
+    const result = resolveAttack(context, attacker, victim, {
+      damageType: damageType ?? "physical",
+      isRanged: rangedAttack ? true : false,
+      onHitEffects: attacker.onHitEffects()
+    });
+
+    if (!result.hit) {
+      return;
+    }
+
+    if (result.damage > 0) {
+      victim.healthPoints -= result.damage;
+      this.log(
+        context,
+        `${attacker.name} hits ${victim.name} for ${result.damage} ${result.damageType} damage.`
+      );
+      this.applyHitEffects(context, victim);
+    } else {
+      this.log(
+        context,
+        `${attacker.name} hits ${victim.name} but deals no damage.`
+      );
+    }
+
+    for (const effect of result.appliedEffects) {
+      if (victim.healthPoints > 0) {
+        applyEffect(victim, effect);
+      }
+    }
+
+    if (victim.healthPoints <= 0) {
+      removeEntity(context, victim);
     }
   },
 

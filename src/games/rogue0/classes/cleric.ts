@@ -19,6 +19,8 @@ export default class Cleric extends BasicHero {
     this.items.push(new Hammer(context))
     this.toggleItem(context, 0)
 
+    this.resistance = { magic: 1 };
+
     this.init(context, x, y)
   }
 

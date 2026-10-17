@@ -18,6 +18,7 @@ export default class Brute extends Monster {
       protection: 1,
       xp: 10,
       range: 0,
+      resistance: { physical: 2 },
       loot: [false, Gem, HolyPotion, BerserkPotion]
     }, x, y);
   }

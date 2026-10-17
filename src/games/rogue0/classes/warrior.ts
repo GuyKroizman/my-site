@@ -16,6 +16,8 @@ export default class Warrior extends BasicHero {
     this.items.push(new Sword(context))
     this.toggleItem(context, 0)
 
+    this.resistance = { physical: 1 };
+
     this.init(context, x, y)
   }
 

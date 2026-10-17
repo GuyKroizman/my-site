@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Entity } from "../entity";
 import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
+import type { DamageType } from "../effects";
 import dungeon from "../dungeon";
 import { enemyTurn } from "../ai";
 
@@ -21,6 +22,10 @@ export type MonsterConfig = {
   scale?: number;
   loot?: any[];
   xp?: number;
+  accuracy?: number;
+  evasion?: number;
+  resistance?: Partial<Record<DamageType, number>>;
+  vulnerability?: Partial<Record<DamageType, number>>;
 };
 
 export default class Monster extends Entity {
@@ -63,6 +68,10 @@ export default class Monster extends Entity {
     this.attackTile = config.attackTile ?? this.attackTile;
     this.loot = config.loot ?? [];
     this.xpValue = config.xp ?? 5;
+    this.accuracy = config.accuracy ?? 95;
+    this.evasion = config.evasion ?? 0;
+    this.resistance = config.resistance ?? {};
+    this.vulnerability = config.vulnerability ?? {};
 
     this.init(context, x, y);
 
@@ -97,6 +106,10 @@ export default class Monster extends Entity {
   }
 
   protection() {
+    return this.protectionValue;
+  }
+
+  get armor(): number {
     return this.protectionValue;
   }
 

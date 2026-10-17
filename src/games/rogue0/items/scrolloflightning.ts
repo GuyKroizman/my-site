@@ -12,6 +12,7 @@ export default class ScrollOfLightning extends Entity {
     this.weapon = true;
 
     this.attackTile = 413;
+    this.damageType = "shock";
 
     this.init(context, x, y);
   }

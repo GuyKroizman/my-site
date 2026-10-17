@@ -21,6 +21,8 @@ export default class Dwarf extends BasicHero {
     this.items.push(new Shield(context));
     this.toggleItem(context, 1);
 
+    this.resistance = { physical: 1 };
+
     this.init(context, x, y);
   }
 

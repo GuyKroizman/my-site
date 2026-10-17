@@ -9,6 +9,7 @@ export type EndResult = {
 
 export type GameContext = {
   map: Phaser.Tilemaps.Tilemap | undefined;
+  currentLevel?: number[][];
   scene: Phaser.Scene | undefined;
   player?: BasicHero;
   entities: Entity[];
@@ -29,6 +30,7 @@ export function createGameContext(): GameContext {
   return {
     scene: undefined,
     map: undefined,
+    currentLevel: undefined,
     entities: [],
     messages: [],
     visibleTiles: new Set(),
