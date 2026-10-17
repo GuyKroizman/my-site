@@ -3,8 +3,11 @@ import type { GameContext } from "../context";
 import Gem from "../items/gem";
 import HolyPotion from "../items/holyPotion";
 import BerserkPotion from "../items/berserkPotion";
+import { applyEffect, createStrengthenedEffect } from "../effects";
 
 export default class Brute extends Monster {
+  private enraged = false;
+
   constructor(context: GameContext, x?: number, y?: number) {
     super(context, {
       name: "Brute",
@@ -21,5 +24,13 @@ export default class Brute extends Monster {
       resistance: { physical: 2 },
       loot: [false, Gem, HolyPotion, BerserkPotion]
     }, x, y);
+  }
+
+  turn() {
+    if (!this.enraged && this.healthPoints < this.maxHealthPoints / 2) {
+      this.enraged = true;
+      applyEffect(this, createStrengthenedEffect());
+    }
+    super.turn();
   }
 }

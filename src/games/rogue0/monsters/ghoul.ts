@@ -1,7 +1,7 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
 import Gem from "../items/gem";
-import { createBleedingEffect } from "../effects";
+import { applyEffect, createBleedingEffect, createRegenerationEffect, hasEffect } from "../effects";
 
 export default class Ghoul extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -20,6 +20,13 @@ export default class Ghoul extends Monster {
       vulnerability: { fire: 1 },
       loot: [false, false, Gem]
     }, x, y);
+  }
+
+  turn() {
+    if (!hasEffect(this, "regeneration")) {
+      applyEffect(this, createRegenerationEffect());
+    }
+    super.turn();
   }
 
   onHitEffects() {

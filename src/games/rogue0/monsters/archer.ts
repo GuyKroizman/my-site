@@ -2,6 +2,7 @@ import Monster from "./monster";
 import type { GameContext } from "../context";
 import Gem from "../items/gem";
 import HolyPotion from "../items/holyPotion";
+import { createBleedingEffect } from "../effects";
 
 export default class Archer extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -15,10 +16,15 @@ export default class Archer extends Monster {
       visionRadius: 8,
       attackDamage: 2,
       protection: 0,
+      evasion: 20,
       xp: 5,
       range: 5,
       attackTile: 10 * 49 + 15,
       loot: [false, Gem, HolyPotion]
     }, x, y);
+  }
+
+  onHitEffects() {
+    return [createBleedingEffect(3)];
   }
 }

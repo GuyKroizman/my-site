@@ -1,0 +1,78 @@
+import Monster from "./monster";
+import type { GameContext } from "../context";
+import dungeon from "../dungeon";
+import Skeleton from "./skelaton";
+import Gem from "../items/gem";
+
+export default class Cultist extends Monster {
+  private summonCooldown = 0;
+
+  constructor(context: GameContext, x?: number, y?: number) {
+    super(context, {
+      name: "Cultist",
+      description: "A robed cultist who raises skeletons to fight for it.",
+      tile: 6 * 49 + 32,
+      healthPoints: 8,
+      movementPoints: 1,
+      actionPoints: 1,
+      visionRadius: 7,
+      attackDamage: 2,
+      protection: 0,
+      xp: 8,
+      range: 0,
+      loot: [false, false, Gem]
+    }, x, y);
+  }
+
+  turn() {
+    if (this.summonCooldown > 0) {
+      this.summonCooldown -= 1;
+    }
+
+    if (this.summonCooldown === 0 && !this.hasFriendlySkeleton()) {
+      const spot = this.findAdjacentSummonTile();
+      if (spot) {
+        this.context.entities.push(new Skeleton(this.context, spot.x, spot.y));
+        dungeon.log(this.context, `${this.name} summons a Skeleton.`);
+        this.summonCooldown = 3;
+      }
+    }
+
+    super.turn();
+  }
+
+  private hasFriendlySkeleton(): boolean {
+    return this.context.entities.some(
+      (e) =>
+        e instanceof Skeleton &&
+        e.healthPoints > 0 &&
+        e.x !== undefined &&
+        e.y !== undefined
+    );
+  }
+
+  private findAdjacentSummonTile(): { x: number; y: number } | null {
+    if (this.x === undefined || this.y === undefined) return null;
+
+    const map = dungeon.getCurrentLevel();
+    const height = map.length;
+    const width = map[0].length;
+    const dirs: Array<[number, number]> = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ];
+
+    for (const [dx, dy] of dirs) {
+      const nx = this.x + dx;
+      const ny = this.y + dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      if (dungeon.isWalkableTile(this.context, nx, ny)) {
+        return { x: nx, y: ny };
+      }
+    }
+
+    return null;
+  }
+}

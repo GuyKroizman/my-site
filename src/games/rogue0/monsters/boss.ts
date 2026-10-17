@@ -3,7 +3,7 @@ import type { GameContext } from "../context";
 import Gem from "../items/gem";
 import HolyPotion from "../items/holyPotion";
 import FullHealPotion from "../items/fullHealPotion";
-import { createWeakenedEffect } from "../effects";
+import { createCrippledEffect, createWeakenedEffect } from "../effects";
 
 export default class Boss extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -17,6 +17,7 @@ export default class Boss extends Monster {
       visionRadius: 9,
       attackDamage: 4,
       protection: 2,
+      resistance: { physical: 2 },
       xp: 25,
       range: 0,
       scale: 1.4,
@@ -25,6 +26,6 @@ export default class Boss extends Monster {
   }
 
   onHitEffects() {
-    return [createWeakenedEffect(3)];
+    return [createWeakenedEffect(3), createCrippledEffect(3)];
   }
 }
