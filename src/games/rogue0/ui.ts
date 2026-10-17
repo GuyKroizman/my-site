@@ -1,4 +1,5 @@
 import type { GameContext } from "./context";
+import { InventoryWindow } from "./inventoryWindow";
 
 export class UI extends Phaser.Scene {
   context: GameContext;
@@ -6,6 +7,7 @@ export class UI extends Phaser.Scene {
   private log: Phaser.GameObjects.Text | undefined;
   private floorText: Phaser.GameObjects.Text | undefined;
   private statusText: Phaser.GameObjects.Text | undefined;
+  private inventoryWindow: InventoryWindow | undefined;
 
   constructor(context: GameContext) {
     super("ui-scene");
@@ -15,9 +17,22 @@ export class UI extends Phaser.Scene {
     this.log = undefined;
     this.floorText = undefined;
     this.statusText = undefined;
+    this.inventoryWindow = undefined;
   }
 
   create() {
+    this.inventoryWindow = new InventoryWindow(this, this.context);
+
+    // i / b toggle the inventory window; Esc closes it.
+    this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
+      const key = event.key;
+      if (key === "i" || key === "I" || key === "b" || key === "B") {
+        this.inventoryWindow?.toggle();
+      } else if (key === "Escape") {
+        this.inventoryWindow?.close();
+      }
+    });
+
     this.scene.get("scene0").events.on("entities-created", () => {
       this.buildPanel();
     });
@@ -34,6 +49,8 @@ export class UI extends Phaser.Scene {
     if (!this.context.player) {
       throw new Error("Initialization order error. UI scene has no player.");
     }
+
+    this.context.player.onBackpackToggle = () => this.inventoryWindow?.toggle();
 
     this.floorText = this.add.text(x, y, `Floor ${this.context.floor}`, {
       font: "16px Arial",
@@ -67,7 +84,9 @@ export class UI extends Phaser.Scene {
 
     this.log.setText(this.context.messages.join(`\n\n`));
     this.context.player?.updateUI?.();
+    this.context.player?.refreshUI?.();
     this.updateStatus();
+    this.inventoryWindow?.refresh();
   }
 
   updateStatus() {
