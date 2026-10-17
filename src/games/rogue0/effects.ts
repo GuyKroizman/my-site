@@ -200,3 +200,156 @@ export function createCursedEffect(): StatusEffect {
     }
   };
 }
+
+// --- Phase 6 / 11 additive effect factories ---
+
+// Makes the entity fade out while it lasts. True stealth (monsters ignoring
+// the player) lives in ai.ts and is intentionally not wired here.
+export function createInvisibleEffect(duration = 10): StatusEffect {
+  return {
+    id: "invisible",
+    name: "Invisible",
+    iconTile: 17 * 49 + 44,
+    duration,
+    apply(entity) {
+      entity.sprite?.setAlpha(0.4);
+    },
+    remove(entity) {
+      entity.sprite?.setAlpha(1);
+    }
+  };
+}
+
+// Grants an extra movement point each round while active.
+export function createHasteEffect(duration = 8): StatusEffect {
+  return {
+    id: "haste",
+    name: "Haste",
+    iconTile: 18 * 49 + 43,
+    duration,
+    tick(entity) {
+      entity.movementPoints += 1;
+    }
+  };
+}
+
+// Flavour buff from the Levitation potion. Terrain (chasms/water) does not
+// exist yet, so this is a timed marker rather than a movement mechanic.
+export function createLevitatingEffect(duration = 20): StatusEffect {
+  return {
+    id: "levitating",
+    name: "Levitating",
+    iconTile: 18 * 49 + 44,
+    duration
+  };
+}
+
+// Feared monsters run away from the player. Fleeing is a minimal, self-
+// contained implementation that moves the monster one walkable tile away and
+// skips the rest of its turn.
+export function createTerrifiedEffect(duration = 4): StatusEffect {
+  return {
+    id: "terrified",
+    name: "Terrified",
+    iconTile: 19 * 49 + 43,
+    duration,
+    tick(entity, context) {
+      if (entity.type !== "enemy") return;
+      if (!fleeStep(entity, context)) return;
+
+      entity.movementPoints = 0;
+      entity.actionPoints = 0;
+      log(context, `${entity.name} flees in terror.`);
+    }
+  };
+}
+
+// Lowers accuracy while active and restores it exactly on expiry.
+export function createBlindedEffect(duration = 4): StatusEffect {
+  let originalAccuracy: number | undefined;
+
+  return {
+    id: "blinded",
+    name: "Blinded",
+    iconTile: 19 * 49 + 44,
+    duration,
+    apply(entity) {
+      originalAccuracy = entity.accuracy;
+      entity.accuracy = Math.max(0, entity.accuracy - 25);
+    },
+    remove(entity) {
+      if (originalAccuracy !== undefined) {
+        entity.accuracy = originalAccuracy;
+        originalAccuracy = undefined;
+      }
+    }
+  };
+}
+
+// Prevents movement (but not attacking) while active.
+export function createRootedEffect(duration = 3): StatusEffect {
+  return {
+    id: "rooted",
+    name: "Rooted",
+    iconTile: 20 * 49 + 43,
+    duration,
+    tick(entity) {
+      entity.movementPoints = 0;
+    }
+  };
+}
+
+// Moves an entity one walkable tile directly away from the player without
+// pathfinding. Returns true when a legal flee tile was found.
+function fleeStep(entity: Entity, context: GameContext): boolean {
+  const player = context.player;
+  const map = context.currentLevel;
+  if (!player || !map) return false;
+  if (player.x === undefined || player.y === undefined) return false;
+  if (entity.x === undefined || entity.y === undefined) return false;
+
+  const ex = entity.x;
+  const ey = entity.y;
+  const px = player.x;
+  const py = player.y;
+  const w = map[0].length;
+  const h = map.length;
+
+  const dirs: Array<[number, number]> = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1]
+  ];
+
+  // Prefer the step that increases distance from the player the most.
+  dirs.sort((a, b) => {
+    const da = (ex + a[0] - px) ** 2 + (ey + a[1] - py) ** 2;
+    const db = (ex + b[0] - px) ** 2 + (ey + b[1] - py) ** 2;
+    return db - da;
+  });
+
+  for (const [dx, dy] of dirs) {
+    const nx = ex + dx;
+    const ny = ey + dy;
+    if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+    if (map[ny][nx] !== 0) continue;
+
+    const occupied = context.entities.some(
+      (o) => o !== entity && o.sprite && o.x === nx && o.y === ny
+    );
+    if (occupied) continue;
+
+    entity.x = nx;
+    entity.y = ny;
+    if (entity.sprite && context.map) {
+      entity.sprite.setPosition(
+        context.map.tileToWorldX(nx)!,
+        context.map.tileToWorldY(ny)!
+      );
+    }
+    return true;
+  }
+
+  return false;
+}
