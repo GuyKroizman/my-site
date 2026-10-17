@@ -1,0 +1,146 @@
+// Terrain feature overlay for rogue0.
+//
+// The base walkable map (0 = floor, 1 = wall) stays the single source of
+// truth for pathfinding, FOV and fog. Terrain features live here as a
+// coordinate-keyed overlay (`"x,y"`) so doors/traps/grass/water/chasms can
+// carry per-tile state without turning the base map into a tile enum.
+
+export type TerrainFeature = "door" | "trap" | "grass" | "water" | "chasm";
+
+export type DoorState = "open" | "closed";
+export type TrapState = "hidden" | "visible" | "triggered";
+export type TrapKind = "dart" | "fire" | "frost" | "teleport";
+
+export type TileState = {
+  feature: TerrainFeature;
+  door?: DoorState;
+  trap?: TrapState;
+  trapKind?: TrapKind;
+};
+
+// Placement returned by mapgen so scene0 can populate this overlay.
+export type FeaturePlacement = {
+  x: number;
+  y: number;
+  feature: TerrainFeature;
+  door?: DoorState;
+  trap?: TrapState;
+  trapKind?: TrapKind;
+};
+
+// Placeholder tile indices picked from colored.png. These are intentionally
+// arbitrary visual stand-ins; scene0.ts applies tints to tell features apart.
+export const FeatureTiles = {
+  doorClosed: 141,
+  doorOpen: 6,
+  grass: 102,
+  water: 206,
+  chasm: 5,
+  trap: 593
+} as const;
+
+type StoredTile = TileState & { x: number; y: number };
+
+const features = new Map<string, StoredTile>();
+
+function key(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+export function setFeature(
+  x: number,
+  y: number,
+  feature: TerrainFeature,
+  opts: { door?: DoorState; trap?: TrapState; trapKind?: TrapKind } = {}
+): void {
+  const k = key(x, y);
+  const existing = features.get(k);
+  const stored: StoredTile = existing ?? { feature, x, y };
+
+  stored.feature = feature;
+
+  if (feature === "door") {
+    stored.door = opts.door ?? stored.door ?? "closed";
+    delete stored.trap;
+    delete stored.trapKind;
+  } else if (feature === "trap") {
+    stored.trap = opts.trap ?? stored.trap ?? "hidden";
+    stored.trapKind = opts.trapKind ?? stored.trapKind ?? "dart";
+    delete stored.door;
+  } else {
+    delete stored.door;
+    delete stored.trap;
+    delete stored.trapKind;
+  }
+
+  features.set(k, stored);
+}
+
+export function getFeature(x: number, y: number): TerrainFeature | undefined {
+  return features.get(key(x, y))?.feature;
+}
+
+export function getTileState(x: number, y: number): TileState | undefined {
+  return features.get(key(x, y));
+}
+
+export function clearFeature(x: number, y: number): void {
+  features.delete(key(x, y));
+}
+
+export function clearAllFeatures(): void {
+  features.clear();
+}
+
+export function getDoorState(x: number, y: number): DoorState | undefined {
+  const tile = features.get(key(x, y));
+  return tile?.feature === "door" ? tile.door : undefined;
+}
+
+export function setDoorState(x: number, y: number, state: DoorState): void {
+  const tile = features.get(key(x, y));
+  if (!tile || tile.feature !== "door") return;
+  tile.door = state;
+}
+
+export function getTrapState(x: number, y: number): TrapState | undefined {
+  const tile = features.get(key(x, y));
+  return tile?.feature === "trap" ? tile.trap : undefined;
+}
+
+export function setTrapState(x: number, y: number, state: TrapState): void {
+  const tile = features.get(key(x, y));
+  if (!tile || tile.feature !== "trap") return;
+  tile.trap = state;
+}
+
+export function getTrapKind(x: number, y: number): TrapKind | undefined {
+  const tile = features.get(key(x, y));
+  return tile?.feature === "trap" ? tile.trapKind : undefined;
+}
+
+export function isBlocking(x: number, y: number): boolean {
+  const tile = features.get(key(x, y));
+  if (!tile) return false;
+  if (tile.feature === "door" && tile.door === "closed") return true;
+  if (tile.feature === "chasm") return true;
+  return false;
+}
+
+export function forEachFeature(
+  callback: (x: number, y: number, state: TileState) => void
+): void {
+  features.forEach((tile) => callback(tile.x, tile.y, tile));
+}
+
+// Marks closed doors / chasms as unwalkable in a pathfinding grid.
+// `dungeon.initialize` calls this right after building its grid.
+export function applyToPathGrid(grid: {
+  setWalkableAt: (x: number, y: number, walkable: boolean) => void;
+}): void {
+  features.forEach((tile) => {
+    if (isBlocking(tile.x, tile.y)) {
+      grid.setWalkableAt(tile.x, tile.y, false);
+    }
+  });
+}

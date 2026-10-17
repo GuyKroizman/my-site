@@ -58,6 +58,8 @@ import {
 } from "./mapgen";
 import { computeFOV } from "./fov";
 import { sfx } from "./audio";
+import * as tiles from "./tiles";
+import type { FeaturePlacement } from "./tiles";
 
 // Keep the player spawn, stairs and procedural content out of the right-hand
 // columns that sit underneath the UI sidebar.
@@ -73,6 +75,7 @@ export class Scene0 extends Phaser.Scene {
   private lastFovX?: number;
   private lastFovY?: number;
   private readonly visionRadius = 7;
+  private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
 
   constructor(context: GameContext) {
     super("scene0");
@@ -96,11 +99,17 @@ export class Scene0 extends Phaser.Scene {
 
     this.makeSparkTexture();
 
+    // Floor 1 is handcrafted and must not receive terrain features.
+    tiles.clearAllFeatures();
+
     // Build the first map before creating the hero (its sprite needs the map).
     dungeon.initialize(this.context, level1);
 
     // Fog-of-war overlay drawn above tiles and entities.
     this.fog = this.add.graphics().setDepth(100);
+
+    // Door opens / grass burns / trap reveals all need to re-sync the overlay.
+    dungeon.onTerrainChanged = () => this.syncFeatures();
 
     const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
     const player = new HeroClass(this.context, 15, 15);
@@ -136,7 +145,12 @@ export class Scene0 extends Phaser.Scene {
     this.tweens.timeScale = p && p.inputBuffer && p.inputBuffer.length > 0 ? 2 : 1;
   }
 
-  private setupFloor(floor: number, levelArray: number[][], spawn: { x: number; y: number }) {
+  private setupFloor(
+    floor: number,
+    levelArray: number[][],
+    spawn: { x: number; y: number },
+    stairs?: { x: number; y: number }
+  ) {
     this.context.floor = floor;
 
     this.seen = [];
@@ -162,15 +176,13 @@ export class Scene0 extends Phaser.Scene {
 
     this.placePlayer(spawn.x, spawn.y);
 
-    const stairs = findFarthestWalkable(
-      levelArray,
-      spawn.x,
-      spawn.y,
-      MAX_VISIBLE_X
-    );
-    this.context.stairsX = stairs.x;
-    this.context.stairsY = stairs.y;
-    this.renderStairs(stairs.x, stairs.y);
+    const stairsPos =
+      stairs ?? findFarthestWalkable(levelArray, spawn.x, spawn.y, MAX_VISIBLE_X);
+    this.context.stairsX = stairsPos.x;
+    this.context.stairsY = stairsPos.y;
+    this.renderStairs(stairsPos.x, stairsPos.y);
+
+    this.syncFeatures();
 
     this.spawnFloorContent(floor, levelArray, spawn);
 
@@ -190,14 +202,22 @@ export class Scene0 extends Phaser.Scene {
     const next = this.context.floor + 1;
     const generated = generateMap();
     const levelArray = generated.map;
+
+    this.applyFeatures(generated.features);
+
     const spawnRoom =
       generated.rooms.find((r) => r.cx < MAX_VISIBLE_X) ?? generated.rooms[0];
     const spawn = spawnRoom
       ? { x: spawnRoom.cx, y: spawnRoom.cy }
       : this.findSpawn(levelArray);
+    const stairs = findFarthestWalkable(levelArray, spawn.x, spawn.y, MAX_VISIBLE_X);
+
+    // Spawn and stairs must never sit on a terrain feature.
+    tiles.clearFeature(spawn.x, spawn.y);
+    tiles.clearFeature(stairs.x, stairs.y);
 
     dungeon.initialize(this.context, levelArray);
-    this.setupFloor(next, levelArray, spawn);
+    this.setupFloor(next, levelArray, spawn, stairs);
     sfx.stairs();
     dungeon.log(this.context, `You descend to floor ${next}.`);
   }
@@ -336,6 +356,90 @@ export class Scene0 extends Phaser.Scene {
         this.context.map.tileToWorldX(x)!,
         this.context.map.tileToWorldY(y)!
       );
+    }
+  }
+
+  private applyFeatures(features: FeaturePlacement[]) {
+    // Recreate feature sprites on the new floor so they are added to the
+    // display list after the freshly-built tilemap layer.
+    this.clearFeatureSprites();
+
+    tiles.clearAllFeatures();
+    for (const f of features) {
+      tiles.setFeature(f.x, f.y, f.feature, {
+        door: f.door,
+        trap: f.trap,
+        trapKind: f.trapKind
+      });
+    }
+  }
+
+  private clearFeatureSprites() {
+    for (const sprite of this.featureSprites.values()) {
+      sprite.destroy();
+    }
+    this.featureSprites.clear();
+  }
+
+  private featureVisual(state: tiles.TileState): { tile: number; tint?: number } {
+    switch (state.feature) {
+      case "door":
+        return state.door === "open"
+          ? { tile: tiles.FeatureTiles.doorOpen, tint: 0x9a8b7a }
+          : { tile: tiles.FeatureTiles.doorClosed, tint: 0x9a5b2b };
+      case "grass":
+        return { tile: tiles.FeatureTiles.grass, tint: 0x55aa55 };
+      case "water":
+        return { tile: tiles.FeatureTiles.water, tint: 0x4488cc };
+      case "chasm":
+        return { tile: tiles.FeatureTiles.chasm, tint: 0x111111 };
+      case "trap":
+        return {
+          tile: tiles.FeatureTiles.trap,
+          tint: state.trap === "triggered" ? 0x666666 : 0xff4444
+        };
+      default:
+        throw new Error(`Unknown terrain feature: ${state.feature}`);
+    }
+  }
+
+  private syncFeatures() {
+    const map = this.context.map;
+    if (!map) return;
+
+    const seen = new Set<string>();
+
+    tiles.forEachFeature((x, y, state) => {
+      const key = `${x},${y}`;
+      seen.add(key);
+
+      let sprite = this.featureSprites.get(key);
+      const visual = this.featureVisual(state);
+      const visible = state.feature !== "trap" || state.trap !== "hidden";
+
+      if (!sprite) {
+        sprite = this.add
+          .sprite(map.tileToWorldX(x)!, map.tileToWorldY(y)!, "tiles", visual.tile)
+          .setOrigin(0);
+        sprite.setDepth(0);
+        this.featureSprites.set(key, sprite);
+      } else {
+        sprite.setTexture("tiles", visual.tile);
+      }
+
+      if (visual.tint !== undefined) {
+        sprite.setTint(visual.tint);
+      } else {
+        sprite.clearTint();
+      }
+      sprite.setVisible(visible);
+    });
+
+    for (const [key, sprite] of this.featureSprites) {
+      if (!seen.has(key)) {
+        sprite.destroy();
+        this.featureSprites.delete(key);
+      }
     }
   }
 

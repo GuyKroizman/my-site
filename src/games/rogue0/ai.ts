@@ -1,5 +1,6 @@
 import dungeon from "./dungeon";
 import { canSee } from "./fov";
+import * as tiles from "./tiles";
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 
@@ -111,12 +112,16 @@ export function enemyTurn(entity: Entity): void {
         if (step) {
           dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
           acted = true;
+        } else if (tryOpenAdjacentDoor(entity, player.x, player.y)) {
+          acted = true;
         }
       }
     } else if (entity.lastSeenX !== undefined && entity.lastSeenY !== undefined) {
       const step = nextStepToward(entity, entity.lastSeenX, entity.lastSeenY);
       if (step) {
         dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
+        acted = true;
+      } else if (tryOpenAdjacentDoor(entity, entity.lastSeenX, entity.lastSeenY)) {
         acted = true;
       } else {
         entity.lastSeenX = undefined;
@@ -164,6 +169,42 @@ export function nextStepToward(
     return { x: path[1][0], y: path[1][1] };
   }
   return null;
+}
+
+// When the pathfinder cannot reach the target (typically because a closed
+// door sits between the monster and its goal), open the adjacent door that
+// lies closest to the target instead of getting stuck.
+function tryOpenAdjacentDoor(entity: Entity, tx: number, ty: number): boolean {
+  if (entity.x === undefined || entity.y === undefined) return false;
+
+  const ex = entity.x;
+  const ey = entity.y;
+
+  const dirs: Array<[number, number]> = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1]
+  ];
+
+  dirs.sort((a, b) => {
+    const da = (ex + a[0] - tx) ** 2 + (ey + a[1] - ty) ** 2;
+    const db = (ex + b[0] - tx) ** 2 + (ey + b[1] - ty) ** 2;
+    return da - db;
+  });
+
+  for (const [dx, dy] of dirs) {
+    const nx = ex + dx;
+    const ny = ey + dy;
+    if (
+      tiles.getFeature(nx, ny) === "door" &&
+      tiles.getDoorState(nx, ny) === "closed"
+    ) {
+      return dungeon.openDoor(nx, ny);
+    }
+  }
+
+  return false;
 }
 
 export function randomAdjacentStep(

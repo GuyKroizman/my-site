@@ -4,7 +4,15 @@ import type { Entity } from "./entity";
 import { removeEntity } from "./entity";
 import { sfx } from "./audio";
 import { resolveAttack } from "./combat";
-import { applyEffect } from "./effects";
+import * as tiles from "./tiles";
+import {
+  applyEffect,
+  createBurningEffect,
+  createFrozenEffect,
+  createPoisonedEffect,
+  hasEffect,
+  removeEffect
+} from "./effects";
 import type { DamageType } from "./effects";
 
 export const Sprites = {
@@ -20,11 +28,15 @@ let dungeon = {
   pathGrid: null as PF.Grid | null,
   diagonalFinder: null as PF.AStarFinder | null,
   cardinalFinder: null as PF.AStarFinder | null,
+  context: null as GameContext | null,
+  onTerrainChanged: null as (() => void) | null,
 
   initialize: function (context: GameContext, levelArray: number[][]) {
     this.currentLevel = levelArray;
     context.currentLevel = levelArray;
+    this.context = context;
     this.pathGrid = new PF.Grid(levelArray);
+    tiles.applyToPathGrid(this.pathGrid);
     this.diagonalFinder = new PF.AStarFinder({
       diagonalMovement: PF.DiagonalMovement.Always
     });
@@ -82,12 +94,50 @@ let dungeon = {
   },
 
   isWalkableTile: function (context: GameContext, x: number, y: number): boolean {
+    const level = this.currentLevel;
+    if (!level || y < 0 || x < 0 || y >= level.length || x >= level[0].length) {
+      return false;
+    }
+
     for (const entity of context.entities) {
       if (entity.sprite && entity.x === x && entity.y === y) return false;
     }
 
+    if (tiles.isBlocking(x, y)) {
+      // Closed doors open when the player tries to step into them. This lives
+      // here because the player's movement code is in basicHero.processInput
+      // (which is outside the set of files this terrain pass may edit).
+      const state = tiles.getTileState(x, y);
+      if (state?.feature === "door" && state.door === "closed") {
+        const player = context.player;
+        if (
+          player &&
+          player.x !== undefined &&
+          player.y !== undefined &&
+          Math.abs(player.x - x) + Math.abs(player.y - y) === 1
+        ) {
+          this.openDoor(x, y);
+        }
+      }
+      return false;
+    }
+
     const tileAtDestination = context.map?.getTileAt(x, y);
     return tileAtDestination?.index !== Sprites.wall;
+  },
+
+  openDoor: function (x: number, y: number): boolean {
+    if (tiles.getFeature(x, y) !== "door") return false;
+    if (tiles.getDoorState(x, y) !== "closed") return false;
+
+    tiles.setDoorState(x, y, "open");
+    this.pathGrid?.setWalkableAt(x, y, true);
+    this.onTerrainChanged?.();
+
+    if (this.context) {
+      this.log(this.context, "The door opens.");
+    }
+    return true;
   },
 
   entityAtTile: function (context: GameContext, x: number, y: number): Entity | undefined {
@@ -135,6 +185,54 @@ let dungeon = {
     if (context.map == undefined || context.scene == undefined) {
       throw new Error("context.map is undefined");
     }
+
+    let destX = x;
+    let destY = y;
+
+    // Water douses fire for any entity that steps in.
+    if (tiles.getFeature(destX, destY) === "water" && hasEffect(entity, "burning")) {
+      removeEffect(entity, "burning");
+      this.log(context, `${entity.name} steps into water and the flames go out.`);
+    }
+
+    // Only the player triggers traps.
+    if (entity.type === "player") {
+      const state = tiles.getTileState(destX, destY);
+      if (state && state.feature === "trap" && state.trap === "hidden") {
+        tiles.setTrapState(destX, destY, "triggered");
+        this.onTerrainChanged?.();
+
+        const kind = state.trapKind ?? "dart";
+        this.log(context, `You step on a ${kind} trap!`);
+
+        switch (kind) {
+          case "dart":
+            applyEffect(entity, createPoisonedEffect());
+            break;
+          case "fire":
+            applyEffect(entity, createBurningEffect());
+            break;
+          case "frost":
+            applyEffect(entity, createFrozenEffect());
+            break;
+          case "teleport": {
+            const tile = this.randomWalkableTile(context, destX, destY);
+            if (tile) {
+              destX = tile.x;
+              destY = tile.y;
+              this.log(context, "The trap teleports you to a new location!");
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Grass is flammable: a burning creature ignites grass on or next to it.
+    if (hasEffect(entity, "burning")) {
+      this.igniteGrass(context, entity, destX, destY);
+    }
+
     if (entity.type === "player") {
       sfx.step();
     }
@@ -144,14 +242,87 @@ let dungeon = {
       targets: entity.sprite!,
       onComplete: () => {
         entity.moving = false;
-        entity.x = x;
-        entity.y = y;
+        entity.x = destX;
+        entity.y = destY;
       },
-      x: context.map.tileToWorldX(x)!,
-      y: context.map.tileToWorldY(y)!,
+      x: context.map.tileToWorldX(destX)!,
+      y: context.map.tileToWorldY(destY)!,
       ease: "Power2",
       duration: 50
     });
+  },
+
+  // Returns a random walkable, unoccupied, feature-unblocked tile. Used by
+  // the teleport trap. Keeps x < 67 so the player never lands under the UI.
+  randomWalkableTile: function (
+    context: GameContext,
+    excludeX: number,
+    excludeY: number
+  ): { x: number; y: number } | null {
+    const level = this.currentLevel;
+    if (!level) return null;
+
+    const cells: Array<{ x: number; y: number }> = [];
+    for (let y = 0; y < level.length; y++) {
+      for (let x = 0; x < level[0].length; x++) {
+        if (x >= 67) continue;
+        if (level[y][x] !== 0) continue;
+        if (x === excludeX && y === excludeY) continue;
+        if (tiles.isBlocking(x, y)) continue;
+
+        const occupied = context.entities.some(
+          (e) => e.sprite && e.x === x && e.y === y
+        );
+        if (occupied) continue;
+
+        cells.push({ x, y });
+      }
+    }
+
+    if (cells.length === 0) return null;
+    return cells[Math.floor(Math.random() * cells.length)];
+  },
+
+  igniteGrass: function (
+    context: GameContext,
+    entity: Entity,
+    x: number,
+    y: number
+  ): void {
+    const level = this.currentLevel;
+    if (!level) return;
+
+    const dirs: Array<[number, number]> = [
+      [0, 0],
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ];
+
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= level[0].length || ny >= level.length) continue;
+      if (tiles.getFeature(nx, ny) !== "grass") continue;
+
+      tiles.clearFeature(nx, ny);
+      this.onTerrainChanged?.();
+      this.log(context, `The grass at ${nx},${ny} ignites and burns away.`);
+
+      for (const other of context.entities) {
+        if (
+          other !== entity &&
+          other.sprite &&
+          other.x === nx &&
+          other.y === ny &&
+          other.type !== "item"
+        ) {
+          applyEffect(other, createBurningEffect());
+        }
+      }
+      return;
+    }
   },
 
   attackEntity: function (
