@@ -1,12 +1,38 @@
 import type { GameContext } from "./context";
 import { InventoryWindow } from "./inventoryWindow";
 
+// Shared rogue0 palette — kept in sync with the --r0-* variables in
+// src/index.css. Text colors are CSS strings, rectangle fills are 0x numbers.
+const FONT_PIXEL = "Press Start 2P";
+const FONT_MONO = "VT323";
+
+const COL = {
+  gold: "#f0b429",
+  text: "#e8e1d5",
+  muted: "#a29a8e",
+  dim: "#6e675f"
+};
+
+const C = {
+  bg: 0x16121c,
+  panel: 0x1f1926,
+  border: 0x3a3342,
+  borderStrong: 0x5a5060
+};
+
+const SIDEBAR_X = 1080;
+const SIDEBAR_W = 200;
+const SIDEBAR_H = 800;
+const PAD = 12;
+
 export class UI extends Phaser.Scene {
   context: GameContext;
   active: boolean;
   private log: Phaser.GameObjects.Text | undefined;
   private floorText: Phaser.GameObjects.Text | undefined;
   private statusText: Phaser.GameObjects.Text | undefined;
+  private inspectLabel: Phaser.GameObjects.Text | undefined;
+  private logLabel: Phaser.GameObjects.Text | undefined;
   private inventoryWindow: InventoryWindow | undefined;
 
   constructor(context: GameContext) {
@@ -17,6 +43,8 @@ export class UI extends Phaser.Scene {
     this.log = undefined;
     this.floorText = undefined;
     this.statusText = undefined;
+    this.inspectLabel = undefined;
+    this.logLabel = undefined;
     this.inventoryWindow = undefined;
   }
 
@@ -43,40 +71,122 @@ export class UI extends Phaser.Scene {
   }
 
   buildPanel() {
-    const x = 80 * 16 - 190;
-    let y = 10;
-
     if (!this.context.player) {
       throw new Error("Initialization order error. UI scene has no player.");
     }
 
     this.context.player.onBackpackToggle = () => this.inventoryWindow?.toggle();
 
-    this.floorText = this.add.text(x, y, `Floor ${this.context.floor}`, {
-      font: "16px Arial",
-      color: "#ffffff"
-    });
+    // Sidebar backdrop: an opaque panel separating the HUD from the map, with
+    // a strong left edge so the game viewport reads as a framed play area.
+    this.add.rectangle(SIDEBAR_X, 0, SIDEBAR_W, SIDEBAR_H, C.bg, 1).setOrigin(0);
+    this.add
+      .rectangle(SIDEBAR_X, 0, 2, SIDEBAR_H, C.borderStrong, 1)
+      .setOrigin(0);
+
+    let y = 14;
+
+    // Floor header.
+    this.floorText = this.add
+      .text(SIDEBAR_X + SIDEBAR_W / 2, y, `Floor ${this.context.floor}`, {
+        font: `11px '${FONT_PIXEL}'`,
+        color: COL.gold
+      })
+      .setOrigin(0.5, 0);
     y += 24;
+    this.add
+      .rectangle(SIDEBAR_X + PAD, y, SIDEBAR_W - PAD * 2, 1, C.border, 1)
+      .setOrigin(0);
+    y += 10;
 
-    const height = this.context.player.createUI({ scene: this, x, y, width: 198 });
-    y += height;
+    // Hero panel is rendered by BasicHero; we draw a backing panel behind it
+    // so the sprite, stats and backpack button sit on a framed surface.
+    const heroX = SIDEBAR_X + PAD;
+    const heroW = SIDEBAR_W - PAD * 2;
+    const heroPad = 6;
+    this.add
+      .rectangle(heroX, y, heroW, 154, C.panel, 1)
+      .setOrigin(0)
+      .setStrokeStyle(1, C.border, 1);
 
-    // Status / inspect panel.
-    y += 8;
-    this.statusText = this.add.text(x + 10, y, "", {
-      font: "12px Arial",
-      color: "#cfc6b8",
-      wordWrap: { width: 180 }
+    this.context.player.createUI({
+      scene: this,
+      x: heroX + heroPad,
+      y: y + heroPad,
+      width: heroW - heroPad * 2
     });
-    y += 96;
+    y += 154 + 12;
 
-    // Message log.
-    this.add.line(x + 5, y, 0, 10, 175, 10, 0xcfc6b8).setOrigin(0);
-    this.log = this.add.text(x + 10, y + 14, "", {
-      font: "12px Arial",
-      color: "#cfc6b8",
-      wordWrap: { width: 180 }
+    y = this.buildInspectPanel(y);
+    this.buildLogPanel(y);
+
+    // Web fonts can load after the first paint; re-render static labels once
+    // they are ready so pixel fonts snap in.
+    if (typeof document !== "undefined" && document.fonts?.ready) {
+      document.fonts.ready
+        .then(() => this.rerenderStaticText())
+        .catch(() => undefined);
+    }
+  }
+
+  private buildInspectPanel(y: number): number {
+    const w = SIDEBAR_W - PAD * 2;
+    const h = 118;
+    const px = SIDEBAR_X + PAD;
+
+    this.add
+      .rectangle(px, y, w, h, C.panel, 1)
+      .setOrigin(0)
+      .setStrokeStyle(1, C.border, 1);
+
+    this.inspectLabel = this.add.text(px + 8, y + 8, "Inspect", {
+      font: `8px '${FONT_PIXEL}'`,
+      color: COL.gold
     });
+
+    this.add.rectangle(px + 8, y + 24, w - 16, 1, C.border, 1).setOrigin(0);
+
+    this.statusText = this.add.text(px + 8, y + 32, "", {
+      font: `15px '${FONT_MONO}'`,
+      color: COL.muted,
+      wordWrap: { width: w - 16 },
+      lineSpacing: 2
+    });
+
+    return y + h;
+  }
+
+  private buildLogPanel(y: number): void {
+    const w = SIDEBAR_W - PAD * 2;
+    const px = SIDEBAR_X + PAD;
+    const bottom = SIDEBAR_H - 14;
+    const h = Math.max(60, bottom - y);
+
+    this.add
+      .rectangle(px, y, w, h, C.panel, 1)
+      .setOrigin(0)
+      .setStrokeStyle(1, C.border, 1);
+
+    this.logLabel = this.add.text(px + 8, y + 8, "Log", {
+      font: `8px '${FONT_PIXEL}'`,
+      color: COL.gold
+    });
+
+    this.add.rectangle(px + 8, y + 24, w - 16, 1, C.border, 1).setOrigin(0);
+
+    this.log = this.add.text(px + 8, y + 32, "", {
+      font: `15px '${FONT_MONO}'`,
+      color: COL.muted,
+      wordWrap: { width: w - 16 },
+      lineSpacing: 2
+    });
+  }
+
+  private rerenderStaticText(): void {
+    if (!this.floorText) return;
+    this.floorText.setText(`Floor ${this.context.floor}`);
+    this.inspectLabel?.setText("Inspect");
+    this.logLabel?.setText("Log");
   }
 
   update() {
@@ -94,9 +204,12 @@ export class UI extends Phaser.Scene {
 
     const e = this.context.inspectedEntity;
     if (!e) {
+      this.statusText.setColor(COL.dim);
       this.statusText.setText("Hover a creature, or tap it with Inspect on.");
       return;
     }
+
+    this.statusText.setColor(COL.text);
 
     if (e.type === "enemy") {
       const hp = e.healthPoints ?? 0;
