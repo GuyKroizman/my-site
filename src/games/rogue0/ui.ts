@@ -105,7 +105,7 @@ export class UI extends Phaser.Scene {
     const heroW = SIDEBAR_W - PAD * 2;
     const heroPad = 6;
     this.add
-      .rectangle(heroX, y, heroW, 154, C.panel, 1)
+      .rectangle(heroX, y, heroW, 186, C.panel, 1)
       .setOrigin(0)
       .setStrokeStyle(1, C.border, 1);
 
@@ -115,7 +115,7 @@ export class UI extends Phaser.Scene {
       y: y + heroPad,
       width: heroW - heroPad * 2
     });
-    y += 154 + 12;
+    y += 186 + 12;
 
     y = this.buildInspectPanel(y);
     this.buildLogPanel(y);

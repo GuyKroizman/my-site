@@ -9,7 +9,26 @@ import { applyEffect, removeEffect } from "../effects";
 import type { DamageType, StatusEffect } from "../effects";
 import { resolveAttack } from "../combat";
 
-const UI_HIGHLIGHT_BACKGROUND_COLOR = "#646059";
+// UI palette — kept in sync with the --r0-* variables in src/index.css and
+// the constants in src/games/rogue0/ui.ts. Hex strings are CSS colors, 0x
+// numbers are rectangle fills.
+const UI_COL = {
+  text: "#e8e1d5",
+  muted: "#a29a8e",
+  dim: "#6e675f",
+  gold: "#f0b429"
+};
+
+const UI_C = {
+  cell: 0x16121c,
+  panel2: 0x1f1926,
+  border: 0x3a3342,
+  borderStrong: 0x5a5060,
+  gold: 0xf0b429
+};
+
+const UI_FONT_PIXEL = "Press Start 2P";
+const UI_FONT_MONO = "VT323";
 
 type EquipSlotKey = "weapon" | "armor" | "ring1" | "ring2" | "artifact";
 
@@ -751,12 +770,10 @@ export default class BasicHero extends Entity {
   }
 
   statsText(): string {
-    let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}\nMp: ${this.movementPoints}\nAp: ${this.actionPoints}`;
+    let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}  Mp: ${this.movementPoints}  Ap: ${this.actionPoints}`;
     if (this.skill !== "") {
       const state =
-        this.skillCooldown > 0
-          ? `cooldown ${this.skillCooldown}`
-          : "ready [f]";
+        this.skillCooldown > 0 ? `cd ${this.skillCooldown}` : "ready [f]";
       text += `\n${this.skill}: ${state}`;
     }
     return text;
@@ -765,7 +782,8 @@ export default class BasicHero extends Entity {
   updateUI() {
     const over = this.movementPoints == 0 && !this.moving;
     if (this.UIHeader) {
-      this.UIHeader.setColor(over ? UI_HIGHLIGHT_BACKGROUND_COLOR : "#fff");
+      // Gold = the hero can act; dim = waiting for the turn to resolve.
+      this.UIHeader.setColor(over ? UI_COL.dim : UI_COL.gold);
     }
     if (this.UIStatsText) {
       this.UIStatsText.setText(this.statsText());
@@ -776,7 +794,7 @@ export default class BasicHero extends Entity {
     this.context.scene?.events.emit("player-died");
   }
 
-  createUI({ scene, x, y }: {
+  createUI({ scene, x, y, width }: {
     scene: Phaser.Scene;
     x: number;
     y: number;
@@ -786,50 +804,73 @@ export default class BasicHero extends Entity {
     this.UIX = x;
     this.UIY = y;
 
+    const w = width ?? 160;
     let yy = y;
 
-    // Character sprite, name and stats.
+    // Portrait + name. Gold while the hero can act, dim while waiting.
     this.UISprite = scene.add.sprite(x, yy, "tiles", this.tile).setOrigin(0);
-    this.UIHeader = scene.add.text(x + 20, yy, this.name, {
-      font: "16px Arial",
-      color: UI_HIGHLIGHT_BACKGROUND_COLOR
+    this.UIHeader = scene.add.text(x + 20, yy + 4, this.name, {
+      font: `10px '${UI_FONT_PIXEL}'`,
+      color: UI_COL.gold
     });
-    this.UIStatsText = scene.add.text(x + 20, yy + 20, this.statsText(), {
-      font: "12px Arial",
-      backgroundColor: UI_HIGHLIGHT_BACKGROUND_COLOR
+    yy += 18;
+
+    // Stats box on the dark panel (replaces the old grey Arial slab).
+    scene.add
+      .rectangle(x, yy, w, 80, UI_C.cell, 1)
+      .setOrigin(0)
+      .setStrokeStyle(1, UI_C.border, 1);
+    this.UIStatsText = scene.add.text(x + 6, yy + 6, this.statsText(), {
+      font: `13px '${UI_FONT_MONO}'`,
+      color: UI_COL.text,
+      lineSpacing: 2,
+      wordWrap: { width: w - 12 }
     });
-    yy += 60;
+    yy += 88;
 
     // Active status effects under the portrait (buff/debuff icons + turns).
     scene.add.text(x, yy, "Status", {
-      font: "11px Arial",
-      color: "#cfc6b8"
+      font: `8px '${UI_FONT_PIXEL}'`,
+      color: UI_COL.muted
     });
-    yy += 14;
+    yy += 12;
 
     this.UIEffectIcons = [];
     this.UIEffectTexts = [];
     for (let i = 0; i < 8; i++) {
-      const ex = x + i * 22;
+      const ex = x + i * 20;
       const icon = scene.add.sprite(ex, yy, "tiles", 0).setOrigin(0).setVisible(false);
-      const label = scene.add.text(ex, yy + 17, "", {
-        font: "10px Arial",
-        color: "#ffffff"
+      const label = scene.add.text(ex + 4, yy + 18, "", {
+        font: `9px '${UI_FONT_MONO}'`,
+        color: UI_COL.text
       }).setOrigin(0).setVisible(false);
       this.UIEffectIcons.push(icon);
       this.UIEffectTexts.push(label);
     }
-    yy += 38;
+    yy += 30;
 
     // Backpack button opens/closes the inventory window (i/b toggles too).
-    const button = scene.add.rectangle(x, yy, 150, 24, 0xcfc6b8, 0.3).setOrigin(0);
+    const button = scene.add
+      .rectangle(x, yy, w, 22, UI_C.panel2, 1)
+      .setOrigin(0)
+      .setStrokeStyle(1, UI_C.borderStrong, 1);
+    const backpackLabel = scene.add
+      .text(x + w / 2, yy + 11, "Backpack  [i/b]", {
+        font: `9px '${UI_FONT_PIXEL}'`,
+        color: UI_COL.muted
+      })
+      .setOrigin(0.5);
     button.setInteractive({ useHandCursor: true });
-    button.on("pointerup", () => this.onBackpackToggle?.());
-    scene.add.text(x + 6, yy + 4, "Backpack  [i/b]", {
-      font: "12px Arial",
-      color: "#ffffff"
+    button.on("pointerover", () => {
+      button.setStrokeStyle(1, UI_C.gold, 1);
+      backpackLabel.setColor(UI_COL.gold);
     });
-    yy += 30;
+    button.on("pointerout", () => {
+      button.setStrokeStyle(1, UI_C.borderStrong, 1);
+      backpackLabel.setColor(UI_COL.muted);
+    });
+    button.on("pointerup", () => this.onBackpackToggle?.());
+    yy += 22;
 
     this.refreshUI();
     return yy - y;
