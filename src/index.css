@@ -369,7 +369,9 @@ body {
   border: 1px solid var(--r0-border-strong);
   border-bottom-width: 3px;
   padding: 4px 7px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
   text-align: center;
 }
 
@@ -386,6 +388,7 @@ body {
   transition: color 0.12s ease;
 }
 
+.rogue0-foot a:focus-visible,
 .rogue0-foot a:hover {
   color: var(--r0-gold);
 }
@@ -456,8 +459,10 @@ body {
 
 .rogue0-game-head {
   width: 100%;
-  max-width: 1280px;
+  max-width: 1284px;
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
@@ -499,17 +504,27 @@ body {
 }
 
 .rogue0-game-stage {
-  max-width: 100%;
-  overflow-x: auto;
+  width: 100%;
+  max-width: 1284px;
   line-height: 0;
   border: 2px solid var(--r0-border-strong);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
 }
 
+/* Match the logical canvas ratio so FIT includes the full 200px sidebar. */
+.rogue0-game-stage #phaser {
+  width: 100%;
+  aspect-ratio: 1280 / 800;
+}
+
+.rogue0-game-stage canvas {
+  display: block;
+}
+
 .rogue0-game-foot {
   margin-top: 12px;
   font-size: 1.1rem;
-  color: var(--r0-dim);
+  color: var(--r0-muted);
 }
 
 .rogue0-game-foot a {
@@ -523,6 +538,7 @@ body {
 
 .rogue0-game-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -535,5 +551,13 @@ body {
 }
 
 .rogue0-game-btn.off {
-  color: var(--r0-dim);
+  color: var(--r0-muted);
+}
+
+@media (max-width: 540px) {
+  .rogue0-shell { padding: 18px; }
+  .rogue0-panel { padding: 24px 16px; }
+  .rogue0-classes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rogue0-instructions li { flex-wrap: wrap; gap: 6px; }
+  .rogue0-ctl-keys { max-width: 100%; text-align: left; }
 }

@@ -49,13 +49,30 @@ export default function Rogue0() {
     }
     contextRef.current = context
 
-    const game = new Phaser.Game(createRogue0Config(context))
-    phaserRef.current = game
-
-    const ui = new UI(context)
-    game.scene.add('ui-scene', ui, true)
+    let cancelled = false
+    // Canvas text must be measured after the web fonts load, not with the
+    // fallback font (setText with an unchanged string does not repaint it).
+    const start = async () => {
+      await Promise.all([
+        document.fonts.load('10px "Press Start 2P"'),
+        document.fonts.load('16px "VT323"'),
+      ]).catch(() => undefined)
+      if (cancelled) return
+      const config = createRogue0Config(context)
+      const game = new Phaser.Game({
+        ...config,
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
+        },
+      })
+      phaserRef.current = game
+      game.scene.add('ui-scene', new UI(context), true)
+    }
+    void start()
 
     return () => {
+      cancelled = true
       phaserRef.current?.destroy(true)
       phaserRef.current = null
       contextRef.current = null
