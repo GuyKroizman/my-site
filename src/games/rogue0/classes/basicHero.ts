@@ -38,11 +38,12 @@ export default class BasicHero extends Entity {
   UIHeader?: Phaser.GameObjects.Text;
   UIStatsText?: Phaser.GameObjects.Text;
   UIScene?: Phaser.Scene;
-  UISlotBoxes: Phaser.GameObjects.Rectangle[] = [];
-  UIItems: Phaser.GameObjects.Rectangle[] = [];
+  UIEffectIcons: Phaser.GameObjects.Sprite[] = [];
+  UIEffectTexts: Phaser.GameObjects.Text[] = [];
   UIX: number = 0;
   UIY: number = 0;
   inputBuffer: string[] = [];
+  onBackpackToggle?: () => void;
 
   constructor(context: GameContext) {
     super();
@@ -103,7 +104,7 @@ export default class BasicHero extends Entity {
   // Which equipment slot an item would prefer to fill. Returns undefined for
   // items that go straight to the backpack (consumables, junk, or rings when
   // both ring slots are already occupied).
-  private slotFor(item: Entity): EquipSlotKey | undefined {
+  slotFor(item: Entity): EquipSlotKey | undefined {
     switch (item.equipSlot) {
       case "weapon":
         return "weapon";
@@ -121,7 +122,7 @@ export default class BasicHero extends Entity {
   }
 
   // Which equipment slot currently holds this item (if any).
-  private slotOf(item: Entity): EquipSlotKey | undefined {
+  slotOf(item: Entity): EquipSlotKey | undefined {
     if (this.weapon === item) return "weapon";
     if (this.armor === item) return "armor";
     if (this.ring1 === item) return "ring1";
@@ -153,6 +154,10 @@ export default class BasicHero extends Entity {
     item.context = this.context;
     item.x = undefined;
     item.y = undefined;
+    if (item.sprite) {
+      this.context.scene?.tweens.killTweensOf(item.sprite);
+      item.sprite.destroy();
+    }
     item.sprite = undefined;
 
     if (willEquip && slot) {
@@ -235,6 +240,75 @@ export default class BasicHero extends Entity {
     this.refreshUI();
   }
 
+  // Drop an item from an equipped slot or the backpack back onto the map at
+  // the player's tile. Cursed items refuse to be dropped while cursed.
+  dropItem(item: Entity): void {
+    if (item.cursed) {
+      dungeon.log(
+        this.context,
+        `${item.displayName} is cursed and cannot be dropped.`
+      );
+      return;
+    }
+
+    if (this.x === undefined || this.y === undefined) {
+      dungeon.log(this.context, "There is nowhere to drop that here.");
+      return;
+    }
+
+    const slot = this.slotOf(item);
+    if (slot) {
+      this[slot] = undefined;
+      this.onUnequip(item);
+    } else {
+      this.backpack = this.backpack.filter((i) => i !== item);
+    }
+    this.clearItemUI(item);
+
+    // Put the item back on the map and recreate its sprite so it can be
+    // picked up again (matches the floor-item setup in entity.init()).
+    item.context = this.context;
+    item.x = this.x;
+    item.y = this.y;
+
+    if (!this.context.entities.includes(item)) {
+      this.context.entities.push(item);
+    }
+
+    const scene = this.context.scene;
+    const map = this.context.map;
+    if (scene && map) {
+      item.sprite?.destroy();
+      item.sprite = undefined;
+      const sprite = scene.add
+        .sprite(
+          map.tileToWorldX(this.x)!,
+          map.tileToWorldY(this.y)!,
+          "tiles",
+          item.tile
+        )
+        .setOrigin(0);
+      if (item.tint) {
+        sprite.tint = item.tint;
+      }
+      item.sprite = sprite;
+
+      if (item.type === "item") {
+        scene.tweens.add({
+          targets: sprite,
+          alpha: { from: 0.7, to: 1 },
+          duration: 700,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut"
+        });
+      }
+    }
+
+    dungeon.log(this.context, `${this.name} drops ${item.displayName}.`);
+    this.refreshUI();
+  }
+
   // Use a consumable. Identifies it (if needed) and runs its consume effect.
   useItem(item: Entity): boolean {
     if (!item.consumable) return false;
@@ -263,15 +337,6 @@ export default class BasicHero extends Entity {
       this.equipItem(item);
     }
     this.refreshUI();
-  }
-
-  private clickEquippedSlot(index: number): void {
-    if (!this.canAct()) return;
-    const slots = [this.weapon, this.armor, this.ring1, this.ring2, this.artifact];
-    const item = slots[index];
-    if (item) {
-      this.unequipItem(item);
-    }
   }
 
   removeItem(item: Entity): void {
@@ -568,54 +633,36 @@ export default class BasicHero extends Entity {
     });
     yy += 60;
 
-    // Equipped slots (click to unequip).
-    scene.add.text(x, yy, "Equipped", {
+    // Active status effects under the portrait (buff/debuff icons + turns).
+    scene.add.text(x, yy, "Status", {
       font: "11px Arial",
       color: "#cfc6b8"
     });
     yy += 14;
 
-    this.UISlotBoxes = [];
-    const slotLabels = ["W", "A", "R1", "R2", "Ar"];
-    for (let i = 0; i < 5; i++) {
-      const rx = x + i * 24;
-      const box = scene.add.rectangle(rx, yy, 22, 22, 0xcfc6b8, 0.3).setOrigin(0);
-      box.setInteractive({ useHandCursor: true });
-      box.on("pointerup", () => this.clickEquippedSlot(i));
-      this.UISlotBoxes.push(box);
-      scene.add.text(rx + 3, yy + 1, slotLabels[i], {
+    this.UIEffectIcons = [];
+    this.UIEffectTexts = [];
+    for (let i = 0; i < 8; i++) {
+      const ex = x + i * 22;
+      const icon = scene.add.sprite(ex, yy, "tiles", 0).setOrigin(0).setVisible(false);
+      const label = scene.add.text(ex, yy + 17, "", {
         font: "10px Arial",
-        color: "#8a8578"
-      });
+        color: "#ffffff"
+      }).setOrigin(0).setVisible(false);
+      this.UIEffectIcons.push(icon);
+      this.UIEffectTexts.push(label);
     }
-    yy += 26;
+    yy += 38;
 
-    // Backpack grid (numbered keys 1-0 act on the first 10 cells).
-    scene.add.text(x, yy, "Backpack (1-0)", {
-      font: "11px Arial",
-      color: "#cfc6b8"
+    // Backpack button opens/closes the inventory window (i/b toggles too).
+    const button = scene.add.rectangle(x, yy, 150, 24, 0xcfc6b8, 0.3).setOrigin(0);
+    button.setInteractive({ useHandCursor: true });
+    button.on("pointerup", () => this.onBackpackToggle?.());
+    scene.add.text(x + 6, yy + 4, "Backpack  [i/b]", {
+      font: "12px Arial",
+      color: "#ffffff"
     });
-    yy += 14;
-
-    this.UIItems = [];
-    const cols = 5;
-    const rows = Math.ceil(this.capacity / cols);
-    for (let i = 0; i < this.capacity; i++) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const rx = x + col * 24;
-      const ry = yy + row * 24;
-      const box = scene.add.rectangle(rx, ry, 22, 22, 0xcfc6b8, 0.3).setOrigin(0);
-      box.setInteractive({ useHandCursor: true });
-      box.on("pointerup", () => this.useOrEquipBackpackSlot(i));
-      this.UIItems.push(box);
-    }
-    yy += rows * 24;
-
-    // Separator.
-    yy += 4;
-    scene.add.line(x + 5, yy, 0, 10, 175, 10, 0xcfc6b8).setOrigin(0);
-    yy += 10;
+    yy += 30;
 
     this.refreshUI();
     return yy - y;
@@ -624,43 +671,21 @@ export default class BasicHero extends Entity {
   refreshUI() {
     if (!this.UIScene) return;
 
-    const slots = [this.weapon, this.armor, this.ring1, this.ring2, this.artifact];
-    for (let i = 0; i < this.UISlotBoxes.length; i++) {
-      this.renderItemInBox(slots[i], this.UISlotBoxes[i]);
-    }
-    for (let i = 0; i < this.UIItems.length; i++) {
-      this.renderItemInBox(this.backpack[i], this.UIItems[i]);
-    }
-  }
-
-  private renderItemInBox(item: Entity | undefined, box: Phaser.GameObjects.Rectangle) {
-    const scene = this.UIScene;
-    if (!scene || !box) return;
-    if (!item) return;
-
-    const cx = box.x + box.width / 2;
-    const cy = box.y + box.height / 2;
-
-    if (item.identified) {
-      if (!item.UISprite) {
-        item.UISprite = scene.add.sprite(cx, cy, "tiles", item.tile).setOrigin(0.5);
-        if (item.UISprite && item.tint) {
-          item.UISprite.tint = item.tint;
-        }
+    // Render active status effects (icon + remaining duration). Manual-expiry
+    // effects (frozen / curse) show ∞ instead of a turn count.
+    for (let i = 0; i < this.UIEffectIcons.length; i++) {
+      const icon = this.UIEffectIcons[i];
+      const label = this.UIEffectTexts[i];
+      const effect = this.effects[i];
+      if (effect) {
+        icon.setTexture("tiles", effect.iconTile).setVisible(true);
+        const infinite =
+          effect.manualExpiry || effect.duration === Number.POSITIVE_INFINITY;
+        label.setText(infinite ? "∞" : String(effect.duration)).setVisible(true);
+      } else {
+        icon.setVisible(false);
+        label.setVisible(false);
       }
-      item.UISprite.setPosition(cx, cy);
-      item.UISprite.setVisible(true);
-      item.UIText?.setVisible(false);
-    } else {
-      item.UISprite?.setVisible(false);
-      if (!item.UIText) {
-        item.UIText = scene.add.text(cx, cy, "?", {
-          font: "16px Arial",
-          color: "#ffffff"
-        }).setOrigin(0.5);
-      }
-      item.UIText.setPosition(cx, cy);
-      item.UIText.setVisible(true);
     }
   }
 
