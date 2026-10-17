@@ -30,7 +30,7 @@ export default class Quloptsh extends Entity {
   }
 
   refresh() {
-    if (this.context.player?.items.find(item => item.name === "Shoe")) {
+    if (this.context.player?.getAllItems().find(item => item.name === "Shoe")) {
       this.movementPoints = 1;
       this.actionPoints = 1;
     }

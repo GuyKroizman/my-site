@@ -1,8 +1,13 @@
 // TypeScript errors after site migration - ignoring for game functionality
+import type { EntityType } from "../entity";
 import { Entity } from "../entity";
 import type { GameContext } from "../context";
 
 export default class Shield extends Entity {
+  type: EntityType = "item";
+  tier = 1;
+  equipSlot: "armor" = "armor";
+
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 776;
@@ -35,7 +40,7 @@ export default class Shield extends Entity {
   }
 
   protection(): number {
-    return 1;
+    return 1 + this.level;
   }
 
   range(): number {

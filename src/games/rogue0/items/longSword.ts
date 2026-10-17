@@ -6,8 +6,9 @@ import type { GameContext } from "../context";
 export default class LongSword extends Entity {
   name: string = "A Long Sword";
   description = "A long sword that causes between 1 and 8 damage.";
-  weapon = true;
   tile = 329;
+  tier = 1;
+  equipSlot: "weapon" = "weapon";
   healthPoints: number = 0;
   moving: boolean = false;
   type: EntityType = "item";
@@ -22,7 +23,7 @@ export default class LongSword extends Entity {
   }
 
   damage() {
-    return Phaser.Math.Between(4, 8);
+    return Phaser.Math.Between(4, 8) + this.level;
   }
 
   turn() {

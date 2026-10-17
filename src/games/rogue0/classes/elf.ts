@@ -14,8 +14,7 @@ export default class Elf extends BasicHero {
     this.maxHealthPoints = 20;
     this.tile = 49 + 28;
 
-    this.items.push(new Bow(context));
-    this.toggleItem(context,0)
+    this.addItem(new Bow(context));
 
     this.evasion = 10;
 

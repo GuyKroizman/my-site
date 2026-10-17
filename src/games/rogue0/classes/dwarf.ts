@@ -15,11 +15,8 @@ export default class Dwarf extends BasicHero {
     this.maxHealthPoints = 35;
     this.tile = 9 * 49 + 29;
 
-    this.items.push(new Axe(context));
-    this.toggleItem(context, 0);
-
-    this.items.push(new Shield(context));
-    this.toggleItem(context, 1);
+    this.addItem(new Axe(context));
+    this.addItem(new Shield(context));
 
     this.resistance = { physical: 1 };
 

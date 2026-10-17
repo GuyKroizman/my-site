@@ -14,6 +14,9 @@ import Axe from "./items/axe";
 import Bow from "./items/bow";
 import Shield from "./items/shield";
 import Shoe from "./items/Shoe";
+import ScrollOfIdentify from "./items/ScrollOfIdentify";
+import ScrollOfUpgrade from "./items/ScrollOfUpgrade";
+import ScrollOfRemoveCurse from "./items/ScrollOfRemoveCurse";
 import Quloptsh from "./monsters/quloptsh";
 import Archer from "./monsters/archer";
 import Ghoul from "./monsters/ghoul";
@@ -115,7 +118,7 @@ export class Scene0 extends Phaser.Scene {
     this.lastFovY = undefined;
 
     const player = this.context.player!;
-    const kept = new Set([player, ...player.items]);
+    const kept = new Set([player, ...player.getAllItems()]);
 
     // Drop everything from the previous floor except the player and its gear.
     for (const entity of this.context.entities) {
@@ -125,7 +128,7 @@ export class Scene0 extends Phaser.Scene {
       }
     }
 
-    this.context.entities = [player, ...player.items];
+    this.context.entities = [player, ...player.getAllItems()];
 
     // Start the new floor with a fresh player turn.
     player.refresh();
@@ -404,7 +407,10 @@ export class Scene0 extends Phaser.Scene {
       HolyPotion,
       FullHealPotion,
       MinorHealPotion,
-      Shoe
+      Shoe,
+      ScrollOfIdentify,
+      ScrollOfUpgrade,
+      ScrollOfRemoveCurse
     ];
     for (let l = 0; l < itemCount && i < tiles.length; l++, i++) {
       const Loot = lootPool[Math.floor(Math.random() * lootPool.length)];

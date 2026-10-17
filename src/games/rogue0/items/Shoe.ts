@@ -11,6 +11,8 @@ export default class Shoe extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile: number = 19 * 49 + 32;
+  tier = 1;
+  equipSlot: "junk" = "junk";
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();

@@ -11,6 +11,8 @@ export default class HolyPotion extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile = 13 * 49 + 32;
+  tier = 1;
+  equipSlot: "consumable" = "consumable";
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
@@ -22,8 +24,8 @@ export default class HolyPotion extends Entity {
     if (!this.context.player) {
       return;
     }
-    dungeon.log(this.context, `A blessing passes through your body and removes all cursed items.`);
-    this.context.player.removeItemsByProperty("cursed", true);
+    dungeon.log(this.context, `A blessing passes through your body and lifts every curse.`);
+    this.context.player.removeCurse();
     this.context.player.removeItem(this);
     removeEntity(this.context, this);
   }

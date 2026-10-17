@@ -11,8 +11,9 @@ export default class Sword extends Entity{
   healthPoints: number = 0;
   actionPoints: number = 0;
   tile: number = 328;
-  weapon: boolean = true;
   moving: boolean = false;
+  tier = 1;
+  equipSlot: "weapon" = "weapon";
 
 
   constructor(context: GameContext, x?: number, y?: number ) {
@@ -21,7 +22,7 @@ export default class Sword extends Entity{
   }
 
   damage() {
-    return Phaser.Math.Between(1, 5)
+    return Phaser.Math.Between(1, 5) + this.level;
   }
 
   turn() {

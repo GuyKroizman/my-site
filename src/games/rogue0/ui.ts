@@ -89,7 +89,8 @@ export class UI extends Phaser.Scene {
         `${e.name}\n${e.description}\nHP: ${hp}/${maxHp}\nATK: ${atk}  DEF: ${prot}  Range: ${range}`
       );
     } else {
-      this.statusText.setText(`${e.name}\n${e.description}`);
+      const desc = e.identified ? e.description : "You have not identified this item.";
+      this.statusText.setText(`${e.displayName}\n${desc}`);
     }
   }
 }

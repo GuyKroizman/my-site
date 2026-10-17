@@ -1,16 +1,19 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import type { GameContext } from "../context";
+import type { EntityType } from "../entity";
 import { Entity } from "../entity";
 
 export default class ScrollOfLightning extends Entity {
+  type: EntityType = "item";
+  tier = 1;
+  equipSlot: "weapon" = "weapon";
+
   constructor(context: GameContext, x?: number, y?: number) {
     super();
 
     this.tile = 15 * 49 + 34;
     this.name = "Scroll of Lightning";
-    this.description = "A scroll of Lightning. Causes between 1 and 2 damage. Range is seven tiles."
-    this.weapon = true;
-
+    this.description = "A scroll of Lightning. Causes between 1 and 2 damage. Range is seven tiles.";
     this.attackTile = 413;
     this.damageType = "shock";
 
@@ -21,7 +24,7 @@ export default class ScrollOfLightning extends Entity {
   }
 
   damage() {
-    return Phaser.Math.Between(1, 2);
+    return Phaser.Math.Between(1, 2) + this.level;
   }
 
   turn() {

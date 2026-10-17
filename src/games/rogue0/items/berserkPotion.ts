@@ -12,6 +12,8 @@ export default class BerserkPotion extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile = 13 * 49 + 33;
+  tier = 1;
+  equipSlot: "consumable" = "consumable";
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();

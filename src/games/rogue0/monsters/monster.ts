@@ -109,10 +109,6 @@ export default class Monster extends Entity {
     return this.protectionValue;
   }
 
-  get armor(): number {
-    return this.protectionValue;
-  }
-
   range() {
     return this.rangeValue;
   }
