@@ -11,6 +11,7 @@
 
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
+import { spawnEntityFloatingText } from "./floatingText";
 
 export type DamageType =
   | "physical"
@@ -90,6 +91,7 @@ export function createBurningEffect(duration = 3): StatusEffect {
     tick(entity, context) {
       const amount = 1;
       entity.healthPoints -= amount;
+      spawnEntityFloatingText(entity, `-${amount}`);
       log(context, `${entity.name} burns for ${amount} fire damage.`);
     }
   };
@@ -104,6 +106,7 @@ export function createPoisonedEffect(duration = 3): StatusEffect {
     tick(entity, context) {
       const amount = 1;
       entity.healthPoints -= amount;
+      spawnEntityFloatingText(entity, `-${amount}`);
       log(context, `${entity.name} takes ${amount} poison damage.`);
     }
   };
@@ -118,6 +121,7 @@ export function createBleedingEffect(duration = 3): StatusEffect {
     tick(entity, context) {
       const amount = 1;
       entity.healthPoints -= amount;
+      spawnEntityFloatingText(entity, `-${amount}`);
       log(context, `${entity.name} bleeds for ${amount} physical damage.`);
     }
   };
@@ -137,6 +141,7 @@ export function createRegenerationEffect(duration = 4): StatusEffect {
         entity.maxHealthPoints,
         entity.healthPoints + amount
       );
+      spawnEntityFloatingText(entity, `+${amount}`, "#6aff6a");
       log(context, `${entity.name} regenerates ${amount} health.`);
     }
   };
@@ -196,6 +201,7 @@ export function createCursedEffect(): StatusEffect {
     tick(entity, context) {
       const amount = 1;
       entity.healthPoints -= amount;
+      spawnEntityFloatingText(entity, `-${amount}`);
       log(context, `${entity.name} is cursed and takes ${amount} damage.`);
     }
   };

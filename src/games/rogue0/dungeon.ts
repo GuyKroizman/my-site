@@ -4,6 +4,7 @@ import type { Entity } from "./entity";
 import { removeEntity } from "./entity";
 import { sfx } from "./audio";
 import { resolveAttack } from "./combat";
+import { spawnEntityFloatingText } from "./floatingText";
 import * as tiles from "./tiles";
 import {
   applyEffect,
@@ -419,6 +420,7 @@ let dungeon = {
 
     if (result.damage > 0) {
       victim.healthPoints -= result.damage;
+      spawnEntityFloatingText(victim, `-${result.damage}`);
       this.log(
         context,
         `${attacker.name} hits ${victim.name} for ${result.damage} ${result.damageType} damage.`

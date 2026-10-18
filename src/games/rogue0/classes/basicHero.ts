@@ -14,6 +14,7 @@ import {
 } from "../effects";
 import type { DamageType, StatusEffect } from "../effects";
 import { resolveAttack } from "../combat";
+import { spawnEntityFloatingText } from "../floatingText";
 
 // UI palette — kept in sync with the --r0-* variables in src/index.css and
 // the constants in src/games/rogue0/ui.ts. Hex strings are CSS colors, 0x
@@ -488,6 +489,7 @@ export default class BasicHero extends Entity {
     // Starving: 1 damage per round until food is eaten.
     if (this.hunger === 0) {
       this.healthPoints -= 1;
+      spawnEntityFloatingText(this, "-1");
       dungeon.log(this.context, "You are starving! You take 1 damage.");
       if (this.healthPoints <= 0) {
         removeEntity(this.context, this);

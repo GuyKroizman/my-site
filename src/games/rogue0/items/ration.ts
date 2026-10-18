@@ -11,9 +11,9 @@ export default class Ration extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = 16 * 49 + 34;
-    this.name = "Ration";
-    this.description = "A small ration that restores 35 hunger.";
+    this.tile = 14 * 49 + 34;
+    this.name = "Ration of Food";
+    this.description = "A ration of bread and dried food. Restores 35 hunger.";
     this.consumable = true;
     this.identified = false;
 
