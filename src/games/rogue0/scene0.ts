@@ -39,6 +39,8 @@ import RingOfHaste from "./items/RingOfHaste";
 import RingOfMight from "./items/RingOfMight";
 import ChaliceOfBlood from "./items/ChaliceOfBlood";
 import FangOfTheBeast from "./items/FangOfTheBeast";
+import Ration from "./items/ration";
+import LargeRation from "./items/largeRation";
 import Quloptsh from "./monsters/quloptsh";
 import Archer from "./monsters/archer";
 import Ghoul from "./monsters/ghoul";
@@ -581,7 +583,9 @@ export class Scene0 extends Phaser.Scene {
       RingOfHaste,
       RingOfMight,
       ChaliceOfBlood,
-      FangOfTheBeast
+      FangOfTheBeast,
+      Ration,
+      LargeRation
     ];
     for (let l = 0; l < itemCount && i < tiles.length; l++, i++) {
       const Loot = lootPool[Math.floor(Math.random() * lootPool.length)];
