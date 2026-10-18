@@ -117,6 +117,8 @@ export default class BasicHero extends Entity {
     }
     if (this.healthPoints <= 6) {
       this.sprite.tint = Phaser.Display.Color.GetColor(255, 0, 0);
+    } else {
+      this.sprite.clearTint();
     }
 
     this.refreshUI();
