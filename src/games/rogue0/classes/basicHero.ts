@@ -40,6 +40,10 @@ export default class BasicHero extends Entity {
   actionPoints: number = 1;
   healthPoints: number = 30;
   maxHealthPoints: number = 30;
+  hunger: number = 100;
+  maxHunger: number = 100;
+  gold: number = 0;
+  private hungerWarned: boolean = false;
   xp: number = 0;
   level: number = 1;
   baseAttack: number = 0;
@@ -458,6 +462,33 @@ export default class BasicHero extends Entity {
     if (this.skillCooldown > 0) {
       this.skillCooldown -= 1;
     }
+
+    // Hunger (G5): burn one point of hunger per round, clamped at 0.
+    if (this.hunger > 0) {
+      this.hunger -= 1;
+    }
+
+    // Warn once when hunger first drops below 30, not every round.
+    if (this.hunger > 0 && this.hunger < 30 && !this.hungerWarned) {
+      this.hungerWarned = true;
+      dungeon.log(this.context, "You are getting hungry.");
+    }
+
+    // Starving: 1 damage per round until food is eaten.
+    if (this.hunger === 0) {
+      this.healthPoints -= 1;
+      dungeon.log(this.context, "You are starving! You take 1 damage.");
+      if (this.healthPoints <= 0) {
+        removeEntity(this.context, this);
+      }
+    }
+  }
+
+  restoreHunger(amount: number): void {
+    this.hunger = Math.min(this.maxHunger, this.hunger + amount);
+    if (this.hunger >= 30) {
+      this.hungerWarned = false;
+    }
   }
 
   xpForNextLevel(): number {
@@ -772,6 +803,11 @@ export default class BasicHero extends Entity {
 
   statsText(): string {
     let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}  Mp: ${this.movementPoints}  Ap: ${this.actionPoints}`;
+    const food =
+      this.hunger <= 0
+        ? "Starving!"
+        : `Food: ${this.hunger}/${this.maxHunger}`;
+    text += `\n${food}  Gold: ${this.gold}`;
     if (this.skill !== "") {
       const state =
         this.skillCooldown > 0 ? `cd ${this.skillCooldown}` : "ready [f]";
