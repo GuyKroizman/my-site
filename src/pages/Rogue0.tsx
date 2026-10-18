@@ -29,6 +29,79 @@ const CONTROLS = [
   ['Wait', 'Space'],
 ] as const
 
+const HELP_PAGES = [
+  {
+    title: 'Basics',
+    body: `• Move with the Arrow keys or HJKL.\n• Walk into an enemy to attack it (melee).\n• Space waits one turn.\n• Press i or b to open your backpack.\n• Press x to enter Inspect mode, then move the cursor.`,
+  },
+  {
+    title: 'Combat',
+    body: `• Melee: walk into an enemy.\n• Ranged: equip a bow or wand, then click/tap an enemy.\n• Damage types: physical, fire, ice, shock, poison, magic.\n• Armor reduces physical damage; resistances reduce typed damage.\n• Surprise attacks (unseen) always hit and can cause bleeding.\n• Status effects: burning, poisoned, bleeding, frozen, weakened, crippled.\n• Regeneration heals each round; frozen skips a turn.`,
+  },
+  {
+    title: 'Food & Hunger',
+    body: `• Your Food meter drops by 1 every round.\n• Below 30 you get a warning that you are hungry.\n• At 0 you are starving: take 1 damage per round until you eat.\n• Eat Rations to restore hunger.\n• Keep food in reserve for long treks.`,
+  },
+  {
+    title: 'Items & Equipment',
+    body: `• Slots: weapon, armor, two rings, artifact — plus a 20-slot backpack.\n• Unidentified items show as ?potion, ?scroll, etc. Use them to learn what they are (or use a Scroll of Identify).\n• Cursed items cannot be unequipped until you Remove Curse (or use Holy Water).\n• Scrolls of Upgrade raise an item's level.\n• Wands have limited charges — a Scroll of Recharging refills them.\n• Rings grant passive bonuses.`,
+  },
+  {
+    title: 'Skills',
+    body: `• Each class has a passive and one active skill.\n• Press f to use your active skill.\n• Skills have a cooldown shown in your stats.\n• Warrior: Power Strike · Dwarf: Shield Bash · Cleric: Heal.\n• Elf: Multishot · Wizard: Nova.`,
+  },
+  {
+    title: 'Terrain',
+    body: `• Doors open when you walk into them (monsters open them too).\n• Traps are hidden until you step on them.\n• Grass burns; water douses fire; chasms cannot be crossed.\n• Stepping on a trap reveals and triggers it.`,
+  },
+  {
+    title: 'Progress',
+    body: `• Find the stairs and descend. Escape at the bottom floor.\n• Monsters drop gold and grant XP.\n• Leveling up raises max HP and attack.\n• Dying ends the run — plan food, health, and positioning.`,
+  },
+] as const
+
+function HelpModal({
+  page,
+  onClose,
+  onPrev,
+  onNext,
+}: {
+  page: number
+  onClose: () => void
+  onPrev: () => void
+  onNext: () => void
+}) {
+  const p = HELP_PAGES[page]
+  return (
+    <div className="rogue0-help-overlay" onClick={onClose}>
+      <div className="rogue0-help-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="rogue0-help-head">
+          <span className="rogue0-help-title">{p.title}</span>
+          <button className="rogue0-help-close" onClick={onClose} aria-label="Close help">
+            ✕
+          </button>
+        </div>
+        <div className="rogue0-help-body">{p.body}</div>
+        <div className="rogue0-help-nav">
+          <button className="rogue0-help-btn" onClick={onPrev} disabled={page === 0}>
+            ← Prev
+          </button>
+          <span className="rogue0-help-pages">
+            {page + 1} / {HELP_PAGES.length}
+          </span>
+          <button
+            className="rogue0-help-btn"
+            onClick={onNext}
+            disabled={page === HELP_PAGES.length - 1}
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Rogue0() {
   const phaserRef = useRef<Game | null>(null)
   const contextRef = useRef<GameContext | null>(null)
@@ -36,6 +109,8 @@ export default function Rogue0() {
   const [result, setResult] = useState<EndResult | null>(null)
   const [inspectMode, setInspectMode] = useState(false)
   const [muted, setMuted] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [helpPage, setHelpPage] = useState(0)
 
   useEffect(() => {
     if (!heroClass) return
@@ -46,6 +121,7 @@ export default function Rogue0() {
     context.onEnd = (r) => {
       phaserRef.current?.destroy(true)
       phaserRef.current = null
+      setHelpOpen(false)
       setResult(r)
     }
     context.onInspectModeChange = (mode) => setInspectMode(mode)
@@ -99,6 +175,20 @@ export default function Rogue0() {
     setMuted(toggleMuted())
   }
 
+  const openHelp = () => {
+    setHelpPage(0)
+    setHelpOpen(true)
+  }
+
+  const helpModal = helpOpen ? (
+    <HelpModal
+      page={helpPage}
+      onClose={() => setHelpOpen(false)}
+      onPrev={() => setHelpPage((p) => Math.max(0, p - 1))}
+      onNext={() => setHelpPage((p) => Math.min(HELP_PAGES.length - 1, p + 1))}
+    />
+  ) : null
+
   if (result) {
     return (
       <div className="rogue0-shell">
@@ -146,6 +236,7 @@ export default function Rogue0() {
         <div className="rogue0-panel">
           <h1 className="rogue0-title">Rogue0</h1>
           <p className="rogue0-subtitle">Choose your hero</p>
+          <button className="rogue0-link-btn" onClick={openHelp}>Help</button>
 
           <div className="rogue0-classes">
             {HERO_CLASSES.map((c) => (
@@ -176,6 +267,7 @@ export default function Rogue0() {
             <Link to="/">← back to home</Link>
           </p>
         </div>
+        {helpModal}
       </div>
     )
   }
@@ -185,6 +277,7 @@ export default function Rogue0() {
       <div className="rogue0-game-head">
         <span className="rogue0-game-title">Rogue0</span>
         <div className="rogue0-game-actions">
+          <button className="rogue0-game-btn" onClick={openHelp}>Help</button>
           <button
             className={`rogue0-game-btn ${muted ? 'off' : ''}`}
             onClick={toggleMute}
@@ -210,6 +303,7 @@ export default function Rogue0() {
       <p className="rogue0-game-foot">
         Tiles from <a href="https://kenney.nl/">Kenney</a>
       </p>
+      {helpModal}
     </div>
   )
 }
