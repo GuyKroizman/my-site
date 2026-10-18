@@ -5,7 +5,13 @@ import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
-import { applyEffect, removeEffect } from "../effects";
+import {
+  applyEffect,
+  createBurningEffect,
+  createFrozenEffect,
+  createPoisonedEffect,
+  removeEffect
+} from "../effects";
 import type { DamageType, StatusEffect } from "../effects";
 import { resolveAttack } from "../combat";
 
@@ -90,7 +96,10 @@ export default class BasicHero extends Entity {
     }
 
     context.scene.input.keyboard.on("keydown", (event: KeyboardEvent) => {
-      if (this.canAct()) {
+      // Cursor keys (x / Esc / Enter / arrows / HJKL) stay live while the
+      // inspect or throw cursor is active, even when it isn't the player's
+      // turn. Everything else keeps the existing canAct()/buffer behaviour.
+      if (this.canAct() || (this.cursorActive() && this.isCursorKey(event.key))) {
         this.processInput(event.key);
       } else {
         this.bufferKey(event.key);
@@ -517,6 +526,12 @@ export default class BasicHero extends Entity {
 
     let entity = dungeon.entityAtTile(context, x!, y!);
 
+    // Throw targeting takes priority: any tap resolves the pending throw.
+    if (context.throwMode) {
+      this.throwAt(x!, y!);
+      return;
+    }
+
     // Inspect is a UI action: always available, on any turn.
     if (context.inspectMode) {
       if (entity && entity.type !== "player" && context.visibleTiles?.has(`${x},${y}`)) {
@@ -555,6 +570,331 @@ export default class BasicHero extends Entity {
         }
       }
     }
+  }
+
+  // --- Inspect cursor + throw targeting ---
+
+  private cursorActive(): boolean {
+    return this.context.inspectMode || this.context.throwMode;
+  }
+
+  private isCursorKey(key: string): boolean {
+    return (
+      key === "x" || key === "X" || key === "Escape" || key === "Enter" ||
+      key === "ArrowLeft" || key === "ArrowRight" ||
+      key === "ArrowUp" || key === "ArrowDown" ||
+      key === "h" || key === "j" || key === "k" || key === "l"
+    );
+  }
+
+  private cursorDir(key: string): { dx: number; dy: number } | undefined {
+    switch (key) {
+      case "ArrowLeft":
+      case "h":
+        return { dx: -1, dy: 0 };
+      case "ArrowRight":
+      case "l":
+        return { dx: 1, dy: 0 };
+      case "ArrowUp":
+      case "k":
+        return { dx: 0, dy: -1 };
+      case "ArrowDown":
+      case "j":
+        return { dx: 0, dy: 1 };
+      default:
+        return undefined;
+    }
+  }
+
+  private toggleInspectMode(): void {
+    const context = this.context;
+    context.inspectMode = !context.inspectMode;
+    if (context.inspectMode) {
+      if (context.cursorX === undefined || context.cursorY === undefined) {
+        context.cursorX = this.x;
+        context.cursorY = this.y;
+      }
+      this.updateInspectedFromCursor();
+    } else {
+      context.inspectedEntity = undefined;
+    }
+    context.onInspectModeChange?.(context.inspectMode);
+  }
+
+  private exitCursorModes(): void {
+    const context = this.context;
+    if (context.throwMode) {
+      this.cancelThrow();
+      return;
+    }
+    if (context.inspectMode) {
+      context.inspectMode = false;
+      context.inspectedEntity = undefined;
+      context.onInspectModeChange?.(false);
+    }
+  }
+
+  private moveCursor(dx: number, dy: number): void {
+    const context = this.context;
+    if (context.cursorX === undefined || context.cursorY === undefined) {
+      context.cursorX = this.x;
+      context.cursorY = this.y;
+    }
+    if (context.cursorX === undefined || context.cursorY === undefined) return;
+
+    const level = dungeon.getCurrentLevel();
+    const nx = context.cursorX + dx;
+    const ny = context.cursorY + dy;
+    if (ny < 0 || nx < 0 || ny >= level.length || nx >= level[0].length) return;
+
+    context.cursorX = nx;
+    context.cursorY = ny;
+
+    if (context.inspectMode) {
+      this.updateInspectedFromCursor();
+    }
+  }
+
+  private updateInspectedFromCursor(): void {
+    const context = this.context;
+    if (context.cursorX === undefined || context.cursorY === undefined) return;
+    const x = context.cursorX;
+    const y = context.cursorY;
+
+    if (!context.visibleTiles.has(`${x},${y}`)) {
+      context.inspectedEntity = undefined;
+      return;
+    }
+
+    const entity = dungeon.entityAtTile(context, x, y);
+    if (entity && entity.type !== "player") {
+      context.inspectedEntity = entity;
+    } else {
+      context.inspectedEntity = undefined;
+    }
+  }
+
+  beginThrow(item: Entity): void {
+    const context = this.context;
+    if (!this.getAllItems().includes(item)) {
+      dungeon.log(context, "You don't have that item.");
+      return;
+    }
+    if (item.cursed) {
+      dungeon.log(context, `${item.displayName} is cursed and cannot be thrown.`);
+      return;
+    }
+
+    context.throwMode = true;
+    context.throwItem = item;
+    if (context.cursorX === undefined || context.cursorY === undefined) {
+      context.cursorX = this.x;
+      context.cursorY = this.y;
+    }
+    dungeon.log(
+      context,
+      `Throwing ${item.displayName} — tap a tile (<=5 tiles, line of sight), or move the cursor and press Enter. Esc cancels.`
+    );
+  }
+
+  cancelThrow(): void {
+    const context = this.context;
+    if (!context.throwMode) return;
+    context.throwMode = false;
+    context.throwItem = undefined;
+    dungeon.log(context, "You stop throwing.");
+  }
+
+  throwAtCursor(): void {
+    const context = this.context;
+    if (!context.throwMode || !context.throwItem) return;
+    if (context.cursorX === undefined || context.cursorY === undefined) return;
+    this.throwAt(context.cursorX, context.cursorY);
+  }
+
+  // Resolve a throw at a tile (reached from a pointer tap or the cursor).
+  throwAt(tx: number, ty: number): void {
+    const context = this.context;
+    const item = context.throwItem;
+    if (!item) return;
+    if (this.x === undefined || this.y === undefined) {
+      this.cancelThrow();
+      return;
+    }
+
+    const level = dungeon.getCurrentLevel();
+    const inBounds =
+      ty >= 0 && tx >= 0 && ty < level.length && tx < level[0].length;
+    const distance = Math.max(Math.abs(tx - this.x), Math.abs(ty - this.y));
+    const isWall = inBounds && level[ty][tx] === 1;
+    const hasLOS = inBounds && hasLineOfSight(level, this.x, this.y, tx, ty);
+
+    if (!inBounds || distance > 5 || !hasLOS || isWall) {
+      dungeon.log(context, "You can't throw there.");
+      this.cancelThrow();
+      return;
+    }
+
+    // Remove the item from the hero's possession now; the landing handler
+    // either consumes it (enemy hit) or puts it on the floor.
+    this.removeItem(item);
+
+    const scene = context.scene;
+    const map = context.map;
+    if (!scene || !map) {
+      this.addItem(item);
+      this.cancelThrow();
+      return;
+    }
+
+    const projectile = scene.add
+      .sprite(map.tileToWorldX(this.x)!, map.tileToWorldY(this.y)!, "tiles", item.tile)
+      .setOrigin(0)
+      .setDepth(250);
+    if (item.tint) projectile.tint = item.tint;
+
+    scene.tweens.add({
+      targets: projectile,
+      x: map.tileToWorldX(tx)!,
+      y: map.tileToWorldY(ty)!,
+      duration: 140,
+      ease: "Power2",
+      onComplete: () => {
+        projectile.destroy();
+        this.resolveThrowLanding(item, tx, ty);
+      }
+    });
+
+    context.throwMode = false;
+    context.throwItem = undefined;
+  }
+
+  private resolveThrowLanding(item: Entity, tx: number, ty: number): void {
+    const context = this.context;
+    const target = dungeon.entityAtTile(context, tx, ty);
+
+    if (target && target.type === "enemy") {
+      this.applyThrownItemToEnemy(item, target);
+      removeEntity(context, item);
+      return;
+    }
+
+    this.placeItemOnGround(item, tx, ty);
+  }
+
+  private applyThrownItemToEnemy(item: Entity, enemy: Entity): void {
+    const context = this.context;
+
+    // Weapons (and ranged weapon-like items such as fireball scrolls) deal
+    // their own damage through the normal combat math.
+    if (item.equipSlot === "weapon" || item.damage() > 0) {
+      const originalAttack = (this as unknown as { attack: () => number }).attack;
+      (this as unknown as { attack: () => number }).attack = () => item.damage();
+
+      let result: ReturnType<typeof resolveAttack>;
+      try {
+        result = resolveAttack(context, this, enemy, {
+          damageType: item.damageType ?? "physical",
+          isRanged: true,
+          onHitEffects: []
+        });
+      } finally {
+        (this as unknown as { attack: () => number }).attack = originalAttack;
+      }
+
+      if (!result.hit) return;
+
+      if (result.damage > 0) {
+        enemy.healthPoints -= result.damage;
+        dungeon.log(
+          context,
+          `${this.name} throws ${item.displayName} at ${enemy.name} for ${result.damage} ${result.damageType} damage.`
+        );
+        dungeon.applyHitEffects(context, enemy);
+      } else {
+        dungeon.log(
+          context,
+          `${this.name} throws ${item.displayName} at ${enemy.name} but deals no damage.`
+        );
+      }
+
+      for (const effect of result.appliedEffects) {
+        if (enemy.healthPoints > 0) {
+          applyEffect(enemy, effect);
+        }
+      }
+
+      if (enemy.healthPoints <= 0) {
+        removeEntity(context, enemy);
+      }
+      return;
+    }
+
+    // Potions splash their status effect onto the target where one applies.
+    this.applyThrownPotion(item, enemy);
+  }
+
+  private applyThrownPotion(item: Entity, enemy: Entity): void {
+    const context = this.context;
+    dungeon.log(
+      context,
+      `${this.name} throws ${item.displayName} at ${enemy.name}.`
+    );
+
+    const name = item.name.toLowerCase();
+    if (name.includes("liquid flame")) {
+      applyEffect(enemy, createBurningEffect(4));
+    } else if (name.includes("toxic gas")) {
+      applyEffect(enemy, createPoisonedEffect(4));
+    } else if (name.includes("frost")) {
+      applyEffect(enemy, createFrozenEffect(1));
+    } else {
+      dungeon.log(context, "It splashes harmlessly.");
+    }
+  }
+
+  private placeItemOnGround(item: Entity, tx: number, ty: number): void {
+    const context = this.context;
+    const scene = context.scene;
+    const map = context.map;
+    if (!scene || !map) {
+      removeEntity(context, item);
+      return;
+    }
+
+    item.context = context;
+    item.x = tx;
+    item.y = ty;
+
+    if (!context.entities.includes(item)) {
+      context.entities.push(item);
+    }
+
+    item.sprite?.destroy();
+    item.sprite = undefined;
+    const sprite = scene.add
+      .sprite(map.tileToWorldX(tx)!, map.tileToWorldY(ty)!, "tiles", item.tile)
+      .setOrigin(0);
+    if (item.tint) {
+      sprite.tint = item.tint;
+    }
+    item.sprite = sprite;
+
+    if (item.type === "item") {
+      scene.tweens.add({
+        targets: sprite,
+        alpha: { from: 0.7, to: 1 },
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut"
+      });
+    }
+
+    dungeon.log(
+      context,
+      `${this.name} throws ${item.displayName} — it lands on the floor.`
+    );
   }
 
   // --- Per-class active skill (Phase 9) ---
@@ -699,6 +1039,45 @@ export default class BasicHero extends Entity {
   }
 
   processInput(key: string) {
+    const context = this.context;
+
+    // --- Inspect / throw cursor modes ---
+    // While a cursor is active, arrows/HJKL move the highlighted tile instead
+    // of the player, x/Escape leave the mode, and Enter throws at the cursor.
+    if (context.inspectMode || context.throwMode) {
+      if (key === "Escape") {
+        this.exitCursorModes();
+        return;
+      }
+      if (key === "x" || key === "X") {
+        if (context.throwMode) {
+          this.cancelThrow();
+        } else {
+          this.toggleInspectMode();
+        }
+        return;
+      }
+      if (key === "Enter") {
+        if (context.throwMode) {
+          this.throwAtCursor();
+        }
+        return;
+      }
+      const dir = this.cursorDir(key);
+      if (dir) {
+        this.moveCursor(dir.dx, dir.dy);
+        return;
+      }
+      // Ignore every other key while a cursor mode is active.
+      return;
+    }
+
+    // `x` toggles the inspect cursor on from normal play.
+    if (key === "x" || key === "X") {
+      this.toggleInspectMode();
+      return;
+    }
+
     let oldX = this.x!;
     let oldY = this.y!;
     let moved = false;
