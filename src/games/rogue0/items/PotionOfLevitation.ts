@@ -12,6 +12,7 @@ export default class PotionOfLevitation extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 13 * 49 + 44;
+    this.textureKey = "potion-gold";
     this.name = "Potion of Levitation";
     this.description = "Lets you float above the ground for a while.";
     this.consumable = true;

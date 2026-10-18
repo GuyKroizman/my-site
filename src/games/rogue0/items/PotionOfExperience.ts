@@ -12,6 +12,7 @@ export default class PotionOfExperience extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 13 * 49 + 45;
+    this.textureKey = "potion-gold";
     this.name = "Potion of Experience";
     this.description = "Grants a full level's worth of experience.";
     this.consumable = true;

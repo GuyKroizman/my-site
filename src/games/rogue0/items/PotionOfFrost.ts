@@ -12,6 +12,7 @@ export default class PotionOfFrost extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 13 * 49 + 43;
+    this.textureKey = "potion-blue";
     this.name = "Potion of Frost";
     this.description = "Freezes you solid when drunk.";
     this.consumable = true;

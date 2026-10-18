@@ -22,7 +22,9 @@ export default class Cleric extends BasicHero {
     this.skillDescription = "Restore 5 HP to yourself."
     this.skillMaxCooldown = 6
 
-    this.addItem(new Hammer(context))
+    const hammer = new Hammer(context)
+    this.addItem(hammer)
+    this.equipItem(hammer)
 
     this.resistance = { magic: 1 };
 

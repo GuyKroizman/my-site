@@ -12,6 +12,7 @@ export default class MinorHealPotion extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 19 * 49 + 33;
+    this.textureKey = "potion-red";
     this.name = "Minor Heal Potion";
     this.description = "A potion that restores a small amount of health.";
     this.consumable = true;

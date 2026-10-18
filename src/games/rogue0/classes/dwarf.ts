@@ -23,8 +23,12 @@ export default class Dwarf extends BasicHero {
     this.skillDescription = "Bash an adjacent enemy and cripple it.";
     this.skillMaxCooldown = 4;
 
-    this.addItem(new Axe(context));
-    this.addItem(new Shield(context));
+    const axe = new Axe(context);
+    const shield = new Shield(context);
+    this.addItem(axe);
+    this.addItem(shield);
+    this.equipItem(axe);
+    this.equipItem(shield);
 
     this.resistance = { physical: 1 };
 

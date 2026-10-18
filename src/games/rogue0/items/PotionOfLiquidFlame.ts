@@ -12,6 +12,7 @@ export default class PotionOfLiquidFlame extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 13 * 49 + 42;
+    this.textureKey = "potion-red";
     this.name = "Potion of Liquid Flame";
     this.description = "Sets you on fire when drunk.";
     this.consumable = true;

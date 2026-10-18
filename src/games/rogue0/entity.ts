@@ -35,6 +35,8 @@ export abstract class Entity {
   context!: GameContext;
   attackTile: number = 11 * 49 + 11;
   tint: number | undefined = undefined;
+  // Optional texture key (e.g. generated potion flasks). Falls back to "tiles".
+  textureKey?: string;
   consumable: boolean = false;
   lastSeenX?: number;
   lastSeenY?: number;
@@ -79,6 +81,15 @@ export abstract class Entity {
     }
   }
 
+  // Texture + frame to use when rendering this entity's sprite.
+  get spriteTextureKey(): string {
+    return this.textureKey ?? "tiles";
+  }
+
+  get spriteFrame(): number {
+    return this.textureKey ? 0 : this.tile;
+  }
+
   init(context: GameContext, x?: number, y?: number) {
 
     this.x = x;
@@ -88,7 +99,7 @@ export abstract class Entity {
     // x, y are not provided if the entity is an item carried (equipped) by the player
     // (not on the map)
     if (this.x !== undefined && this.y !== undefined) {
-      this.sprite = createSprite(context, this.x, this.y, this.tile, this.tint);
+      this.sprite = createSprite(context, this.x, this.y, this.tile, this.tint, this.textureKey);
 
       // Floor items pulse gently so they stand out.
       if (this.type === "item" && this.sprite) {
@@ -205,10 +216,15 @@ export function upgrade(item: Entity): void {
   logMessage(item.context, `${item.name} upgraded to level ${item.level}.`);
 }
 
-function createSprite(context: GameContext, x: number, y: number, tile: number, tint?: number): Phaser.GameObjects.Sprite {
+function createSprite(context: GameContext, x: number, y: number, tile: number, tint?: number, textureKey?: string): Phaser.GameObjects.Sprite {
   const xx = context.map!.tileToWorldX(x);
   const yy = context.map!.tileToWorldY(y);
-  const sprite = context.scene!.add.sprite(xx || 0 , yy || 0, "tiles", tile);
+  const sprite = context.scene!.add.sprite(
+    xx || 0,
+    yy || 0,
+    textureKey ?? "tiles",
+    textureKey ? 0 : tile
+  );
   sprite.setOrigin(0);
   if (tint) {
     sprite.tint = tint;

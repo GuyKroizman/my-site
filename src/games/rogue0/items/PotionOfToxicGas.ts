@@ -12,6 +12,7 @@ export default class PotionOfToxicGas extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 13 * 49 + 41;
+    this.textureKey = "potion-green";
     this.name = "Potion of Toxic Gas";
     this.description = "Poisons you when drunk.";
     this.consumable = true;

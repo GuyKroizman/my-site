@@ -21,7 +21,9 @@ export default class Elf extends BasicHero {
     this.skillDescription = "Fire two arrows at the nearest visible enemy within range.";
     this.skillMaxCooldown = 6;
 
-    this.addItem(new Bow(context));
+    const bow = new Bow(context)
+    this.addItem(bow)
+    this.equipItem(bow)
 
     this.evasion = 10;
 

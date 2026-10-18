@@ -250,7 +250,7 @@ export class InventoryWindow {
       if (item.identified) {
         const icon = this.add(
           this.scene.add
-            .sprite(x + CELL / 2, y + CELL / 2, "tiles", item.tile)
+            .sprite(x + CELL / 2, y + CELL / 2, item.spriteTextureKey, item.spriteFrame)
             .setOrigin(0.5)
         );
         if (item.tint) {
@@ -322,7 +322,7 @@ export class InventoryWindow {
     const iconX = mx + 14;
     if (item.identified) {
       const icon = this.add(
-        this.scene.add.sprite(iconX + iconSize / 2, ay + iconSize / 2, "tiles", item.tile)
+        this.scene.add.sprite(iconX + iconSize / 2, ay + iconSize / 2, item.spriteTextureKey, item.spriteFrame)
       );
       if (item.tint) icon.tint = item.tint;
     } else {

@@ -12,6 +12,7 @@ export default class PotionOfHealing extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 13 * 49 + 38;
+    this.textureKey = "potion-red";
     this.name = "Potion of Healing";
     this.description = "Restores roughly a third of your maximum health.";
     this.consumable = true;

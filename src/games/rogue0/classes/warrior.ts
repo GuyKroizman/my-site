@@ -20,7 +20,9 @@ export default class Warrior extends BasicHero {
     this.skillDescription = "Strike an adjacent enemy for +3 damage."
     this.skillMaxCooldown = 5
 
-    this.addItem(new Sword(context))
+    const sword = new Sword(context)
+    this.addItem(sword)
+    this.equipItem(sword)
 
     this.resistance = { physical: 1 };
 

@@ -11,6 +11,7 @@ export default class HolyPotion extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile = 13 * 49 + 32;
+  textureKey = "potion-gold";
   tier = 1;
   equipSlot: "consumable" = "consumable";
 

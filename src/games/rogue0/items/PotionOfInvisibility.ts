@@ -12,6 +12,7 @@ export default class PotionOfInvisibility extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 13 * 49 + 40;
+    this.textureKey = "potion-blue";
     this.name = "Potion of Invisibility";
     this.description = "Makes you invisible for a short time.";
     this.consumable = true;

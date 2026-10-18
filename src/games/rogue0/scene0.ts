@@ -60,6 +60,7 @@ import {
 } from "./mapgen";
 import { computeFOV } from "./fov";
 import { sfx } from "./audio";
+import { generatePotionTextures } from "./potionTextures";
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
 
@@ -101,6 +102,7 @@ export class Scene0 extends Phaser.Scene {
     this.ended = false;
 
     this.makeSparkTexture();
+    generatePotionTextures(this);
 
     // Floor 1 is handcrafted and must not receive terrain features.
     tiles.clearAllFeatures();

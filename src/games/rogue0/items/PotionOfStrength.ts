@@ -12,6 +12,7 @@ export default class PotionOfStrength extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 13 * 49 + 39;
+    this.textureKey = "potion-red";
     this.name = "Potion of Strength";
     this.description = "Permanently grants +1 attack.";
     this.consumable = true;

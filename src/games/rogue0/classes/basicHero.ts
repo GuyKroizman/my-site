@@ -71,8 +71,7 @@ export default class BasicHero extends Entity {
   UIHeader?: Phaser.GameObjects.Text;
   UIStatsText?: Phaser.GameObjects.Text;
   UIScene?: Phaser.Scene;
-  UIEffectIcons: Phaser.GameObjects.Sprite[] = [];
-  UIEffectTexts: Phaser.GameObjects.Text[] = [];
+  UIEffectText?: Phaser.GameObjects.Text;
   UIX: number = 0;
   UIY: number = 0;
   inputBuffer: string[] = [];
@@ -185,10 +184,7 @@ export default class BasicHero extends Entity {
   // in the backpack. Returns false (and leaves the item untouched on the
   // ground) when there is no room.
   addItem(item: Entity): boolean {
-    const slot = this.slotFor(item);
-    const willEquip = slot !== undefined && this[slot] === undefined;
-
-    if (!willEquip && this.backpack.length >= this.capacity) {
+    if (this.backpack.length >= this.capacity) {
       dungeon.log(this.context, "Your backpack is full.");
       return false;
     }
@@ -205,13 +201,7 @@ export default class BasicHero extends Entity {
     }
     item.sprite = undefined;
 
-    if (willEquip && slot) {
-      this[slot] = item;
-      this.onEquip(item);
-    } else {
-      this.backpack.push(item);
-    }
-
+    this.backpack.push(item);
     this.refreshUI();
     return true;
   }
@@ -329,8 +319,8 @@ export default class BasicHero extends Entity {
         .sprite(
           map.tileToWorldX(this.x)!,
           map.tileToWorldY(this.y)!,
-          "tiles",
-          item.tile
+          item.spriteTextureKey,
+          item.spriteFrame
         )
         .setOrigin(0);
       if (item.tint) {
@@ -752,7 +742,7 @@ export default class BasicHero extends Entity {
     }
 
     const projectile = scene.add
-      .sprite(map.tileToWorldX(this.x)!, map.tileToWorldY(this.y)!, "tiles", item.tile)
+      .sprite(map.tileToWorldX(this.x)!, map.tileToWorldY(this.y)!, item.spriteTextureKey, item.spriteFrame)
       .setOrigin(0)
       .setDepth(250);
     if (item.tint) projectile.tint = item.tint;
@@ -877,7 +867,7 @@ export default class BasicHero extends Entity {
     item.sprite?.destroy();
     item.sprite = undefined;
     const sprite = scene.add
-      .sprite(map.tileToWorldX(tx)!, map.tileToWorldY(ty)!, "tiles", item.tile)
+      .sprite(map.tileToWorldX(tx)!, map.tileToWorldY(ty)!, item.spriteTextureKey, item.spriteFrame)
       .setOrigin(0);
     if (item.tint) {
       sprite.tint = item.tint;
@@ -1249,7 +1239,7 @@ export default class BasicHero extends Entity {
     });
     yy += 88;
 
-    // Active status effects under the portrait (buff/debuff icons + turns).
+    // Active status effects (name + remaining duration, one per line).
     scene.add.text(x, yy, "Status", {
       fontFamily: `"${UI_FONT_PIXEL}", monospace`,
       fontSize: 8,
@@ -1257,19 +1247,12 @@ export default class BasicHero extends Entity {
     });
     yy += 12;
 
-    this.UIEffectIcons = [];
-    this.UIEffectTexts = [];
-    for (let i = 0; i < 8; i++) {
-      const ex = x + i * 20;
-      const icon = scene.add.sprite(ex, yy, "tiles", 0).setOrigin(0).setVisible(false);
-      const label = scene.add.text(ex + 4, yy + 18, "", {
-        fontFamily: `${UI_FONT_MONO}, monospace`,
-        fontSize: 12,
-        color: UI_COL.text
-      }).setOrigin(0).setVisible(false);
-      this.UIEffectIcons.push(icon);
-      this.UIEffectTexts.push(label);
-    }
+    this.UIEffectText = scene.add.text(x, yy, "", {
+      fontFamily: `${UI_FONT_MONO}, monospace`,
+      fontSize: 16,
+      color: UI_COL.text,
+      lineSpacing: 2
+    });
     yy += 36;
 
     // Backpack button opens/closes the inventory window (i/b toggles too).
@@ -1306,22 +1289,18 @@ export default class BasicHero extends Entity {
       this.movementPoints === 0 && !this.moving ? UI_COL.muted : UI_COL.gold
     );
 
-    // Render active status effects (icon + remaining duration). Manual-expiry
-    // effects (frozen / curse) show ∞ instead of a turn count.
-    for (let i = 0; i < this.UIEffectIcons.length; i++) {
-      const icon = this.UIEffectIcons[i];
-      const label = this.UIEffectTexts[i];
-      const effect = this.effects[i];
-      if (effect) {
-        icon.setTexture("tiles", effect.iconTile).setVisible(true);
-        const infinite =
-          effect.manualExpiry || effect.duration === Number.POSITIVE_INFINITY;
-        label.setText(infinite ? "∞" : String(effect.duration)).setVisible(true);
-      } else {
-        icon.setVisible(false);
-        label.setVisible(false);
-      }
-    }
+    // Render active status effects by name (e.g. "Cursed ∞", "Burning 3").
+    this.UIEffectText?.setText(
+      this.effects.length
+        ? this.effects
+            .map((e) => {
+              const infinite =
+                e.manualExpiry || e.duration === Number.POSITIVE_INFINITY;
+              return `${e.name} ${infinite ? "∞" : e.duration}`;
+            })
+            .join("\n")
+        : ""
+    );
   }
 
   private clearItemUI(item: Entity): void {

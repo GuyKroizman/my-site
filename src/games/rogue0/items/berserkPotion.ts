@@ -12,6 +12,7 @@ export default class BerserkPotion extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile = 13 * 49 + 33;
+  textureKey = "potion-purple";
   tier = 1;
   equipSlot: "consumable" = "consumable";
 
