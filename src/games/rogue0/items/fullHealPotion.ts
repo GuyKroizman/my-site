@@ -9,7 +9,7 @@ export default class FullHealPotion extends Entity {
   description: string = "That feels refreshing!";
   moving: boolean = false;
   type: EntityType = "item";
-  tile = 18 * 49 + 33;
+  tile = 19 * 49 + 33;
   tier = 1;
   equipSlot: "consumable" = "consumable";
 
