@@ -7,7 +7,7 @@ import type { GameContext } from "./context";
 import type { Entity } from "./entity";
 import type BasicHero from "./classes/basicHero";
 
-type Action = "use" | "equip" | "unequip" | "drop" | "inspect";
+type Action = "use" | "equip" | "unequip" | "drop" | "throw" | "close";
 
 const PAD = 16;
 const CELL = 38;
@@ -306,60 +306,77 @@ export class InventoryWindow {
   private renderMenu(player: BasicHero, item: Entity): void {
     const mx = WINDOW_X + WINDOW_W + 14;
     const my = WINDOW_Y + TITLE_BAR_H;
-    const mw = 190;
-    const mh = 280;
+    const mw = 230;
 
     const panel = this.add(
       this.scene.add
-        .rectangle(mx, my, mw, mh, C.panel, 0.98)
+        .rectangle(mx, my, mw, 100, C.panel, 0.98)
         .setOrigin(0)
         .setStrokeStyle(2, C.borderStrong, 1)
     );
 
-    let ay = my + 12;
-    const title = this.add(
-      this.scene.add.text(mx + 12, ay, item.displayName, {
+    let ay = my + 14;
+
+    // Icon (or a "?" while unidentified).
+    const iconSize = 38;
+    const iconX = mx + 14;
+    if (item.identified) {
+      const icon = this.add(
+        this.scene.add.sprite(iconX + iconSize / 2, ay + iconSize / 2, "tiles", item.tile)
+      );
+      if (item.tint) icon.tint = item.tint;
+    } else {
+      this.add(
+        this.scene.add
+          .text(iconX + iconSize / 2, ay + iconSize / 2, "?", {
+            fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 22,
+            color: COL.muted
+          })
+          .setOrigin(0.5)
+      );
+    }
+
+    const name = this.add(
+      this.scene.add.text(iconX + iconSize + 12, ay, item.displayName, {
         fontFamily: `${FONT_MONO}, monospace`, fontSize: 18,
         color: COL.text,
-        wordWrap: { width: mw - 24, useAdvancedWrap: true }
+        wordWrap: { width: mw - 24 - iconSize - 12, useAdvancedWrap: true }
       })
     );
-    ay += Math.max(title.height, 18) + 6;
+    ay += Math.max(iconSize, name.height) + 12;
 
     if (item.cursed) {
       this.add(
-        this.scene.add.text(mx + 12, ay, "(cursed)", {
+        this.scene.add.text(iconX, ay, "(cursed)", {
           fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
           color: COL.red
         })
       );
-      ay += 18;
+      ay += 20;
     }
 
-    ay += 6;
     this.add(
       this.scene.add
-        .rectangle(mx + 12, ay, mw - 24, 1, C.border, 1)
+        .rectangle(iconX, ay, mw - 28, 1, C.border, 1)
         .setOrigin(0)
     );
     ay += 12;
 
-    const actions: { action: Action; label: string; enabled: boolean }[] = [
-      { action: "use", label: "Use", enabled: item.consumable },
-      {
-        action: "equip",
-        label: "Equip",
-        enabled: !player.slotOf(item) && player.slotFor(item) !== undefined
-      },
-      {
-        action: "unequip",
-        label: "Unequip",
-        enabled: player.slotOf(item) !== undefined
-      },
-      { action: "drop", label: "Drop", enabled: true },
-      { action: "inspect", label: "Inspect", enabled: true }
-    ];
+    // Full description, hidden until the item is identified.
+    const description = item.identified
+      ? item.description
+      : "You have not identified this item.";
+    const desc = this.add(
+      this.scene.add.text(iconX, ay, description, {
+        fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
+        color: item.identified ? COL.text : COL.muted,
+        wordWrap: { width: mw - 28, useAdvancedWrap: true },
+        lineSpacing: 2
+      })
+    );
+    ay += desc.height + 14;
 
+    const actions = this.buildActions(player, item);
     for (const { action, label, enabled } of actions) {
       const rowH = 26;
       const row = this.add(
@@ -392,8 +409,36 @@ export class InventoryWindow {
 
       ay += rowH + 6;
     }
-    // Wrapped names and curse labels must not push actions past the frame.
-    panel.setSize(mw, Math.max(mh, ay - my + 6));
+
+    panel.setSize(mw, ay - my + 14);
+  }
+
+  private buildActions(
+    player: BasicHero,
+    item: Entity
+  ): { action: Action; label: string; enabled: boolean }[] {
+    const actions: { action: Action; label: string; enabled: boolean }[] = [];
+
+    if (item.consumable) {
+      actions.push({ action: "use", label: "Use", enabled: true });
+    }
+
+    actions.push({ action: "throw", label: "Throw", enabled: !item.cursed });
+
+    if (player.slotOf(item)) {
+      actions.push({
+        action: "unequip",
+        label: "Unequip",
+        enabled: !item.cursed
+      });
+    } else if (player.slotFor(item) !== undefined) {
+      actions.push({ action: "equip", label: "Equip", enabled: true });
+    }
+
+    actions.push({ action: "drop", label: "Drop", enabled: !item.cursed });
+    actions.push({ action: "close", label: "Close", enabled: true });
+
+    return actions;
   }
 
   private doAction(action: Action, item: Entity): void {
@@ -413,8 +458,12 @@ export class InventoryWindow {
       case "drop":
         player.dropItem(item);
         break;
-      case "inspect":
-        this.context.inspectedEntity = item;
+      case "throw":
+        // Close the window so world input is live again for target selection.
+        player.beginThrow(item);
+        this.close();
+        return;
+      case "close":
         break;
     }
 

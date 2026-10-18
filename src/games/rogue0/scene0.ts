@@ -78,6 +78,7 @@ export class Scene0 extends Phaser.Scene {
   private lastFovY?: number;
   private readonly visionRadius = 7;
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  private cursor!: Phaser.GameObjects.Graphics;
 
   constructor(context: GameContext) {
     super("scene0");
@@ -109,6 +110,9 @@ export class Scene0 extends Phaser.Scene {
 
     // Fog-of-war overlay drawn above tiles and entities.
     this.fog = this.add.graphics().setDepth(100);
+
+    // Inspect/throw cursor, drawn above entities and fog.
+    this.cursor = this.add.graphics().setDepth(300);
 
     // Door opens / grass burns / trap reveals all need to re-sync the overlay.
     dungeon.onTerrainChanged = () => this.syncFeatures();
@@ -145,6 +149,37 @@ export class Scene0 extends Phaser.Scene {
     // Fast-forward animations while the player is waiting on buffered input.
     const p = this.context.player;
     this.tweens.timeScale = p && p.inputBuffer && p.inputBuffer.length > 0 ? 2 : 1;
+
+    this.updateCursor();
+  }
+
+  private updateCursor(): void {
+    const ctx = this.context;
+    if (!ctx.map) return;
+
+    const active = ctx.inspectMode || ctx.throwMode;
+    this.cursor.clear();
+    if (!active) return;
+
+    if (ctx.cursorX === undefined || ctx.cursorY === undefined) {
+      ctx.cursorX = ctx.player?.x;
+      ctx.cursorY = ctx.player?.y;
+    }
+
+    const x = ctx.cursorX;
+    const y = ctx.cursorY;
+    if (x === undefined || y === undefined) return;
+
+    // Only highlight tiles currently in view (targeting needs line of sight).
+    if (!this.visible.has(`${x},${y}`)) return;
+
+    const wx = ctx.map.tileToWorldX(x)!;
+    const wy = ctx.map.tileToWorldY(y)!;
+    const color = ctx.throwMode ? 0xff6a6a : 0xf0b429;
+    this.cursor.lineStyle(2, color, 1);
+    this.cursor.strokeRect(wx + 1, wy + 1, 14, 14);
+    this.cursor.fillStyle(color, 0.18);
+    this.cursor.fillRect(wx, wy, 16, 16);
   }
 
   private setupFloor(

@@ -24,7 +24,8 @@ const CONTROLS = [
   ['Melee attack', 'Walk into enemy'],
   ['Ranged attack', 'Equip bow/scroll, then click/tap enemy'],
   ['Equip', '1–0'],
-  ['Inspect', 'Hover or Inspect button'],
+  ['Inspect', 'Hover, Inspect button, or x cursor'],
+  ['Throw', 'Inventory → item → Throw → tap tile'],
   ['Wait', 'Space'],
 ] as const
 
@@ -47,6 +48,7 @@ export default function Rogue0() {
       phaserRef.current = null
       setResult(r)
     }
+    context.onInspectModeChange = (mode) => setInspectMode(mode)
     contextRef.current = context
 
     let cancelled = false
