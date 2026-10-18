@@ -22,6 +22,7 @@ export type MonsterConfig = {
   scale?: number;
   loot?: any[];
   xp?: number;
+  gold?: number;
   accuracy?: number;
   evasion?: number;
   resistance?: Partial<Record<DamageType, number>>;
@@ -46,6 +47,7 @@ export default class Monster extends Entity {
   baseMovementPoints: number;
   baseActionPoints: number;
   loot: any[];
+  gold: number;
 
   constructor(context: GameContext, config: MonsterConfig, x?: number, y?: number) {
     super();
@@ -67,6 +69,7 @@ export default class Monster extends Entity {
     this.rangeValue = config.range;
     this.attackTile = config.attackTile ?? this.attackTile;
     this.loot = config.loot ?? [];
+    this.gold = config.gold ?? 3;
     this.xpValue = config.xp ?? 5;
     this.accuracy = config.accuracy ?? 95;
     this.evasion = config.evasion ?? 0;
@@ -128,6 +131,11 @@ export default class Monster extends Entity {
         this.context.entities.push(instance);
         dungeon.log(this.context, `${this.name} drops ${instance.name}.`);
       }
+    }
+
+    if (this.gold > 0 && this.context.player) {
+      this.context.player.gold += this.gold;
+      dungeon.log(this.context, `You find ${this.gold} gold.`);
     }
   }
 }
