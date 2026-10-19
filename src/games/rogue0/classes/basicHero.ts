@@ -605,10 +605,9 @@ export default class BasicHero extends Entity {
     const context = this.context;
     context.inspectMode = !context.inspectMode;
     if (context.inspectMode) {
-      if (context.cursorX === undefined || context.cursorY === undefined) {
-        context.cursorX = this.x;
-        context.cursorY = this.y;
-      }
+      // Always start the cursor on the player when entering inspect mode.
+      context.cursorX = this.x;
+      context.cursorY = this.y;
       this.updateInspectedFromCursor();
     } else {
       context.inspectedEntity = undefined;

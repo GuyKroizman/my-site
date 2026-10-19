@@ -166,8 +166,17 @@ export default function Rogue0() {
   const toggleInspect = () => {
     const next = !inspectMode
     setInspectMode(next)
-    if (contextRef.current) {
-      contextRef.current.inspectMode = next
+    const ctx = contextRef.current
+    if (ctx) {
+      ctx.inspectMode = next
+      if (next) {
+        // Always start the inspect cursor on the player.
+        ctx.cursorX = ctx.player?.x
+        ctx.cursorY = ctx.player?.y
+        ctx.inspectedEntity = undefined
+      } else {
+        ctx.inspectedEntity = undefined
+      }
     }
   }
 
