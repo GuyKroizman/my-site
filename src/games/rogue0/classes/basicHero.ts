@@ -512,6 +512,7 @@ export default class BasicHero extends Entity {
   }
 
   processTouchInput(context: GameContext, event: Phaser.Input.Pointer) {
+    if (context.pinching) return;
     if (context.map == undefined) {
       throw new Error("context.map is undefined");
     }

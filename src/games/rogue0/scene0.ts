@@ -80,6 +80,11 @@ export class Scene0 extends Phaser.Scene {
   private readonly visionRadius = 7;
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private cursor!: Phaser.GameObjects.Graphics;
+  private zoom = 1;
+  private readonly MIN_ZOOM = 0.5;
+  private readonly MAX_ZOOM = 3;
+  private activePointers = new Map<number, Phaser.Input.Pointer>();
+  private lastPinchDist = 0;
 
   constructor(context: GameContext) {
     super("scene0");
@@ -139,6 +144,69 @@ export class Scene0 extends Phaser.Scene {
     camera.setViewport(0, 0, camera.worldView.width - 200, camera.worldView.height);
     camera.setBounds(0, 0, camera.worldView.width, camera.worldView.height);
     camera.startFollow(this.context.player!.sprite!);
+
+    this.setupZoomControls();
+  }
+
+  private setupZoomControls(): void {
+    // Mouse wheel (desktop): scroll up zooms in, down zooms out.
+    this.input.on(
+      "wheel",
+      (_p: Phaser.Input.Pointer, _o: Phaser.GameObjects.GameObject[], _dx: number, dy: number) => {
+        this.zoomBy(dy > 0 ? 0.9 : 1.1);
+      }
+    );
+
+    // Keyboard +/- as a convenience.
+    this.input.keyboard?.on("keydown", (e: KeyboardEvent) => {
+      if (e.key === "+" || e.key === "=") this.zoomBy(1.1);
+      else if (e.key === "-" || e.key === "_") this.zoomBy(0.9);
+    });
+
+    // Pinch zoom (mobile): track the first two pointers.
+    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      this.activePointers.set(p.id, p);
+      this.context.pinching = this.activePointers.size >= 2;
+      this.lastPinchDist = 0;
+    });
+    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
+      if (this.activePointers.has(p.id)) this.updatePinch();
+    });
+    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      this.activePointers.delete(p.id);
+      this.lastPinchDist = 0;
+      if (this.activePointers.size < 2) {
+        this.time.delayedCall(150, () => (this.context.pinching = false));
+      }
+    });
+    this.input.on("pointerout", (p: Phaser.Input.Pointer) => {
+      if (this.activePointers.delete(p.id)) {
+        this.lastPinchDist = 0;
+        if (this.activePointers.size < 2) {
+          this.time.delayedCall(150, () => (this.context.pinching = false));
+        }
+      }
+    });
+  }
+
+  private updatePinch(): void {
+    const pts = [...this.activePointers.values()];
+    if (pts.length < 2) return;
+    const [a, b] = pts;
+    const dist = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
+    if (this.lastPinchDist > 0 && dist > 0) {
+      this.zoomBy(dist / this.lastPinchDist);
+    }
+    this.lastPinchDist = dist;
+  }
+
+  private zoomBy(factor: number): void {
+    this.setZoom(this.zoom * factor);
+  }
+
+  private setZoom(value: number): void {
+    this.zoom = Phaser.Math.Clamp(value, this.MIN_ZOOM, this.MAX_ZOOM);
+    this.cameras.main.setZoom(this.zoom);
   }
 
   update() {
@@ -280,6 +348,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private inspectAtPointer(pointer: Phaser.Input.Pointer) {
+    if (this.context.pinching) return;
     if (!this.context.map || !pointer) return;
 
     const x = this.context.map.worldToTileX(pointer.worldX)!;

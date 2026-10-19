@@ -29,6 +29,8 @@ export type GameContext = {
   // Throw-targeting mode (entered from the inventory item modal).
   throwMode: boolean;
   throwItem?: Entity;
+  // True while a two-finger pinch gesture is in progress (suppresses taps).
+  pinching: boolean;
   // Notifies the React HUD when a Phaser-side keybinding toggles inspect mode.
   onInspectModeChange?: (mode: boolean) => void;
   onEnd?: (result: EndResult) => void;
@@ -44,6 +46,7 @@ export function createGameContext(): GameContext {
     visibleTiles: new Set(),
     inspectMode: false,
     throwMode: false,
+    pinching: false,
     floor: 1,
     maxFloor: 3,
     kills: 0,
