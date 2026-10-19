@@ -4,7 +4,6 @@ import type { GameContext } from "./context";
 import turnManager from "./turnManager";
 import Skeleton from "./monsters/skelaton";
 import LongSword from "./items/longSword";
-import Gem from "./items/gem";
 import CursedGem from "./items/cursedGem";
 import HolyPotion from "./items/holyPotion";
 import FullHealPotion from "./items/fullHealPotion";
@@ -52,7 +51,6 @@ import Mimic from "./monsters/mimic";
 import SwarmOfFlies from "./monsters/swarmOfFlies";
 import Wraith from "./monsters/wraith";
 import classes from "./classes";
-import level1 from "./level";
 import {
   generateMap,
   findFarthestWalkable,
@@ -67,6 +65,58 @@ import type { FeaturePlacement } from "./tiles";
 // Keep the player spawn, stairs and procedural content out of the right-hand
 // columns that sit underneath the UI sidebar.
 const MAX_VISIBLE_X = 67;
+
+// Weighted SPD-style loot table: [item class, weight].
+type LootClass = any;
+
+const LOOT_TABLE: Array<[LootClass, number]> = [
+  [Ration, 10],
+  [LargeRation, 6],
+  [MinorHealPotion, 8],
+  [PotionOfHealing, 6],
+  [HolyPotion, 4],
+  [FullHealPotion, 4],
+  [ScrollOfIdentify, 4],
+  [Sword, 5],
+  [Axe, 4],
+  [Bow, 4],
+  [Shield, 4],
+  [LongSword, 2],
+  [ScrollOfUpgrade, 3],
+  [ScrollOfRemoveCurse, 3],
+  [PotionOfStrength, 3],
+  [PotionOfFrost, 3],
+  [PotionOfLiquidFlame, 3],
+  [PotionOfToxicGas, 2],
+  [PotionOfInvisibility, 2],
+  [PotionOfLevitation, 2],
+  [PotionOfExperience, 2],
+  [ScrollOfTeleport, 2],
+  [ScrollOfRage, 2],
+  [ScrollOfTerror, 2],
+  [ScrollOfRecharging, 2],
+  [WandOfFirebolt, 2],
+  [WandOfFrost, 2],
+  [WandOfLightning, 2],
+  [RingOfAccuracy, 2],
+  [RingOfEvasion, 2],
+  [RingOfElements, 2],
+  [RingOfHaste, 2],
+  [RingOfMight, 2],
+  [ChaliceOfBlood, 1],
+  [FangOfTheBeast, 1],
+  [Shoe, 1]
+];
+
+function weightedPick(table: Array<[LootClass, number]>): LootClass {
+  const total = table.reduce((sum, [, w]) => sum + w, 0);
+  let roll = Math.random() * total;
+  for (const [cls, w] of table) {
+    roll -= w;
+    if (roll <= 0) return cls;
+  }
+  return table[0][0];
+}
 
 export class Scene0 extends Phaser.Scene {
   context: GameContext;
@@ -110,11 +160,11 @@ export class Scene0 extends Phaser.Scene {
     this.makeSparkTexture();
     generatePotionTextures(this);
 
-    // Floor 1 is handcrafted and must not receive terrain features.
-    tiles.clearAllFeatures();
+    // Generate the first floor (all floors are now procedurally generated).
+    const { levelArray, spawn, stairs } = this.generateLevel();
 
     // Build the first map before creating the hero (its sprite needs the map).
-    dungeon.initialize(this.context, level1);
+    dungeon.initialize(this.context, levelArray);
 
     // Fog-of-war overlay drawn above tiles and entities.
     this.fog = this.add.graphics().setDepth(100);
@@ -126,11 +176,11 @@ export class Scene0 extends Phaser.Scene {
     dungeon.onTerrainChanged = () => this.syncFeatures();
 
     const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
-    const player = new HeroClass(this.context, 15, 15);
+    const player = new HeroClass(this.context, spawn.x, spawn.y);
     player.sprite!.setDepth(200);
     this.context.player = player;
 
-    this.setupFloor(1, level1, { x: 15, y: 15 });
+    this.setupFloor(1, levelArray, spawn, stairs);
     this.events.emit("entities-created");
 
     this.events.on("player-died", () => this.endGame(false));
@@ -305,15 +355,11 @@ export class Scene0 extends Phaser.Scene {
     this.events.emit("floor-changed", { floor });
   }
 
-  private descend() {
-    if (this.ended) return;
-
-    if (this.context.floor >= this.context.maxFloor) {
-      this.events.emit("player-won");
-      return;
-    }
-
-    const next = this.context.floor + 1;
+  private generateLevel(): {
+    levelArray: number[][];
+    spawn: { x: number; y: number };
+    stairs: { x: number; y: number };
+  } {
     const generated = generateMap();
     const levelArray = generated.map;
 
@@ -329,6 +375,20 @@ export class Scene0 extends Phaser.Scene {
     // Spawn and stairs must never sit on a terrain feature.
     tiles.clearFeature(spawn.x, spawn.y);
     tiles.clearFeature(stairs.x, stairs.y);
+
+    return { levelArray, spawn, stairs };
+  }
+
+  private descend() {
+    if (this.ended) return;
+
+    if (this.context.floor >= this.context.maxFloor) {
+      this.events.emit("player-won");
+      return;
+    }
+
+    const next = this.context.floor + 1;
+    const { levelArray, spawn, stairs } = this.generateLevel();
 
     dungeon.initialize(this.context, levelArray);
     this.setupFloor(next, levelArray, spawn, stairs);
@@ -613,23 +673,6 @@ export class Scene0 extends Phaser.Scene {
   private spawnFloorContent(floor: number, levelArray: number[][], spawn: { x: number; y: number }) {
     const context = this.context;
 
-    if (floor === 1) {
-      // Original handcrafted floor content.
-      context.entities.push(new Skeleton(context, 76, 10));
-      context.entities.push(new Skeleton(context, 20, 20));
-      context.entities.push(new Skeleton(context, 20, 10));
-      context.entities.push(new Skeleton(context, 29, 24));
-      context.entities.push(new Skeleton(context, 29, 20));
-      context.entities.push(new Gem(context, 21, 21));
-      context.entities.push(new CursedGem(context, 15, 20));
-      context.entities.push(new HolyPotion(context, 18, 18));
-      context.entities.push(new LongSword(context, 18, 22));
-      context.entities.push(new FullHealPotion(context, 18, 23));
-      context.entities.push(new Shoe(context, 15, 16));
-      context.entities.push(new Quloptsh(context, 12, 17));
-      return;
-    }
-
     const exclude = new Set([
       `${spawn.x},${spawn.y}`,
       `${this.context.stairsX},${this.context.stairsY}`
@@ -647,11 +690,14 @@ export class Scene0 extends Phaser.Scene {
     const elementalCount = floor >= 3 ? 1 : 0;
     const wraithCount = floor >= 3 ? 1 : 0;
     const itemCount = 3;
+    const cursedGemCount = Math.random() < 0.5 ? 1 : 0;
+    const foodCount = 2;
 
     const tiles = randomWalkableTiles(
       levelArray,
       skeletonCount + archerCount + ghoulCount + bruteCount + bossCount + quloptshCount +
-        swarmCount + mimicCount + cultistCount + elementalCount + wraithCount + itemCount,
+        swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
+        cursedGemCount + foodCount + itemCount,
       exclude,
       MAX_VISIBLE_X
     );
@@ -683,47 +729,15 @@ export class Scene0 extends Phaser.Scene {
       context.entities.push(new Elemental(context, tiles[i].x, tiles[i].y));
     }
 
-    const lootPool = [
-      Sword,
-      Axe,
-      Bow,
-      Shield,
-      Gem,
-      CursedGem,
-      HolyPotion,
-      FullHealPotion,
-      MinorHealPotion,
-      Shoe,
-      ScrollOfIdentify,
-      ScrollOfUpgrade,
-      ScrollOfRemoveCurse,
-      PotionOfHealing,
-      PotionOfStrength,
-      PotionOfInvisibility,
-      PotionOfToxicGas,
-      PotionOfLiquidFlame,
-      PotionOfFrost,
-      PotionOfLevitation,
-      PotionOfExperience,
-      ScrollOfTeleport,
-      ScrollOfRage,
-      ScrollOfTerror,
-      ScrollOfRecharging,
-      WandOfFirebolt,
-      WandOfFrost,
-      WandOfLightning,
-      RingOfAccuracy,
-      RingOfEvasion,
-      RingOfElements,
-      RingOfHaste,
-      RingOfMight,
-      ChaliceOfBlood,
-      FangOfTheBeast,
-      Ration,
-      LargeRation
-    ];
+    // Cursed gem: randomly appears on floors 1..5.
+    spawnGroup(CursedGem, cursedGemCount);
+
+    // Guaranteed food each floor (prevents starvation).
+    spawnGroup(Ration, foodCount);
+
+    // Random loot drawn from a weighted, SPD-style table.
     for (let l = 0; l < itemCount && i < tiles.length; l++, i++) {
-      const Loot = lootPool[Math.floor(Math.random() * lootPool.length)];
+      const Loot = weightedPick(LOOT_TABLE);
       context.entities.push(new Loot(context, tiles[i].x, tiles[i].y));
     }
   }

@@ -48,7 +48,7 @@ export function createGameContext(): GameContext {
     throwMode: false,
     pinching: false,
     floor: 1,
-    maxFloor: 3,
+    maxFloor: 5,
     kills: 0,
     heroClass: "Wizard",
     stairsX: undefined,
