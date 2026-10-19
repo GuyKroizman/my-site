@@ -298,8 +298,9 @@ export default function Rogue0() {
             className={`rogue0-game-btn ${inspectMode ? 'is-on' : ''}`}
             onClick={toggleInspect}
             aria-pressed={inspectMode}
+            aria-label="Inspect"
           >
-            {inspectMode ? 'Inspect: ON' : 'Inspect'}
+            🔍 {inspectMode ? 'Inspect: ON' : 'Inspect'}
           </button>
           <Link to="/">← back</Link>
         </div>

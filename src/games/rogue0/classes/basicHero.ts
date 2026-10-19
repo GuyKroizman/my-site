@@ -601,7 +601,7 @@ export default class BasicHero extends Entity {
     }
   }
 
-  private toggleInspectMode(): void {
+  toggleInspectMode(): void {
     const context = this.context;
     context.inspectMode = !context.inspectMode;
     if (context.inspectMode) {
@@ -1280,6 +1280,37 @@ export default class BasicHero extends Entity {
       backpackLabel.setColor(UI_COL.muted);
     });
     button.on("pointerup", () => this.onBackpackToggle?.());
+    yy += 22;
+
+    // Inspect (magnifying glass) button — same as pressing x.
+    const inspectBtn = scene.add
+      .rectangle(x, yy, w, 22, UI_C.panel2, 1)
+      .setOrigin(0)
+      .setStrokeStyle(1, UI_C.borderStrong, 1);
+
+    const magnifier = scene.add.graphics();
+    magnifier.lineStyle(2, 0xa29a8e, 1);
+    magnifier.strokeCircle(x + 15, yy + 11, 5);
+    magnifier.lineBetween(x + 19, yy + 15, x + 25, yy + 21);
+
+    const inspectLabel = scene.add
+      .text(x + w / 2 + 4, yy + 11, "Inspect  [x]", {
+        fontFamily: `${UI_FONT_MONO}, monospace`,
+        fontSize: 16,
+        color: UI_COL.muted
+      })
+      .setOrigin(0.5);
+
+    inspectBtn.setInteractive({ useHandCursor: true });
+    inspectBtn.on("pointerover", () => {
+      inspectBtn.setStrokeStyle(1, UI_C.gold, 1);
+      inspectLabel.setColor(UI_COL.gold);
+    });
+    inspectBtn.on("pointerout", () => {
+      inspectBtn.setStrokeStyle(1, UI_C.borderStrong, 1);
+      inspectLabel.setColor(UI_COL.muted);
+    });
+    inspectBtn.on("pointerup", () => this.toggleInspectMode());
     yy += 22;
 
     this.refreshUI();
