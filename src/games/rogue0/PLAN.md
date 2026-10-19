@@ -42,6 +42,7 @@ building those systems in dependency order.
 | Run length & pacing | 3 floors | ~25 floors across themed regions |
 | Replayability | none | seeds, challenges, bestiary, achievements, run stats, save/load |
 | UI & inventory | fixed sidebar, auto-growing inline slot grid, no open/close | bottom HUD (portrait/HP/buffs) + backpack button opening a full inventory window |
+| Graphics & art | 16×16 Kenney sheet, magic-number tile lookups, missing/wrong sprites | cohesive 16×16 custom set (Astra-generated), named texture keys, crisp at zoom |
 
 ## 3. Guiding principles
 
@@ -289,6 +290,23 @@ HUD + modal window system.
   equipped + carried items clearly, and can perform any item action without
   consulting hidden slots; nothing renders off-screen.
 
+### Phase 16 — Graphics & art overhaul (16×16, Astra-generated)
+*Deferred — implement later. Replaces the Kenney sheet + magic-number lookups.*
+
+- [ ] Choose a cohesive 16×16 palette (dark SPD-like dungeon, warm light, one
+      gold accent) and keep it consistent across all sprites.
+- [ ] Have **Astra** generate sprites procedurally (Python/PIL or Phaser
+      Graphics), iterating with its vision: floor, wall, doors, stairs, traps,
+      water, grass, chasm, the 5 hero classes, every monster, and every item
+      (red heal potion, wands, rings, food, scrolls, …).
+- [ ] Replace the `tile = row*49 + col` magic numbers with named `textureKey`s
+      (already started for the generated potions); store art as generated
+      textures or a new atlas.
+- [ ] Keep `pixelArt: true` so zoomed 16×16 sprites stay crisp; pair with the
+      zoomable camera (Phase 15 follow-up).
+- **Acceptance:** no Kenney leftovers; every entity/item has a distinct,
+  readable 16×16 sprite; nothing is ambiguous (no potion-vs-heart-vs-apple).
+
 ---
 
 ## 6. Suggested sequencing
@@ -303,9 +321,14 @@ HUD + modal window system.
 5. **Phase 9 / 10 / 11** — build depth, survival, consumables.
 6. **Phase 13 / 14** — replayability and run length, once systems are solid.
 7. **Phase 12** — NPCs last; they're garnish on top of the systems.
+8. **Phase 16** — the art overhaul is independent of mechanics and can be
+   slotted in whenever the systems are stable; it has no hard dependencies.
 
 ## 7. Decisions & notes
 
+- **Art direction is 16×16 (SPD-style), generated with Astra** (code + vision
+  iteration). The current Kenney sheet + magic-number lookups are a stopgap;
+  Phase 16 replaces them with named textures.
 - **Keep the existing visual style and turn engine.** These changes are
   mechanical, not presentational; the tile sprite approach already supports
   new tile/effect icons.
