@@ -615,6 +615,28 @@ export default class BasicHero extends Entity {
     context.onInspectModeChange?.(context.inspectMode);
   }
 
+  // SPD-style search (looking glass): reveal hidden traps around the hero.
+  // Costs a full turn.
+  search(): void {
+    if (!this.canAct()) return;
+    if (this.x === undefined || this.y === undefined) return;
+
+    const found = dungeon.searchAround(this.x, this.y);
+    if (found > 0) {
+      dungeon.log(
+        this.context,
+        found === 1
+          ? "You search and uncover a hidden trap!"
+          : `You search and uncover ${found} hidden traps!`
+      );
+    } else {
+      dungeon.log(this.context, "You search but find nothing.");
+    }
+
+    this.movementPoints = 0;
+    this.actionPoints = 0;
+  }
+
   private exitCursorModes(): void {
     const context = this.context;
     if (context.throwMode) {
@@ -1087,6 +1109,12 @@ export default class BasicHero extends Entity {
       return;
     }
 
+    // Search (s / S): reveal hidden traps around the hero.
+    if (key === "s" || key === "S") {
+      this.search();
+      return;
+    }
+
     // Numbered keys 1-0 act on backpack slots 1-10 (use/equip).
     if (/^[0-9]$/.test(key)) {
       let keyNumber = Number(key);
@@ -1282,8 +1310,8 @@ export default class BasicHero extends Entity {
     button.on("pointerup", () => this.onBackpackToggle?.());
     yy += 22;
 
-    // Inspect (magnifying glass) button — same as pressing x.
-    const inspectBtn = scene.add
+    // Search (magnifying glass) button — reveals hidden traps around the hero.
+    const searchBtn = scene.add
       .rectangle(x, yy, w, 22, UI_C.panel2, 1)
       .setOrigin(0)
       .setStrokeStyle(1, UI_C.borderStrong, 1);
@@ -1293,24 +1321,24 @@ export default class BasicHero extends Entity {
     magnifier.strokeCircle(x + 15, yy + 11, 5);
     magnifier.lineBetween(x + 19, yy + 15, x + 25, yy + 21);
 
-    const inspectLabel = scene.add
-      .text(x + w / 2 + 4, yy + 11, "Inspect  [x]", {
+    const searchLabel = scene.add
+      .text(x + w / 2 + 4, yy + 11, "Search  [s]", {
         fontFamily: `${UI_FONT_MONO}, monospace`,
         fontSize: 16,
         color: UI_COL.muted
       })
       .setOrigin(0.5);
 
-    inspectBtn.setInteractive({ useHandCursor: true });
-    inspectBtn.on("pointerover", () => {
-      inspectBtn.setStrokeStyle(1, UI_C.gold, 1);
-      inspectLabel.setColor(UI_COL.gold);
+    searchBtn.setInteractive({ useHandCursor: true });
+    searchBtn.on("pointerover", () => {
+      searchBtn.setStrokeStyle(1, UI_C.gold, 1);
+      searchLabel.setColor(UI_COL.gold);
     });
-    inspectBtn.on("pointerout", () => {
-      inspectBtn.setStrokeStyle(1, UI_C.borderStrong, 1);
-      inspectLabel.setColor(UI_COL.muted);
+    searchBtn.on("pointerout", () => {
+      searchBtn.setStrokeStyle(1, UI_C.borderStrong, 1);
+      searchLabel.setColor(UI_COL.muted);
     });
-    inspectBtn.on("pointerup", () => this.toggleInspectMode());
+    searchBtn.on("pointerup", () => this.search());
     yy += 22;
 
     this.refreshUI();

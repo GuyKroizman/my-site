@@ -150,6 +150,30 @@ let dungeon = {
     return tiles.describeTile(state, isWall);
   },
 
+  // SPD-style search: reveal hidden traps in the 3x3 area around (x, y).
+  // Returns the number of traps uncovered.
+  searchAround: function (x: number, y: number): number {
+    const map = this.currentLevel;
+    if (!map) return 0;
+
+    let found = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= map[0].length || ny >= map.length) continue;
+        const state = tiles.getTileState(nx, ny);
+        if (state?.feature === "trap" && state.trap === "hidden") {
+          tiles.setTrapState(nx, ny, "visible");
+          found++;
+        }
+      }
+    }
+
+    if (found > 0) this.onTerrainChanged?.();
+    return found;
+  },
+
   entityAtTile: function (context: GameContext, x: number, y: number): Entity | undefined {
     for (const entity of context.entities) {
       if (entity.sprite && entity.x === x && entity.y === y) return entity;

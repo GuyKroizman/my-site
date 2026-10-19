@@ -300,7 +300,7 @@ export default function Rogue0() {
             aria-pressed={inspectMode}
             aria-label="Inspect"
           >
-            🔍 {inspectMode ? 'Inspect: ON' : 'Inspect'}
+            {inspectMode ? 'Inspect: ON' : 'Inspect'}
           </button>
           <Link to="/">← back</Link>
         </div>
