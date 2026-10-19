@@ -690,8 +690,8 @@ export class Scene0 extends Phaser.Scene {
     const elementalCount = floor >= 3 ? 1 : 0;
     const wraithCount = floor >= 3 ? 1 : 0;
     const itemCount = 3;
-    const cursedGemCount = Math.random() < 0.5 ? 1 : 0;
-    const foodCount = 2;
+    const cursedGemCount = Math.random() < 0.2 ? 1 : 0;
+    const foodCount = Math.random() < 0.5 ? 1 : 0;
 
     const tiles = randomWalkableTiles(
       levelArray,
