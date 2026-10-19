@@ -170,9 +170,10 @@ export function describeTile(
       case "chasm":
         return "A chasm. You cannot cross it.";
       case "trap": {
+        // Hidden traps are invisible — inspect must not reveal them.
+        if (state.trap === "hidden") return "Stone floor.";
         const label = TRAP_LABELS[state.trapKind ?? "dart"] ?? "trap";
         if (state.trap === "triggered") return `A triggered ${label}.`;
-        if (state.trap === "hidden") return "A suspicious tile — you sense a trap.";
         return `A ${label}.`;
       }
     }

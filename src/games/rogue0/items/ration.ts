@@ -15,7 +15,7 @@ export default class Ration extends Entity {
     this.name = "Ration of Food";
     this.description = "A ration of bread and dried food. Restores 35 hunger.";
     this.consumable = true;
-    this.identified = false;
+    this.identified = true;
 
     this.init(context, x, y);
   }

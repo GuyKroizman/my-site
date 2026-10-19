@@ -141,19 +141,13 @@ let dungeon = {
     return true;
   },
 
-  // Describes a tile for the Inspect command; reveals hidden traps.
+  // Describes a tile for the Inspect command. Purely informational — it does
+  // not reveal hidden traps (those stay invisible until stepped on).
   inspectTile: function (x: number, y: number): string {
     const state = tiles.getTileState(x, y);
-
-    if (state?.feature === "trap" && state.trap === "hidden") {
-      tiles.setTrapState(x, y, "visible");
-      this.onTerrainChanged?.();
-    }
-
-    const refreshed = tiles.getTileState(x, y);
     const map = this.currentLevel;
     const isWall = !!map && map[y]?.[x] === 1;
-    return tiles.describeTile(refreshed, isWall);
+    return tiles.describeTile(state, isWall);
   },
 
   entityAtTile: function (context: GameContext, x: number, y: number): Entity | undefined {

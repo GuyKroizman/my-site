@@ -15,7 +15,7 @@ export default class LargeRation extends Entity {
     this.name = "Large Ration";
     this.description = "A large ration that restores 70 hunger.";
     this.consumable = true;
-    this.identified = false;
+    this.identified = true;
 
     this.init(context, x, y);
   }
