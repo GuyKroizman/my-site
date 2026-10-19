@@ -141,6 +141,21 @@ let dungeon = {
     return true;
   },
 
+  // Describes a tile for the Inspect command; reveals hidden traps.
+  inspectTile: function (x: number, y: number): string {
+    const state = tiles.getTileState(x, y);
+
+    if (state?.feature === "trap" && state.trap === "hidden") {
+      tiles.setTrapState(x, y, "visible");
+      this.onTerrainChanged?.();
+    }
+
+    const refreshed = tiles.getTileState(x, y);
+    const map = this.currentLevel;
+    const isWall = !!map && map[y]?.[x] === 1;
+    return tiles.describeTile(refreshed, isWall);
+  },
+
   entityAtTile: function (context: GameContext, x: number, y: number): Entity | undefined {
     for (const entity of context.entities) {
       if (entity.sprite && entity.x === x && entity.y === y) return entity;
@@ -199,7 +214,7 @@ let dungeon = {
     // Only the player triggers traps.
     if (entity.type === "player") {
       const state = tiles.getTileState(destX, destY);
-      if (state && state.feature === "trap" && state.trap === "hidden") {
+      if (state && state.feature === "trap" && state.trap !== "triggered") {
         tiles.setTrapState(destX, destY, "triggered");
         this.onTerrainChanged?.();
 

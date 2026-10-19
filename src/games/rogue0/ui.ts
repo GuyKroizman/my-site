@@ -215,8 +215,14 @@ export class UI extends Phaser.Scene {
 
     const e = this.context.inspectedEntity;
     if (!e) {
-      this.statusText.setColor(COL.muted);
-      this.setPanelText(this.statusText, "Hover a creature, or tap it with Inspect on.");
+      const terrain = this.context.inspectedTerrain;
+      if (terrain) {
+        this.statusText.setColor(COL.text);
+        this.setPanelText(this.statusText, terrain);
+      } else {
+        this.statusText.setColor(COL.muted);
+        this.setPanelText(this.statusText, "Hover a creature, or tap it with Inspect on.");
+      }
       return;
     }
 

@@ -144,3 +144,38 @@ export function applyToPathGrid(grid: {
     }
   });
 }
+
+const TRAP_LABELS: Record<TrapKind, string> = {
+  dart: "dart trap (poisons)",
+  fire: "fire trap (burns)",
+  frost: "frost trap (freezes)",
+  teleport: "teleport trap"
+};
+
+// Human-readable description of a tile for the Inspect command.
+export function describeTile(
+  state: TileState | undefined,
+  isWall: boolean
+): string {
+  if (state) {
+    switch (state.feature) {
+      case "door":
+        return state.door === "closed"
+          ? "A closed door. Walk into it to open."
+          : "An open door.";
+      case "water":
+        return "Water. It douses fire.";
+      case "grass":
+        return "Tall grass. It can burn.";
+      case "chasm":
+        return "A chasm. You cannot cross it.";
+      case "trap": {
+        const label = TRAP_LABELS[state.trapKind ?? "dart"] ?? "trap";
+        if (state.trap === "triggered") return `A triggered ${label}.`;
+        if (state.trap === "hidden") return "A suspicious tile — you sense a trap.";
+        return `A ${label}.`;
+      }
+    }
+  }
+  return isWall ? "A wall." : "Stone floor.";
+}

@@ -657,14 +657,17 @@ export default class BasicHero extends Entity {
 
     if (!context.visibleTiles.has(`${x},${y}`)) {
       context.inspectedEntity = undefined;
+      context.inspectedTerrain = undefined;
       return;
     }
 
     const entity = dungeon.entityAtTile(context, x, y);
     if (entity && entity.type !== "player") {
       context.inspectedEntity = entity;
+      context.inspectedTerrain = undefined;
     } else {
       context.inspectedEntity = undefined;
+      context.inspectedTerrain = dungeon.inspectTile(x, y);
     }
   }
 

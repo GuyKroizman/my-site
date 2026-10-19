@@ -21,6 +21,8 @@ export type GameContext = {
   stairsX?: number;
   stairsY?: number;
   inspectedEntity?: Entity;
+  // Terrain/tile description currently under the inspect cursor.
+  inspectedTerrain?: string;
   visibleTiles: Set<string>;
   inspectMode: boolean;
   // Inspect/throw cursor position (the highlighted tile).

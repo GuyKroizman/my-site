@@ -446,8 +446,13 @@ export class Scene0 extends Phaser.Scene {
 
     if (entity && entity.type !== "player" && this.visible.has(`${x},${y}`)) {
       this.context.inspectedEntity = entity;
+      this.context.inspectedTerrain = undefined;
+    } else if (this.visible.has(`${x},${y}`)) {
+      this.context.inspectedEntity = undefined;
+      this.context.inspectedTerrain = dungeon.inspectTile(x, y);
     } else {
       this.context.inspectedEntity = undefined;
+      this.context.inspectedTerrain = undefined;
     }
   }
 
