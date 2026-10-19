@@ -85,6 +85,7 @@ export class Scene0 extends Phaser.Scene {
   private readonly MAX_ZOOM = 3;
   private activePointers = new Map<number, Phaser.Input.Pointer>();
   private lastPinchDist = 0;
+  private stairsHinted = false;
 
   constructor(context: GameContext) {
     super("scene0");
@@ -161,6 +162,11 @@ export class Scene0 extends Phaser.Scene {
     this.input.keyboard?.on("keydown", (e: KeyboardEvent) => {
       if (e.key === "+" || e.key === "=") this.zoomBy(1.1);
       else if (e.key === "-" || e.key === "_") this.zoomBy(0.9);
+    });
+
+    // "." / ">" descends (or escapes) only while standing on the stairs.
+    this.input.keyboard?.on("keydown", (e: KeyboardEvent) => {
+      if (e.key === ">" || e.key === ".") this.tryDescend();
     });
 
     // Pinch zoom (mobile): track the first two pointers.
@@ -259,6 +265,7 @@ export class Scene0 extends Phaser.Scene {
     stairs?: { x: number; y: number }
   ) {
     this.context.floor = floor;
+    this.stairsHinted = false;
 
     this.seen = [];
     this.visible = new Set();
@@ -333,8 +340,30 @@ export class Scene0 extends Phaser.Scene {
     const player = this.context.player;
     if (!player || player.x === undefined || player.y === undefined) return;
 
+    // Standing on the stairs no longer descends automatically — just hint.
     if (player.x === this.context.stairsX && player.y === this.context.stairsY) {
+      if (!this.stairsHinted) {
+        this.stairsHinted = true;
+        const isExit = this.context.floor >= this.context.maxFloor;
+        dungeon.log(
+          this.context,
+          isExit
+            ? "You stand on the exit. Press > (or .) to escape the dungeon."
+            : "You stand on the stairs. Press > (or .) to descend."
+        );
+      }
+    }
+  }
+
+  private tryDescend(): void {
+    if (this.ended) return;
+    const p = this.context.player;
+    if (!p || p.x === undefined || p.y === undefined) return;
+
+    if (p.x === this.context.stairsX && p.y === this.context.stairsY) {
       this.descend();
+    } else {
+      dungeon.log(this.context, "You are not standing on the stairs.");
     }
   }
 
