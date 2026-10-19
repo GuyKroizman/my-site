@@ -35,6 +35,8 @@ export type GameContext = {
   pinching: boolean;
   // Notifies the React HUD when a Phaser-side keybinding toggles inspect mode.
   onInspectModeChange?: (mode: boolean) => void;
+  // Requests a stairs descent (set by scene0; used by tap-to-descend).
+  onDescend?: () => void;
   onEnd?: (result: EndResult) => void;
 };
 

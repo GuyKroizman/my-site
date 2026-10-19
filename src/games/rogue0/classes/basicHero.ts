@@ -485,6 +485,12 @@ export default class BasicHero extends Entity {
         removeEntity(this.context, this);
       }
     }
+
+    // Well-fed (satiated): regain 1 HP per round while hunger is high.
+    if (this.hunger >= 80 && this.healthPoints < this.maxHealthPoints) {
+      this.healthPoints += 1;
+      spawnEntityFloatingText(this, "+1", "#6aff6a");
+    }
   }
 
   restoreHunger(amount: number): void {
@@ -534,6 +540,19 @@ export default class BasicHero extends Entity {
       } else {
         context.inspectedEntity = undefined;
       }
+      return;
+    }
+
+    // Tap the stairs you're standing on to descend (mobile-friendly).
+    if (
+      x !== null &&
+      y !== null &&
+      this.x === x &&
+      this.y === y &&
+      x === context.stairsX &&
+      y === context.stairsY
+    ) {
+      context.onDescend?.();
       return;
     }
 

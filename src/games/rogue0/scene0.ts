@@ -197,6 +197,9 @@ export class Scene0 extends Phaser.Scene {
     camera.startFollow(this.context.player!.sprite!);
 
     this.setupZoomControls();
+
+    // Mobile/tap descend hook.
+    this.context.onDescend = () => this.tryDescend();
   }
 
   private setupZoomControls(): void {
@@ -587,8 +590,8 @@ export class Scene0 extends Phaser.Scene {
     switch (state.feature) {
       case "door":
         return state.door === "open"
-          ? { tile: tiles.FeatureTiles.doorOpen, tint: 0x9a8b7a }
-          : { tile: tiles.FeatureTiles.doorClosed, tint: 0x9a5b2b };
+          ? { tile: tiles.FeatureTiles.doorOpen }
+          : { tile: tiles.FeatureTiles.doorClosed };
       case "grass":
         return { tile: tiles.FeatureTiles.grass, tint: 0x55aa55 };
       case "water":

@@ -31,8 +31,8 @@ export type FeaturePlacement = {
 // Placeholder tile indices picked from colored.png. These are intentionally
 // arbitrary visual stand-ins; scene0.ts applies tints to tell features apart.
 export const FeatureTiles = {
-  doorClosed: 141,
-  doorOpen: 6,
+  doorClosed: 150,
+  doorOpen: 301,
   grass: 102,
   water: 206,
   chasm: 5,
