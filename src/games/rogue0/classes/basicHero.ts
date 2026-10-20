@@ -580,10 +580,18 @@ export default class BasicHero extends Entity {
 
     // Inspect is a UI action: always available, on any turn.
     if (context.inspectMode) {
-      if (entity && entity.type !== "player" && context.visibleTiles?.has(`${x},${y}`)) {
-        context.inspectedEntity = entity;
+      if (context.visibleTiles?.has(`${x},${y}`)) {
+        const e = dungeon.entityAtTile(context, x!, y!);
+        if (e && e.type !== "player") {
+          context.inspectedEntity = e;
+          context.inspectedTerrain = undefined;
+        } else {
+          context.inspectedEntity = undefined;
+          context.inspectedTerrain = dungeon.inspectTile(x!, y!);
+        }
       } else {
         context.inspectedEntity = undefined;
+        context.inspectedTerrain = undefined;
       }
       return;
     }

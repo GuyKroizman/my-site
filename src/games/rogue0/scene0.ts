@@ -189,9 +189,6 @@ export class Scene0 extends Phaser.Scene {
     this.events.on("player-died", () => this.endGame(false));
     this.events.on("player-won", () => this.endGame(true));
 
-    // Hovering over a visible creature shows its status in the sidebar.
-    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => this.inspectAtPointer(pointer));
-
     // Full-screen camera (no fixed sidebar).
     this.cameras.main.setBounds(0, 0, 80 * 16, 50 * 16);
     this.cameras.main.startFollow(this.context.player!.sprite!);
@@ -492,26 +489,6 @@ export class Scene0 extends Phaser.Scene {
 
     if (p.x !== this.lastFovX || p.y !== this.lastFovY) {
       this.recomputeFOV();
-    }
-  }
-
-  private inspectAtPointer(pointer: Phaser.Input.Pointer) {
-    if (this.context.pinching) return;
-    if (!this.context.map || !pointer) return;
-
-    const x = this.context.map.worldToTileX(pointer.worldX)!;
-    const y = this.context.map.worldToTileY(pointer.worldY)!;
-    const entity = dungeon.entityAtTile(this.context, x, y);
-
-    if (entity && entity.type !== "player" && this.visible.has(`${x},${y}`)) {
-      this.context.inspectedEntity = entity;
-      this.context.inspectedTerrain = undefined;
-    } else if (this.visible.has(`${x},${y}`)) {
-      this.context.inspectedEntity = undefined;
-      this.context.inspectedTerrain = dungeon.inspectTile(x, y);
-    } else {
-      this.context.inspectedEntity = undefined;
-      this.context.inspectedTerrain = undefined;
     }
   }
 

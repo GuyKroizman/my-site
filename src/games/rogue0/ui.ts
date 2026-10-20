@@ -35,6 +35,7 @@ export class UI extends Phaser.Scene {
 
   private inspectModal: Phaser.GameObjects.Container | undefined;
   private inspectModalText: Phaser.GameObjects.Text | undefined;
+  private inspectCloseBtn: Phaser.GameObjects.Text | undefined;
 
   private logPanel: Phaser.GameObjects.Rectangle | undefined;
   private logTitle: Phaser.GameObjects.Text | undefined;
@@ -110,6 +111,14 @@ export class UI extends Phaser.Scene {
       g.strokeCircle(0, 0, 6);
       g.lineBetween(4, 4, 10, 10);
     }, "Search"));
+
+    // Inspect (eye) — toggles inspect mode; the next tap inspects a tile.
+    this.toolbar.push(this.makeButton(() => this.context.player?.toggleInspectMode(), (g) => {
+      g.lineStyle(2, iconColor, 1);
+      g.strokeEllipse(0, 0, 13, 9);
+      g.fillStyle(iconColor, 1);
+      g.fillCircle(0, 0, 2.5);
+    }, "Inspect"));
 
     // Skill.
     this.toolbar.push(this.makeButton(() => this.context.player?.tryUseSkill(), (g) => {
@@ -215,6 +224,22 @@ export class UI extends Phaser.Scene {
     });
     root.add(this.inspectModalText);
     this.inspectModal = root;
+
+    this.inspectCloseBtn = this.add
+      .text(0, 0, "Close", {
+        fontFamily: `${FONT_MONO}, monospace`,
+        fontSize: 17,
+        color: COL.gold
+      })
+      .setOrigin(1, 0)
+      .setDepth(601)
+      .setInteractive({ useHandCursor: true });
+    this.inspectCloseBtn.on("pointerover", () => this.inspectCloseBtn?.setColor(COL.text));
+    this.inspectCloseBtn.on("pointerout", () => this.inspectCloseBtn?.setColor(COL.gold));
+    this.inspectCloseBtn.on("pointerup", () => {
+      this.context.inspectedEntity = undefined;
+      this.context.inspectedTerrain = undefined;
+    });
   }
 
   private layout() {
@@ -251,7 +276,10 @@ export class UI extends Phaser.Scene {
 
     const iw = this.inspectModal ? (this.inspectModal.list[0] as Phaser.GameObjects.Rectangle).width : 340;
     const ih = this.inspectModal ? (this.inspectModal.list[0] as Phaser.GameObjects.Rectangle).height : 170;
-    this.inspectModal?.setPosition((w - iw) / 2, h - ih - 110);
+    const ix = (w - iw) / 2;
+    const iy = h - ih - 110;
+    this.inspectModal?.setPosition(ix, iy);
+    this.inspectCloseBtn?.setPosition(ix + iw - 12, iy + 8);
   }
 
   private toggleHeroModal() {
@@ -301,6 +329,7 @@ export class UI extends Phaser.Scene {
 
     if (e) {
       this.inspectModal.setVisible(true);
+      this.inspectCloseBtn?.setVisible(true);
       if (e.type === "enemy") {
         const hp = e.healthPoints ?? 0;
         const maxHp = e.maxHealthPoints ?? e.healthPoints ?? 0;
@@ -319,10 +348,12 @@ export class UI extends Phaser.Scene {
 
     if (terrain) {
       this.inspectModal.setVisible(true);
+      this.inspectCloseBtn?.setVisible(true);
       this.inspectModalText.setText(terrain);
       return;
     }
 
     this.inspectModal.setVisible(false);
+    this.inspectCloseBtn?.setVisible(false);
   }
 }

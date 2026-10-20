@@ -23,7 +23,7 @@ const CONTROLS = [
   ['Move', 'Arrow keys / HJKL'],
   ['Melee attack', 'Walk into enemy'],
   ['Ranged attack', 'Equip bow/scroll, then click/tap enemy'],
-  ['Inspect', 'Hover, or x cursor'],
+  ['Inspect', 'Inspect button or x, then tap a tile'],
   ['Throw', 'Inventory → item → Throw → tap tile'],
   ['Wait', 'Space'],
 ] as const
@@ -31,7 +31,7 @@ const CONTROLS = [
 const HELP_PAGES = [
   {
     title: 'Basics',
-    body: `• Move with the Arrow keys or HJKL.\n• Walk into an enemy to attack it (melee).\n• Space waits one turn.\n• Press i or b to open your backpack.\n• Press x to enter Inspect mode, then move the cursor.`,
+    body: `• Move with the Arrow keys or HJKL.\n• Walk into an enemy to attack it (melee).\n• Space waits one turn.\n• Press i or b to open your backpack.\n• Press the Inspect button or x, then tap/click a tile to inspect it.`,
   },
   {
     title: 'Combat',
