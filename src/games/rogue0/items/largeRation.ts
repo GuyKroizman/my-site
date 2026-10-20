@@ -13,7 +13,7 @@ export default class LargeRation extends Entity {
     super();
     this.tile = 16 * 49 + 33;
     this.name = "Large Ration";
-    this.description = "A large ration that restores 70 hunger.";
+    this.description = "A large ration. Fills your hunger.";
     this.consumable = true;
     this.identified = true;
 
@@ -29,8 +29,8 @@ export default class LargeRation extends Entity {
       return;
     }
 
-    this.context.player.restoreHunger(70);
-    dungeon.log(this.context, `You eat the ${this.name} and restore 70 hunger.`);
+    this.context.player.restoreHunger(this.context.player.maxHunger);
+    dungeon.log(this.context, `You eat the ${this.name}. You feel full.`);
     this.context.player.removeItem(this);
     removeEntity(this.context, this);
   }
