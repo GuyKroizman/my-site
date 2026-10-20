@@ -727,18 +727,14 @@ export default class BasicHero extends Entity {
 
   private nextStepToward(tx: number, ty: number): { x: number; y: number } | null {
     if (this.x === undefined || this.y === undefined) return null;
-    const path = dungeon
-      .getCardinalFinder()
-      .findPath(this.x, this.y, tx, ty, dungeon.getPathGrid());
+    const path = dungeon.findCardinalPath(this.x, this.y, tx, ty);
     if (path.length > 1) return { x: path[1][0], y: path[1][1] };
     return null;
   }
 
   private setWalkTarget(tx: number, ty: number): void {
     if (this.x === undefined || this.y === undefined) return;
-    const path = dungeon
-      .getCardinalFinder()
-      .findPath(this.x, this.y, tx, ty, dungeon.getPathGrid());
+    const path = dungeon.findCardinalPath(this.x, this.y, tx, ty);
     this.walkPath =
       path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
   }

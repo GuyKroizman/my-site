@@ -94,6 +94,12 @@ let dungeon = {
     return this.cardinalFinder!;
   },
 
+  // Pathfinding mutates node state (opened/closed), so always search on a
+  // fresh grid clone to avoid stale state between calls.
+  findCardinalPath: function (sx: number, sy: number, tx: number, ty: number): number[][] {
+    return this.cardinalFinder!.findPath(sx, sy, tx, ty, this.pathGrid!.clone());
+  },
+
   isWalkableTile: function (context: GameContext, x: number, y: number): boolean {
     const level = this.currentLevel;
     if (!level || y < 0 || x < 0 || y >= level.length || x >= level[0].length) {
@@ -203,14 +209,13 @@ let dungeon = {
         `Error in distanceBetweenEntities: entity ${entity1.name} or ${entity2.name} x or y is undefined`
       );
     }
-    const grid = this.pathGrid!;
     const finder = this.diagonalFinder!;
     const path = finder.findPath(
       entity1.x,
       entity1.y,
       entity2.x,
       entity2.y,
-      grid
+      this.pathGrid!.clone()
     );
     return path.length >= 2 ? path.length : 0;
   },

@@ -161,9 +161,7 @@ export function nextStepToward(
 ): { x: number; y: number } | null {
   if (entity.x === undefined || entity.y === undefined) return null;
 
-  const grid = dungeon.getPathGrid();
-  const finder = dungeon.getCardinalFinder();
-  const path = finder.findPath(entity.x, entity.y, tx, ty, grid);
+  const path = dungeon.findCardinalPath(entity.x, entity.y, tx, ty);
 
   if (path.length > 1) {
     return { x: path[1][0], y: path[1][1] };
