@@ -83,6 +83,16 @@ function isRoomInterior(rooms: Room[], x: number, y: number): boolean {
   return rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 }
 
+// True when the tile is a straight 1-wide corridor (two opposite walkable
+// neighbours), not an L-bend corner or a junction.
+function isStraightCorridor(map: number[][], x: number, y: number): boolean {
+  const left = map[y]?.[x - 1] === 0;
+  const right = map[y]?.[x + 1] === 0;
+  const up = map[y - 1]?.[x] === 0;
+  const down = map[y + 1]?.[x] === 0;
+  return (left && right && !up && !down) || (up && down && !left && !right);
+}
+
 function isAdjacentToRoom(rooms: Room[], x: number, y: number): boolean {
   const dirs: Array<[number, number]> = [
     [1, 0],
@@ -213,7 +223,7 @@ export function generateMap(): GeneratedMap {
   const doorCandidates = shuffle(
     corridorTiles.filter(
       (t) =>
-        orthoWalkableCount(map, t.x, t.y) === 2 &&
+        isStraightCorridor(map, t.x, t.y) &&
         !isAdjacentToRoom(rooms, t.x, t.y)
     )
   );
