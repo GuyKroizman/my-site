@@ -39,7 +39,6 @@ import RingOfMight from "./items/RingOfMight";
 import ChaliceOfBlood from "./items/ChaliceOfBlood";
 import FangOfTheBeast from "./items/FangOfTheBeast";
 import Ration from "./items/ration";
-import LargeRation from "./items/largeRation";
 import Quloptsh from "./monsters/quloptsh";
 import Archer from "./monsters/archer";
 import Ghoul from "./monsters/ghoul";
@@ -70,8 +69,7 @@ const MAX_VISIBLE_X = 67;
 type LootClass = any;
 
 const LOOT_TABLE: Array<[LootClass, number]> = [
-  [Ration, 10],
-  [LargeRation, 6],
+  [Ration, 16],
   [MinorHealPotion, 8],
   [PotionOfHealing, 6],
   [HolyPotion, 4],
@@ -706,7 +704,7 @@ export class Scene0 extends Phaser.Scene {
     const wraithCount = floor >= 3 ? 1 : 0;
     const itemCount = 3;
     const cursedGemCount = Math.random() < 0.2 ? 1 : 0;
-    const foodCount = Math.random() < 0.5 ? 1 : 0;
+    const foodCount = 1;
 
     const tiles = randomWalkableTiles(
       levelArray,
