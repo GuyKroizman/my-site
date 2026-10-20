@@ -58,7 +58,7 @@ import {
 } from "./mapgen";
 import { computeFOV } from "./fov";
 import { sfx } from "./audio";
-import { generatePotionTextures } from "./potionTextures";
+import { generatePotionTextures, generateDoorThresholdTexture } from "./potionTextures";
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
 
@@ -159,6 +159,7 @@ export class Scene0 extends Phaser.Scene {
 
     this.makeSparkTexture();
     generatePotionTextures(this);
+    generateDoorThresholdTexture(this);
 
     // Generate the first floor (all floors are now procedurally generated).
     const { levelArray, spawn, stairs } = this.generateLevel();
@@ -586,11 +587,15 @@ export class Scene0 extends Phaser.Scene {
     this.featureSprites.clear();
   }
 
-  private featureVisual(state: tiles.TileState): { tile: number; tint?: number } {
+  private featureVisual(state: tiles.TileState): {
+    tile?: number;
+    textureKey?: string;
+    tint?: number;
+  } {
     switch (state.feature) {
       case "door":
         return state.door === "open"
-          ? { tile: tiles.FeatureTiles.doorOpen }
+          ? { textureKey: "door-threshold" }
           : { tile: tiles.FeatureTiles.doorClosed };
       case "grass":
         return { tile: tiles.FeatureTiles.grass, tint: 0x55aa55 };
@@ -621,15 +626,17 @@ export class Scene0 extends Phaser.Scene {
       let sprite = this.featureSprites.get(key);
       const visual = this.featureVisual(state);
       const visible = state.feature !== "trap" || state.trap !== "hidden";
+      const texKey = visual.textureKey ?? "tiles";
+      const frame = visual.textureKey ? 0 : (visual.tile ?? 0);
 
       if (!sprite) {
         sprite = this.add
-          .sprite(map.tileToWorldX(x)!, map.tileToWorldY(y)!, "tiles", visual.tile)
+          .sprite(map.tileToWorldX(x)!, map.tileToWorldY(y)!, texKey, frame)
           .setOrigin(0);
         sprite.setDepth(0);
         this.featureSprites.set(key, sprite);
       } else {
-        sprite.setTexture("tiles", visual.tile);
+        sprite.setTexture(texKey, frame);
       }
 
       if (visual.tint !== undefined) {

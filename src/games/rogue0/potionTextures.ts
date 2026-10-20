@@ -31,6 +31,18 @@ export function generatePotionTextures(scene: Phaser.Scene): void {
   }
 }
 
+// An open door is just a brown dotted line on the floor (a doorstep).
+export function generateDoorThresholdTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists("door-threshold")) return;
+  const g = scene.make.graphics(undefined, false);
+  g.fillStyle(0x8a5a2b, 1);
+  for (let x = 1; x <= 13; x += 3) {
+    g.fillRect(x, 12, 2, 2);
+  }
+  g.generateTexture("door-threshold", 16, 16);
+  g.destroy();
+}
+
 // Draws a 16x16 round-bottom flask: cork, glass neck + bulb, colored liquid,
 // a dark outline, and a glass shine.
 function drawFlask(g: Phaser.GameObjects.Graphics, liquid: number): void {
