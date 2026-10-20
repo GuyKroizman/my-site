@@ -72,6 +72,7 @@ export default class BasicHero extends Entity {
   UIStatsText?: Phaser.GameObjects.Text;
   UIScene?: Phaser.Scene;
   UIEffectText?: Phaser.GameObjects.Text;
+  UISkillLabel?: Phaser.GameObjects.Text;
   UIX: number = 0;
   UIY: number = 0;
   inputBuffer: string[] = [];
@@ -1366,6 +1367,13 @@ export default class BasicHero extends Entity {
     return text;
   }
 
+  private skillLabel(): string {
+    if (this.skill === "") return "No skill";
+    return this.skillCooldown > 0
+      ? `${this.skill}  (cd ${this.skillCooldown})`
+      : `${this.skill}  [f]`;
+  }
+
   updateUI() {
     const over = this.movementPoints == 0 && !this.moving;
     if (this.UIHeader) {
@@ -1487,6 +1495,32 @@ export default class BasicHero extends Entity {
     searchBtn.on("pointerup", () => this.search());
     yy += 22;
 
+    // Skill button — activates the class skill (same as pressing f).
+    const skillBtn = scene.add
+      .rectangle(x, yy, w, 22, UI_C.panel2, 1)
+      .setOrigin(0)
+      .setStrokeStyle(1, UI_C.borderStrong, 1);
+    this.UISkillLabel = scene.add
+      .text(x + w / 2, yy + 11, this.skillLabel(), {
+        fontFamily: `${UI_FONT_MONO}, monospace`,
+        fontSize: 16,
+        color: UI_COL.muted
+      })
+      .setOrigin(0.5);
+    skillBtn.setInteractive({ useHandCursor: true });
+    skillBtn.on("pointerover", () => {
+      skillBtn.setStrokeStyle(1, UI_C.gold, 1);
+      this.UISkillLabel?.setColor(UI_COL.gold);
+    });
+    skillBtn.on("pointerout", () => {
+      skillBtn.setStrokeStyle(1, UI_C.borderStrong, 1);
+      this.UISkillLabel?.setColor(
+        this.skillCooldown > 0 ? UI_COL.muted : UI_COL.gold
+      );
+    });
+    skillBtn.on("pointerup", () => this.tryUseSkill());
+    yy += 22;
+
     this.refreshUI();
     return yy - y;
   }
@@ -1509,6 +1543,14 @@ export default class BasicHero extends Entity {
             .join("\n")
         : ""
     );
+
+    // Skill button label: gold when ready, muted while on cooldown.
+    if (this.UISkillLabel) {
+      this.UISkillLabel.setText(this.skillLabel());
+      this.UISkillLabel.setColor(
+        this.skillCooldown > 0 ? UI_COL.muted : UI_COL.gold
+      );
+    }
   }
 
   private clearItemUI(item: Entity): void {
