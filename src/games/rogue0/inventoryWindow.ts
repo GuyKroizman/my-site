@@ -204,7 +204,7 @@ export class InventoryWindow {
           })
           .setOrigin(0.5, 0)
       );
-      this.renderCell(cx, equipCellY, equipped[i], undefined, selected);
+      this.renderCell(cx, equipCellY, equipped[i], selected);
     }
 
     // Backpack grid (centered within the window).
@@ -224,7 +224,7 @@ export class InventoryWindow {
       const cy = gridY + row * (CELL + GAP);
       const item = player.backpack[i];
       const selected = this.menuItem !== undefined && this.menuItem === item;
-      this.renderCell(cx, cy, item, String(i + 1), selected);
+      this.renderCell(cx, cy, item, selected);
     }
 
     if (this.menuItem) {
@@ -236,7 +236,6 @@ export class InventoryWindow {
     x: number,
     y: number,
     item: Entity | undefined,
-    cornerLabel: string | undefined,
     selected: boolean
   ): void {
     const box = this.add(
@@ -267,12 +266,16 @@ export class InventoryWindow {
         );
       }
 
-      if (cornerLabel !== undefined) {
+      // Stack count in the bottom-right corner.
+      if (item.count > 1) {
         this.add(
-          this.scene.add.text(x + 4, y + 3, cornerLabel, {
-            fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8,
-            color: COL.muted
-          })
+          this.scene.add
+            .text(x + CELL - 3, y + CELL - 3, String(item.count), {
+              fontFamily: `${FONT_MONO}, monospace`,
+              fontSize: 14,
+              color: COL.gold
+            })
+            .setOrigin(1, 1)
         );
       }
 
@@ -284,16 +287,6 @@ export class InventoryWindow {
         box.setStrokeStyle(selected ? 2 : 1, selected ? C.gold : C.border, 1);
       });
       box.on("pointerup", () => this.openMenu(item));
-    } else if (cornerLabel !== undefined) {
-      // Empty backpack cell still shows its quick-key index.
-      this.add(
-        this.scene.add
-          .text(x + CELL / 2, y + CELL / 2, cornerLabel, {
-            fontFamily: `${FONT_MONO}, monospace`, fontSize: 14,
-            color: COL.muted
-          })
-          .setOrigin(0.5)
-      );
     }
   }
 

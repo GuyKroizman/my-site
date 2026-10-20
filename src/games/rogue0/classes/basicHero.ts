@@ -184,6 +184,25 @@ export default class BasicHero extends Entity {
   // in the backpack. Returns false (and leaves the item untouched on the
   // ground) when there is no room.
   addItem(item: Entity): boolean {
+    // Stack identical consumables (potions, scrolls, food, etc.).
+    if (item.equipSlot === "consumable") {
+      const existing = this.backpack.find(
+        (i) => i.equipSlot === "consumable" && i.name === item.name
+      );
+      if (existing) {
+        existing.count += item.count;
+        const idx = this.context.entities.indexOf(item);
+        if (idx !== -1) this.context.entities.splice(idx, 1);
+        if (item.sprite) {
+          this.context.scene?.tweens.killTweensOf(item.sprite);
+          item.sprite.destroy();
+          item.sprite = undefined;
+        }
+        this.refreshUI();
+        return true;
+      }
+    }
+
     if (this.backpack.length >= this.capacity) {
       dungeon.log(this.context, "Your backpack is full.");
       return false;
@@ -375,6 +394,13 @@ export default class BasicHero extends Entity {
   }
 
   removeItem(item: Entity): void {
+    // Consuming from a stack only decrements the count.
+    if (item.count > 1) {
+      item.count -= 1;
+      this.refreshUI();
+      return;
+    }
+
     const slot = this.slotOf(item);
     if (slot) {
       this[slot] = undefined;
@@ -1132,15 +1158,6 @@ export default class BasicHero extends Entity {
     if (key === "s" || key === "S") {
       this.search();
       return;
-    }
-
-    // Numbered keys 1-0 act on backpack slots 1-10 (use/equip).
-    if (/^[0-9]$/.test(key)) {
-      let keyNumber = Number(key);
-      if (keyNumber == 0) {
-        keyNumber = 10;
-      }
-      this.useOrEquipBackpackSlot(keyNumber - 1);
     }
 
     // Pass the turn

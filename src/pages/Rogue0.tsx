@@ -23,7 +23,6 @@ const CONTROLS = [
   ['Move', 'Arrow keys / HJKL'],
   ['Melee attack', 'Walk into enemy'],
   ['Ranged attack', 'Equip bow/scroll, then click/tap enemy'],
-  ['Equip', '1–0'],
   ['Inspect', 'Hover, Inspect button, or x cursor'],
   ['Throw', 'Inventory → item → Throw → tap tile'],
   ['Wait', 'Space'],

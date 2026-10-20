@@ -51,6 +51,8 @@ export abstract class Entity {
   level: number = 0;
   charges: number = 0;
   equipSlot: EquipSlot = "junk";
+  // Number of identical items stacked in this one slot (consumables).
+  count: number = 1;
 
   // Status effects and combat stats used by effects.ts / combat.ts.
   effects: StatusEffect[] = [];
