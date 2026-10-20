@@ -23,7 +23,7 @@ const CONTROLS = [
   ['Move', 'Arrow keys / HJKL'],
   ['Melee attack', 'Walk into enemy'],
   ['Ranged attack', 'Equip bow/scroll, then click/tap enemy'],
-  ['Inspect', 'Hover, Inspect button, or x cursor'],
+  ['Inspect', 'Hover, or x cursor'],
   ['Throw', 'Inventory → item → Throw → tap tile'],
   ['Wait', 'Space'],
 ] as const
@@ -160,23 +160,6 @@ export default function Rogue0() {
     unlockAudio()
     setInspectMode(false)
     setHeroClass(name)
-  }
-
-  const toggleInspect = () => {
-    const next = !inspectMode
-    setInspectMode(next)
-    const ctx = contextRef.current
-    if (ctx) {
-      ctx.inspectMode = next
-      if (next) {
-        // Always start the inspect cursor on the player.
-        ctx.cursorX = ctx.player?.x
-        ctx.cursorY = ctx.player?.y
-        ctx.inspectedEntity = undefined
-      } else {
-        ctx.inspectedEntity = undefined
-      }
-    }
   }
 
   const toggleMute = () => {
@@ -316,14 +299,6 @@ export default function Rogue0() {
             aria-pressed={muted}
           >
             {muted ? 'Sound: OFF' : 'Sound: ON'}
-          </button>
-          <button
-            className={`rogue0-game-btn ${inspectMode ? 'is-on' : ''}`}
-            onClick={toggleInspect}
-            aria-pressed={inspectMode}
-            aria-label="Inspect"
-          >
-            {inspectMode ? 'Inspect: ON' : 'Inspect'}
           </button>
           <Link to="/">← back</Link>
         </div>
