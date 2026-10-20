@@ -75,6 +75,7 @@ export default class BasicHero extends Entity {
   UIX: number = 0;
   UIY: number = 0;
   inputBuffer: string[] = [];
+  walkPath: Array<{ x: number; y: number }> = [];
   onBackpackToggle?: () => void;
 
   // Per-class active skill (Phase 9). Triggered with `f` / `F`; the cooldown
@@ -125,6 +126,9 @@ export default class BasicHero extends Entity {
 
     // Execute buffered input as soon as the player can act.
     this.drainInputBuffer();
+
+    // Continue an auto-walk started by a tap, one step per turn.
+    this.stepAutoWalk();
   }
 
   canAct(): boolean {
@@ -559,7 +563,7 @@ export default class BasicHero extends Entity {
   }
 
   processTouchInput(context: GameContext, event: Phaser.Input.Pointer) {
-    if (context.pinching) return;
+    if (context.pinching || context.panning) return;
     if (context.map == undefined) {
       throw new Error("context.map is undefined");
     }
@@ -600,31 +604,53 @@ export default class BasicHero extends Entity {
     // Otherwise this is a player action (attack): only during the player's turn.
     if (this.isOver()) return;
 
-    if (entity && entity.type == "enemy" && this.actionPoints > 0) {
+    if (entity && entity.type === "enemy") {
       const currentWeapon = this.currentWeapon();
-      if (currentWeapon) {
-        const rangedAttack = currentWeapon.range() > 0 ? currentWeapon.attackTile || currentWeapon.tile : false;
-        const distance = dungeon.distanceBetweenEntities(this, entity);
-        const hasLOS = hasLineOfSight(
-          dungeon.getCurrentLevel(),
-          this.x!,
-          this.y!,
-          entity.x!,
-          entity.y!
+      const rangedAttack = currentWeapon && currentWeapon.range() > 0
+        ? currentWeapon.attackTile || currentWeapon.tile
+        : false;
+      const distance = currentWeapon
+        ? dungeon.distanceBetweenEntities(this, entity)
+        : 0;
+      const hasLOS = hasLineOfSight(
+        dungeon.getCurrentLevel(),
+        this.x!,
+        this.y!,
+        entity.x!,
+        entity.y!
+      );
+
+      if (
+        currentWeapon &&
+        rangedAttack &&
+        hasLOS &&
+        distance <= currentWeapon.range() &&
+        this.actionPoints > 0
+      ) {
+        dungeon.attackEntity(
+          context,
+          this,
+          entity,
+          rangedAttack,
+          currentWeapon.tint,
+          currentWeapon.damageType
         );
-        if (rangedAttack && hasLOS && distance <= currentWeapon.range()) {
-          dungeon.attackEntity(
-            context,
-            this,
-            entity,
-            rangedAttack,
-            currentWeapon.tint,
-            currentWeapon.damageType
-          );
-          this.actionPoints -= 1;
-        }
+        this.actionPoints -= 1;
+      } else {
+        // No ranged attack: walk toward the enemy to attack it.
+        this.setWalkTarget(entity.x!, entity.y!);
       }
+      return;
     }
+
+    if (entity && entity.type === "item") {
+      // Walk toward the item and pick it up when adjacent.
+      this.setWalkTarget(entity.x!, entity.y!);
+      return;
+    }
+
+    // Tap a walkable tile to move there (SPD-style).
+    this.setWalkTarget(x!, y!);
   }
 
   // --- Inspect cursor + throw targeting ---
@@ -695,6 +721,78 @@ export default class BasicHero extends Entity {
 
     this.movementPoints = 0;
     this.actionPoints = 0;
+  }
+
+  // --- Touch-to-move (auto-walk) ---
+
+  private nextStepToward(tx: number, ty: number): { x: number; y: number } | null {
+    if (this.x === undefined || this.y === undefined) return null;
+    const path = dungeon
+      .getCardinalFinder()
+      .findPath(this.x, this.y, tx, ty, dungeon.getPathGrid());
+    if (path.length > 1) return { x: path[1][0], y: path[1][1] };
+    return null;
+  }
+
+  private setWalkTarget(tx: number, ty: number): void {
+    if (this.x === undefined || this.y === undefined) return;
+    const path = dungeon
+      .getCardinalFinder()
+      .findPath(this.x, this.y, tx, ty, dungeon.getPathGrid());
+    this.walkPath =
+      path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
+  }
+
+  private stepAutoWalk(): void {
+    if (this.walkPath.length === 0) return;
+    if (!this.canAct()) return;
+
+    const target = this.walkPath[this.walkPath.length - 1];
+    const step = this.nextStepToward(target.x, target.y);
+    if (!step) {
+      this.walkPath = [];
+      return;
+    }
+
+    const entity = dungeon.entityAtTile(this.context, step.x, step.y);
+
+    if (entity && entity.type === "enemy") {
+      this.walkPath = [];
+      if (this.actionPoints > 0) {
+        const weapon = this.currentWeapon();
+        if (weapon) {
+          const ranged = weapon.range() > 0 ? weapon.attackTile || weapon.tile : 0;
+          dungeon.attackEntity(
+            this.context,
+            this,
+            entity,
+            ranged,
+            weapon.tint,
+            weapon.damageType
+          );
+          this.actionPoints -= 1;
+        }
+      }
+      return;
+    }
+
+    if (entity && entity.type === "item") {
+      this.walkPath = [];
+      if (this.actionPoints > 0 && this.addItem(entity)) {
+        dungeon.itemPicked(entity);
+        dungeon.log(this.context, `${this.name} picked ${entity.displayName}.`);
+        this.actionPoints -= 1;
+      }
+      return;
+    }
+
+    this.movementPoints -= 1;
+    if (dungeon.isWalkableTile(this.context, step.x, step.y)) {
+      this.walkPath.shift();
+      dungeon.moveEntityTo(this.context, this, step.x, step.y);
+    } else {
+      this.walkPath = [];
+    }
   }
 
   private exitCursorModes(): void {
@@ -1204,6 +1302,7 @@ export default class BasicHero extends Entity {
 
     // Execute movement
     if (moved) {
+      this.walkPath = []; // manual input cancels auto-walk
       this.movementPoints -= 1;
 
       if (!dungeon.isWalkableTile(this.context, newX, newY)) {

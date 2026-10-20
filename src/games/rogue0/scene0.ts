@@ -134,6 +134,9 @@ export class Scene0 extends Phaser.Scene {
   private activePointers = new Map<number, Phaser.Input.Pointer>();
   private lastPinchDist = 0;
   private stairsHinted = false;
+  private panStartX = 0;
+  private panStartY = 0;
+  private panning = false;
 
   constructor(context: GameContext) {
     super("scene0");
@@ -195,6 +198,9 @@ export class Scene0 extends Phaser.Scene {
     camera.setBounds(0, 0, camera.worldView.width, camera.worldView.height);
     camera.startFollow(this.context.player!.sprite!);
 
+    // Enable multi-touch (two-finger pinch zoom).
+    this.input.addPointer(2);
+
     this.setupZoomControls();
 
     // Mobile/tap descend hook.
@@ -221,14 +227,36 @@ export class Scene0 extends Phaser.Scene {
       if (e.key === ">" || e.key === ".") this.tryDescend();
     });
 
-    // Pinch zoom (mobile): track the first two pointers.
+    // Pinch zoom + one-finger pan (mobile).
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       this.activePointers.set(p.id, p);
+      if (this.activePointers.size === 1) {
+        this.panStartX = p.x;
+        this.panStartY = p.y;
+      }
       this.context.pinching = this.activePointers.size >= 2;
       this.lastPinchDist = 0;
     });
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (this.activePointers.has(p.id)) this.updatePinch();
+      if (!this.activePointers.has(p.id)) return;
+      if (this.activePointers.size >= 2) {
+        this.updatePinch();
+        return;
+      }
+      // Single finger: pan the camera once the drag exceeds a threshold.
+      const dx = p.x - this.panStartX;
+      const dy = p.y - this.panStartY;
+      if (!this.panning && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+        this.panning = true;
+        this.context.panning = true;
+        this.cameras.main.stopFollow();
+      }
+      if (this.panning) {
+        this.cameras.main.scrollX -= dx / this.zoom;
+        this.cameras.main.scrollY -= dy / this.zoom;
+        this.panStartX = p.x;
+        this.panStartY = p.y;
+      }
     });
     this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
       this.activePointers.delete(p.id);
@@ -236,12 +264,22 @@ export class Scene0 extends Phaser.Scene {
       if (this.activePointers.size < 2) {
         this.time.delayedCall(150, () => (this.context.pinching = false));
       }
+      if (this.activePointers.size === 0 && this.panning) {
+        this.panning = false;
+        this.context.panning = false;
+        this.cameras.main.startFollow(this.context.player!.sprite!);
+      }
     });
     this.input.on("pointerout", (p: Phaser.Input.Pointer) => {
       if (this.activePointers.delete(p.id)) {
         this.lastPinchDist = 0;
         if (this.activePointers.size < 2) {
           this.time.delayedCall(150, () => (this.context.pinching = false));
+        }
+        if (this.activePointers.size === 0 && this.panning) {
+          this.panning = false;
+          this.context.panning = false;
+          this.cameras.main.startFollow(this.context.player!.sprite!);
         }
       }
     });
@@ -339,6 +377,7 @@ export class Scene0 extends Phaser.Scene {
 
     // Start the new floor with a fresh player turn.
     player.refresh();
+    player.walkPath = [];
 
     this.placePlayer(spawn.x, spawn.y);
 

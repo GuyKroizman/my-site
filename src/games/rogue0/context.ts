@@ -33,6 +33,8 @@ export type GameContext = {
   throwItem?: Entity;
   // True while a two-finger pinch gesture is in progress (suppresses taps).
   pinching: boolean;
+  // True while a one-finger camera pan is in progress (suppresses taps).
+  panning: boolean;
   // Notifies the React HUD when a Phaser-side keybinding toggles inspect mode.
   onInspectModeChange?: (mode: boolean) => void;
   // Requests a stairs descent (set by scene0; used by tap-to-descend).
@@ -51,6 +53,7 @@ export function createGameContext(): GameContext {
     inspectMode: false,
     throwMode: false,
     pinching: false,
+    panning: false,
     floor: 1,
     maxFloor: 5,
     kills: 0,
