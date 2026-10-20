@@ -125,7 +125,7 @@ export class Scene0 extends Phaser.Scene {
   private visible: Set<string> = new Set();
   private lastFovX?: number;
   private lastFovY?: number;
-  private readonly visionRadius = 7;
+  private readonly visionRadius = 5;
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private cursor!: Phaser.GameObjects.Graphics;
   private zoom = 2;
