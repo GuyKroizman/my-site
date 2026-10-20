@@ -83,6 +83,16 @@ function isRoomInterior(rooms: Room[], x: number, y: number): boolean {
   return rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 }
 
+function isAdjacentToRoom(rooms: Room[], x: number, y: number): boolean {
+  const dirs: Array<[number, number]> = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1]
+  ];
+  return dirs.some(([dx, dy]) => isRoomInterior(rooms, x + dx, y + dy));
+}
+
 // Grows a small, contiguous blob of room-interior floor tiles for grass and
 // water. The seed tile is added to `used` so features never overlap.
 function growPatch(
@@ -197,10 +207,15 @@ export function generateMap(): GeneratedMap {
     }
   }
 
-  // Doors on corridor tiles. They block until opened, which is intentional;
-  // dead-end corridor tiles are avoided so a door never guards nothing.
+  // Doors go in the middle of narrow corridors, away from rooms. A door tile
+  // needs exactly two walkable neighbours and must not touch a room, so it
+  // never appears to sit inside a room.
   const doorCandidates = shuffle(
-    corridorTiles.filter((t) => orthoWalkableCount(map, t.x, t.y) >= 2)
+    corridorTiles.filter(
+      (t) =>
+        orthoWalkableCount(map, t.x, t.y) === 2 &&
+        !isAdjacentToRoom(rooms, t.x, t.y)
+    )
   );
   const doorCount = Math.min(3, doorCandidates.length);
   for (let i = 0; i < doorCount; i++) {
