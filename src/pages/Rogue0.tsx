@@ -140,8 +140,7 @@ export default function Rogue0() {
       const game = new Phaser.Game({
         ...config,
         scale: {
-          mode: Phaser.Scale.FIT,
-          autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
+          mode: Phaser.Scale.RESIZE,
         },
       })
       phaserRef.current = game

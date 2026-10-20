@@ -451,14 +451,16 @@ body {
 }
 
 .rogue0-game {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--r0-bg);
   color: var(--r0-text);
   font-family: 'VT323', monospace;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 14px 0 20px;
+  padding: 0;
   box-sizing: border-box;
 }
 
@@ -511,21 +513,24 @@ body {
 }
 
 .rogue0-game-stage {
+  flex: 1 1 auto;
   width: 100%;
-  max-width: 1284px;
+  height: 100%;
   line-height: 0;
-  border: 2px solid var(--r0-border-strong);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
 }
 
-/* Match the logical canvas ratio so FIT includes the full 200px sidebar. */
 .rogue0-game-stage #phaser {
   width: 100%;
-  aspect-ratio: 1280 / 800;
+  height: 100%;
 }
 
 .rogue0-game-stage canvas {
   display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .rogue0-game-foot {

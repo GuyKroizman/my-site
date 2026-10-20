@@ -63,7 +63,7 @@ import type { FeaturePlacement } from "./tiles";
 
 // Keep the player spawn, stairs and procedural content out of the right-hand
 // columns that sit underneath the UI sidebar.
-const MAX_VISIBLE_X = 67;
+const MAX_VISIBLE_X = 80;
 
 // Weighted SPD-style loot table: [item class, weight].
 type LootClass = any;
@@ -128,8 +128,8 @@ export class Scene0 extends Phaser.Scene {
   private readonly visionRadius = 7;
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private cursor!: Phaser.GameObjects.Graphics;
-  private zoom = 1;
-  private readonly MIN_ZOOM = 0.5;
+  private zoom = 2;
+  private MIN_ZOOM = 0.2;
   private readonly MAX_ZOOM = 5;
   private activePointers = new Map<number, Phaser.Input.Pointer>();
   private lastPinchDist = 0;
@@ -192,12 +192,11 @@ export class Scene0 extends Phaser.Scene {
     // Hovering over a visible creature shows its status in the sidebar.
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => this.inspectAtPointer(pointer));
 
-    // Set camera, causing the game viewport to shrink on the right side
-    // freeing space for the UI scene.
-    let camera = this.cameras.main;
-    camera.setViewport(0, 0, camera.worldView.width - 200, camera.worldView.height);
-    camera.setBounds(0, 0, camera.worldView.width, camera.worldView.height);
-    camera.startFollow(this.context.player!.sprite!);
+    // Full-screen camera (no fixed sidebar).
+    this.cameras.main.setBounds(0, 0, 80 * 16, 50 * 16);
+    this.cameras.main.startFollow(this.context.player!.sprite!);
+    this.resizeCamera();
+    this.scale.on("resize", () => this.resizeCamera());
 
     // Enable multi-touch (two-finger pinch zoom).
     this.input.addPointer(2);
@@ -292,6 +291,16 @@ export class Scene0 extends Phaser.Scene {
     if (!this.panning) {
       this.cameras.main.startFollow(this.context.player!.sprite!);
     }
+  }
+
+  private resizeCamera(): void {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    this.cameras.main.setViewport(0, 0, w, h);
+
+    // Minimum zoom fits the whole floor (no letterboxing beyond the map).
+    this.MIN_ZOOM = Math.max(0.15, Math.min(w / (80 * 16), h / (50 * 16)));
+    this.setZoom(this.zoom);
   }
 
   private updatePinch(): void {

@@ -703,6 +703,12 @@ export default class BasicHero extends Entity {
 
   // SPD-style search (looking glass): reveal hidden traps around the hero.
   // Costs a full turn.
+  waitTurn(): void {
+    if (!this.canAct()) return;
+    this.movementPoints = 0;
+    this.actionPoints = 0;
+  }
+
   search(): void {
     if (!this.canAct()) return;
     if (this.x === undefined || this.y === undefined) return;

@@ -1,8 +1,6 @@
 import type { GameContext } from "./context";
 import { InventoryWindow } from "./inventoryWindow";
 
-// Shared rogue0 palette — kept in sync with the --r0-* variables in
-// src/index.css. Text colors are CSS strings, rectangle fills are 0x numbers.
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
 
@@ -20,34 +18,33 @@ const C = {
   borderStrong: 0x5a5060
 };
 
-const SIDEBAR_X = 1080;
-const SIDEBAR_W = 200;
-const SIDEBAR_H = 800;
-const PAD = 12;
+type ToolbarButton = {
+  bg: Phaser.GameObjects.Rectangle;
+  icon: Phaser.GameObjects.Sprite | Phaser.GameObjects.Graphics;
+  label?: Phaser.GameObjects.Text;
+};
 
 export class UI extends Phaser.Scene {
   context: GameContext;
-  active: boolean;
   private log: Phaser.GameObjects.Text | undefined;
-  private floorText: Phaser.GameObjects.Text | undefined;
   private inventoryWindow: InventoryWindow | undefined;
 
-  // Hero stats modal (opens by tapping the hero icon).
   private heroModal: Phaser.GameObjects.Container | undefined;
   private heroModalText: Phaser.GameObjects.Text | undefined;
   private heroModalOpen = false;
 
-  // Inspect modal (shows while something is being inspected).
   private inspectModal: Phaser.GameObjects.Container | undefined;
   private inspectModalText: Phaser.GameObjects.Text | undefined;
+
+  private logPanel: Phaser.GameObjects.Rectangle | undefined;
+  private logTitle: Phaser.GameObjects.Text | undefined;
+  private toolbar: ToolbarButton[] = [];
 
   constructor(context: GameContext) {
     super("ui-scene");
 
     this.context = context;
-    this.active = true;
     this.log = undefined;
-    this.floorText = undefined;
     this.inventoryWindow = undefined;
     this.heroModal = undefined;
     this.heroModalText = undefined;
@@ -70,84 +67,123 @@ export class UI extends Phaser.Scene {
     });
 
     this.scene.get("scene0").events.on("entities-created", () => {
-      this.buildPanel();
+      this.buildHUD();
     });
 
-    this.scene.get("scene0").events.on("floor-changed", () => {
-      this.floorText?.setText(`Floor ${this.context.floor}`);
-    });
+    this.scale.on("resize", () => this.layout());
   }
 
-  buildPanel() {
-    if (!this.context.player) {
-      throw new Error("Initialization order error. UI scene has no player.");
-    }
-
-    this.context.player.onBackpackToggle = () => this.inventoryWindow?.toggle();
-    this.context.player.onHeroIconTap = () => this.toggleHeroModal();
-
-    // Sidebar backdrop.
-    this.add.rectangle(SIDEBAR_X, 0, SIDEBAR_W, SIDEBAR_H, C.bg, 1).setOrigin(0);
-    this.add
-      .rectangle(SIDEBAR_X, 0, 2, SIDEBAR_H, C.borderStrong, 1)
-      .setOrigin(0);
-
-    let y = 14;
-
-    // Floor header.
-    this.floorText = this.add
-      .text(SIDEBAR_X + SIDEBAR_W / 2, y, `Floor ${this.context.floor}`, {
-        fontFamily: `"${FONT_PIXEL}", monospace`,
-        fontSize: 11,
-        color: COL.gold
-      })
-      .setOrigin(0.5, 0);
-    y += 24;
-    this.add
-      .rectangle(SIDEBAR_X + PAD, y, SIDEBAR_W - PAD * 2, 1, C.border, 1)
-      .setOrigin(0);
-    y += 10;
-
-    // Hero icon + toolbar buttons (stats live in a modal, not here).
-    const heroX = SIDEBAR_X + PAD;
-    const heroW = SIDEBAR_W - PAD * 2;
-    const heroPad = 6;
-    this.add
-      .rectangle(heroX, y, heroW, 104, C.panel, 1)
-      .setOrigin(0)
-      .setStrokeStyle(1, C.border, 1);
-
-    this.context.player.createUI({
-      scene: this,
-      x: heroX + heroPad,
-      y: y + heroPad,
-      width: heroW - heroPad * 2
-    });
-    y += 104 + 12;
-
-    this.buildLogPanel(y);
-
+  buildHUD() {
+    this.buildToolbar();
+    this.buildLog();
     this.buildHeroModal();
     this.buildInspectModal();
+    this.layout();
   }
 
-  private buildHeroModal(): void {
-    const w = 300;
-    const h = 190;
-    const x = 10;
-    const y = 10;
+  private buildToolbar() {
+    const iconColor = 0xa29a8e;
 
+    // Hero (character info) — the player's own tile sprite.
+    const heroBg = this.add
+      .rectangle(0, 0, 46, 46, C.panel, 1)
+      .setStrokeStyle(2, C.borderStrong, 1)
+      .setInteractive({ useHandCursor: true });
+    const p = this.context.player;
+    const heroIcon = this.add.sprite(0, 0, "tiles", p ? p.tile : 26).setScale(1.5);
+    heroBg.on("pointerover", () => heroBg.setStrokeStyle(2, 0xf0b429, 1));
+    heroBg.on("pointerout", () => heroBg.setStrokeStyle(2, C.borderStrong, 1));
+    heroBg.on("pointerup", () => this.toggleHeroModal());
+    this.toolbar.push({ bg: heroBg, icon: heroIcon });
+
+    // Wait.
+    this.toolbar.push(this.makeButton(() => this.context.player?.waitTurn(), (g) => {
+      g.lineStyle(2, iconColor, 1);
+      g.strokeCircle(0, 0, 7);
+      g.lineBetween(0, 0, 0, -4);
+      g.lineBetween(0, 0, 4, 2);
+    }, "Wait"));
+
+    // Search.
+    this.toolbar.push(this.makeButton(() => this.context.player?.search(), (g) => {
+      g.lineStyle(2, iconColor, 1);
+      g.strokeCircle(0, 0, 6);
+      g.lineBetween(4, 4, 10, 10);
+    }, "Search"));
+
+    // Skill.
+    this.toolbar.push(this.makeButton(() => this.context.player?.tryUseSkill(), (g) => {
+      g.lineStyle(2, iconColor, 1);
+      g.strokeTriangle(0, -8, 7, 6, -7, 6);
+    }));
+
+    // Backpack.
+    this.toolbar.push(this.makeButton(() => this.inventoryWindow?.toggle(), (g) => {
+      g.lineStyle(2, iconColor, 1);
+      g.strokeRect(-6, -3, 12, 9);
+      g.strokeCircle(0, -4, 2);
+    }, "Bag"));
+  }
+
+  private makeButton(
+    onClick: () => void,
+    draw: (g: Phaser.GameObjects.Graphics) => void,
+    label?: string
+  ): ToolbarButton {
+    const size = 46;
+    const bg = this.add
+      .rectangle(0, 0, size, size, C.panel, 1)
+      .setStrokeStyle(2, C.borderStrong, 1)
+      .setInteractive({ useHandCursor: true });
+
+    const g = this.add.graphics();
+    draw(g);
+
+    let txt: Phaser.GameObjects.Text | undefined;
+    if (label) {
+      txt = this.add.text(0, 0, label, {
+        fontFamily: `${FONT_PIXEL}, monospace`,
+        fontSize: 8,
+        color: COL.muted
+      }).setOrigin(0.5);
+    }
+
+    bg.on("pointerover", () => bg.setStrokeStyle(2, 0xf0b429, 1));
+    bg.on("pointerout", () => bg.setStrokeStyle(2, C.borderStrong, 1));
+    bg.on("pointerup", onClick);
+
+    return { bg, icon: g, label: txt };
+  }
+
+  private buildLog() {
+    this.logPanel = this.add.rectangle(0, 0, 100, 60, C.panel, 0.9).setOrigin(0);
+    this.logTitle = this.add.text(0, 0, "Log", {
+      fontFamily: `"${FONT_PIXEL}", monospace`,
+      fontSize: 8,
+      color: COL.gold
+    });
+    this.log = this.add.text(0, 0, "", {
+      fontFamily: `${FONT_MONO}, monospace`,
+      fontSize: 16,
+      color: COL.muted,
+      lineSpacing: 2,
+      wordWrap: { width: 400, useAdvancedWrap: true }
+    });
+  }
+
+  private buildHeroModal() {
+    const w = 320;
+    const h = 200;
     const root = this.add.container(0, 0).setDepth(600).setVisible(false);
-
     root.add(
-      this.add.rectangle(x, y, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
+      this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
     );
     root.add(
-      this.add.text(x + 10, y + 8, "Hero", {
+      this.add.text(10, 8, "Hero", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8, color: COL.gold
       })
     );
-    this.heroModalText = this.add.text(x + 10, y + 24, "", {
+    this.heroModalText = this.add.text(10, 26, "", {
       fontFamily: `${FONT_MONO}, monospace`,
       fontSize: 17,
       color: COL.text,
@@ -155,27 +191,22 @@ export class UI extends Phaser.Scene {
       wordWrap: { width: w - 20 }
     });
     root.add(this.heroModalText);
-
     this.heroModal = root;
   }
 
-  private buildInspectModal(): void {
+  private buildInspectModal() {
     const w = 340;
     const h = 170;
-    const x = 10;
-    const y = 500;
-
     const root = this.add.container(0, 0).setDepth(600).setVisible(false);
-
     root.add(
-      this.add.rectangle(x, y, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
+      this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
     );
     root.add(
-      this.add.text(x + 10, y + 8, "Inspect", {
+      this.add.text(10, 8, "Inspect", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8, color: COL.gold
       })
     );
-    this.inspectModalText = this.add.text(x + 10, y + 24, "", {
+    this.inspectModalText = this.add.text(10, 26, "", {
       fontFamily: `${FONT_MONO}, monospace`,
       fontSize: 17,
       color: COL.text,
@@ -183,89 +214,66 @@ export class UI extends Phaser.Scene {
       wordWrap: { width: w - 20 }
     });
     root.add(this.inspectModalText);
-
     this.inspectModal = root;
   }
 
-  private toggleHeroModal(): void {
+  private layout() {
+    const w = this.scale.width;
+    const h = this.scale.height;
+
+    // Toolbar: 5 buttons centered at the bottom.
+    const size = 46;
+    const gap = 10;
+    const count = this.toolbar.length;
+    const totalW = count * size + (count - 1) * gap;
+    let x = (w - totalW) / 2;
+    const y = h - size - 12;
+    for (const b of this.toolbar) {
+      b.bg.setPosition(x + size / 2, y + size / 2);
+      b.icon.setPosition(x + size / 2, y + size / 2);
+      if (b.label) b.label.setPosition(x + size / 2, y + size + 8);
+      x += size + gap;
+    }
+    // Log above the toolbar.
+    const logW = Math.min(w - 16, 520);
+    const logH = 72;
+    const logX = (w - logW) / 2;
+    const logY = y - logH - 8;
+    this.logPanel?.setPosition(logX, logY).setSize(logW, logH);
+    this.logTitle?.setPosition(logX + 8, logY + 4);
+    this.log?.setPosition(logX + 8, logY + 20);
+    this.log?.setWordWrapWidth(logW - 16);
+
+    // Modals centered.
+    const cw = this.heroModal ? (this.heroModal.list[0] as Phaser.GameObjects.Rectangle).width : 320;
+    const ch = this.heroModal ? (this.heroModal.list[0] as Phaser.GameObjects.Rectangle).height : 200;
+    this.heroModal?.setPosition((w - cw) / 2, (h - ch) / 2 - 60);
+
+    const iw = this.inspectModal ? (this.inspectModal.list[0] as Phaser.GameObjects.Rectangle).width : 340;
+    const ih = this.inspectModal ? (this.inspectModal.list[0] as Phaser.GameObjects.Rectangle).height : 170;
+    this.inspectModal?.setPosition((w - iw) / 2, h - ih - 110);
+  }
+
+  private toggleHeroModal() {
     this.heroModalOpen = !this.heroModalOpen;
     this.heroModal?.setVisible(this.heroModalOpen);
   }
 
-  private closeHeroModal(): void {
+  private closeHeroModal() {
     this.heroModalOpen = false;
     this.heroModal?.setVisible(false);
-  }
-
-  private buildLogPanel(y: number): void {
-    const w = SIDEBAR_W - PAD * 2;
-    const px = SIDEBAR_X + PAD;
-    const bottom = SIDEBAR_H - 14;
-    const h = Math.max(60, bottom - y);
-
-    this.add
-      .rectangle(px, y, w, h, C.panel, 1)
-      .setOrigin(0)
-      .setStrokeStyle(1, C.border, 1);
-
-    this.add.text(px + 8, y + 8, "Log", {
-      fontFamily: `"${FONT_PIXEL}", monospace`,
-      fontSize: 8,
-      color: COL.gold
-    });
-
-    this.add.rectangle(px + 8, y + 24, w - 16, 1, C.border, 1).setOrigin(0);
-
-    this.log = this.scrollableText(px + 8, y + 32, w - 16, h - 40);
-  }
-
-  // Keep long descriptions and message history inside their own panels.
-  // Scroll (wheel or touch drag) rather than shrinking text or losing details.
-  private scrollableText(x: number, y: number, width: number, height: number) {
-    const text = this.add.text(x, y, "", {
-      fontFamily: `${FONT_MONO}, monospace`,
-      fontSize: 16,
-      color: COL.muted,
-      wordWrap: { width, useAdvancedWrap: true },
-      lineSpacing: 2
-    });
-    const clip = this.make.graphics({ x: 0, y: 0 });
-    clip.fillRect(x, y, width, height - 20);
-    text.setMask(clip.createGeometryMask());
-    const hint = this.add.text(x, y + height - 16, "Scroll for more", {
-      fontFamily: `${FONT_MONO}, monospace`, fontSize: 14, color: COL.muted
-    }).setVisible(false);
-    text.setData({ top: y, viewport: height - 20, hint });
-    const scroll = (delta: number) => {
-      text.y = Phaser.Math.Clamp(text.y - delta, y - Math.max(0, text.height - (height - 20)), y);
-    };
-    this.add.zone(x, y, width, height).setOrigin(0).setInteractive()
-      .on("wheel", (_pointer: Phaser.Input.Pointer, _dx: number, dy: number) => scroll(dy))
-      .on("pointermove", (pointer: Phaser.Input.Pointer) => {
-        if (pointer.isDown) scroll(pointer.prevPosition.y - pointer.position.y);
-      });
-    return text;
-  }
-
-  private setPanelText(text: Phaser.GameObjects.Text, value: string) {
-    if (text.text === value) return;
-    text.setText(value).setY(text.getData("top"));
-    (text.getData("hint") as Phaser.GameObjects.Text)
-      .setVisible(text.height > text.getData("viewport"));
   }
 
   update() {
     if (!this.log) return;
 
-    this.setPanelText(this.log, this.context.messages.join(`\n\n`));
-    this.context.player?.updateUI?.();
-    this.context.player?.refreshUI?.();
+    this.log.setText(this.context.messages.join("\n\n"));
     this.updateHeroModal();
     this.updateInspectModal();
     this.inventoryWindow?.refresh();
   }
 
-  private updateHeroModal(): void {
+  private updateHeroModal() {
     if (!this.heroModalText) return;
     const p = this.context.player;
     if (!p) return;
@@ -285,7 +293,7 @@ export class UI extends Phaser.Scene {
     this.heroModalText.setText(text);
   }
 
-  private updateInspectModal(): void {
+  private updateInspectModal() {
     if (!this.inspectModal || !this.inspectModalText) return;
 
     const e = this.context.inspectedEntity;
