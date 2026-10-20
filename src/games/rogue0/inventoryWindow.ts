@@ -258,10 +258,7 @@ export class InventoryWindow {
       } else {
         this.add(
           this.scene.add
-            .text(x + CELL / 2, y + CELL / 2, "?", {
-              fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 20,
-              color: COL.muted
-            })
+            .sprite(x + CELL / 2, y + CELL / 2, item.unidentifiedTextureKey)
             .setOrigin(0.5)
         );
       }
@@ -321,10 +318,7 @@ export class InventoryWindow {
     } else {
       this.add(
         this.scene.add
-          .text(iconX + iconSize / 2, ay + iconSize / 2, "?", {
-            fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 22,
-            color: COL.muted
-          })
+          .sprite(iconX + iconSize / 2, ay + iconSize / 2, item.unidentifiedTextureKey)
           .setOrigin(0.5)
       );
     }

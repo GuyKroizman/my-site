@@ -69,17 +69,34 @@ export abstract class Entity {
     }
     switch (this.equipSlot) {
       case "weapon":
-        return "?weapon";
+        return /wand/i.test(this.name) ? "Wand" : "Weapon";
       case "armor":
-        return "?armor";
+        return "Armor";
       case "ring":
-        return "?ring";
+        return "Ring";
       case "artifact":
-        return "?artifact";
+        return "Artifact";
       case "consumable":
-        return /scroll/i.test(this.name) ? "?scroll" : "?potion";
+        return /scroll/i.test(this.name) ? "Scroll" : "Potion";
       default:
-        return "?item";
+        return "Item";
+    }
+  }
+
+  // Generic icon used while an item is unidentified (distinguishes category
+  // without revealing what the item is).
+  get unidentifiedTextureKey(): string {
+    switch (this.equipSlot) {
+      case "consumable":
+        return /scroll/i.test(this.name) ? "unknown-scroll" : "unknown-potion";
+      case "weapon":
+        return /wand/i.test(this.name) ? "unknown-wand" : "unknown-item";
+      case "ring":
+        return "unknown-ring";
+      case "artifact":
+        return "unknown-artifact";
+      default:
+        return "unknown-item";
     }
   }
 

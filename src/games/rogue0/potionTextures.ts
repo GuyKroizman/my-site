@@ -14,19 +14,85 @@ export const POTION_COLORS = {
 } as const;
 
 export function generatePotionTextures(scene: Phaser.Scene): void {
-  const entries: Array<[string, number]> = [
-    ["potion-red", POTION_COLORS.red],
-    ["potion-green", POTION_COLORS.green],
-    ["potion-blue", POTION_COLORS.blue],
-    ["potion-gold", POTION_COLORS.gold],
-    ["potion-purple", POTION_COLORS.purple]
+  const keys = [
+    "potion-red",
+    "potion-green",
+    "potion-blue",
+    "potion-gold",
+    "potion-purple"
+  ];
+  const colors = [
+    POTION_COLORS.red,
+    POTION_COLORS.green,
+    POTION_COLORS.blue,
+    POTION_COLORS.gold,
+    POTION_COLORS.purple
   ];
 
-  for (const [key, color] of entries) {
-    if (scene.textures.exists(key)) continue;
+  // Shuffle so each run maps potion types to colors differently (SPD-style:
+  // the color no longer reveals what a potion is).
+  for (let i = colors.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [colors[i], colors[j]] = [colors[j], colors[i]];
+  }
+
+  keys.forEach((key, i) => {
+    if (scene.textures.exists(key)) scene.textures.remove(key);
     const g = scene.make.graphics(undefined, false);
-    drawFlask(g, color);
+    drawFlask(g, colors[i]);
     g.generateTexture(key, 16, 16);
+    g.destroy();
+  });
+}
+
+// Generic "unidentified" icons — one per item category, so the inventory can
+// tell a potion from a scroll (etc.) without revealing what it actually is.
+export function generateUnknownItemTextures(scene: Phaser.Scene): void {
+  if (!scene.textures.exists("unknown-potion")) {
+    const g = scene.make.graphics(undefined, false);
+    drawFlask(g, 0x9a9a9a);
+    g.generateTexture("unknown-potion", 16, 16);
+    g.destroy();
+  }
+  if (!scene.textures.exists("unknown-scroll")) {
+    const g = scene.make.graphics(undefined, false);
+    g.fillStyle(0xd8d0c0, 1);
+    g.fillRect(3, 3, 10, 10);
+    g.fillStyle(0x8a8274, 1);
+    g.fillRect(3, 3, 10, 2);
+    g.fillRect(3, 11, 10, 2);
+    g.generateTexture("unknown-scroll", 16, 16);
+    g.destroy();
+  }
+  if (!scene.textures.exists("unknown-wand")) {
+    const g = scene.make.graphics(undefined, false);
+    g.lineStyle(2, 0x8a5a2b, 1);
+    g.lineBetween(3, 13, 12, 4);
+    g.fillStyle(0x9a9a9a, 1);
+    g.fillCircle(13, 3, 2);
+    g.generateTexture("unknown-wand", 16, 16);
+    g.destroy();
+  }
+  if (!scene.textures.exists("unknown-ring")) {
+    const g = scene.make.graphics(undefined, false);
+    g.lineStyle(2, 0xc9a227, 1);
+    g.strokeCircle(8, 8, 5);
+    g.generateTexture("unknown-ring", 16, 16);
+    g.destroy();
+  }
+  if (!scene.textures.exists("unknown-artifact")) {
+    const g = scene.make.graphics(undefined, false);
+    g.fillStyle(0x8b6fae, 1);
+    g.fillTriangle(8, 1, 15, 8, 8, 15);
+    g.fillTriangle(8, 1, 1, 8, 8, 15);
+    g.generateTexture("unknown-artifact", 16, 16);
+    g.destroy();
+  }
+  if (!scene.textures.exists("unknown-item")) {
+    const g = scene.make.graphics(undefined, false);
+    g.fillStyle(0x6a6a6a, 1);
+    g.fillRect(5, 3, 6, 10);
+    g.generateTexture("unknown-item", 16, 16);
     g.destroy();
   }
 }

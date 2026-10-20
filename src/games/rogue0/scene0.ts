@@ -57,7 +57,7 @@ import {
 } from "./mapgen";
 import { computeFOV } from "./fov";
 import { sfx } from "./audio";
-import { generatePotionTextures, generateDoorThresholdTexture } from "./potionTextures";
+import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
 
@@ -161,6 +161,7 @@ export class Scene0 extends Phaser.Scene {
     this.makeSparkTexture();
     generatePotionTextures(this);
     generateDoorThresholdTexture(this);
+    generateUnknownItemTextures(this);
 
     // Generate the first floor (all floors are now procedurally generated).
     const { levelArray, spawn, stairs } = this.generateLevel();
