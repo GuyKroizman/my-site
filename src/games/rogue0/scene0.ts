@@ -125,7 +125,12 @@ export class Scene0 extends Phaser.Scene {
   private visible: Set<string> = new Set();
   private lastFovX?: number;
   private lastFovY?: number;
-  private readonly visionRadius = 5;
+
+  // SPD-style depth-based light: early floors are bright (rooms lit on
+  // entry), and the hero's vision shrinks as you descend into darker floors.
+  private getVisionRadius(): number {
+    return Math.max(3, 8 - (this.context.floor - 1));
+  }
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private cursor!: Phaser.GameObjects.Graphics;
   private zoom = 2;
@@ -497,7 +502,7 @@ export class Scene0 extends Phaser.Scene {
     if (!p || p.x === undefined || p.y === undefined) return;
 
     const map = dungeon.getCurrentLevel();
-    this.visible = computeFOV(map, p.x, p.y, this.visionRadius);
+    this.visible = computeFOV(map, p.x, p.y, this.getVisionRadius());
     this.context.visibleTiles = this.visible;
 
     for (const key of this.visible) {
