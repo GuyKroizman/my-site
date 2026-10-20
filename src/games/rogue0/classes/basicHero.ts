@@ -735,6 +735,7 @@ export default class BasicHero extends Entity {
 
   private setWalkTarget(tx: number, ty: number): void {
     if (this.x === undefined || this.y === undefined) return;
+    this.context.onResumeFollow?.();
     const path = dungeon.findCardinalPath(this.x, this.y, tx, ty, true);
     this.walkPath =
       path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
@@ -1301,6 +1302,7 @@ export default class BasicHero extends Entity {
 
     // Execute movement
     if (moved) {
+      this.context.onResumeFollow?.();
       this.walkPath = []; // manual input cancels auto-walk
       this.movementPoints -= 1;
 

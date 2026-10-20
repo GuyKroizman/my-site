@@ -206,6 +206,8 @@ export class Scene0 extends Phaser.Scene {
 
     // Mobile/tap descend hook.
     this.context.onDescend = () => this.tryDescend();
+    // Re-center the camera on the player after a free pan.
+    this.context.onResumeFollow = () => this.resumeFollow();
   }
 
   private setupZoomControls(): void {
@@ -268,7 +270,7 @@ export class Scene0 extends Phaser.Scene {
       if (this.activePointers.size === 0 && this.panning) {
         this.panning = false;
         this.context.panning = false;
-        this.cameras.main.startFollow(this.context.player!.sprite!);
+        // Leave the camera where the player panned it.
       }
     });
     this.input.on("pointerout", (p: Phaser.Input.Pointer) => {
@@ -280,10 +282,16 @@ export class Scene0 extends Phaser.Scene {
         if (this.activePointers.size === 0 && this.panning) {
           this.panning = false;
           this.context.panning = false;
-          this.cameras.main.startFollow(this.context.player!.sprite!);
+          // Leave the camera where the player panned it.
         }
       }
     });
+  }
+
+  private resumeFollow(): void {
+    if (!this.panning) {
+      this.cameras.main.startFollow(this.context.player!.sprite!);
+    }
   }
 
   private updatePinch(): void {
