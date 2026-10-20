@@ -310,6 +310,21 @@ export default class BasicHero extends Entity {
       return;
     }
 
+    // Drop one at a time from a stack: decrement and spawn a fresh single item.
+    if (item.count > 1) {
+      item.count -= 1;
+      const Cls = item.constructor as any;
+      const dropped: Entity = new Cls(this.context, this.x, this.y);
+      dropped.count = 1;
+      dropped.identified = item.identified;
+      if (!this.context.entities.includes(dropped)) {
+        this.context.entities.push(dropped);
+      }
+      dungeon.log(this.context, `${this.name} drops ${item.displayName}.`);
+      this.refreshUI();
+      return;
+    }
+
     const slot = this.slotOf(item);
     if (slot) {
       this[slot] = undefined;
