@@ -69,15 +69,14 @@ export default class BasicHero extends Entity {
   capacity: number = 20;
 
   UIHeader?: Phaser.GameObjects.Text;
-  UIStatsText?: Phaser.GameObjects.Text;
   UIScene?: Phaser.Scene;
-  UIEffectText?: Phaser.GameObjects.Text;
   UISkillLabel?: Phaser.GameObjects.Text;
   UIX: number = 0;
   UIY: number = 0;
   inputBuffer: string[] = [];
   walkPath: Array<{ x: number; y: number }> = [];
   onBackpackToggle?: () => void;
+  onHeroIconTap?: () => void;
 
   // Per-class active skill (Phase 9). Triggered with `f` / `F`; the cooldown
   // ticks down once per round in refresh() and is shown in statsText().
@@ -1383,9 +1382,6 @@ export default class BasicHero extends Entity {
     if (this.UIHeader) {
       this.UIHeader.setColor(over ? UI_HIGHLIGHT_BACKGROUND_COLOR : "#fff");
     }
-    if (this.UIStatsText) {
-      this.UIStatsText.setText(this.statsText());
-    }
   }
 
   onDestroy() {
@@ -1405,44 +1401,19 @@ export default class BasicHero extends Entity {
     const w = width ?? 160;
     let yy = y;
 
-    // Portrait + pixel-font name aligned on a single header row.
+    // Hero icon + name (tap to open the hero stats modal).
     this.UISprite = scene.add.sprite(x, yy, "tiles", this.tile).setOrigin(0);
     this.UIHeader = scene.add.text(x + 20, yy + 4, this.name, {
       fontFamily: `"${UI_FONT_PIXEL}", monospace`,
       fontSize: 10,
       color: UI_COL.gold
     });
-    yy += 18;
-
-    // Stats box on the dark panel (replaces the old grey Arial slab).
     scene.add
-      .rectangle(x, yy, w, 80, UI_C.cell, 1)
+      .zone(x, yy, w, 22)
       .setOrigin(0)
-      .setStrokeStyle(1, UI_C.border, 1);
-    this.UIStatsText = scene.add.text(x + 6, yy + 6, this.statsText(), {
-      fontFamily: `${UI_FONT_MONO}, monospace`,
-      fontSize: 16,
-      color: UI_COL.text,
-      lineSpacing: 2,
-      wordWrap: { width: w - 12 }
-    });
-    yy += 88;
-
-    // Active status effects (name + remaining duration, one per line).
-    scene.add.text(x, yy, "Status", {
-      fontFamily: `"${UI_FONT_PIXEL}", monospace`,
-      fontSize: 8,
-      color: UI_COL.muted
-    });
-    yy += 12;
-
-    this.UIEffectText = scene.add.text(x, yy, "", {
-      fontFamily: `${UI_FONT_MONO}, monospace`,
-      fontSize: 16,
-      color: UI_COL.text,
-      lineSpacing: 2
-    });
-    yy += 36;
+      .setInteractive({ useHandCursor: true })
+      .on("pointerup", () => this.onHeroIconTap?.());
+    yy += 24;
 
     // Backpack button opens/closes the inventory window (i/b toggles too).
     const button = scene.add
@@ -1533,19 +1504,6 @@ export default class BasicHero extends Entity {
     if (!this.UIScene) return;
     this.UIHeader?.setColor(
       this.movementPoints === 0 && !this.moving ? UI_COL.muted : UI_COL.gold
-    );
-
-    // Render active status effects by name (e.g. "Cursed ∞", "Burning 3").
-    this.UIEffectText?.setText(
-      this.effects.length
-        ? this.effects
-            .map((e) => {
-              const infinite =
-                e.manualExpiry || e.duration === Number.POSITIVE_INFINITY;
-              return `${e.name} ${infinite ? "∞" : e.duration}`;
-            })
-            .join("\n")
-        : ""
     );
 
     // Skill button label: gold when ready, muted while on cooldown.

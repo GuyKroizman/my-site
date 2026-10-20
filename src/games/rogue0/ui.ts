@@ -30,8 +30,16 @@ export class UI extends Phaser.Scene {
   active: boolean;
   private log: Phaser.GameObjects.Text | undefined;
   private floorText: Phaser.GameObjects.Text | undefined;
-  private statusText: Phaser.GameObjects.Text | undefined;
   private inventoryWindow: InventoryWindow | undefined;
+
+  // Hero stats modal (opens by tapping the hero icon).
+  private heroModal: Phaser.GameObjects.Container | undefined;
+  private heroModalText: Phaser.GameObjects.Text | undefined;
+  private heroModalOpen = false;
+
+  // Inspect modal (shows while something is being inspected).
+  private inspectModal: Phaser.GameObjects.Container | undefined;
+  private inspectModalText: Phaser.GameObjects.Text | undefined;
 
   constructor(context: GameContext) {
     super("ui-scene");
@@ -40,8 +48,11 @@ export class UI extends Phaser.Scene {
     this.active = true;
     this.log = undefined;
     this.floorText = undefined;
-    this.statusText = undefined;
     this.inventoryWindow = undefined;
+    this.heroModal = undefined;
+    this.heroModalText = undefined;
+    this.inspectModal = undefined;
+    this.inspectModalText = undefined;
   }
 
   create() {
@@ -54,6 +65,7 @@ export class UI extends Phaser.Scene {
         this.inventoryWindow?.toggle();
       } else if (key === "Escape") {
         this.inventoryWindow?.close();
+        this.closeHeroModal();
       }
     });
 
@@ -72,9 +84,9 @@ export class UI extends Phaser.Scene {
     }
 
     this.context.player.onBackpackToggle = () => this.inventoryWindow?.toggle();
+    this.context.player.onHeroIconTap = () => this.toggleHeroModal();
 
-    // Sidebar backdrop: an opaque panel separating the HUD from the map, with
-    // a strong left edge so the game viewport reads as a framed play area.
+    // Sidebar backdrop.
     this.add.rectangle(SIDEBAR_X, 0, SIDEBAR_W, SIDEBAR_H, C.bg, 1).setOrigin(0);
     this.add
       .rectangle(SIDEBAR_X, 0, 2, SIDEBAR_H, C.borderStrong, 1)
@@ -96,13 +108,12 @@ export class UI extends Phaser.Scene {
       .setOrigin(0);
     y += 10;
 
-    // Hero panel is rendered by BasicHero; we draw a backing panel behind it
-    // so the sprite, stats and backpack button sit on a framed surface.
+    // Hero icon + toolbar buttons (stats live in a modal, not here).
     const heroX = SIDEBAR_X + PAD;
     const heroW = SIDEBAR_W - PAD * 2;
     const heroPad = 6;
     this.add
-      .rectangle(heroX, y, heroW, 194, C.panel, 1)
+      .rectangle(heroX, y, heroW, 104, C.panel, 1)
       .setOrigin(0)
       .setStrokeStyle(1, C.border, 1);
 
@@ -112,35 +123,78 @@ export class UI extends Phaser.Scene {
       y: y + heroPad,
       width: heroW - heroPad * 2
     });
-    y += 194 + 12;
+    y += 104 + 12;
 
-    y = this.buildInspectPanel(y);
     this.buildLogPanel(y);
 
-    // Rogue0 waits for the fonts before starting this scene.
+    this.buildHeroModal();
+    this.buildInspectModal();
   }
 
-  private buildInspectPanel(y: number): number {
-    const w = SIDEBAR_W - PAD * 2;
-    const h = 180;
-    const px = SIDEBAR_X + PAD;
+  private buildHeroModal(): void {
+    const w = 300;
+    const h = 190;
+    const x = 10;
+    const y = 10;
 
-    this.add
-      .rectangle(px, y, w, h, C.panel, 1)
-      .setOrigin(0)
-      .setStrokeStyle(1, C.border, 1);
+    const root = this.add.container(0, 0).setDepth(600).setVisible(false);
 
-    this.add.text(px + 8, y + 8, "Inspect", {
-      fontFamily: `"${FONT_PIXEL}", monospace`,
-      fontSize: 8,
-      color: COL.gold
+    root.add(
+      this.add.rectangle(x, y, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
+    );
+    root.add(
+      this.add.text(x + 10, y + 8, "Hero", {
+        fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8, color: COL.gold
+      })
+    );
+    this.heroModalText = this.add.text(x + 10, y + 24, "", {
+      fontFamily: `${FONT_MONO}, monospace`,
+      fontSize: 17,
+      color: COL.text,
+      lineSpacing: 2,
+      wordWrap: { width: w - 20 }
     });
+    root.add(this.heroModalText);
 
-    this.add.rectangle(px + 8, y + 24, w - 16, 1, C.border, 1).setOrigin(0);
+    this.heroModal = root;
+  }
 
-    this.statusText = this.scrollableText(px + 8, y + 32, w - 16, h - 40);
+  private buildInspectModal(): void {
+    const w = 340;
+    const h = 170;
+    const x = 10;
+    const y = 500;
 
-    return y + h + 12;
+    const root = this.add.container(0, 0).setDepth(600).setVisible(false);
+
+    root.add(
+      this.add.rectangle(x, y, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
+    );
+    root.add(
+      this.add.text(x + 10, y + 8, "Inspect", {
+        fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8, color: COL.gold
+      })
+    );
+    this.inspectModalText = this.add.text(x + 10, y + 24, "", {
+      fontFamily: `${FONT_MONO}, monospace`,
+      fontSize: 17,
+      color: COL.text,
+      lineSpacing: 2,
+      wordWrap: { width: w - 20 }
+    });
+    root.add(this.inspectModalText);
+
+    this.inspectModal = root;
+  }
+
+  private toggleHeroModal(): void {
+    this.heroModalOpen = !this.heroModalOpen;
+    this.heroModal?.setVisible(this.heroModalOpen);
+  }
+
+  private closeHeroModal(): void {
+    this.heroModalOpen = false;
+    this.heroModal?.setVisible(false);
   }
 
   private buildLogPanel(y: number): void {
@@ -206,40 +260,61 @@ export class UI extends Phaser.Scene {
     this.setPanelText(this.log, this.context.messages.join(`\n\n`));
     this.context.player?.updateUI?.();
     this.context.player?.refreshUI?.();
-    this.updateStatus();
+    this.updateHeroModal();
+    this.updateInspectModal();
     this.inventoryWindow?.refresh();
   }
 
-  updateStatus() {
-    if (!this.statusText) return;
+  private updateHeroModal(): void {
+    if (!this.heroModalText) return;
+    const p = this.context.player;
+    if (!p) return;
+
+    let text = p.statsText();
+    if (p.effects.length) {
+      text +=
+        "\n\n" +
+        p.effects
+          .map((e) => {
+            const infinite =
+              e.manualExpiry || e.duration === Number.POSITIVE_INFINITY;
+            return `${e.name} ${infinite ? "∞" : e.duration}`;
+          })
+          .join("\n");
+    }
+    this.heroModalText.setText(text);
+  }
+
+  private updateInspectModal(): void {
+    if (!this.inspectModal || !this.inspectModalText) return;
 
     const e = this.context.inspectedEntity;
-    if (!e) {
-      const terrain = this.context.inspectedTerrain;
-      if (terrain) {
-        this.statusText.setColor(COL.text);
-        this.setPanelText(this.statusText, terrain);
+    const terrain = this.context.inspectedTerrain;
+
+    if (e) {
+      this.inspectModal.setVisible(true);
+      if (e.type === "enemy") {
+        const hp = e.healthPoints ?? 0;
+        const maxHp = e.maxHealthPoints ?? e.healthPoints ?? 0;
+        const atk = typeof e.attack === "function" ? e.attack() : 0;
+        const prot = typeof e.protection === "function" ? e.protection() : 0;
+        const range = typeof e.range === "function" ? e.range() : 0;
+        this.inspectModalText.setText(
+          `${e.name}\n${e.description}\nHP: ${hp}/${maxHp}\nATK: ${atk}  DEF: ${prot}  Range: ${range}`
+        );
       } else {
-        this.statusText.setColor(COL.muted);
-        this.setPanelText(this.statusText, "Hover a creature, or tap it with Inspect on.");
+        const desc = e.identified ? e.description : "You have not identified this item.";
+        this.inspectModalText.setText(`${e.displayName}\n${desc}`);
       }
       return;
     }
 
-    this.statusText.setColor(COL.text);
-
-    if (e.type === "enemy") {
-      const hp = e.healthPoints ?? 0;
-      const maxHp = e.maxHealthPoints ?? e.healthPoints ?? 0;
-      const atk = typeof e.attack === "function" ? e.attack() : 0;
-      const prot = typeof e.protection === "function" ? e.protection() : 0;
-      const range = typeof e.range === "function" ? e.range() : 0;
-      this.setPanelText(this.statusText,
-        `${e.name}\n${e.description}\nHP: ${hp}/${maxHp}\nATK: ${atk}  DEF: ${prot}  Range: ${range}`
-      );
-    } else {
-      const desc = e.identified ? e.description : "You have not identified this item.";
-      this.setPanelText(this.statusText, `${e.displayName}\n${desc}`);
+    if (terrain) {
+      this.inspectModal.setVisible(true);
+      this.inspectModalText.setText(terrain);
+      return;
     }
+
+    this.inspectModal.setVisible(false);
   }
 }

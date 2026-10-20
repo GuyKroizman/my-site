@@ -334,9 +334,6 @@ export default function Rogue0() {
         <div id="phaser"></div>
       </div>
 
-      <p className="rogue0-game-foot">
-        Tiles from <a href="https://kenney.nl/">Kenney</a>
-      </p>
       {helpModal}
     </div>
   )
