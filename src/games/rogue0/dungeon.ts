@@ -96,8 +96,18 @@ let dungeon = {
 
   // Pathfinding mutates node state (opened/closed), so always search on a
   // fresh grid clone to avoid stale state between calls.
-  findCardinalPath: function (sx: number, sy: number, tx: number, ty: number): number[][] {
-    return this.cardinalFinder!.findPath(sx, sy, tx, ty, this.pathGrid!.clone());
+  // `throughDoors` (player) temporarily treats closed doors as walkable so the
+  // player can path up to and open them; enemies keep doors as blockers.
+  findCardinalPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false): number[][] {
+    const grid = this.pathGrid!.clone();
+    if (throughDoors) {
+      tiles.forEachFeature((x, y, s) => {
+        if (s.feature === "door" && s.door === "closed") {
+          grid.setWalkableAt(x, y, true);
+        }
+      });
+    }
+    return this.cardinalFinder!.findPath(sx, sy, tx, ty, grid);
   },
 
   isWalkableTile: function (context: GameContext, x: number, y: number): boolean {

@@ -110,6 +110,7 @@ export default function Rogue0() {
   const [muted, setMuted] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [helpPage, setHelpPage] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
     if (!heroClass) return
@@ -182,6 +183,23 @@ export default function Rogue0() {
   const toggleMute = () => {
     setMuted(toggleMuted())
   }
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.()
+      return
+    }
+    const el = document.documentElement
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(() => undefined)
+    }
+  }
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
 
   const openHelp = () => {
     setHelpPage(0)
@@ -286,6 +304,13 @@ export default function Rogue0() {
         <span className="rogue0-game-title">Rogue0</span>
         <div className="rogue0-game-actions">
           <button className="rogue0-game-btn" onClick={openHelp}>Help</button>
+          <button
+            className="rogue0-game-btn"
+            onClick={toggleFullscreen}
+            aria-label="Toggle fullscreen"
+          >
+            {isFullscreen ? 'Exit FS' : 'Fullscreen'}
+          </button>
           <button
             className={`rogue0-game-btn ${muted ? 'off' : ''}`}
             onClick={toggleMute}

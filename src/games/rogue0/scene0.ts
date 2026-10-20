@@ -130,7 +130,7 @@ export class Scene0 extends Phaser.Scene {
   private cursor!: Phaser.GameObjects.Graphics;
   private zoom = 1;
   private readonly MIN_ZOOM = 0.5;
-  private readonly MAX_ZOOM = 3;
+  private readonly MAX_ZOOM = 5;
   private activePointers = new Map<number, Phaser.Input.Pointer>();
   private lastPinchDist = 0;
   private stairsHinted = false;
