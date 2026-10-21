@@ -136,6 +136,14 @@ export abstract class Entity {
     }
   }
 
+  takeDamage(amount: number): void {
+    this.healthPoints -= amount;
+    const player = this.context?.player;
+    if (amount > 0 && player && (player as Entity) === this) {
+      player.walkPath = [];
+    }
+  }
+
   abstract equip(): void;
 
   // Optional hook called when this item is removed from an equipment slot.

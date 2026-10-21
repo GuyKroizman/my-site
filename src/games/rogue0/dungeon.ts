@@ -467,7 +467,7 @@ let dungeon = {
     }
 
     if (result.damage > 0) {
-      victim.healthPoints -= result.damage;
+      victim.takeDamage(result.damage);
       spawnEntityFloatingText(victim, `-${result.damage}`);
       this.log(
         context,

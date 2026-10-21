@@ -90,7 +90,7 @@ export function createBurningEffect(duration = 3): StatusEffect {
     duration,
     tick(entity, context) {
       const amount = 1;
-      entity.healthPoints -= amount;
+      entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
       log(context, `${entity.name} burns for ${amount} fire damage.`);
     }
@@ -105,7 +105,7 @@ export function createPoisonedEffect(duration = 3): StatusEffect {
     duration,
     tick(entity, context) {
       const amount = 1;
-      entity.healthPoints -= amount;
+      entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
       log(context, `${entity.name} takes ${amount} poison damage.`);
     }
@@ -120,7 +120,7 @@ export function createBleedingEffect(duration = 3): StatusEffect {
     duration,
     tick(entity, context) {
       const amount = 1;
-      entity.healthPoints -= amount;
+      entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
       log(context, `${entity.name} bleeds for ${amount} physical damage.`);
     }
@@ -200,7 +200,7 @@ export function createCursedEffect(): StatusEffect {
     manualExpiry: true,
     tick(entity, context) {
       const amount = 1;
-      entity.healthPoints -= amount;
+      entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
       log(context, `${entity.name} is cursed and takes ${amount} damage.`);
     }

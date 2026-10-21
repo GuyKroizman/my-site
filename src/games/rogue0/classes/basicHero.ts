@@ -75,6 +75,7 @@ export default class BasicHero extends Entity {
   UIY: number = 0;
   inputBuffer: string[] = [];
   walkPath: Array<{ x: number; y: number }> = [];
+  private acknowledgedWalkEnemies = new Set<Entity>();
   onBackpackToggle?: () => void;
   onHeroIconTap?: () => void;
 
@@ -523,7 +524,7 @@ export default class BasicHero extends Entity {
 
     // Starving: 1 damage per round until food is eaten.
     if (this.hunger === 0) {
-      this.healthPoints -= 1;
+      this.takeDamage(1);
       spawnEntityFloatingText(this, "-1");
       dungeon.log(this.context, "You are starving! You take 1 damage.");
       if (this.healthPoints <= 0) {
@@ -749,6 +750,14 @@ export default class BasicHero extends Entity {
   private setWalkTarget(tx: number, ty: number): void {
     if (this.x === undefined || this.y === undefined) return;
     this.context.onResumeFollow?.();
+    // A fresh command acknowledges current threats, but not other monsters
+    // encountered later along the route. Use identity rather than position.
+    this.acknowledgedWalkEnemies = new Set(
+      this.context.entities.filter((entity) =>
+        entity.type === "enemy" && entity.healthPoints > 0 &&
+        this.context.visibleTiles.has(`${entity.x},${entity.y}`)
+      )
+    );
     const path = dungeon.findCardinalPath(this.x, this.y, tx, ty, true);
     this.walkPath =
       path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
@@ -756,6 +765,14 @@ export default class BasicHero extends Entity {
 
   private stepAutoWalk(): void {
     if (this.walkPath.length === 0) return;
+    if (this.context.entities.some((entity) =>
+      entity.type === "enemy" && entity.healthPoints > 0 &&
+      !this.acknowledgedWalkEnemies.has(entity) &&
+      this.context.visibleTiles.has(`${entity.x},${entity.y}`)
+    )) {
+      this.walkPath = [];
+      return;
+    }
     if (!this.canAct()) return;
 
     const target = this.walkPath[this.walkPath.length - 1];
@@ -998,7 +1015,7 @@ export default class BasicHero extends Entity {
       if (!result.hit) return;
 
       if (result.damage > 0) {
-        enemy.healthPoints -= result.damage;
+        enemy.takeDamage(result.damage);
         dungeon.log(
           context,
           `${this.name} throws ${item.displayName} at ${enemy.name} for ${result.damage} ${result.damageType} damage.`
@@ -1144,7 +1161,7 @@ export default class BasicHero extends Entity {
     if (!result.hit) return;
 
     if (result.damage > 0) {
-      victim.healthPoints -= result.damage;
+      victim.takeDamage(result.damage);
       dungeon.log(
         this.context,
         `${this.name} hits ${victim.name} for ${result.damage} ${result.damageType} damage.`
