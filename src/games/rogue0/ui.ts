@@ -30,10 +30,12 @@ export class UI extends Phaser.Scene {
   private inventoryWindow: InventoryWindow | undefined;
 
   private heroModal: Phaser.GameObjects.Container | undefined;
+  private heroModalBg: Phaser.GameObjects.Rectangle | undefined;
   private heroModalText: Phaser.GameObjects.Text | undefined;
   private heroModalOpen = false;
 
   private inspectModal: Phaser.GameObjects.Container | undefined;
+  private inspectModalBg: Phaser.GameObjects.Rectangle | undefined;
   private inspectModalText: Phaser.GameObjects.Text | undefined;
   private inspectCloseBtn: Phaser.GameObjects.Text | undefined;
 
@@ -60,6 +62,7 @@ export class UI extends Phaser.Scene {
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
       const key = event.key;
       if (key === "i" || key === "I" || key === "b" || key === "B") {
+        this.closeHeroModal();
         this.inventoryWindow?.toggle();
       } else if (key === "Escape") {
         this.inventoryWindow?.close();
@@ -127,7 +130,10 @@ export class UI extends Phaser.Scene {
     }));
 
     // Backpack.
-    this.toolbar.push(this.makeButton(() => this.inventoryWindow?.toggle(), (g) => {
+    this.toolbar.push(this.makeButton(() => {
+      this.closeHeroModal();
+      this.inventoryWindow?.toggle();
+    }, (g) => {
       g.lineStyle(2, iconColor, 1);
       g.strokeRect(-6, -3, 12, 9);
       g.strokeCircle(0, -4, 2);
@@ -184,9 +190,8 @@ export class UI extends Phaser.Scene {
     const w = 320;
     const h = 200;
     const root = this.add.container(0, 0).setDepth(600).setVisible(false);
-    root.add(
-      this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
-    );
+    this.heroModalBg = this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1);
+    root.add(this.heroModalBg);
     root.add(
       this.add.text(10, 8, "Hero", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8, color: COL.gold
@@ -207,9 +212,8 @@ export class UI extends Phaser.Scene {
     const w = 340;
     const h = 170;
     const root = this.add.container(0, 0).setDepth(600).setVisible(false);
-    root.add(
-      this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
-    );
+    this.inspectModalBg = this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1);
+    root.add(this.inspectModalBg);
     root.add(
       this.add.text(10, 8, "Inspect", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8, color: COL.gold
@@ -246,15 +250,15 @@ export class UI extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
 
-    // Toolbar: 5 buttons centered at the bottom.
-    const size = 46;
-    const gap = 10;
+    // Toolbar: responsive button size so it always fits horizontally.
+    const gap = 8;
     const count = this.toolbar.length;
+    const size = Math.max(34, Math.min(46, Math.floor((w - 16 - (count - 1) * gap) / count)));
     const totalW = count * size + (count - 1) * gap;
     let x = (w - totalW) / 2;
-    const y = h - size - 12;
+    const y = h - size - 24;
     for (const b of this.toolbar) {
-      b.bg.setPosition(x + size / 2, y + size / 2);
+      b.bg.setPosition(x + size / 2, y + size / 2).setSize(size, size);
       b.icon.setPosition(x + size / 2, y + size / 2);
       if (b.label) b.label.setPosition(x + size / 2, y + size + 8);
       x += size + gap;
@@ -269,17 +273,25 @@ export class UI extends Phaser.Scene {
     this.log?.setPosition(logX + 8, logY + 20);
     this.log?.setWordWrapWidth(logW - 16);
 
-    // Modals centered.
-    const cw = this.heroModal ? (this.heroModal.list[0] as Phaser.GameObjects.Rectangle).width : 320;
-    const ch = this.heroModal ? (this.heroModal.list[0] as Phaser.GameObjects.Rectangle).height : 200;
-    this.heroModal?.setPosition((w - cw) / 2, (h - ch) / 2 - 60);
+    // Hero modal: clamp to the viewport and center it.
+    const heroW = Math.min(320, w - 16);
+    const heroH = 200;
+    this.heroModalBg?.setSize(heroW, heroH);
+    this.heroModalText?.setWordWrapWidth(heroW - 20);
+    this.heroModal?.setPosition(
+      (w - heroW) / 2,
+      Phaser.Math.Clamp((h - heroH) / 2 - 40, 8, Math.max(8, h - heroH - 8))
+    );
 
-    const iw = this.inspectModal ? (this.inspectModal.list[0] as Phaser.GameObjects.Rectangle).width : 340;
-    const ih = this.inspectModal ? (this.inspectModal.list[0] as Phaser.GameObjects.Rectangle).height : 170;
-    const ix = (w - iw) / 2;
-    const iy = h - ih - 110;
+    // Inspect modal: clamp to the viewport and center it.
+    const inspW = Math.min(340, w - 16);
+    const inspH = 170;
+    this.inspectModalBg?.setSize(inspW, inspH);
+    this.inspectModalText?.setWordWrapWidth(inspW - 20);
+    const ix = (w - inspW) / 2;
+    const iy = Phaser.Math.Clamp((h - inspH) / 2, 8, Math.max(8, h - inspH - 8));
     this.inspectModal?.setPosition(ix, iy);
-    this.inspectCloseBtn?.setPosition(ix + iw - 12, iy + 8);
+    this.inspectCloseBtn?.setPosition(ix + inspW - 12, iy + 8);
   }
 
   private toggleHeroModal() {

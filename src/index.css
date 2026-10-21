@@ -596,7 +596,7 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 16px;
   box-sizing: border-box;
 }
 
@@ -606,8 +606,11 @@ body {
   box-shadow: 0 0 0 2px #000, 0 22px 60px rgba(0, 0, 0, 0.7);
   max-width: 640px;
   width: 100%;
+  max-height: calc(100dvh - 32px);
   padding: 20px 22px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .rogue0-help-head {
@@ -645,7 +648,10 @@ body {
   line-height: 1.55;
   color: var(--r0-text);
   white-space: pre-line;
-  min-height: 240px;
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .rogue0-help-nav {

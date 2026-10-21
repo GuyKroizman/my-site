@@ -2,6 +2,10 @@
 //
 // Renders above the fog layer (the UI scene draws after scene0), pauses world
 // input while open, and maps item actions back onto BasicHero methods.
+//
+// Responsive: the window and the item dialog are built in their own
+// containers and scaled/centered to fit the current game size, so they stay
+// fully on-screen in both portrait and landscape mobile layouts.
 
 import type { GameContext } from "./context";
 import type { Entity } from "./entity";
@@ -12,11 +16,10 @@ type Action = "use" | "equip" | "unequip" | "drop" | "throw" | "close";
 const PAD = 16;
 const CELL = 38;
 const GAP = 10;
-const WINDOW_X = 96;
-const WINDOW_Y = 56;
 const EQUIP_COLS = 5;
 const BACKPACK_COLS = 4;
 const TITLE_BAR_H = 34;
+const MENU_W = 300;
 
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
@@ -51,7 +54,11 @@ export class InventoryWindow {
   private open = false;
   private dirty = false;
   private menuItem: Entity | undefined;
+  // Top-level objects (overlay + containers) owned for cleanup. Containers
+  // destroy their children when destroyed.
   private objects: Phaser.GameObjects.GameObject[] = [];
+  private winRoot: Phaser.GameObjects.Container | undefined;
+  private menuRoot: Phaser.GameObjects.Container | undefined;
 
   constructor(scene: Phaser.Scene, context: GameContext) {
     this.scene = scene;
@@ -112,8 +119,11 @@ export class InventoryWindow {
       obj.destroy();
     }
     this.objects = [];
+    this.winRoot = undefined;
+    this.menuRoot = undefined;
   }
 
+  // Track a top-level object (overlay or container) for cleanup.
   private add<T extends Phaser.GameObjects.GameObject>(obj: T): T {
     this.objects.push(obj);
     return obj;
@@ -125,62 +135,81 @@ export class InventoryWindow {
     const player = this.context.player;
     if (!player) return;
 
-    // Modal dim over the whole game field.
-    this.add(
+    const sw = this.scene.scale.width;
+    const sh = this.scene.scale.height;
+
+    // Modal dim over the whole game field. Tap outside closes.
+    const overlay = this.add(
       this.scene.add
-        .rectangle(0, 0, 1280, 800, C.overlay, 0.55)
+        .rectangle(0, 0, sw, sh, C.overlay, 0.55)
         .setOrigin(0)
+        .setDepth(0)
     );
+    overlay.setInteractive({ useHandCursor: true });
+    overlay.on("pointerup", () => this.close());
+
+    this.winRoot = this.add(this.scene.add.container(0, 0).setDepth(100));
 
     const rows = Math.ceil(player.capacity / BACKPACK_COLS);
     const gridW = BACKPACK_COLS * CELL + (BACKPACK_COLS - 1) * GAP;
-    const gridX = WINDOW_X + PAD + Math.floor((WINDOW_W - PAD * 2 - gridW) / 2);
+    const gridX = PAD + Math.floor((WINDOW_W - PAD * 2 - gridW) / 2);
 
-    const equipLabelY = WINDOW_Y + TITLE_BAR_H + 12;
+    const equipLabelY = TITLE_BAR_H + 12;
     const slotLabelY = equipLabelY + 16;
     const equipCellY = slotLabelY + 14;
     const backpackLabelY = equipCellY + CELL + 18;
     const gridY = backpackLabelY + 18;
     const gridH = rows * CELL + (rows - 1) * GAP;
-    const windowH = gridY + gridH + PAD - WINDOW_Y;
+    const windowH = gridY + gridH + PAD;
 
     // Window background.
-    this.add(
+    this.winRoot.add(
       this.scene.add
-        .rectangle(WINDOW_X, WINDOW_Y, WINDOW_W, windowH, C.panel, 0.98)
+        .rectangle(0, 0, WINDOW_W, windowH, C.panel, 0.98)
         .setOrigin(0)
         .setStrokeStyle(2, C.borderStrong, 1)
     );
 
-    // Title bar.
-    this.add(
+    // Title bar + close button.
+    this.winRoot.add(
       this.scene.add
-        .rectangle(WINDOW_X, WINDOW_Y, WINDOW_W, TITLE_BAR_H, C.panel2, 1)
+        .rectangle(0, 0, WINDOW_W, TITLE_BAR_H, C.panel2, 1)
         .setOrigin(0)
         .setStrokeStyle(1, C.border, 1)
     );
-    this.add(
-      this.scene.add.text(WINDOW_X + PAD, WINDOW_Y + 11, "INVENTORY", {
+    this.winRoot.add(
+      this.scene.add.text(PAD, 11, "INVENTORY", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 9,
         color: COL.gold
       })
     );
-    this.add(
-      this.scene.add
-        .text(WINDOW_X + WINDOW_W - PAD, WINDOW_Y + 10, "[Esc] close", {
-          fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
-          color: COL.muted
-        })
-        .setOrigin(1, 0)
-        .setInteractive({ useHandCursor: true })
-        .on("pointerover", function (this: Phaser.GameObjects.Text) { this.setColor(COL.gold); })
-        .on("pointerout", function (this: Phaser.GameObjects.Text) { this.setColor(COL.muted); })
-        .on("pointerup", () => this.close())
-    );
+
+    const closeBtn = this.scene.add
+      .rectangle(WINDOW_W - 8 - 62, 6, 62, 22, C.panel, 1)
+      .setOrigin(0)
+      .setStrokeStyle(1, C.borderStrong, 1)
+      .setInteractive({ useHandCursor: true });
+    const closeLabel = this.scene.add
+      .text(WINDOW_W - 8 - 62 + 31, 17, "Close", {
+        fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
+        color: COL.muted
+      })
+      .setOrigin(0.5);
+    closeBtn.on("pointerover", () => {
+      closeBtn.setStrokeStyle(1, C.gold, 1);
+      closeLabel.setColor(COL.gold);
+    });
+    closeBtn.on("pointerout", () => {
+      closeBtn.setStrokeStyle(1, C.borderStrong, 1);
+      closeLabel.setColor(COL.muted);
+    });
+    closeBtn.on("pointerup", () => this.close());
+    this.winRoot.add(closeBtn);
+    this.winRoot.add(closeLabel);
 
     // Equipped slots row.
-    this.add(
-      this.scene.add.text(WINDOW_X + PAD, equipLabelY, "EQUIPPED", {
+    this.winRoot.add(
+      this.scene.add.text(PAD, equipLabelY, "EQUIPPED", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8,
         color: COL.muted
       })
@@ -194,9 +223,9 @@ export class InventoryWindow {
       player.artifact
     ];
     for (let i = 0; i < equipped.length; i++) {
-      const cx = WINDOW_X + PAD + i * (CELL + GAP);
+      const cx = PAD + i * (CELL + GAP);
       const selected = this.menuItem !== undefined && this.menuItem === equipped[i];
-      this.add(
+      this.winRoot.add(
         this.scene.add
           .text(cx + CELL / 2, slotLabelY, EQUIP_LABELS[i], {
             fontFamily: `${FONT_MONO}, monospace`, fontSize: 14,
@@ -208,7 +237,7 @@ export class InventoryWindow {
     }
 
     // Backpack grid (centered within the window).
-    this.add(
+    this.winRoot.add(
       this.scene.add.text(
         gridX,
         backpackLabelY,
@@ -227,6 +256,14 @@ export class InventoryWindow {
       this.renderCell(cx, cy, item, selected);
     }
 
+    // Fit the window within the viewport (with a small margin) and center it.
+    const winScale = Math.min(1, (sw - 16) / WINDOW_W, (sh - 16) / windowH);
+    this.winRoot.setScale(winScale);
+    this.winRoot.setPosition(
+      (sw - WINDOW_W * winScale) / 2,
+      (sh - windowH * winScale) / 2
+    );
+
     if (this.menuItem) {
       this.renderMenu(player, this.menuItem);
     }
@@ -238,25 +275,22 @@ export class InventoryWindow {
     item: Entity | undefined,
     selected: boolean
   ): void {
-    const box = this.add(
-      this.scene.add
-        .rectangle(x, y, CELL, CELL, selected ? C.cellSelected : C.cell, 1)
-        .setOrigin(0)
-        .setStrokeStyle(selected ? 2 : 1, selected ? C.gold : C.border, 1)
-    );
+    const box = this.scene.add
+      .rectangle(x, y, CELL, CELL, selected ? C.cellSelected : C.cell, 1)
+      .setOrigin(0)
+      .setStrokeStyle(selected ? 2 : 1, selected ? C.gold : C.border, 1);
 
     if (item) {
       if (item.identified) {
-        const icon = this.add(
-          this.scene.add
-            .sprite(x + CELL / 2, y + CELL / 2, item.spriteTextureKey, item.spriteFrame)
-            .setOrigin(0.5)
-        );
+        const icon = this.scene.add
+          .sprite(x + CELL / 2, y + CELL / 2, item.spriteTextureKey, item.spriteFrame)
+          .setOrigin(0.5);
         if (item.tint) {
           icon.tint = item.tint;
         }
+        this.winRoot!.add(icon);
       } else {
-        this.add(
+        this.winRoot!.add(
           this.scene.add
             .sprite(x + CELL / 2, y + CELL / 2, item.unidentifiedTextureKey)
             .setOrigin(0.5)
@@ -265,7 +299,7 @@ export class InventoryWindow {
 
       // Stack count in the bottom-right corner.
       if (item.count > 1) {
-        this.add(
+        this.winRoot!.add(
           this.scene.add
             .text(x + CELL - 3, y + CELL - 3, String(item.count), {
               fontFamily: `${FONT_MONO}, monospace`,
@@ -285,6 +319,8 @@ export class InventoryWindow {
       });
       box.on("pointerup", () => this.openMenu(item));
     }
+
+    this.winRoot!.add(box);
   }
 
   private openMenu(item: Entity): void {
@@ -294,46 +330,49 @@ export class InventoryWindow {
   }
 
   private renderMenu(player: BasicHero, item: Entity): void {
-    const mx = WINDOW_X + WINDOW_W + 14;
-    const my = WINDOW_Y + TITLE_BAR_H;
-    const mw = 230;
+    this.menuRoot = this.add(this.scene.add.container(0, 0).setDepth(200));
 
-    const panel = this.add(
-      this.scene.add
-        .rectangle(mx, my, mw, 100, C.panel, 0.98)
-        .setOrigin(0)
-        .setStrokeStyle(2, C.borderStrong, 1)
-    );
+    const mw = MENU_W;
+    const pad = 14;
+    const iconSize = 38;
+    const iconX = pad;
+    let ay = pad;
 
-    let ay = my + 14;
+    // Panel background (resized once we know the content height).
+    const panel = this.scene.add
+      .rectangle(0, 0, mw, 100, C.panel, 0.98)
+      .setOrigin(0)
+      .setStrokeStyle(2, C.borderStrong, 1);
+    this.menuRoot.add(panel);
 
     // Icon (or a "?" while unidentified).
-    const iconSize = 38;
-    const iconX = mx + 14;
     if (item.identified) {
-      const icon = this.add(
-        this.scene.add.sprite(iconX + iconSize / 2, ay + iconSize / 2, item.spriteTextureKey, item.spriteFrame)
+      const icon = this.scene.add.sprite(
+        iconX + iconSize / 2,
+        ay + iconSize / 2,
+        item.spriteTextureKey,
+        item.spriteFrame
       );
       if (item.tint) icon.tint = item.tint;
+      this.menuRoot.add(icon);
     } else {
-      this.add(
+      this.menuRoot.add(
         this.scene.add
           .sprite(iconX + iconSize / 2, ay + iconSize / 2, item.unidentifiedTextureKey)
           .setOrigin(0.5)
       );
     }
 
-    const name = this.add(
-      this.scene.add.text(iconX + iconSize + 12, ay, item.displayName, {
-        fontFamily: `${FONT_MONO}, monospace`, fontSize: 18,
-        color: COL.text,
-        wordWrap: { width: mw - 24 - iconSize - 12, useAdvancedWrap: true }
-      })
-    );
-    ay += Math.max(iconSize, name.height) + 12;
+    const name = this.scene.add.text(iconX + iconSize + 12, ay, item.displayName, {
+      fontFamily: `${FONT_MONO}, monospace`, fontSize: 18,
+      color: COL.text,
+      wordWrap: { width: mw - 24 - iconSize - 12, useAdvancedWrap: true }
+    });
+    this.menuRoot.add(name);
+    ay += Math.max(iconSize, name.height) + 10;
 
     if (item.cursed) {
-      this.add(
+      this.menuRoot.add(
         this.scene.add.text(iconX, ay, "(cursed)", {
           fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
           color: COL.red
@@ -342,7 +381,7 @@ export class InventoryWindow {
       ay += 20;
     }
 
-    this.add(
+    this.menuRoot.add(
       this.scene.add
         .rectangle(iconX, ay, mw - 28, 1, C.border, 1)
         .setOrigin(0)
@@ -353,31 +392,26 @@ export class InventoryWindow {
     const description = item.identified
       ? item.description
       : "You have not identified this item.";
-    const desc = this.add(
-      this.scene.add.text(iconX, ay, description, {
-        fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
-        color: item.identified ? COL.text : COL.muted,
-        wordWrap: { width: mw - 28, useAdvancedWrap: true },
-        lineSpacing: 2
-      })
-    );
-    ay += desc.height + 14;
+    const desc = this.scene.add.text(iconX, ay, description, {
+      fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
+      color: item.identified ? COL.text : COL.muted,
+      wordWrap: { width: mw - 28, useAdvancedWrap: true },
+      lineSpacing: 2
+    });
+    this.menuRoot.add(desc);
+    ay += desc.height + 12;
 
     const actions = this.buildActions(player, item);
     for (const { action, label, enabled } of actions) {
       const rowH = 26;
-      const row = this.add(
-        this.scene.add
-          .rectangle(mx + 8, ay, mw - 16, rowH, C.cell, 1)
-          .setOrigin(0)
-          .setStrokeStyle(1, C.border, 1)
-      );
-      const labelText = this.add(
-        this.scene.add.text(mx + 16, ay + 6, label, {
-          fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
-          color: enabled ? COL.text : COL.dim
-        })
-      );
+      const row = this.scene.add
+        .rectangle(8, ay, mw - 16, rowH, C.cell, 1)
+        .setOrigin(0)
+        .setStrokeStyle(1, C.border, 1);
+      const labelText = this.scene.add.text(16, ay + 6, label, {
+        fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
+        color: enabled ? COL.text : COL.dim
+      });
 
       if (enabled) {
         row.setInteractive({ useHandCursor: true });
@@ -394,10 +428,20 @@ export class InventoryWindow {
         row.on("pointerup", () => this.doAction(action, item));
       }
 
+      this.menuRoot.add(row);
+      this.menuRoot.add(labelText);
       ay += rowH + 6;
     }
 
-    panel.setSize(mw, ay - my + 14);
+    const mh = ay - 6 + pad;
+    panel.setSize(mw, mh);
+
+    // Fit and center the dialog.
+    const sw = this.scene.scale.width;
+    const sh = this.scene.scale.height;
+    const scale = Math.min(1, (sw - 16) / mw, (sh - 16) / mh);
+    this.menuRoot.setScale(scale);
+    this.menuRoot.setPosition((sw - mw * scale) / 2, (sh - mh * scale) / 2);
   }
 
   private buildActions(
