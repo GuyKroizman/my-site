@@ -9,7 +9,7 @@ export function createRogue0Config(context: GameContext): Phaser.Types.Core.Game
     parent: "phaser",
     width: 80 * 16,
     height: 50 * 16,
-    backgroundColor: "#472d3c",
+    backgroundColor: "#000000",
     pixelArt: true,
     scene: [new Scene0(context)],
     physics: {

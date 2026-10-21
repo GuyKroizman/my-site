@@ -58,13 +58,20 @@ import {
 import { computeFOV } from "./fov";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
-import { getHudMetrics } from "./ui";
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
 
 // Keep the player spawn, stairs and procedural content out of the right-hand
 // columns that sit underneath the UI sidebar.
 const MAX_VISIBLE_X = 80;
+
+// World dimensions (in pixels) of the generated floor.
+const MAP_W = 80 * 16;
+const MAP_H = 50 * 16;
+// Empty margin added around the map so the camera can pan freely past the
+// level edge (bringing the map clear of the bottom HUD) instead of stopping
+// hard at the boundary.
+const PAN_MARGIN = 16 * 16;
 
 // Weighted SPD-style loot table: [item class, weight].
 type LootClass = any;
@@ -195,8 +202,13 @@ export class Scene0 extends Phaser.Scene {
     this.events.on("player-died", () => this.endGame(false));
     this.events.on("player-won", () => this.endGame(true));
 
-    // Full-screen camera (no fixed sidebar).
-    this.cameras.main.setBounds(0, 0, 80 * 16, 50 * 16);
+    // Full-screen camera with empty panning margin around the map.
+    this.cameras.main.setBounds(
+      -PAN_MARGIN,
+      -PAN_MARGIN,
+      MAP_W + PAN_MARGIN * 2,
+      MAP_H + PAN_MARGIN * 2
+    );
     this.cameras.main.startFollow(this.context.player!.sprite!);
     this.resizeCamera();
     this.scale.on("resize", () => this.resizeCamera());
@@ -300,15 +312,11 @@ export class Scene0 extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
 
-    // Size the camera viewport to the playable area above the bottom HUD so
-    // panning can bring the whole floor into view (the map is never hidden
-    // behind the toolbar/log).
-    const { hudTop } = getHudMetrics(w, h);
-    const viewH = Math.max(1, Math.floor(hudTop));
-    this.cameras.main.setViewport(0, 0, w, viewH);
+    // Full-screen camera: the map renders underneath the HUD overlay.
+    this.cameras.main.setViewport(0, 0, w, h);
 
-    // Minimum zoom fits the whole floor (no letterboxing beyond the map).
-    this.MIN_ZOOM = Math.max(0.15, Math.min(w / (80 * 16), viewH / (50 * 16)));
+    // Minimum zoom fits the whole floor (the margin is not required to fit).
+    this.MIN_ZOOM = Math.max(0.15, Math.min(w / MAP_W, h / MAP_H));
     this.setZoom(this.zoom);
   }
 
