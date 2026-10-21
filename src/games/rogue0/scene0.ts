@@ -58,6 +58,7 @@ import {
 import { computeFOV } from "./fov";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
+import { getHudMetrics } from "./ui";
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
 
@@ -298,10 +299,16 @@ export class Scene0 extends Phaser.Scene {
   private resizeCamera(): void {
     const w = this.scale.width;
     const h = this.scale.height;
-    this.cameras.main.setViewport(0, 0, w, h);
+
+    // Size the camera viewport to the playable area above the bottom HUD so
+    // panning can bring the whole floor into view (the map is never hidden
+    // behind the toolbar/log).
+    const { hudTop } = getHudMetrics(w, h);
+    const viewH = Math.max(1, Math.floor(hudTop));
+    this.cameras.main.setViewport(0, 0, w, viewH);
 
     // Minimum zoom fits the whole floor (no letterboxing beyond the map).
-    this.MIN_ZOOM = Math.max(0.15, Math.min(w / (80 * 16), h / (50 * 16)));
+    this.MIN_ZOOM = Math.max(0.15, Math.min(w / (80 * 16), viewH / (50 * 16)));
     this.setZoom(this.zoom);
   }
 

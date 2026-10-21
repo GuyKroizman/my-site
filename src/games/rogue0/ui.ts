@@ -24,6 +24,22 @@ type ToolbarButton = {
   label?: Phaser.GameObjects.Text;
 };
 
+// Shared HUD geometry. scene0 uses this to shrink its camera viewport so the
+// bottom HUD (log + toolbar) never hides playable map area; keep in sync with
+// layout() below.
+export function getHudMetrics(w: number, h: number): {
+  size: number;
+  hudHeight: number;
+  hudTop: number;
+} {
+  const gap = 8;
+  const count = 6; // hero, wait, search, inspect, skill, bag
+  const size = Math.max(34, Math.min(46, Math.floor((w - 16 - (count - 1) * gap) / count)));
+  // Toolbar block = size + 24 bottom margin; log (72px) sits 8px above it.
+  const hudHeight = size + 24 + 8 + 72;
+  return { size, hudHeight, hudTop: h - hudHeight };
+}
+
 export class UI extends Phaser.Scene {
   context: GameContext;
   private log: Phaser.GameObjects.Text | undefined;
@@ -253,7 +269,7 @@ export class UI extends Phaser.Scene {
     // Toolbar: responsive button size so it always fits horizontally.
     const gap = 8;
     const count = this.toolbar.length;
-    const size = Math.max(34, Math.min(46, Math.floor((w - 16 - (count - 1) * gap) / count)));
+    const { size } = getHudMetrics(w, h);
     const totalW = count * size + (count - 1) * gap;
     let x = (w - totalW) / 2;
     const y = h - size - 24;
