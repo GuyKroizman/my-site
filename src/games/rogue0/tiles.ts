@@ -33,7 +33,7 @@ export type FeaturePlacement = {
 export const FeatureTiles = {
   doorClosed: 150,
   doorOpen: 301,
-  grass: 102,
+  grass: 7, // Grass blades (row 0, column 7), not a tree.
   water: 206,
   chasm: 5,
   trap: 593
