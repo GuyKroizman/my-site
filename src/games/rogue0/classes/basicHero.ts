@@ -793,6 +793,9 @@ export default class BasicHero extends Entity {
         dungeon.itemPicked(entity);
         dungeon.log(this.context, `${this.name} picked ${entity.displayName}.`);
         this.actionPoints -= 1;
+        // Step onto the tile the item occupied, matching keyboard movement.
+        this.movementPoints -= 1;
+        dungeon.moveEntityTo(this.context, this, step.x, step.y);
       }
       return;
     }
