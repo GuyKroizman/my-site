@@ -7,7 +7,7 @@ export default class Mimic extends Monster {
     super(context, {
       name: "Mimic",
       description: "A treasure chest that lunges at the unwary.",
-      tile: 6 * 49 + 33,
+      tile: 6 * 49 + 8, // Closed wooden chest (row 6, column 8).
       healthPoints: 4,
       movementPoints: 1,
       actionPoints: 1,

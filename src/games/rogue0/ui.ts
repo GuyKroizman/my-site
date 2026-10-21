@@ -49,6 +49,7 @@ export class UI extends Phaser.Scene {
   private heroModalBg: Phaser.GameObjects.Rectangle | undefined;
   private heroModalText: Phaser.GameObjects.Text | undefined;
   private heroModalOpen = false;
+  private heroCloseBtn: Phaser.GameObjects.Text | undefined;
 
   private inspectModal: Phaser.GameObjects.Container | undefined;
   private inspectModalBg: Phaser.GameObjects.Rectangle | undefined;
@@ -221,6 +222,18 @@ export class UI extends Phaser.Scene {
       wordWrap: { width: w - 20 }
     });
     root.add(this.heroModalText);
+    this.heroCloseBtn = this.add
+      .text(w - 12, 8, "Close", {
+        fontFamily: `${FONT_MONO}, monospace`,
+        fontSize: 17,
+        color: COL.gold
+      })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true });
+    this.heroCloseBtn.on("pointerover", () => this.heroCloseBtn?.setColor(COL.text));
+    this.heroCloseBtn.on("pointerout", () => this.heroCloseBtn?.setColor(COL.gold));
+    this.heroCloseBtn.on("pointerup", () => this.closeHeroModal());
+    root.add(this.heroCloseBtn);
     this.heroModal = root;
   }
 
@@ -294,6 +307,7 @@ export class UI extends Phaser.Scene {
     const heroH = 200;
     this.heroModalBg?.setSize(heroW, heroH);
     this.heroModalText?.setWordWrapWidth(heroW - 20);
+    this.heroCloseBtn?.setPosition(heroW - 12, 8);
     this.heroModal?.setPosition(
       (w - heroW) / 2,
       Phaser.Math.Clamp((h - heroH) / 2 - 40, 8, Math.max(8, h - heroH - 8))

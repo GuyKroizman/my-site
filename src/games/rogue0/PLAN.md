@@ -293,6 +293,9 @@ HUD + modal window system.
 ### Phase 16 — Graphics & art overhaul (16×16, Astra-generated)
 *Deferred — implement later. Replaces the Kenney sheet + magic-number lookups.*
 
+- [x] Fix the mimic sprite: replaced the sword frame with the existing closed
+      wooden chest (row 6, column 8). Implemented and visually verified in a
+      mobile browser viewport using **Astra via Pi routing**.
 - [ ] Choose a cohesive 16×16 palette (dark SPD-like dungeon, warm light, one
       gold accent) and keep it consistent across all sprites.
 - [ ] Have **Astra** generate sprites procedurally (Python/PIL or Phaser
