@@ -699,13 +699,12 @@ export default class BasicHero extends Entity {
   toggleInspectMode(): void {
     const context = this.context;
     context.inspectMode = !context.inspectMode;
+    context.inspectedEntity = undefined;
+    context.inspectedTerrain = undefined;
     if (context.inspectMode) {
-      // Always start the cursor on the player when entering inspect mode.
+      // Position the cursor, but wait for a tile selection before inspecting.
       context.cursorX = this.x;
       context.cursorY = this.y;
-      this.updateInspectedFromCursor();
-    } else {
-      context.inspectedEntity = undefined;
     }
     context.onInspectModeChange?.(context.inspectMode);
   }
@@ -837,6 +836,7 @@ export default class BasicHero extends Entity {
     if (context.inspectMode) {
       context.inspectMode = false;
       context.inspectedEntity = undefined;
+      context.inspectedTerrain = undefined;
       context.onInspectModeChange?.(false);
     }
   }
