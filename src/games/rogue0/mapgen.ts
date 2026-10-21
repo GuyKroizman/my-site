@@ -153,13 +153,16 @@ function growPatch(
   return patch;
 }
 
-export function generateMap(): GeneratedMap {
-  const map: number[][] = Array.from({ length: MAP_HEIGHT }, () =>
-    Array(MAP_WIDTH).fill(1)
+export function generateMap(floor = 1): GeneratedMap {
+  // The introductory floor has half the area and half the rooms.
+  const width = floor === 1 ? 50 : MAP_WIDTH;
+  const height = floor === 1 ? 40 : MAP_HEIGHT;
+  const map: number[][] = Array.from({ length: height }, () =>
+    Array(width).fill(1)
   );
   const rooms: Room[] = [];
 
-  const maxRooms = 14;
+  const maxRooms = floor === 1 ? 7 : 14;
   const maxAttempts = 200;
 
   for (
@@ -169,8 +172,8 @@ export function generateMap(): GeneratedMap {
   ) {
     const w = 4 + Math.floor(Math.random() * 8);
     const h = 4 + Math.floor(Math.random() * 6);
-    const x = 1 + Math.floor(Math.random() * (MAP_WIDTH - w - 2));
-    const y = 1 + Math.floor(Math.random() * (MAP_HEIGHT - h - 2));
+    const x = 1 + Math.floor(Math.random() * (width - w - 2));
+    const y = 1 + Math.floor(Math.random() * (height - h - 2));
 
     const room: Room = {
       x,
@@ -206,8 +209,8 @@ export function generateMap(): GeneratedMap {
   const corridorTiles: Array<{ x: number; y: number }> = [];
   const roomTiles: Array<{ x: number; y: number }> = [];
 
-  for (let y = 0; y < MAP_HEIGHT; y++) {
-    for (let x = 0; x < MAP_WIDTH; x++) {
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
       if (map[y][x] !== 0) continue;
       if (isRoomInterior(rooms, x, y)) {
         roomTiles.push({ x, y });

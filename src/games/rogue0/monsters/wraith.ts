@@ -7,7 +7,7 @@ export default class Wraith extends Monster {
     super(context, {
       name: "Wraith",
       description: "A spectral horror that weakens those it touches.",
-      tile: 6 * 49 + 14,
+      tile: 8 * 49 + 27, // Ghost sprite (row 8, column 27).
       healthPoints: 7,
       movementPoints: 1,
       actionPoints: 1,

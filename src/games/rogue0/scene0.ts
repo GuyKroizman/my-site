@@ -65,9 +65,7 @@ import type { FeaturePlacement } from "./tiles";
 // columns that sit underneath the UI sidebar.
 const MAX_VISIBLE_X = 80;
 
-// World dimensions (in pixels) of the generated floor.
-const MAP_W = 80 * 16;
-const MAP_H = 50 * 16;
+// Map dimensions are read from the current floor so camera bounds follow its size.
 // Empty margin added around the map so the camera can pan freely past the
 // level edge (bringing the map clear of the bottom HUD) instead of stopping
 // hard at the boundary.
@@ -134,9 +132,9 @@ export class Scene0 extends Phaser.Scene {
   private lastFovX?: number;
   private lastFovY?: number;
 
-  // SPD-style depth-based light: early floors are bright (rooms lit on
-  // entry), and the hero's vision shrinks as you descend into darker floors.
+  // Keep the first five floors well lit, then retain the deeper-floor darkness.
   private getVisionRadius(): number {
+    if (this.context.floor <= 5) return 13 - this.context.floor;
     return Math.max(3, 8 - (this.context.floor - 1));
   }
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
@@ -203,12 +201,6 @@ export class Scene0 extends Phaser.Scene {
     this.events.on("player-won", () => this.endGame(true));
 
     // Full-screen camera with empty panning margin around the map.
-    this.cameras.main.setBounds(
-      -PAN_MARGIN,
-      -PAN_MARGIN,
-      MAP_W + PAN_MARGIN * 2,
-      MAP_H + PAN_MARGIN * 2
-    );
     this.cameras.main.startFollow(this.context.player!.sprite!);
     this.resizeCamera();
     this.scale.on("resize", () => this.resizeCamera());
@@ -316,7 +308,16 @@ export class Scene0 extends Phaser.Scene {
     this.cameras.main.setViewport(0, 0, w, h);
 
     // Minimum zoom fits the whole floor (the margin is not required to fit).
-    this.MIN_ZOOM = Math.max(0.15, Math.min(w / MAP_W, h / MAP_H));
+    const map = dungeon.getCurrentLevel();
+    const mapWidth = map[0].length * 16;
+    const mapHeight = map.length * 16;
+    this.cameras.main.setBounds(
+      -PAN_MARGIN,
+      -PAN_MARGIN,
+      mapWidth + PAN_MARGIN * 2,
+      mapHeight + PAN_MARGIN * 2
+    );
+    this.MIN_ZOOM = Math.max(0.15, Math.min(w / mapWidth, h / mapHeight));
     this.setZoom(this.zoom);
   }
 
@@ -390,6 +391,7 @@ export class Scene0 extends Phaser.Scene {
     stairs?: { x: number; y: number }
   ) {
     this.context.floor = floor;
+    this.resizeCamera();
     this.stairsHinted = false;
 
     this.seen = [];
@@ -431,12 +433,12 @@ export class Scene0 extends Phaser.Scene {
     this.events.emit("floor-changed", { floor });
   }
 
-  private generateLevel(): {
+  private generateLevel(floor = 1): {
     levelArray: number[][];
     spawn: { x: number; y: number };
     stairs: { x: number; y: number };
   } {
-    const generated = generateMap();
+    const generated = generateMap(floor);
     const levelArray = generated.map;
 
     this.applyFeatures(generated.features);
@@ -464,7 +466,7 @@ export class Scene0 extends Phaser.Scene {
     }
 
     const next = this.context.floor + 1;
-    const { levelArray, spawn, stairs } = this.generateLevel();
+    const { levelArray, spawn, stairs } = this.generateLevel(next);
 
     dungeon.initialize(this.context, levelArray);
     this.setupFloor(next, levelArray, spawn, stairs);
@@ -557,7 +559,7 @@ export class Scene0 extends Phaser.Scene {
       this.fog.fillRect(x * t, y * t, t, t);
     }
 
-    this.fog.fillStyle(0x000000, 0.55);
+    this.fog.fillStyle(0x000000, this.context.floor <= 5 ? 0.3 : 0.55);
     for (const [x, y] of remembered) {
       this.fog.fillRect(x * t, y * t, t, t);
     }
