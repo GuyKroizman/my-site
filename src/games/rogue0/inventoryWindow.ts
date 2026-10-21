@@ -279,6 +279,8 @@ export class InventoryWindow {
       .rectangle(x, y, CELL, CELL, selected ? C.cellSelected : C.cell, 1)
       .setOrigin(0)
       .setStrokeStyle(selected ? 2 : 1, selected ? C.gold : C.border, 1);
+    // Add the cell background first so the item icon/count render on top.
+    this.winRoot!.add(box);
 
     if (item) {
       if (item.identified) {
@@ -319,8 +321,6 @@ export class InventoryWindow {
       });
       box.on("pointerup", () => this.openMenu(item));
     }
-
-    this.winRoot!.add(box);
   }
 
   private openMenu(item: Entity): void {
