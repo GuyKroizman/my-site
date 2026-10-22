@@ -300,9 +300,9 @@ export default class BasicHero extends Entity {
   }
 
   // Drop an item from an equipped slot or the backpack back onto the map at
-  // the player's tile. Cursed items refuse to be dropped while cursed.
+  // the player's tile. Cursed items cannot be dropped while equipped.
   dropItem(item: Entity): void {
-    if (item.cursed) {
+    if (item.cursed && this.slotOf(item)) {
       dungeon.log(
         this.context,
         `${item.displayName} is cursed and cannot be dropped.`

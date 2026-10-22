@@ -466,7 +466,11 @@ export class InventoryWindow {
       actions.push({ action: "equip", label: "Equip", enabled: true });
     }
 
-    actions.push({ action: "drop", label: "Drop", enabled: !item.cursed });
+    actions.push({
+      action: "drop",
+      label: "Drop",
+      enabled: !item.cursed || !player.slotOf(item)
+    });
     actions.push({ action: "close", label: "Close", enabled: true });
 
     return actions;
