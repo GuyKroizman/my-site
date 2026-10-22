@@ -234,4 +234,22 @@ player.spendTime('search');
 manager.update(entities);
 assert.equal(manager.time, 1);
 assert.ok(!entities.includes(player));
-console.log('Rogue0 timeline, speed, input and pickup regression tests passed');
+// Skeletons use normal monster death handling and never spawn a replacement.
+class DeathTestMonster {
+  constructor(context, config, x, y) {
+    Object.assign(this, config, { context, x, y, maxHealthPoints: config.healthPoints });
+  }
+  onDestroy() { this.context.deaths++; }
+}
+const Skeleton = load('src/games/rogue0/monsters/skelaton.ts', {
+  Monster: DeathTestMonster, Gem: class {}, HolyPotion: class {}, BerserkPotion: class {},
+  dungeon: { log() {} }
+}).default;
+const deathContext = { entities: [], deaths: 0 };
+const skeleton = new Skeleton(deathContext, 3, 4);
+skeleton.healthPoints = 0;
+skeleton.onDestroy();
+assert.equal(deathContext.deaths, 1, 'skeleton retains normal monster death handling');
+assert.equal(deathContext.entities.length, 0, 'killed skeleton does not reanimate at its old position');
+
+console.log('Rogue0 timeline, speed, input, pickup and skeleton death regression tests passed');

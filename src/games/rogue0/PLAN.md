@@ -194,7 +194,7 @@ HUD + modal window system.
 *Depends on G1, G2.*
 
 - [ ] Give every monster a signature ability (SPD-style):
-  - Skeleton → reanimates once unless killed by fire/magic.
+  - Skeleton → basic brittle melee enemy; stays dead when killed (no reanimation).
   - Quloptsh → hard to see (short FOV for player) / backstabs.
   - Archer → kites, retreats when you close.
   - Ghoul → lifesteal on hit; fast but frail.
