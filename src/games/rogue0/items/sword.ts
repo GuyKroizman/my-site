@@ -9,7 +9,6 @@ export default class Sword extends Entity{
   description: string = "A basic sword. Causes between 1 and 5 damage.";
   type:EntityType =  "item";
   healthPoints: number = 0;
-  actionPoints: number = 0;
   tile: number = 328;
   moving: boolean = false;
   tier = 1;

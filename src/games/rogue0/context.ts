@@ -14,6 +14,8 @@ export type GameContext = {
   player?: BasicHero;
   entities: Entity[];
   messages: string[];
+  // Discrete-event clock, in normal-action units (not wall-clock seconds).
+  simulationTime?: number;
   floor: number;
   maxFloor: number;
   kills: number;
@@ -65,6 +67,7 @@ export function createGameContext(): GameContext {
     throwMode: false,
     pinching: false,
     panning: false,
+    simulationTime: 0,
     floor: 1,
     maxFloor: 5,
     kills: 0,

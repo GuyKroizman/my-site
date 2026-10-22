@@ -12,8 +12,6 @@ export default class Cleric extends BasicHero {
     this.name = "Cleric"
     this.description =
       "A holy healer. Passive (Divine Mending): heal 1 HP each turn. Active (Heal, f): restore 5 HP to yourself."
-    this.movementPoints = 3
-    this.actionPoints = 2
     this.healthPoints = 40
     this.maxHealthPoints = 40
     this.tile = 2 * 49 + 24;
@@ -33,8 +31,6 @@ export default class Cleric extends BasicHero {
 
   refresh() {
     super.refresh()
-    this.movementPoints = 3
-    this.actionPoints = 2
 
     // Passive: Divine Mending — heal 1 HP each turn.
     if (this.healthPoints < this.maxHealthPoints) {
@@ -53,7 +49,7 @@ export default class Cleric extends BasicHero {
     const healed = Math.min(5, this.maxHealthPoints - this.healthPoints)
     this.healthPoints += healed
     dungeon.log(this.context, `${this.name} heals ${healed} HP.`)
-    this.actionPoints -= 1
+    this.spendTurn()
     this.skillCooldown = this.skillMaxCooldown
   }
 }

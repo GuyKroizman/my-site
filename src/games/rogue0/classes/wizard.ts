@@ -14,8 +14,6 @@ export default class Wizard extends BasicHero {
     this.name = "Wizard";
     this.description =
       "A volatile spellcaster. Passive (Elemental Mastery): +1 damage with fire/shock/magic attacks. Active (Nova, f): burn every visible enemy within 4 tiles.";
-    this.movementPoints = 3;
-    this.actionPoints = 1;
     this.healthPoints = 20;
     this.maxHealthPoints = 20;
     this.tile = 49 + 24;
@@ -35,12 +33,6 @@ export default class Wizard extends BasicHero {
     this.vulnerability = { physical: 1 };
 
     this.init(context, x, y);
-  }
-
-  refresh() {
-    super.refresh();
-    this.movementPoints = 3;
-    this.actionPoints = 1;
   }
 
   // Passive: Elemental Mastery — +1 damage with fire/shock/magic attacks.
@@ -65,7 +57,7 @@ export default class Wizard extends BasicHero {
     for (const enemy of enemies) {
       applyEffect(enemy, createBurningEffect(3));
     }
-    this.actionPoints -= 1;
+    this.spendTurn();
     this.skillCooldown = this.skillMaxCooldown;
   }
 }

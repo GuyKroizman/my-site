@@ -35,7 +35,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Combat',
-    body: `• Melee: walk into an enemy.\n• Ranged: equip a bow or wand, then click/tap an enemy.\n• Damage types: physical, fire, ice, shock, poison, magic.\n• Armor reduces physical damage; resistances reduce typed damage.\n• Surprise attacks (unseen) always hit and can cause bleeding.\n• Status effects: burning, poisoned, bleeding, frozen, weakened, crippled.\n• Regeneration heals each round; frozen skips a turn.`,
+    body: `• Melee: walk into an enemy.\n• Ranged: equip a bow or wand, then click/tap an enemy.\n• Damage types: physical, fire, ice, shock, poison, magic.\n• Armor reduces physical damage; resistances reduce typed damage.\n• Surprise attacks (unseen) always hit and can cause bleeding.\n• Status effects: burning, poisoned, bleeding, frozen, weakened, crippled.\n• Regeneration and status effects follow elapsed game time; frozen skips an action.\n• Movement and attacks have separate speeds. Haste speeds up walking only.\n• Heavy weapons take longer to swing, giving enemies more time to act.\n• Time pauses while you choose an action; inspection and opening the backpack are free.`,
   },
   {
     title: 'Food & Hunger',

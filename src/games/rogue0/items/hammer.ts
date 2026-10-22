@@ -7,12 +7,13 @@ export default class Hammer extends Entity {
   type: EntityType = "item";
   tier = 1;
   equipSlot: "weapon" = "weapon";
+  attackDelay = 1.5;
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 7 * 49 + 37;
     this.name = "A war hammer";
-    this.description = "A basic war hammer. Causes between 3 and 8 damage.";
+    this.description = "A basic war hammer. Causes between 3 and 8 damage. Slow attack (1.5 time).";
 
     this.init(context, x, y);
 }

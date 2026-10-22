@@ -4,6 +4,7 @@ import type { GameContext } from "./context";
 import { sfx } from "./audio";
 import type { DamageType, StatusEffect } from "./effects";
 import { tickEffects as tickStatusEffects } from "./effects";
+import { actionCost, type ActionKind } from "./timing";
 
 export type EntityType = "player" | "enemy" | "item";
 
@@ -18,8 +19,11 @@ export type EquipSlot =
 export abstract class Entity {
   healthPoints: number = 0;
   maxHealthPoints: number = 0;
-  movementPoints: number = 0;
-  actionPoints: number = 0;
+  movementSpeed: number = 1;
+  // Time required for an attack; weapons override this independently of walking.
+  attackDelay: number = 1;
+  nextActionTime: number = 0;
+  actionReady: boolean = false;
   visionRadius: number = 0;
   tweens: number = 0;
   x?: number;
@@ -145,6 +149,11 @@ export abstract class Entity {
     }
   }
 
+  spendTime(action: ActionKind, weaponDelay = this.attackDelay): void {
+    this.nextActionTime += actionCost(this, action, weaponDelay);
+    this.actionReady = false;
+  }
+
   abstract equip(): void;
 
   // Optional hook called when this item is removed from an equipment slot.
@@ -168,7 +177,7 @@ export abstract class Entity {
 
   createUI?(options: { scene: Phaser.Scene, x: number, y: number, width?: number }): number;
 
-  // Ticks this entity's status effects once per round. Death from a status
+  // Ticks this entity's status effects once per unit of world time. Death from a status
   // tick (burn/poison/bleed) is cleaned up here via removeEntity.
   tickEffects(): void {
     tickStatusEffects(this, this.context);

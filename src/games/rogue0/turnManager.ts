@@ -2,61 +2,88 @@ import type { Entity } from "./entity";
 import dungeon from "./dungeon";
 import { hasEffect, removeEffect } from "./effects";
 
+// Discrete-event scheduler. Rendering may delay an event, but never changes its
+// simulation timestamp. Equal timestamps give the player priority, then preserve
+// entity order. Items do not participate in scheduling.
 const turnManager = {
-  entityIndex: 0,
+  time: 0,
+  nextTick: 1,
+  known: new Set<Entity>(),
 
-  reset: () => {
-    turnManager.entityIndex = 0;
+  reset(entities: Entity[] = [], preserveClock = false) {
+    if (!preserveClock) {
+      this.time = 0;
+      this.nextTick = 1;
+    }
+    this.known.clear();
+    for (const entity of entities) {
+      entity.nextActionTime = this.time;
+      entity.context.simulationTime = this.time;
+      entity.actionReady = entity.type === "player";
+      this.known.add(entity);
+    }
   },
 
-  update: (entities: Entity[]) => {
-    if (turnManager._isOver(entities)) {
-      turnManager._refresh(entities);
-    }
-    turnManager._turn(entities);
-  },
-
-  _refresh: (entities: Entity[]) => {
-    // Effects tick once per round, right after each entity refreshes its
-    // turn resources (movement/action points). Iterating over a copy keeps
-    // the loop safe when a status tick kills and removes an entity.
-    entities.slice().forEach((e) => {
-      e.refresh();
-      e.tickEffects();
-    });
-    turnManager.entityIndex = 0;
-  },
-
-  _turn: (entities: Entity[]) => {
-    if (!entities || entities.length === 0) {
-      return;
-    }
-
-    if (turnManager.entityIndex >= entities.length) {
-      turnManager.entityIndex = 0;
-    }
-
-    let e = entities[turnManager.entityIndex];
-
-    if (!e) {
-      return;
-    }
-
-    if (!e.isOver()) {
-      if (hasEffect(e, "frozen")) {
-        dungeon.log(e.context, `${e.name} is frozen and skips their turn.`);
-        removeEffect(e, "frozen");
-        e.movementPoints = 0;
-        e.actionPoints = 0;
-      } else {
-        e.turn();
+  update(entities: Entity[]) {
+    // Bound CPU work, not game time. Resume on the next frame if a large floor
+    // needs more events; never advance time while the hero is awaiting input.
+    for (let events = 0; events < 256; events++) {
+      const actors = entities.filter(e => e.type !== "item" && e.healthPoints > 0);
+      if (!actors.some(e => e.type === "player")) return;
+      for (const entity of this.known) {
+        if (!entities.includes(entity)) this.known.delete(entity);
       }
-    } else {
-      turnManager.entityIndex++;
-    }
-  },
+      for (const actor of actors) {
+        if (!this.known.has(actor)) {
+          actor.nextActionTime = Math.max(this.time, actor.nextActionTime);
+          this.known.add(actor);
+        }
+      }
+      // Resolve movement/attack landings before allowing any later event.
+      if (actors.some(e => e.moving)) return;
 
-  _isOver: (entities: Entity[]) => entities.every((e) => e.isOver())
+      const actor = actors.reduce((first, e) =>
+        e.nextActionTime < first.nextActionTime - 1e-9 ||
+        (Math.abs(e.nextActionTime - first.nextActionTime) < 1e-9 && e.type === "player")
+          ? e : first
+      );
+      const targetTime = Math.max(this.time, actor.nextActionTime);
+      const effectTime = Math.min(Infinity, ...actors.flatMap(e =>
+        e.effects.filter(effect => !effect.manualExpiry || effect.tick)
+          .map(effect => effect.nextTick ?? Infinity)
+      ));
+      const nextEvent = Math.min(this.nextTick, effectTime);
+      if (nextEvent <= targetTime + 1e-9) {
+        this.time = Math.max(this.time, nextEvent);
+        for (const entity of actors) entity.context.simulationTime = this.time;
+        const upkeep = this.nextTick <= this.time + 1e-9;
+        if (upkeep) this.nextTick++;
+        // Hunger/regeneration/cooldowns use whole world-time units. Buffs
+        // retain their own tick phase, including fractional application times.
+        // Deaths may mutate entities and drop loot while this loop runs.
+        for (const entity of actors) {
+          if (!entities.includes(entity)) continue;
+          if (upkeep) entity.refresh();
+          if (entities.includes(entity)) entity.tickEffects();
+        }
+        continue;
+      }
+
+      this.time = targetTime;
+      for (const entity of actors) entity.context.simulationTime = this.time;
+      actor.nextActionTime = targetTime;
+      actor.actionReady = true;
+      if (hasEffect(actor, "frozen")) {
+        dungeon.log(actor.context, `${actor.name} is frozen and misses an action.`);
+        removeEffect(actor, "frozen");
+        actor.spendTime("wait");
+      } else {
+        actor.turn();
+      }
+      // No action was taken: player input (including invalid actions) is free.
+      if (actor.actionReady || actor.moving) return;
+    }
+  }
 };
 
 export default turnManager;

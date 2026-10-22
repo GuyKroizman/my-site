@@ -11,8 +11,6 @@ export default class Elf extends BasicHero {
     this.name = "Elf";
     this.description =
       "A swift archer. Passive (Elven Grace): +10 evasion. Active (Multishot, f): fire two arrows at the nearest visible enemy within range.";
-    this.movementPoints = 4;
-    this.actionPoints = 3;
     this.healthPoints = 20;
     this.maxHealthPoints = 20;
     this.tile = 49 + 28;
@@ -30,12 +28,6 @@ export default class Elf extends BasicHero {
     this.init(context, x, y);
   }
 
-  refresh() {
-    super.refresh();
-    this.movementPoints = 4;
-    this.actionPoints = 3;
-  }
-
   // Active: Multishot — two arrows at the nearest visible enemy in bow range.
   useSkill() {
     const range = this.currentWeapon()?.range() ?? 5;
@@ -50,7 +42,7 @@ export default class Elf extends BasicHero {
     if (enemy.healthPoints > 0) {
       this.resolveSkillAttack(enemy, {});
     }
-    this.actionPoints -= 1;
+    this.spendTurn("attack");
     this.skillCooldown = this.skillMaxCooldown;
   }
 }

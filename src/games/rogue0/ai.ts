@@ -3,6 +3,7 @@ import { canSee } from "./fov";
 import * as tiles from "./tiles";
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
+import { hasEffect, fleeStep } from "./effects";
 
 export function enemyCanSeePlayer(entity: Entity): boolean {
   const player = entity.context.player;
@@ -57,24 +58,26 @@ function inRange(entity: Entity, player: Entity): boolean {
 export function enemyTurn(entity: Entity): void {
   const player = entity.context.player;
   if (!player || player.x === undefined || player.y === undefined) {
-    entity.movementPoints = 0;
-    entity.actionPoints = 0;
+    entity.spendTime("wait");
     return;
   }
 
   // Wait for the current move/attack tween to finish before acting again.
   if (entity.moving) return;
 
-  const canAttack = entity.actionPoints > 0;
-  const canMove = entity.movementPoints > 0;
-  if (!canAttack && !canMove) return;
+  const canMove = !hasEffect(entity, "rooted");
+  if (hasEffect(entity, "terrified")) {
+    const fled = canMove && fleeStep(entity, entity.context);
+    entity.spendTime(fled ? "move" : "wait");
+    return;
+  }
 
   const seesPlayer = enemyCanSeePlayer(entity);
   let acted = false;
 
   // 1) Attack. Ranged enemies shoot when in range; melee enemies strike
   //    when adjacent.
-  if (canAttack && seesPlayer) {
+  if (seesPlayer) {
     if (entity.range() > 0) {
       if (inRange(entity, player)) {
         dungeon.attackEntity(
@@ -85,7 +88,7 @@ export function enemyTurn(entity: Entity): void {
           entity.tint,
           entity.damageType
         );
-        entity.actionPoints -= 1;
+        entity.spendTime("attack");
         acted = true;
       }
     } else if (isAdjacentToPlayer(entity, player)) {
@@ -97,7 +100,7 @@ export function enemyTurn(entity: Entity): void {
         undefined,
         entity.damageType
       );
-      entity.actionPoints -= 1;
+      entity.spendTime("attack");
       acted = true;
     }
   }
@@ -132,16 +135,12 @@ export function enemyTurn(entity: Entity): void {
     }
 
     if (acted) {
-      entity.movementPoints -= 1;
+      entity.spendTime("move");
     }
   }
 
-  // If we couldn't do anything useful (blocked, out of range with no movement
-  // left), pass the rest of the turn so the game doesn't stall.
-  if (!acted) {
-    entity.movementPoints = 0;
-    entity.actionPoints = 0;
-  }
+  // Blocked/idle actors still spend time, so they cannot starve the queue.
+  if (!acted) entity.spendTime("wait");
 }
 
 function wanderStep(entity: Entity): boolean {

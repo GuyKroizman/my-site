@@ -504,6 +504,12 @@ export class InventoryWindow {
         break;
     }
 
+    // Let the world resolve the spent turn instead of leaving it paused
+    // behind the inventory modal with every subsequent action disabled.
+    if (!player.canAct()) {
+      this.close();
+      return;
+    }
     this.menuItem = undefined;
     this.markDirty();
     this.refresh();

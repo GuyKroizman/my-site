@@ -7,12 +7,13 @@ export default class Axe extends Entity {
   type: EntityType = "item";
   tier = 1;
   equipSlot: "weapon" = "weapon";
+  attackDelay = 1.25;
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.tile = 7 * 49 + 39;
     this.name = "An Axe";
-    this.description = "A basic axe. Causes between 2 and 7 damage.";
+    this.description = "A basic axe. Causes between 2 and 7 damage. Slow attack (1.25 time).";
 
     this.init(context, x, y);
   }

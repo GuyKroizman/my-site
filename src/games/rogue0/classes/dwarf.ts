@@ -13,8 +13,6 @@ export default class Dwarf extends BasicHero {
     this.name = "Dwarf";
     this.description =
       "A stout defender. Passive (Dwarven Armor): +1 armor and physical resistance. Active (Shield Bash, f): bash an adjacent enemy and cripple it.";
-    this.movementPoints = 2;
-    this.actionPoints = 2;
     this.healthPoints = 35;
     this.maxHealthPoints = 35;
     this.tile = 9 * 49 + 29;
@@ -35,12 +33,6 @@ export default class Dwarf extends BasicHero {
     this.init(context, x, y);
   }
 
-  refresh() {
-    super.refresh();
-    this.movementPoints = 2;
-    this.actionPoints = 2;
-  }
-
   // Passive: Dwarven Armor — +1 armor (stacks with the equipped shield).
   protection() {
     return super.protection() + 1;
@@ -59,7 +51,7 @@ export default class Dwarf extends BasicHero {
       bonusDamage: 1,
       onHitEffects: [createCrippledEffect(3)]
     });
-    this.actionPoints -= 1;
+    this.spendTurn("attack");
     this.skillCooldown = this.skillMaxCooldown;
   }
 }

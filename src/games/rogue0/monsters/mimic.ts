@@ -9,8 +9,8 @@ export default class Mimic extends Monster {
       description: "A treasure chest that lunges at the unwary.",
       tile: 6 * 49 + 8, // Closed wooden chest (row 6, column 8).
       healthPoints: 4,
-      movementPoints: 1,
-      actionPoints: 1,
+      movementSpeed: 1,
+      attackDelay: 1,
       visionRadius: 2,
       attackDamage: 6,
       protection: 0,

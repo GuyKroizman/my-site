@@ -427,9 +427,10 @@ export class Scene0 extends Phaser.Scene {
 
     this.context.entities = [player, ...player.getAllItems()];
 
-    // Start the new floor with a fresh player turn.
-    player.refresh();
+    // The scheduler resets readiness below; floor changes do not tick hunger
+    // or cooldowns without any elapsed simulation time.
     player.walkPath = [];
+    player.inputBuffer = [];
 
     this.placePlayer(spawn.x, spawn.y);
 
@@ -443,7 +444,7 @@ export class Scene0 extends Phaser.Scene {
 
     this.spawnFloorContent(floor, levelArray, spawn);
 
-    turnManager.reset();
+    turnManager.reset(this.context.entities, floor > 1);
     this.recomputeFOV();
     this.events.emit("floor-changed", { floor });
   }

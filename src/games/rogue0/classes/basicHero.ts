@@ -11,11 +11,13 @@ import {
   createBurningEffect,
   createFrozenEffect,
   createPoisonedEffect,
-  removeEffect
+  removeEffect,
+  hasEffect
 } from "../effects";
 import type { DamageType, StatusEffect } from "../effects";
 import { resolveAttack } from "../combat";
 import { spawnEntityFloatingText } from "../floatingText";
+import type { ActionKind } from "../timing";
 
 // UI palette — kept in sync with the --r0-* variables in src/index.css and
 // the constants in src/games/rogue0/ui.ts. Hex strings are CSS colors, 0x
@@ -44,8 +46,7 @@ type EquipSlotKey = "weapon" | "armor" | "ring1" | "ring2" | "artifact";
 export default class BasicHero extends Entity {
   name: string = "The Hero";
   description: string = "A brave adventurer";
-  movementPoints: number = 1;
-  actionPoints: number = 1;
+  actionReady: boolean = true;
   healthPoints: number = 30;
   maxHealthPoints: number = 30;
   hunger: number = 100;
@@ -80,11 +81,16 @@ export default class BasicHero extends Entity {
   onBackpackToggle?: () => void;
   onHeroIconTap?: () => void;
 
-  // Per-class active skill (Phase 9). Triggered with `f` / `F`; the cooldown
-  // ticks down once per round in refresh() and is shown in statsText().
+  // Per-class skills recharge in elapsed simulation time, not action count.
   skill: string = "";
   skillDescription: string = "";
-  skillCooldown: number = 0;
+  private skillReadyAt: number = 0;
+  get skillCooldown(): number {
+    return Math.max(0, Math.ceil((this.skillReadyAt ?? 0) - (this.context?.simulationTime ?? 0) - 1e-9));
+  }
+  set skillCooldown(duration: number) {
+    this.skillReadyAt = (this.context?.simulationTime ?? 0) + Math.max(0, duration);
+  }
   skillMaxCooldown: number = 0;
 
   constructor(context: GameContext) {
@@ -135,7 +141,11 @@ export default class BasicHero extends Entity {
   }
 
   canAct(): boolean {
-    return this.movementPoints > 0 && !this.moving;
+    return this.actionReady && !this.moving && !hasEffect(this, "frozen");
+  }
+
+  spendTurn(action: ActionKind = "skill"): void {
+    this.spendTime(action, this.currentWeapon()?.attackDelay ?? this.attackDelay);
   }
 
   bufferKey(key: string) {
@@ -245,6 +255,7 @@ export default class BasicHero extends Entity {
   }
 
   equipItem(item: Entity): void {
+    if (this.sprite && !this.canAct()) return;
     const slot = this.slotFor(item);
     if (!slot) {
       dungeon.log(this.context, `${item.displayName} cannot be equipped.`);
@@ -276,10 +287,13 @@ export default class BasicHero extends Entity {
     }
 
     this.onEquip(item);
+    // Starting equipment is installed before the hero sprite exists.
+    if (this.sprite) this.spendTurn("equip");
     this.refreshUI();
   }
 
   unequipItem(item: Entity): void {
+    if (!this.canAct()) return;
     if (item.cursed) {
       dungeon.log(
         this.context,
@@ -298,12 +312,14 @@ export default class BasicHero extends Entity {
     this[slot] = undefined;
     this.backpack.push(item);
     this.onUnequip(item);
+    this.spendTurn("equip");
     this.refreshUI();
   }
 
   // Drop an item from an equipped slot or the backpack back onto the map at
   // the player's tile. Cursed items cannot be dropped while equipped.
   dropItem(item: Entity): void {
+    if (!this.canAct() || !this.getAllItems().includes(item)) return;
     if (item.cursed && this.slotOf(item)) {
       dungeon.log(
         this.context,
@@ -328,6 +344,7 @@ export default class BasicHero extends Entity {
         this.context.entities.push(dropped);
       }
       dungeon.log(this.context, `${this.name} drops ${item.displayName}.`);
+      this.spendTurn("drop");
       this.refreshUI();
       return;
     }
@@ -382,12 +399,13 @@ export default class BasicHero extends Entity {
     }
 
     dungeon.log(this.context, `${this.name} drops ${item.displayName}.`);
+    this.spendTurn("drop");
     this.refreshUI();
   }
 
   // Use a consumable. Identifies it (if needed) and runs its consume effect.
   useItem(item: Entity): boolean {
-    if (!item.consumable) return false;
+    if (!this.canAct() || !item.consumable || !this.getAllItems().includes(item)) return false;
 
     if (!item.identified) {
       identify(item);
@@ -395,6 +413,7 @@ export default class BasicHero extends Entity {
     dungeon.log(this.context, `${this.name} uses ${item.name}.`);
     item.equip();
     sfx.potion();
+    this.spendTurn("use");
     return true;
   }
 
@@ -406,9 +425,7 @@ export default class BasicHero extends Entity {
     if (!item) return;
 
     if (item.consumable) {
-      if (this.actionPoints <= 0) return;
       this.useItem(item);
-      this.actionPoints -= 1;
     } else {
       this.equipItem(item);
     }
@@ -507,24 +524,18 @@ export default class BasicHero extends Entity {
   }
 
   refresh() {
-    this.movementPoints = 1;
-    this.actionPoints = 1;
-    if (this.skillCooldown > 0) {
-      this.skillCooldown -= 1;
-    }
-
-    // Hunger (G5): burn one point of hunger per round, clamped at 0.
+    // Hunger burns once per unit of elapsed world time, clamped at 0.
     if (this.hunger > 0) {
       this.hunger -= 1;
     }
 
-    // Warn once when hunger first drops below 30, not every round.
+    // Warn once when hunger first drops below 30, not every time tick.
     if (this.hunger > 0 && this.hunger < 30 && !this.hungerWarned) {
       this.hungerWarned = true;
       dungeon.log(this.context, "You are getting hungry.");
     }
 
-    // Starving: 1 damage per round until food is eaten.
+    // Starving: 1 damage per time unit until food is eaten.
     if (this.hunger === 0) {
       this.takeDamage(1);
       spawnEntityFloatingText(this, "-1");
@@ -534,7 +545,7 @@ export default class BasicHero extends Entity {
       }
     }
 
-    // Well-fed (satiated): regain 1 HP per round while hunger is high.
+    // Well-fed: regain 1 HP per time unit while hunger is high.
     if (this.hunger >= 80 && this.healthPoints < this.maxHealthPoints) {
       this.healthPoints += 1;
       spawnEntityFloatingText(this, "+1", "#6aff6a");
@@ -601,9 +612,6 @@ export default class BasicHero extends Entity {
       return;
     }
 
-    // Otherwise this is a player action (attack): only during the player's turn.
-    if (this.isOver()) return;
-
     if (entity && entity.type === "enemy") {
       const currentWeapon = this.currentWeapon();
       const rangedAttack = currentWeapon && currentWeapon.range() > 0
@@ -625,7 +633,7 @@ export default class BasicHero extends Entity {
         rangedAttack &&
         hasLOS &&
         distance <= currentWeapon.range() &&
-        this.actionPoints > 0
+        this.canAct()
       ) {
         dungeon.attackEntity(
           context,
@@ -635,7 +643,7 @@ export default class BasicHero extends Entity {
           currentWeapon.tint,
           currentWeapon.damageType
         );
-        this.actionPoints -= 1;
+        this.spendTurn("attack");
       } else {
         // No ranged attack: walk toward the enemy to attack it.
         this.setWalkTarget(entity.x!, entity.y!);
@@ -704,8 +712,8 @@ export default class BasicHero extends Entity {
   // Costs a full turn.
   waitTurn(): void {
     if (!this.canAct()) return;
-    this.movementPoints = 0;
-    this.actionPoints = 0;
+    this.walkPath = [];
+    this.spendTurn("wait");
   }
 
   search(): void {
@@ -724,8 +732,8 @@ export default class BasicHero extends Entity {
       dungeon.log(this.context, "You search but find nothing.");
     }
 
-    this.movementPoints = 0;
-    this.actionPoints = 0;
+    this.walkPath = [];
+    this.spendTurn("search");
   }
 
   // --- Touch-to-move (auto-walk) ---
@@ -777,7 +785,7 @@ export default class BasicHero extends Entity {
 
     if (entity && entity.type === "enemy") {
       this.walkPath = [];
-      if (this.actionPoints > 0) {
+      if (this.canAct()) {
         const weapon = this.currentWeapon();
         if (weapon) {
           const ranged = weapon.range() > 0 ? weapon.attackTile || weapon.tile : 0;
@@ -789,30 +797,34 @@ export default class BasicHero extends Entity {
             weapon.tint,
             weapon.damageType
           );
-          this.actionPoints -= 1;
+          this.spendTurn("attack");
         }
       }
       return;
     }
 
+    if (hasEffect(this, "rooted")) {
+      this.walkPath = [];
+      return;
+    }
+
     if (entity && entity.type === "item") {
       this.walkPath = [];
-      if (this.actionPoints > 0 && this.addItem(entity)) {
+      if (this.addItem(entity)) {
         dungeon.itemPicked(entity);
         dungeon.log(this.context, `${this.name} picked ${entity.displayName}.`);
-        this.actionPoints -= 1;
-        // Step onto the tile the item occupied, matching keyboard movement.
-        this.movementPoints -= 1;
+        // Pickup is included in the cost of stepping onto this tile.
+        this.spendTurn("move");
         dungeon.moveEntityTo(this.context, this, step.x, step.y);
       }
       return;
     }
 
-    this.movementPoints -= 1;
     // Open a closed door when stepping into it (no-op for other tiles).
     dungeon.openDoor(step.x, step.y);
     if (dungeon.isWalkableTile(this.context, step.x, step.y)) {
       this.walkPath.shift();
+      this.spendTurn("move");
       dungeon.moveEntityTo(this.context, this, step.x, step.y);
     } else {
       this.walkPath = [];
@@ -924,7 +936,7 @@ export default class BasicHero extends Entity {
   throwAt(tx: number, ty: number): void {
     const context = this.context;
     const item = context.throwItem;
-    if (!item) return;
+    if (!item || !this.canAct()) return;
     if (this.x === undefined || this.y === undefined) {
       this.cancelThrow();
       return;
@@ -955,6 +967,8 @@ export default class BasicHero extends Entity {
       return;
     }
 
+    this.spendTurn("throw");
+    this.moving = true;
     const projectile = scene.add
       .sprite(map.tileToWorldX(this.x)!, map.tileToWorldY(this.y)!, item.spriteTextureKey, item.spriteFrame)
       .setOrigin(0)
@@ -970,6 +984,7 @@ export default class BasicHero extends Entity {
       onComplete: () => {
         projectile.destroy();
         this.resolveThrowLanding(item, tx, ty);
+        this.moving = false;
       }
     });
 
@@ -1115,15 +1130,12 @@ export default class BasicHero extends Entity {
     if (this.skillCooldown > 0) {
       dungeon.log(
         this.context,
-        `${this.skill} is recharging (${this.skillCooldown} turn${this.skillCooldown === 1 ? "" : "s"}).`
+        `${this.skill} is recharging (${this.skillCooldown} time remaining).`
       );
       return;
     }
 
-    if (this.actionPoints <= 0) {
-      dungeon.log(this.context, "You have no action points to use a skill.");
-      return;
-    }
+    if (!this.canAct()) return;
 
     this.useSkill();
   }
@@ -1287,6 +1299,8 @@ export default class BasicHero extends Entity {
       return;
     }
 
+    if (!this.canAct()) return;
+
     let oldX = this.x!;
     let oldY = this.y!;
     let moved = false;
@@ -1307,8 +1321,7 @@ export default class BasicHero extends Entity {
 
     // Pass the turn
     if (key == " ") {
-      this.movementPoints = 0;
-      this.actionPoints = 0;
+      this.waitTurn();
     }
 
     // Movement decision
@@ -1338,13 +1351,15 @@ export default class BasicHero extends Entity {
       this.walkPath = []; // manual input cancels auto-walk
       // Entering a revealed trap requires explicitly clicking its tile.
       if (getTrapState(newX, newY) === "visible") return;
-      this.movementPoints -= 1;
+      if (hasEffect(this, "rooted") &&
+          dungeon.entityAtTile(this.context, newX, newY)?.type !== "enemy") return;
+      dungeon.openDoor(newX, newY);
 
       if (!dungeon.isWalkableTile(this.context, newX, newY)) {
         let entity = dungeon.entityAtTile(this.context, newX, newY);
 
         // Check if entity at destination is an enemy
-        if (entity && entity.type == "enemy" && this.actionPoints > 0) {
+        if (entity && entity.type == "enemy") {
           const currentWeapon = this.currentWeapon();
           if (!currentWeapon) {
             return;
@@ -1358,17 +1373,16 @@ export default class BasicHero extends Entity {
             currentWeapon.tint,
             currentWeapon.damageType
           );
-          this.actionPoints -= 1;
-          this.movementPoints += 1;
+          this.spendTurn("attack");
         }
 
         // Check if entity at destination is an item
-        if (entity && entity.type == "item" && this.actionPoints > 0) {
+        if (entity && entity.type == "item" && !hasEffect(this, "rooted")) {
           if (this.addItem(entity)) {
             dungeon.itemPicked(entity);
             const detail = entity.identified ? `: ${entity.description}` : "";
             dungeon.log(this.context, `${this.name} picked ${entity.displayName}${detail}`);
-            this.actionPoints -= 1;
+            // Pickup shares the movement turn below.
           } else {
             newX = oldX;
             newY = oldY;
@@ -1381,17 +1395,19 @@ export default class BasicHero extends Entity {
       }
 
       if (newX !== oldX || newY !== oldY) {
+        if (hasEffect(this, "rooted")) return;
+        this.spendTurn("move");
         dungeon.moveEntityTo(this.context, this, newX, newY);
       }
     }
   }
 
   isOver() {
-    return this.movementPoints == 0 && !this.moving;
+    return !this.actionReady && !this.moving;
   }
 
   statsText(): string {
-    let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}  Mp: ${this.movementPoints}  Ap: ${this.actionPoints}`;
+    let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}/${this.maxHealthPoints}`;
     const food =
       this.hunger <= 0
         ? "Starving!"
@@ -1413,7 +1429,7 @@ export default class BasicHero extends Entity {
   }
 
   updateUI() {
-    const over = this.movementPoints == 0 && !this.moving;
+    const over = !this.canAct();
     if (this.UIHeader) {
       this.UIHeader.setColor(over ? UI_HIGHLIGHT_BACKGROUND_COLOR : "#fff");
     }
@@ -1538,7 +1554,7 @@ export default class BasicHero extends Entity {
   refreshUI() {
     if (!this.UIScene) return;
     this.UIHeader?.setColor(
-      this.movementPoints === 0 && !this.moving ? UI_COL.muted : UI_COL.gold
+      !this.canAct() ? UI_COL.muted : UI_COL.gold
     );
 
     // Skill button label: gold when ready, muted while on cooldown.

@@ -12,8 +12,6 @@ export default class Warrior extends BasicHero {
     this.name = "Warrior"
     this.description =
       "A battle-hardened fighter. Passive (Blood Fury): +2 damage while below half health. Active (Power Strike, f): strike an adjacent enemy for +3 damage."
-    this.movementPoints = 3
-    this.actionPoints = 2
     this.maxHealthPoints = 30
 
     this.skill = "Power Strike"
@@ -27,12 +25,6 @@ export default class Warrior extends BasicHero {
     this.resistance = { physical: 1 };
 
     this.init(context, x, y)
-  }
-
-  refresh() {
-    super.refresh()
-    this.movementPoints = 3
-    this.actionPoints = 2
   }
 
   // Passive: Blood Fury — +2 damage while below 50% HP.
@@ -54,7 +46,7 @@ export default class Warrior extends BasicHero {
 
     dungeon.log(this.context, `${this.name} unleashes Power Strike!`)
     this.resolveSkillAttack(enemy, { bonusDamage: 3 })
-    this.actionPoints -= 1
+    this.spendTurn("attack")
     this.skillCooldown = this.skillMaxCooldown
   }
 }

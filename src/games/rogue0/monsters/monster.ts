@@ -12,8 +12,8 @@ export type MonsterConfig = {
   tile: number;
   tint?: number;
   healthPoints: number;
-  movementPoints: number;
-  actionPoints: number;
+  movementSpeed: number;
+  attackDelay: number;
   visionRadius: number;
   attackDamage: number;
   protection: number;
@@ -36,16 +36,12 @@ export default class Monster extends Entity {
 
   name: string;
   description: string;
-  movementPoints: number;
-  actionPoints: number;
   healthPoints: number;
   maxHealthPoints: number;
   visionRadius: number;
   attackDamage: number;
   protectionValue: number;
   rangeValue: number;
-  baseMovementPoints: number;
-  baseActionPoints: number;
   loot: any[];
   gold: number;
 
@@ -59,10 +55,8 @@ export default class Monster extends Entity {
 
     this.healthPoints = config.healthPoints;
     this.maxHealthPoints = config.healthPoints;
-    this.baseMovementPoints = config.movementPoints;
-    this.baseActionPoints = config.actionPoints;
-    this.movementPoints = config.movementPoints;
-    this.actionPoints = config.actionPoints;
+    this.movementSpeed = config.movementSpeed;
+    this.attackDelay = config.attackDelay;
     this.visionRadius = config.visionRadius;
     this.attackDamage = config.attackDamage;
     this.protectionValue = config.protection;
@@ -88,8 +82,7 @@ export default class Monster extends Entity {
   }
 
   refresh() {
-    this.movementPoints = this.baseMovementPoints;
-    this.actionPoints = this.baseActionPoints;
+    // Status effects tick in world time; actions are scheduled independently.
   }
 
   turn() {
@@ -97,7 +90,7 @@ export default class Monster extends Entity {
   }
 
   isOver() {
-    return this.movementPoints == 0 && this.actionPoints == 0 && !this.moving;
+    return !this.actionReady && !this.moving;
   }
 
   attack() {

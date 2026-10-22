@@ -9,8 +9,8 @@ export default class Wraith extends Monster {
       description: "A spectral horror that weakens those it touches.",
       tile: 8 * 49 + 27, // Ghost sprite (row 8, column 27).
       healthPoints: 7,
-      movementPoints: 1,
-      actionPoints: 1,
+      movementSpeed: 1,
+      attackDelay: 1,
       visionRadius: 7,
       attackDamage: 2,
       protection: 0,

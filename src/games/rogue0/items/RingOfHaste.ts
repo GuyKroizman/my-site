@@ -8,7 +8,7 @@ export default class RingOfHaste extends Ring {
       context,
       {
         name: "Ring of Haste",
-        description: "Grants +1 movement per turn while equipped.",
+        description: "Doubles movement speed while equipped. Does not speed up attacks.",
         tile: 4 * 49 + 27
       },
       x,

@@ -294,6 +294,18 @@ let dungeon = {
     if (entity.type === "player") {
       sfx.step();
     }
+    // Unseen monsters should not make the player wait for invisible walk
+    // animations. Keep animations when either endpoint is visible.
+    if (entity.type === "enemy" &&
+        !context.visibleTiles.has(`${entity.x},${entity.y}`) &&
+        !context.visibleTiles.has(`${destX},${destY}`)) {
+      entity.x = destX;
+      entity.y = destY;
+      entity.sprite?.setPosition(
+        context.map.tileToWorldX(destX)!, context.map.tileToWorldY(destY)!
+      );
+      return;
+    }
     entity.moving = true;
 
     context.scene.tweens.add({
@@ -305,8 +317,8 @@ let dungeon = {
       },
       x: context.map.tileToWorldX(destX)!,
       y: context.map.tileToWorldY(destY)!,
-      ease: "Power2",
-      duration: 50
+      ease: "Linear",
+      duration: 100
     });
   },
 

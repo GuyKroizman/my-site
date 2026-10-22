@@ -1,13 +1,9 @@
 // Status-effect system.
 //
-// Effects live on `Entity.effects` and tick once per round via
-// `Entity.tickEffects()` (called from `turnManager._refresh`). Damage/heal
-// effects do their work in `tick` and are timed via `duration`. Passive
-// modifiers (weakened/crippled) are read where the relevant stat is used:
-// - `weakened`/`strengthened` are applied in `combat.resolveAttack`.
-// - `crippled` reduces movement points in its `tick` (after `refresh`).
-// - `frozen` is consumed by `turnManager._turn`, which skips the entity's
-//   action and then removes the effect.
+// Effects tick once per unit of elapsed simulation time, independently of
+// movement/attack speed. Speed modifiers are read when actions are scheduled;
+// rooted/terrified are enforced when actors choose an action. Frozen consumes
+// one scheduled action. Combat modifiers are read by combat.resolveAttack.
 
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
@@ -26,6 +22,9 @@ export type StatusEffect = {
   name: string;
   iconTile: number;
   duration: number;
+  // Each buff has its own tick phase, so a buff applied at t=0.5 lasts
+  // its full duration rather than expiring at the next integer boundary.
+  nextTick?: number;
   // When true, `tickEffects` does not auto-decrement `duration`; the effect
   // is expected to remove itself (see `frozen`).
   manualExpiry?: boolean;
@@ -47,11 +46,15 @@ export function applyEffect(entity: Entity, effect: StatusEffect): void {
   const existing = entity.effects.find((e) => e.id === effect.id);
   if (existing) {
     existing.duration = Math.max(existing.duration, effect.duration);
+    existing.nextTick = (entity.context.simulationTime ?? 0) + 1;
     log(entity.context, `${entity.name} is already ${effect.name}.`);
     return;
   }
 
-  const applied: StatusEffect = { ...effect };
+  const applied: StatusEffect = {
+    ...effect,
+    nextTick: (entity.context.simulationTime ?? 0) + 1
+  };
   entity.effects.push(applied);
   applied.apply?.(entity, entity.context);
   log(entity.context, `${entity.name} is ${applied.name}.`);
@@ -68,6 +71,10 @@ export function removeEffect(entity: Entity, effectId: string): void {
 
 export function tickEffects(entity: Entity, context: GameContext): void {
   for (const effect of [...entity.effects]) {
+    const now = context.simulationTime ?? 0;
+    if (effect.nextTick === undefined) effect.nextTick = now + 1;
+    if (effect.nextTick > now + 1e-9) continue;
+    effect.nextTick += 1;
     effect.tick?.(entity, context);
 
     // The tick callback may have removed the effect itself.
@@ -171,10 +178,7 @@ export function createCrippledEffect(duration = 3): StatusEffect {
     id: "crippled",
     name: "Crippled",
     iconTile: 16 * 49 + 43,
-    duration,
-    tick(entity) {
-      entity.movementPoints = Math.max(0, entity.movementPoints - 1);
-    }
+    duration
   };
 }
 
@@ -226,16 +230,13 @@ export function createInvisibleEffect(duration = 10): StatusEffect {
   };
 }
 
-// Grants an extra movement point each round while active.
+// Doubles movement speed (not attack speed) while active.
 export function createHasteEffect(duration = 8): StatusEffect {
   return {
     id: "haste",
     name: "Haste",
     iconTile: 18 * 49 + 43,
-    duration,
-    tick(entity) {
-      entity.movementPoints += 1;
-    }
+    duration
   };
 }
 
@@ -258,15 +259,7 @@ export function createTerrifiedEffect(duration = 4): StatusEffect {
     id: "terrified",
     name: "Terrified",
     iconTile: 19 * 49 + 43,
-    duration,
-    tick(entity, context) {
-      if (entity.type !== "enemy") return;
-      if (!fleeStep(entity, context)) return;
-
-      entity.movementPoints = 0;
-      entity.actionPoints = 0;
-      log(context, `${entity.name} flees in terror.`);
-    }
+    duration
   };
 }
 
@@ -298,16 +291,13 @@ export function createRootedEffect(duration = 3): StatusEffect {
     id: "rooted",
     name: "Rooted",
     iconTile: 20 * 49 + 43,
-    duration,
-    tick(entity) {
-      entity.movementPoints = 0;
-    }
+    duration
   };
 }
 
 // Moves an entity one walkable tile directly away from the player without
 // pathfinding. Returns true when a legal flee tile was found.
-function fleeStep(entity: Entity, context: GameContext): boolean {
+export function fleeStep(entity: Entity, context: GameContext): boolean {
   const player = context.player;
   const map = context.currentLevel;
   if (!player || !map) return false;
