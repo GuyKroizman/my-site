@@ -60,8 +60,11 @@ export function isSurpriseAttack(
     return !context.visibleTiles.has(`${attacker.x},${attacker.y}`);
   }
 
-  // A monster defender is surprised when it has no line of sight to the
-  // attacker within its own vision radius.
+  // A monster that just rounded cover has not had a chance to react yet.
+  if (attacker.type === "player" &&
+      (!defender.awareOfPlayer || hasEffect(attacker, "invisible"))) return true;
+
+  // Also allow ambushes when cover currently blocks line of sight.
   const map = context.currentLevel;
   if (!map) return false;
 
@@ -84,6 +87,14 @@ export function resolveAttack(
   const damageType = opts.damageType ?? "physical";
   const appliedEffects: StatusEffect[] = [];
   const surprise = isSurpriseAttack(context, attacker, defender);
+
+  // An attack reveals the player's location even on a miss. Consume the
+  // ambush before the next attack, including multiple fast player actions.
+  if (attacker.type === "player" && defender.type === "enemy") {
+    defender.awareOfPlayer = true;
+    defender.lastSeenX = attacker.x;
+    defender.lastSeenY = attacker.y;
+  }
 
   // Hit roll (skipped for surprise attacks, which always connect).
   if (!surprise) {

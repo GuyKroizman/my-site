@@ -96,8 +96,8 @@ let dungeon = {
 
   // Pathfinding mutates node state (opened/closed), so always search on a
   // fresh grid clone to avoid stale state between calls.
-  // `throughDoors` (player) temporarily treats closed doors as walkable so the
-  // player can path up to and open them; enemies keep doors as blockers.
+  // `throughDoors` lets players and pursuing enemies plan routes through
+  // closed doors; movement must open the door before entering.
   findCardinalPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false, avoidTraps = false): number[][] {
     const grid = this.pathGrid!.clone();
     if (throughDoors) {
@@ -244,6 +244,19 @@ let dungeon = {
       throw new Error("context.map is undefined");
     }
 
+    const oldX = entity.x;
+    const oldY = entity.y;
+    const closeDoorBehind = () => {
+      if (oldX === undefined || oldY === undefined ||
+          (oldX === entity.x && oldY === entity.y) ||
+          tiles.getDoorState(oldX, oldY) !== "open") return;
+      // Items dropped in a doorway prop it open.
+      if (context.entities.some(e => e !== entity && e.sprite &&
+          e.x === oldX && e.y === oldY)) return;
+      tiles.setDoorState(oldX, oldY, "closed");
+      this.pathGrid?.setWalkableAt(oldX, oldY, false);
+      this.onTerrainChanged?.();
+    };
     let destX = x;
     let destY = y;
 
@@ -301,6 +314,7 @@ let dungeon = {
         !context.visibleTiles.has(`${destX},${destY}`)) {
       entity.x = destX;
       entity.y = destY;
+      closeDoorBehind();
       entity.sprite?.setPosition(
         context.map.tileToWorldX(destX)!, context.map.tileToWorldY(destY)!
       );
@@ -314,6 +328,7 @@ let dungeon = {
         entity.moving = false;
         entity.x = destX;
         entity.y = destY;
+        closeDoorBehind();
       },
       x: context.map.tileToWorldX(destX)!,
       y: context.map.tileToWorldY(destY)!,

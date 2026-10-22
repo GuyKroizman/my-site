@@ -1,9 +1,8 @@
 // Field-of-view and line-of-sight helpers for tile-based maps.
 // `map` is a 2D array where 0 = walkable, 1 = wall.
 //
-// Simplification (terrain pass): doors do NOT block line-of-sight. FOV is
-// intentionally left unchanged so terrain features never weaken the player's
-// visibility model.
+// Closed doors hide tiles beyond them, but the door itself stays visible.
+import { getDoorState } from "./tiles";
 
 function bresenhamLine(
   x0: number,
@@ -46,10 +45,18 @@ export function hasLineOfSight(
 ): boolean {
   const points = bresenhamLine(x0, y0, x1, y1);
 
-  // Intermediate tiles block vision; the endpoints themselves are visible.
-  for (let i = 1; i < points.length - 1; i++) {
+  const opaque = (x: number, y: number) =>
+    map[y]?.[x] === 1 || getDoorState(x, y) === "closed";
+
+  // Do not peek diagonally across the edge of a pillar or closed doorway.
+  // Otherwise circling a single-tile pillar never reliably breaks sight.
+  for (let i = 1; i < points.length; i++) {
     const [x, y] = points[i];
-    if (map[y] && map[y][x] === 1) return false;
+    const [prevX, prevY] = points[i - 1];
+    if (x !== prevX && y !== prevY &&
+        (opaque(x, prevY) || opaque(prevX, y))) return false;
+    // Endpoints themselves stay visible, including walls and closed doors.
+    if (i < points.length - 1 && opaque(x, y)) return false;
   }
 
   return true;

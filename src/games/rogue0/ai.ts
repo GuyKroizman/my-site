@@ -17,6 +17,8 @@ export function enemyCanSeePlayer(entity: Entity): boolean {
     return false;
   }
 
+  if (hasEffect(player, "invisible")) return false;
+
   return canSee(
     dungeon.getCurrentLevel(),
     entity.x,
@@ -65,6 +67,13 @@ export function enemyTurn(entity: Entity): void {
   // Wait for the current move/attack tween to finish before acting again.
   if (entity.moving) return;
 
+  const seesPlayer = enemyCanSeePlayer(entity);
+  entity.awareOfPlayer = seesPlayer;
+  if (seesPlayer) {
+    entity.lastSeenX = player.x;
+    entity.lastSeenY = player.y;
+  }
+
   const canMove = !hasEffect(entity, "rooted");
   if (hasEffect(entity, "terrified")) {
     const fled = canMove && fleeStep(entity, entity.context);
@@ -72,7 +81,6 @@ export function enemyTurn(entity: Entity): void {
     return;
   }
 
-  const seesPlayer = enemyCanSeePlayer(entity);
   let acted = false;
 
   // 1) Attack. Ranged enemies shoot when in range; melee enemies strike
@@ -108,25 +116,15 @@ export function enemyTurn(entity: Entity): void {
   // 2) Move toward the player, their last known position, or wander.
   if (!acted && canMove) {
     if (seesPlayer) {
-      entity.lastSeenX = player.x;
-      entity.lastSeenY = player.y;
       if (!isAdjacentToPlayer(entity, player)) {
         const step = nextStepToward(entity, player.x, player.y);
-        if (step) {
-          dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
-          acted = true;
-        } else if (tryOpenAdjacentDoor(entity, player.x, player.y)) {
-          acted = true;
-        }
+        if (step) acted = followStep(entity, step);
       }
     } else if (entity.lastSeenX !== undefined && entity.lastSeenY !== undefined) {
       const step = nextStepToward(entity, entity.lastSeenX, entity.lastSeenY);
       if (step) {
-        dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
-        acted = true;
-      } else if (tryOpenAdjacentDoor(entity, entity.lastSeenX, entity.lastSeenY)) {
-        acted = true;
-      } else {
+        acted = followStep(entity, step);
+      } else if (entity.x === entity.lastSeenX && entity.y === entity.lastSeenY) {
         entity.lastSeenX = undefined;
         entity.lastSeenY = undefined;
       }
@@ -160,7 +158,7 @@ export function nextStepToward(
 ): { x: number; y: number } | null {
   if (entity.x === undefined || entity.y === undefined) return null;
 
-  const path = dungeon.findCardinalPath(entity.x, entity.y, tx, ty);
+  const path = dungeon.findCardinalPath(entity.x, entity.y, tx, ty, true);
 
   if (path.length > 1) {
     return { x: path[1][0], y: path[1][1] };
@@ -168,40 +166,19 @@ export function nextStepToward(
   return null;
 }
 
-// When the pathfinder cannot reach the target (typically because a closed
-// door sits between the monster and its goal), open the adjacent door that
-// lies closest to the target instead of getting stuck.
-function tryOpenAdjacentDoor(entity: Entity, tx: number, ty: number): boolean {
-  if (entity.x === undefined || entity.y === undefined) return false;
-
-  const ex = entity.x;
-  const ey = entity.y;
-
-  const dirs: Array<[number, number]> = [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1]
-  ];
-
-  dirs.sort((a, b) => {
-    const da = (ex + a[0] - tx) ** 2 + (ey + a[1] - ty) ** 2;
-    const db = (ex + b[0] - tx) ** 2 + (ey + b[1] - ty) ** 2;
-    return da - db;
-  });
-
-  for (const [dx, dy] of dirs) {
-    const nx = ex + dx;
-    const ny = ey + dy;
-    if (
-      tiles.getFeature(nx, ny) === "door" &&
-      tiles.getDoorState(nx, ny) === "closed"
-    ) {
-      return dungeon.openDoor(nx, ny);
-    }
+// Plan through doors and open them while stepping in, like a pursuer
+// emerging through a doorway into an ambush. Do not
+// overlap another actor or forget the target just because a corridor is busy.
+function followStep(entity: Entity, step: { x: number; y: number }): boolean {
+  if (entity.context.entities.some(e =>
+    e !== entity && (e.type === "player" || e.type === "enemy") &&
+    e.healthPoints > 0 && e.x === step.x && e.y === step.y
+  )) return false;
+  if (tiles.getDoorState(step.x, step.y) === "closed") {
+    if (!dungeon.openDoor(step.x, step.y)) return false;
   }
-
-  return false;
+  dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
+  return true;
 }
 
 export function randomAdjacentStep(

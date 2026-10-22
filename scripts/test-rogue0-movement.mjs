@@ -218,7 +218,7 @@ Object.assign(monster, {
   x: 1, y: 0, attackDelay: 1.5, movementSpeed: 2,
   range: () => 0, effects: [{ id: 'rooted' }]
 });
-monster.context.player = { x: 0, y: 0 };
+monster.context.player = { x: 0, y: 0, effects: [] };
 enemyTurn(monster);
 assert.equal(attacks, 1, 'rooting does not prevent a monster attack');
 assert.equal(monster.nextActionTime, 1.5);
@@ -252,4 +252,79 @@ skeleton.onDestroy();
 assert.equal(deathContext.deaths, 1, 'skeleton retains normal monster death handling');
 assert.equal(deathContext.entities.length, 0, 'killed skeleton does not reanimate at its old position');
 
-console.log('Rogue0 timeline, speed, input, pickup and skeleton death regression tests passed');
+// Cover, awareness, and pursuit use real sight/combat/AI logic.
+const doors = new Map();
+const terrain = { getDoorState: (x, y) => doors.get(`${x},${y}`) };
+const sight = load('src/games/rogue0/fov.ts', terrain);
+const arena = Array.from({ length: 7 }, () => Array(7).fill(0));
+const combat = load('src/games/rogue0/combat.ts', {
+  canSee: sight.canSee, hasEffect, createBleedingEffect: () => ({ id: 'bleeding' })
+});
+const hunter = actor('enemy');
+const target = actor('player');
+Object.assign(target, { x: 4, y: 3, attack: () => 3, accuracy: 0 });
+Object.assign(hunter, { x: 2, y: 3, visionRadius: 8, range: () => 0,
+  protection: () => 0, evasion: 100 });
+const huntContext = { player: target, entities: [target, hunter], currentLevel: arena,
+  visibleTiles: new Set(), messages: [], simulationTime: 0 };
+hunter.context = target.context = huntContext;
+let plannedThroughDoors = false;
+let plannedTarget;
+let nextPath = [];
+let huntAttacks = 0;
+const huntAI = load('src/games/rogue0/ai.ts', {
+  ...sight, hasEffect, fleeStep: () => false, tiles: terrain,
+  dungeon: {
+    getCurrentLevel: () => arena,
+    findCardinalPath(sx, sy, tx, ty, throughDoors) {
+      plannedThroughDoors = throughDoors; plannedTarget = [tx, ty]; return nextPath;
+    },
+    moveEntityTo(ctx, e, x, y) { e.x = x; e.y = y; },
+    openDoor(x, y) { doors.set(`${x},${y}`, 'open'); return true; },
+    attackEntity() { huntAttacks++; }
+  }
+});
+doors.set('3,3', 'closed');
+assert.equal(sight.canSee(arena, 2, 3, 4, 3, 8), false, 'closed door hides the player');
+assert.equal(sight.canSee(arena, 2, 3, 3, 3, 8), true, 'door itself remains visible');
+doors.set('3,3', 'open');
+nextPath = [[2, 3], [3, 3], [4, 3]];
+huntAI.enemyTurn(hunter);
+assert.equal(hunter.awareOfPlayer, true);
+assert.deepEqual([hunter.lastSeenX, hunter.lastSeenY], [4, 3]);
+assert.equal(plannedThroughDoors, true, 'pursuit routes can cross doors');
+assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), false, 'visible pursuit is not an ambush');
+huntAI.enemyTurn(hunter);
+assert.equal(huntAttacks, 1);
+assert.deepEqual([hunter.lastSeenX, hunter.lastSeenY], [4, 3], 'attacking enemies also remember the target');
+
+hunter.x = 2;
+doors.set('3,3', 'closed');
+huntAI.enemyTurn(hunter);
+assert.equal(hunter.x, 3, 'hunter opens and enters the door while pursuing');
+assert.equal(doors.get('3,3'), 'open');
+assert.equal(hunter.awareOfPlayer, false, 'emerging from cover leaves a reaction window');
+assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), true);
+assert.equal(combat.resolveAttack(huntContext, target, hunter).hit, true, 'surprise bypasses evasion');
+assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), false, 'ambush is consumed by the attack');
+
+// Walking around a one-tile pillar breaks sight without erasing pursuit.
+doors.clear();
+arena[3][3] = 1;
+hunter.x = 2; hunter.y = 3;
+target.x = 3; target.y = 2;
+assert.equal(sight.canSee(arena, 2, 3, 3, 2, 8), false, 'pillar edge blocks diagonal peeking');
+nextPath = [[2, 3], [2, 2], [3, 2], [4, 2], [4, 3]];
+huntAI.enemyTurn(hunter);
+assert.equal(hunter.awareOfPlayer, false);
+assert.deepEqual(plannedTarget, [4, 3], 'hunter follows the last seen position around a pillar');
+assert.equal(sight.canSee(arena, hunter.x, hunter.y, target.x, target.y, 8), true);
+assert.equal(Math.max(Math.abs(hunter.x - target.x), Math.abs(hunter.y - target.y)), 1);
+assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), true, 'rounding a pillar permits an adjacent ambush despite restored sight');
+arena[3][3] = 0;
+huntAI.enemyTurn(hunter);
+assert.equal(hunter.awareOfPlayer, true, 'a further turn in sight removes the ambush window');
+target.effects = [{ id: 'invisible' }];
+assert.equal(huntAI.enemyCanSeePlayer(hunter), false);
+
+console.log('Rogue0 timeline, input, death, sight, pursuit and surprise regression tests passed');
