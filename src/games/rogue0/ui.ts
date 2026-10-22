@@ -1,4 +1,4 @@
-import type { GameContext } from "./context";
+import { isModalOpen, type GameContext } from "./context";
 import { InventoryWindow } from "./inventoryWindow";
 
 const FONT_PIXEL = "Press Start 2P";
@@ -77,6 +77,7 @@ export class UI extends Phaser.Scene {
 
     // i / b toggle the inventory window; Esc closes it.
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
+      if (this.context.helpOpen) return;
       const key = event.key;
       if (key === "i" || key === "I" || key === "b" || key === "B") {
         this.closeHeroModal();
@@ -84,6 +85,8 @@ export class UI extends Phaser.Scene {
       } else if (key === "Escape") {
         this.inventoryWindow?.close();
         this.closeHeroModal();
+        this.context.inspectedEntity = undefined;
+        this.context.inspectedTerrain = undefined;
       }
     });
 
@@ -182,7 +185,9 @@ export class UI extends Phaser.Scene {
 
     bg.on("pointerover", () => bg.setStrokeStyle(2, 0xf0b429, 1));
     bg.on("pointerout", () => bg.setStrokeStyle(2, C.borderStrong, 1));
-    bg.on("pointerup", onClick);
+    bg.on("pointerup", () => {
+      if (!isModalOpen(this.context)) onClick();
+    });
 
     return { bg, icon: g, label: txt };
   }
@@ -325,12 +330,15 @@ export class UI extends Phaser.Scene {
   }
 
   private toggleHeroModal() {
+    if (!this.heroModalOpen && isModalOpen(this.context)) return;
     this.heroModalOpen = !this.heroModalOpen;
+    this.context.heroModalOpen = this.heroModalOpen;
     this.heroModal?.setVisible(this.heroModalOpen);
   }
 
   private closeHeroModal() {
     this.heroModalOpen = false;
+    this.context.heroModalOpen = false;
     this.heroModal?.setVisible(false);
   }
 

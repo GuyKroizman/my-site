@@ -184,6 +184,7 @@ export default function Rogue0() {
   }, [])
 
   const openHelp = () => {
+    if (contextRef.current) contextRef.current.helpOpen = true
     setHelpPage(0)
     setHelpOpen(true)
   }
@@ -191,7 +192,10 @@ export default function Rogue0() {
   const helpModal = helpOpen ? (
     <HelpModal
       page={helpPage}
-      onClose={() => setHelpOpen(false)}
+      onClose={() => {
+        if (contextRef.current) contextRef.current.helpOpen = false
+        setHelpOpen(false)
+      }}
       onPrev={() => setHelpPage((p) => Math.max(0, p - 1))}
       onNext={() => setHelpPage((p) => Math.min(HELP_PAGES.length - 1, p + 1))}
     />

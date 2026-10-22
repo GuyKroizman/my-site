@@ -80,6 +80,7 @@ export class InventoryWindow {
   openWindow(): void {
     if (!this.context.player) return;
     this.open = true;
+    this.context.inventoryOpen = true;
     this.menuItem = undefined;
     this.dirty = false;
 
@@ -94,6 +95,7 @@ export class InventoryWindow {
   close(): void {
     if (!this.open) return;
     this.open = false;
+    this.context.inventoryOpen = false;
     this.menuItem = undefined;
 
     if (this.context.scene) {

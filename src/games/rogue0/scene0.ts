@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import dungeon from "./dungeon";
-import type { GameContext } from "./context";
+import { isModalOpen, type GameContext } from "./context";
 import turnManager from "./turnManager";
 import Skeleton from "./monsters/skelaton";
 import LongSword from "./items/longSword";
@@ -238,6 +238,7 @@ export class Scene0 extends Phaser.Scene {
 
     // Pinch zoom + one-finger pan (mobile).
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      if (isModalOpen(this.context)) return;
       this.activePointers.set(p.id, p);
       if (this.activePointers.size === 1) {
         this.panStartX = p.x;
@@ -247,7 +248,7 @@ export class Scene0 extends Phaser.Scene {
       this.lastPinchDist = 0;
     });
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (!this.activePointers.has(p.id)) return;
+      if (isModalOpen(this.context) || !this.activePointers.has(p.id)) return;
       if (this.activePointers.size >= 2) {
         this.updatePinch();
         return;
@@ -333,6 +334,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private zoomBy(factor: number): void {
+    if (isModalOpen(this.context)) return;
     this.setZoom(this.zoom * factor);
   }
 
@@ -343,6 +345,18 @@ export class Scene0 extends Phaser.Scene {
 
   update() {
     if (this.ended) return;
+    if (isModalOpen(this.context)) {
+      if (this.context.player) {
+        this.context.player.inputBuffer = [];
+        this.context.player.walkPath = [];
+      }
+      this.activePointers.clear();
+      this.lastPinchDist = 0;
+      this.panning = false;
+      this.context.panning = false;
+      this.context.pinching = false;
+      return;
+    }
 
     turnManager.update(this.context.entities);
     this.checkStairs();
@@ -494,7 +508,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private tryDescend(): void {
-    if (this.ended) return;
+    if (this.ended || isModalOpen(this.context)) return;
     const p = this.context.player;
     if (!p || p.x === undefined || p.y === undefined) return;
 

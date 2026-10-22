@@ -20,6 +20,9 @@ export type GameContext = {
   heroClass: string;
   stairsX?: number;
   stairsY?: number;
+  inventoryOpen?: boolean;
+  heroModalOpen?: boolean;
+  helpOpen?: boolean;
   inspectedEntity?: Entity;
   // Terrain/tile description currently under the inspect cursor.
   inspectedTerrain?: string;
@@ -43,6 +46,11 @@ export type GameContext = {
   onResumeFollow?: () => void;
   onEnd?: (result: EndResult) => void;
 };
+
+export function isModalOpen(context: GameContext): boolean {
+  return !!(context.inventoryOpen || context.heroModalOpen || context.helpOpen ||
+    context.inspectedEntity || context.inspectedTerrain);
+}
 
 export function createGameContext(): GameContext {
   return {

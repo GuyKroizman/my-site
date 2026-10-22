@@ -1,7 +1,7 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
-import type { GameContext } from "../context";
+import { isModalOpen, type GameContext } from "../context";
 import dungeon from "../dungeon";
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
@@ -98,6 +98,7 @@ export default class BasicHero extends Entity {
     }
 
     context.scene.input.keyboard.on("keydown", (event: KeyboardEvent) => {
+      if (isModalOpen(this.context)) return;
       // Cursor keys (x / Esc / Enter / arrows / HJKL) stay live while the
       // inspect or throw cursor is active, even when it isn't the player's
       // turn. Everything else keeps the existing canAct()/buffer behaviour.
@@ -564,6 +565,7 @@ export default class BasicHero extends Entity {
   }
 
   processTouchInput(context: GameContext, event: Phaser.Input.Pointer) {
+    if (isModalOpen(context)) return;
     if (context.pinching || context.panning) return;
     if (context.map == undefined) {
       throw new Error("context.map is undefined");
@@ -763,6 +765,7 @@ export default class BasicHero extends Entity {
   }
 
   private stepAutoWalk(): void {
+    if (isModalOpen(this.context)) return;
     if (this.walkPath.length === 0) return;
     if (this.context.entities.some((entity) =>
       entity.type === "enemy" && entity.healthPoints > 0 &&
@@ -1249,6 +1252,7 @@ export default class BasicHero extends Entity {
   }
 
   processInput(key: string) {
+    if (isModalOpen(this.context)) return;
     const context = this.context;
 
     // --- Inspect / throw cursor modes ---
