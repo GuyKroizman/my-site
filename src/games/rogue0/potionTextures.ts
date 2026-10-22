@@ -64,13 +64,21 @@ export function generateUnknownItemTextures(scene: Phaser.Scene): void {
     g.generateTexture("unknown-scroll", 16, 16);
     g.destroy();
   }
-  if (!scene.textures.exists("unknown-wand")) {
+  // Keep the same wand silhouette before and after identification.
+  const wandColors: Record<string, number> = {
+    "unknown-wand": 0x9a9a9a,
+    "wand-fire": 0xff793f,
+    "wand-ice": 0x80dfff,
+    "wand-shock": 0xffe36b
+  };
+  for (const [key, color] of Object.entries(wandColors)) {
+    if (scene.textures.exists(key)) continue;
     const g = scene.make.graphics(undefined, false);
     g.lineStyle(2, 0x8a5a2b, 1);
     g.lineBetween(3, 13, 12, 4);
-    g.fillStyle(0x9a9a9a, 1);
+    g.fillStyle(color, 1);
     g.fillCircle(13, 3, 2);
-    g.generateTexture("unknown-wand", 16, 16);
+    g.generateTexture(key, 16, 16);
     g.destroy();
   }
   if (!scene.textures.exists("unknown-ring")) {

@@ -417,9 +417,19 @@ let dungeon = {
     } else {
       const x = context.map.tileToWorldX(attacker.x!)!;
       const y = context.map.tileToWorldY(attacker.y!)!;
+      const projectileTexture = attacker === context.player
+        ? context.player.currentWeapon()?.projectileTexture
+        : attacker.projectileTexture;
+      const targetX = context.map.tileToWorldX(victim.x!)!;
+      const targetY = context.map.tileToWorldY(victim.y!)!;
+      const offset = projectileTexture ? tileSize / 2 : 0;
       const sprite = context.scene.add
-        .sprite(x, y, "tiles", rangedAttack)
-        .setOrigin(0);
+        .sprite(x + offset, y + offset, projectileTexture ?? "tiles", projectileTexture ? 0 : rangedAttack)
+        .setOrigin(projectileTexture ? 0.5 : 0)
+        .setDepth(250);
+      if (projectileTexture) {
+        sprite.setRotation(Math.atan2(targetY - y, targetX - x));
+      }
       if (tint) {
         sprite.tint = tint;
       }
@@ -439,8 +449,8 @@ let dungeon = {
           );
           sprite.destroy();
         },
-        x: context.map.tileToWorldX(victim.x!)!,
-        y: context.map.tileToWorldY(victim.y!)!,
+        x: targetX + offset,
+        y: targetY + offset,
         ease: "Power2",
         hold: 0,
         duration: 120,

@@ -55,6 +55,9 @@ export class UI extends Phaser.Scene {
   private inspectModalBg: Phaser.GameObjects.Rectangle | undefined;
   private inspectModalText: Phaser.GameObjects.Text | undefined;
   private inspectCloseBtn: Phaser.GameObjects.Text | undefined;
+  private inspectChoiceRows: Phaser.GameObjects.Text[] = [];
+  private inspectChoicePage = 0;
+  private renderedInspectChoices: GameContext["inspectChoices"];
 
   private logPanel: Phaser.GameObjects.Rectangle | undefined;
   private logTitle: Phaser.GameObjects.Text | undefined;
@@ -85,6 +88,7 @@ export class UI extends Phaser.Scene {
       } else if (key === "Escape") {
         this.inventoryWindow?.close();
         this.closeHeroModal();
+        this.context.inspectChoices = undefined;
         this.context.inspectedEntity = undefined;
         this.context.inspectedTerrain = undefined;
       }
@@ -275,6 +279,7 @@ export class UI extends Phaser.Scene {
     this.inspectCloseBtn.on("pointerover", () => this.inspectCloseBtn?.setColor(COL.text));
     this.inspectCloseBtn.on("pointerout", () => this.inspectCloseBtn?.setColor(COL.gold));
     this.inspectCloseBtn.on("pointerup", () => {
+      this.context.inspectChoices = undefined;
       this.context.inspectedEntity = undefined;
       this.context.inspectedTerrain = undefined;
     });
@@ -371,8 +376,61 @@ export class UI extends Phaser.Scene {
     this.heroModalText.setText(text);
   }
 
+  private renderInspectChoices() {
+    this.inspectChoiceRows.forEach((row) => row.destroy());
+    this.inspectChoiceRows = [];
+    const choices = this.context.inspectChoices;
+    if (!choices?.length || !this.inspectModal) return;
+
+    const addRow = (y: number, label: string, onClick?: () => void) => {
+      const row = this.add.text(10, y, label, {
+        fontFamily: `${FONT_MONO}, monospace`, fontSize: 17,
+        color: onClick ? COL.gold : COL.text
+      });
+      if (onClick) {
+        row.setInteractive({ useHandCursor: true });
+        row.on("pointerover", () => row.setColor(COL.text));
+        row.on("pointerout", () => row.setColor(COL.gold));
+        row.on("pointerup", onClick);
+      }
+      this.inspectModal!.add(row);
+      this.inspectChoiceRows.push(row);
+    };
+
+    addRow(26, "Choose an object to inspect:");
+    const pageSize = 3;
+    const start = this.inspectChoicePage * pageSize;
+    choices.slice(start, start + pageSize).forEach((entity, index) => {
+      addRow(50 + index * 28, `${start + index + 1}. ${entity.displayName}`, () => {
+        this.context.inspectChoices = undefined;
+        this.context.inspectedEntity = entity;
+        this.context.inspectedTerrain = undefined;
+      });
+    });
+    const pages = Math.ceil(choices.length / pageSize);
+    if (pages > 1) {
+      addRow(138, `More (${this.inspectChoicePage + 1}/${pages}) →`, () => {
+        this.inspectChoicePage = (this.inspectChoicePage + 1) % pages;
+        this.renderInspectChoices();
+      });
+    }
+  }
+
   private updateInspectModal() {
     if (!this.inspectModal || !this.inspectModalText) return;
+
+    const choices = this.context.inspectChoices;
+    if (choices !== this.renderedInspectChoices) {
+      this.inspectChoicePage = 0;
+      this.renderedInspectChoices = choices;
+      this.renderInspectChoices();
+    }
+    this.inspectModalText.setVisible(!choices?.length);
+    if (choices?.length) {
+      this.inspectModal.setVisible(true);
+      this.inspectCloseBtn?.setVisible(true);
+      return;
+    }
 
     const e = this.context.inspectedEntity;
     const terrain = this.context.inspectedTerrain;

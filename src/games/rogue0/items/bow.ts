@@ -6,6 +6,7 @@ import { Entity } from "../entity";
 export default class Bow extends Entity {
   type: EntityType = "item";
   tier = 1;
+  projectileTexture = "bow-arrow";
   equipSlot: "weapon" = "weapon";
 
   constructor(context: GameContext, x?: number, y?: number) {

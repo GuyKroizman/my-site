@@ -37,6 +37,7 @@ export default abstract class Wand extends Entity {
     this.name = config.name;
     this.description = config.description;
     this.tile = config.tile;
+    this.textureKey = `wand-${config.damageType}`;
     this.attackTile = config.attackTile;
     this.damageType = config.damageType;
     this.charges = config.charges;

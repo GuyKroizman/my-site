@@ -34,6 +34,7 @@ export abstract class Entity {
   UIText?: Phaser.GameObjects.Text;
   context!: GameContext;
   attackTile: number = 11 * 49 + 11;
+  projectileTexture?: string;
   tint: number | undefined = undefined;
   // Optional texture key (e.g. generated potion flasks). Falls back to "tiles".
   textureKey?: string;

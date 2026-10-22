@@ -583,19 +583,7 @@ export default class BasicHero extends Entity {
 
     // Inspect is a UI action: always available, on any turn.
     if (context.inspectMode) {
-      if (context.visibleTiles?.has(`${x},${y}`)) {
-        const e = dungeon.entityAtTile(context, x!, y!);
-        if (e && e.type !== "player") {
-          context.inspectedEntity = e;
-          context.inspectedTerrain = undefined;
-        } else {
-          context.inspectedEntity = undefined;
-          context.inspectedTerrain = dungeon.inspectTile(x!, y!);
-        }
-      } else {
-        context.inspectedEntity = undefined;
-        context.inspectedTerrain = undefined;
-      }
+      if (x !== null && y !== null) this.inspectTile(x, y);
       return;
     }
 
@@ -871,18 +859,24 @@ export default class BasicHero extends Entity {
     const x = context.cursorX;
     const y = context.cursorY;
 
-    if (!context.visibleTiles.has(`${x},${y}`)) {
-      context.inspectedEntity = undefined;
-      context.inspectedTerrain = undefined;
-      return;
-    }
+    this.inspectTile(x, y);
+  }
 
-    const entity = dungeon.entityAtTile(context, x, y);
-    if (entity && entity.type !== "player") {
-      context.inspectedEntity = entity;
-      context.inspectedTerrain = undefined;
+  private inspectTile(x: number, y: number): void {
+    const context = this.context;
+    context.inspectChoices = undefined;
+    context.inspectedEntity = undefined;
+    context.inspectedTerrain = undefined;
+    if (!context.visibleTiles.has(`${x},${y}`)) return;
+
+    const entities = context.entities.filter((entity) =>
+      entity.sprite && entity.x === x && entity.y === y && entity.type !== "player"
+    );
+    if (entities.length > 1) {
+      context.inspectChoices = entities;
+    } else if (entities.length === 1) {
+      context.inspectedEntity = entities[0];
     } else {
-      context.inspectedEntity = undefined;
       context.inspectedTerrain = dungeon.inspectTile(x, y);
     }
   }
