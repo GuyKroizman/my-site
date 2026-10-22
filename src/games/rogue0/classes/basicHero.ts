@@ -524,10 +524,8 @@ export default class BasicHero extends Entity {
   }
 
   refresh() {
-    // Hunger burns once per unit of elapsed world time, clamped at 0.
-    if (this.hunger > 0) {
-      this.hunger -= 1;
-    }
+    // Drain a quarter point per world-time unit: food lasts 4x as long.
+    this.hunger = Math.max(0, this.hunger - 0.25);
 
     // Warn once when hunger first drops below 30, not every time tick.
     if (this.hunger > 0 && this.hunger < 30 && !this.hungerWarned) {

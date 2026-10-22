@@ -39,7 +39,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Food & Hunger',
-    body: `• Your Food meter drops by 1 every round.\n• Above 80 you are well-fed and slowly regain health.\n• Below 30 you get a warning that you are hungry.\n• At 0 you are starving: take 1 damage per round until you eat.\n• Eat Rations to restore hunger.`,
+    body: `• Your Food meter drops by 0.25 per world-time unit (1 point every 4 normal moves).\n• Above 80 you are well-fed and slowly regain health.\n• Below 30 you get a warning that you are hungry.\n• At 0 you are starving: take 1 damage per round until you eat.\n• Eat Rations to restore hunger.`,
   },
   {
     title: 'Items & Equipment',

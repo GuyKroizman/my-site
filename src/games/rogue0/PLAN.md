@@ -9,7 +9,45 @@ building those systems in dependency order.
 
 ---
 
-## 1. Current state (accurate)
+## 1. Current state (source-audited)
+
+Status below reflects implementation, not a claim that every acceptance criterion
+has been playtested. Checked boxes mean the described implementation exists.
+
+### Implemented since the original roadmap
+
+- Five classes now have cooldown skills: Power Strike, Shield Bash, Heal,
+  Multishot, and Nova. Subclasses/talent choices remain future work.
+- `effects.ts` and `combat.ts` provide timed statuses, accuracy/evasion,
+  physical armour, elemental resistance/vulnerability, crits and surprise
+  attacks (auto-hit, bonus damage, possible bleed).
+- Item identification, cursed equipment, upgrade levels, charged wands,
+  five rings, two artifacts, expanded scrolls/potions and food exist.
+  Durability and a complete tier/enchantment progression are not implemented.
+- Explicit weapon/armor/two-ring/artifact slots and a 20-slot backpack replace
+  active-item aggregation. Inventory is modal, with item actions and stacking.
+- Terrain uses a coordinate-keyed feature overlay on the binary floor/wall
+  map—not the originally proposed tile enum. Doors, searchable hidden traps,
+  burning grass, water extinguishing fire and blocking chasms exist; advanced
+  elemental combinations and secret doors remain outstanding.
+- Monster roster includes cultists, splitting swarms, mimics, three elementals
+  and wraiths. Several proposed signature abilities remain unimplemented;
+  the Bone Lord still lacks phases/telegraphs/arena mechanics.
+- Hunger, starvation, well-fed regeneration, rations and monster gold rewards
+  exist. Shops, trading and revival items do not.
+- `context.ts` defaults to **5 floors**, with procedural floors after the first.
+- Bottom toolbar, hero/inspect panels, inventory modal and generated potion
+  textures exist. Full HUD polish and the custom-art overhaul remain open.
+- The turn engine is now a **discrete-event action-time scheduler**:
+  movement speed and weapon delay are independent; hunger/regeneration tick
+  with elapsed world time, effects retain their own tick phase, and skill
+  cooldowns use absolute timestamps. See `README.md`, `timing.ts` and
+  `turnManager.ts`; do not reintroduce per-action status/hunger ticking.
+- Regression entry point: `node scripts/test-rogue0-movement.mjs`.
+
+### Original baseline (historical, not current)
+
+The following snapshot explains the original depth gap:
 
 - 5 hero classes (Warrior, Dwarf, Cleric, Elf, Wizard) via a React picker.
   Classes differ only by starting stats + starting gear (no skills, no build).
@@ -28,7 +66,10 @@ building those systems in dependency order.
 
 ## 2. Depth gap analysis
 
-| SPD pillar | rogue0 today | Target |
+The middle column is the **original baseline**; consult §1 and phase status
+notes for current implementation.
+
+| SPD pillar | Original baseline | Target |
 |---|---|---|
 | Status effects & damage types | none (raw HP) | burning, poison, frost, bleed, cripple, blind, buffs; fire/ice/shock/poison interactions |
 | Item risk (identify/curses) | items known & safe | unidentified potions/scrolls, cursed gear, identify/upgrade scrolls |
@@ -61,14 +102,18 @@ building those systems in dependency order.
 
 ## 4. Architecture groundwork (build in this order)
 
-These are the load-bearing systems. Most later phases assume they exist.
+These are the original design briefs, not a list of missing files. G1/G2,
+G5/G6 and the G8 modal framework are implemented; G3/G4 are partial; G7's
+special rooms/regions are outstanding. Most later phases assume these systems
+exist. Current implementation details in §1 supersede outdated proposals below.
 
 ### G1 — Status effects (`effects.ts`, new)
 A `StatusEffect` type and an `effects: StatusEffect[]` field on `Entity`.
 
 - `effect = { id, name, iconTile, duration, apply(e,c), tick(e,c), remove(e,c) }`
-- Effects tick on the entity's `refresh()` (once per turn) and apply/expire
-  cleanly with a message log line.
+- Effects use elapsed-world-time scheduling with independent tick phases,
+  and apply/expire cleanly with message log lines. `refresh()` is not a
+  once-per-action effect clock.
 - Store on the entity so `onDestroy` can clean them up.
 - First effects to implement: `burning`, `poisoned`, `bleeding`, `regeneration`,
   `frozen` (skip turn), `weakened` (ATK down), `crippled` (movement down).
@@ -160,31 +205,37 @@ HUD + modal window system.
 ### Phase 5 — Combat & status depth
 *Depends on G1, G2.*
 
-- [ ] Implement `effects.ts` and tick lifecycle.
-- [ ] Implement `combat.ts` (accuracy, armour, types, crits, surprise).
-- [ ] Add resistances/vulnerabilities to monsters and heroes.
-- [ ] Wire burning/poison/bleed/frozen into items and a couple of monsters.
-- [ ] Surprise attack: unseen attacker auto-hits with bonus + possible bleed.
+- [x] Implement `effects.ts` and tick lifecycle (elapsed world time).
+- [x] Implement `combat.ts` (accuracy, armour, types, crits, surprise).
+- [x] Add resistance/vulnerability fields to actors and monster-specific values.
+- [x] Wire burning/poison/bleed/frozen into items and monsters.
+- [x] Surprise attack: unseen/unaware defender, auto-hit + bonus + possible bleed.
+- [ ] Playtest damage/status interactions and balance across all five classes.
 - **Acceptance:** a fight can end in multiple ways (burn tick, bleed-out, crit,
   frozen skip) and the log explains what happened.
 
 ### Phase 6 — Item risk & progression
 *Depends on G3, G6.*
 
-- [ ] Identification: unknown consumables/gear; identify by use or scroll.
-- [ ] Cursed gear (can't unequip, penalty) + Remove Curse.
-- [ ] Scroll of Upgrade (+1 to tier/level), equipment tiers 1–5.
-- [ ] Wands with charges + Recharging scroll.
-- [ ] Rings (e.g. Accuracy, Evasion, Elements, Haste, Might) and 1–2 artifacts.
+- [x] Identification: unknown consumables/gear; identify by use or scroll.
+- [x] Cursed gear (can't unequip, penalty) + Remove Curse.
+- [x] Scroll of Upgrade and item upgrade-level model.
+- [ ] Complete and balance equipment tiers 1–5, enchantments/glyphs.
+- [x] Wands with charges + Recharging scroll.
+- [x] Rings (Accuracy, Evasion, Elements, Haste, Might) and two artifacts.
+- [ ] Audit identification leaks and curse handling across every inventory action.
 - **Acceptance:** deciding whether to equip an unidentified item is a real,
   tense choice with consequences in both directions.
 
 ### Phase 7 — Terrain & environment
 *Depends on G4.*
 
-- [ ] Doors (open/close/secret) + search action.
-- [ ] Traps (hidden → trigger on step; search reveals; a few can be disarmed).
-- [ ] Grass (burn + conceal), water (douse/freeze), chasm (fall/push).
+- [x] Doors open on entry and close behind actors; monsters traverse doors.
+- [x] Search reveals adjacent hidden traps; dart/fire/frost/teleport traps trigger.
+- [x] Burning actors ignite grass; stepping into water douses burning.
+- [x] Chasms block ordinary movement.
+- [ ] Secret doors, trap disarming and summon/alarm traps.
+- [ ] Grass concealment, frozen water, chasm falling/pushing and functional levitation.
 - [ ] Elemental combos: fire spreads on grass, frost freezes water, shock arcs
       in water, poison lingers in gas clouds.
 - **Acceptance:** positioning and terrain become a first-class tactical layer,
@@ -193,7 +244,13 @@ HUD + modal window system.
 ### Phase 8 — Enemy & boss redesign
 *Depends on G1, G2.*
 
-- [ ] Give every monster a signature ability (SPD-style):
+Implemented foundations: Skeleton stays dead; Quloptsh has on-hit effects;
+Ghoul has fast movement, regeneration and on-hit effects; Brute enrages;
+cultists summon, swarms split on death, and elementals have typed effects.
+Mimic/wraith classes exist, but that alone does not complete their intended AI.
+Archer currently attacks in range rather than kiting. Door-aware pursuit exists.
+
+- [ ] Finish every monster's intended signature ability (SPD-style):
   - Skeleton → basic brittle melee enemy; stays dead when killed (no reanimation).
   - Quloptsh → hard to see (short FOV for player) / backstabs.
   - Archer → kites, retreats when you close.
@@ -215,15 +272,16 @@ HUD + modal window system.
       Wizard → Pyro/Storm).
 - [ ] Talents: pick 1 of N per level-up (passive/active), replacing flat +5/+1.
 - [ ] Level-up lets the player choose a stat (HP/ATK/DEF/speed/vision).
-- [ ] Per-class active skill with a cooldown (charge over turns).
+- [x] Per-class active skill with a cooldown (elapsed-world-time timestamps).
 - **Acceptance:** two runs of the same class can diverge meaningfully by
   floor 5.
 
 ### Phase 10 — Survival & economy
 *Depends on G5, G7.*
 
-- [ ] Hunger + food (ration drops, cooking later).
-- [ ] Gold drops, shop stock (Identify/Upgrade/Remove Curse, food, Ankh).
+- [x] Hunger, starvation, well-fed regeneration and ration drops.
+- [x] Monster kills award gold.
+- [ ] Shop stock (Identify/Upgrade/Remove Curse, food, Ankh); cooking later.
 - [ ] Sell unwanted items; buy back sold items.
 - [ ] Ankh (revival) + blessed Ankh (full heal on death).
 - **Acceptance:** the player budgets food/gold across a region, not just HP.
@@ -231,7 +289,9 @@ HUD + modal window system.
 ### Phase 11 — Consumables & alchemy
 *Depends on G3, G4 (alchemy pot tile).*
 
-- [ ] Expand potions/scrolls to the full risk/reward set.
+- [x] Add Strength, Invisibility, Toxic Gas, Liquid Flame, Frost, Levitation,
+      Experience and scaled Healing potions; Teleport/Rage/Terror/Recharging scrolls.
+- [ ] Complete terrain integration (notably levitation) and audit consumable balance.
 - [ ] Seeds dropped from plants; plant/grow seeds in grass.
 - [ ] Alchemy pot: combine seeds + potions to brew (e.g. 3 seeds → 1 potion,
       potion + seed → exotic potion).
@@ -268,6 +328,14 @@ HUD + modal window system.
 
 ### Phase 15 — SPD-style UI & inventory overhaul
 *Depends on G6 (slots) and G8 (window system); pairs with Phase 6.*
+
+**Core implementation landed:** dedicated inventory window, equipped-slot row,
+20-slot four-column backpack, unknown-item icons, item action dialog, throwing
+and modal input gating. The window scales to the viewport rather than paging.
+Item details are displayed in the dialog; a separate Inspect action is not
+implemented. Remaining boxes below describe the full original UX targets,
+not absence of the inventory system. Verify HUD buffs, tooltips, quick-key
+coverage and small-screen readability before marking this phase complete.
 
 - [ ] Add the **Backpack button** (bag icon) to the HUD; open/close the
       inventory window with the button or `i`/`Esc`.
@@ -314,8 +382,20 @@ HUD + modal window system.
 
 ## 6. Suggested sequencing
 
-1. **G1 + G2 + Phase 5** — highest leverage: every later system wants status
-   effects and a real combat model.
+### Next implementation priorities
+
+1. **Stabilise the implemented systems:** run scheduling regressions and
+   playtest identification, curses, inventory actions and status timing.
+2. **Finish Phase 7's terrain interactions** before adding more consumables.
+3. **Finish Phase 8:** archer kiting and remaining signatures, then a
+   telegraphed, multi-phase Bone Lord fight within the existing five floors.
+4. **Phase 9 choices + Phase 10 shops:** make class builds and gold meaningful.
+5. **Phase 15 polish and Phase 13 save/resume**, then expand regions only after
+   the short run is balanced. Keep Phase 16 deferred unless explicitly prioritised.
+
+### Original dependency order (reference)
+
+1. **G1 + G2 + Phase 5** — core implementation landed; validate and balance.
 2. **G3 + G6 + G8 + Phase 6 + Phase 15** — the identification/curse/upgrade
    loop is the core of SPD's feel, and the backpack window replaces the
    sidebar inventory as soon as items exceed its space.
@@ -335,16 +415,16 @@ HUD + modal window system.
 - **Keep the existing visual style and turn engine.** These changes are
   mechanical, not presentational; the tile sprite approach already supports
   new tile/effect icons.
-- **Turn manager stays poll-based** until an effect/event system requires
-  otherwise; `isOver()` is already side-effect free, so this is safe.
-- **Status effects tick on `refresh()`** (once per entity turn), which keeps
-  the turn loop deterministic and testable.
+- **Preserve the discrete-event timeline.** Render polling must not determine
+  logical time; fractional movement/attack costs accumulate without rounding.
+- **Status effects follow elapsed world time**, with independent tick phases;
+  hunger/regeneration and cooldowns must not accelerate with faster movement.
 - **Combat numbers move to `combat.ts`** so balance lives in one place and
   monster/hero classes only declare stats + resistances.
-- **Unidentified items use `?potion`/`?scroll` names** in the log/inventory
+- **Unidentified items use generic category names and placeholder textures**
   and reveal their identity on use — the core SPD risk loop.
-- **`maxFloor` moves to region length (~25)**; the current `3` stays as the
-  default only until Phase 14 lands.
+- **Current `maxFloor` is 5.** The ~25-floor region target remains provisional:
+  validate it against the 20–40 minute run goal before expanding.
 - **Cursed items are locked on** until Remove Curse/well — do not allow
   unequipping via the normal toggle path.
 - **Ranged/melee and click-vs-keyboard controls stay as-is**; new systems

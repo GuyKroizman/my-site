@@ -123,7 +123,8 @@ const dungeon = {
 };
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, dungeon, isModalOpen: () => false, hasEffect,
-  getTrapState: () => undefined, sfx: { potion() {} }
+  getTrapState: () => undefined, sfx: { potion() {} },
+  spawnEntityFloatingText() {}
 }).default;
 const hero = new Entity();
 Object.setPrototypeOf(hero, Hero.prototype);
@@ -175,6 +176,23 @@ assert.equal(picked, 1, 'rooted player cannot pick up an adjacent item');
 assert.equal(hero.canAct(), true, 'rooting still allows other actions');
 hero.waitTurn();
 assert.equal(hero.canAct(), false);
+// Hunger lasts four times as long without changing the world-time tick rate.
+Object.assign(hero, { hunger: 100, maxHunger: 100, healthPoints: 1000, maxHealthPoints: 1000 });
+let starvationDamage = 0;
+hero.takeDamage = amount => { starvationDamage += amount; };
+for (let tick = 0; tick < 399; tick++) hero.refresh();
+assert.equal(hero.hunger, 0.25);
+assert.equal(starvationDamage, 0, 'no starvation before 400 normal moves');
+hero.refresh();
+assert.equal(hero.hunger, 0);
+assert.equal(starvationDamage, 1);
+hero.refresh();
+assert.equal(hero.hunger, 0, 'hunger cannot become negative');
+hero.restoreHunger(25);
+for (let tick = 0; tick < 99; tick++) hero.refresh();
+assert.equal(hero.hunger, 0.25, 'restored food also lasts four times as long');
+assert.equal(starvationDamage, 2, 'eating stops starvation damage');
+
 // A buff applied between integer time boundaries keeps its full lifetime.
 const effects = load('src/games/rogue0/effects.ts', { spawnEntityFloatingText() {} });
 ({ player, enemy, entities } = setup());
