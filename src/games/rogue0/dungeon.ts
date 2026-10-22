@@ -98,12 +98,21 @@ let dungeon = {
   // fresh grid clone to avoid stale state between calls.
   // `throughDoors` (player) temporarily treats closed doors as walkable so the
   // player can path up to and open them; enemies keep doors as blockers.
-  findCardinalPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false): number[][] {
+  findCardinalPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false, avoidTraps = false): number[][] {
     const grid = this.pathGrid!.clone();
     if (throughDoors) {
       tiles.forEachFeature((x, y, s) => {
         if (s.feature === "door" && s.door === "closed") {
           grid.setWalkableAt(x, y, true);
+        }
+      });
+    }
+    // Only the explicitly selected destination may be a revealed trap.
+    // Apply this on every search so newly revealed traps also stop auto-walk.
+    if (avoidTraps) {
+      tiles.forEachFeature((x, y, s) => {
+        if (s.feature === "trap" && s.trap === "visible" && (x !== tx || y !== ty)) {
+          grid.setWalkableAt(x, y, false);
         }
       });
     }

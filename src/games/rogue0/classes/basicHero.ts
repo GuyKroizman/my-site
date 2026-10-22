@@ -3,6 +3,7 @@ import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
 import { isModalOpen, type GameContext } from "../context";
 import dungeon from "../dungeon";
+import { getTrapState } from "../tiles";
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
 import {
@@ -731,7 +732,7 @@ export default class BasicHero extends Entity {
 
   private nextStepToward(tx: number, ty: number): { x: number; y: number } | null {
     if (this.x === undefined || this.y === undefined) return null;
-    const path = dungeon.findCardinalPath(this.x, this.y, tx, ty, true);
+    const path = dungeon.findCardinalPath(this.x, this.y, tx, ty, true, true);
     if (path.length > 1) return { x: path[1][0], y: path[1][1] };
     return null;
   }
@@ -747,7 +748,7 @@ export default class BasicHero extends Entity {
         this.context.visibleTiles.has(`${entity.x},${entity.y}`)
       )
     );
-    const path = dungeon.findCardinalPath(this.x, this.y, tx, ty, true);
+    const path = dungeon.findCardinalPath(this.x, this.y, tx, ty, true, true);
     this.walkPath =
       path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
   }
@@ -1335,6 +1336,8 @@ export default class BasicHero extends Entity {
     if (moved) {
       this.context.onResumeFollow?.();
       this.walkPath = []; // manual input cancels auto-walk
+      // Entering a revealed trap requires explicitly clicking its tile.
+      if (getTrapState(newX, newY) === "visible") return;
       this.movementPoints -= 1;
 
       if (!dungeon.isWalkableTile(this.context, newX, newY)) {
