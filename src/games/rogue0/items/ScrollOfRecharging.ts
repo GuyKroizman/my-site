@@ -5,6 +5,7 @@ import dungeon from "../dungeon";
 import Wand from "./wand";
 
 export default class ScrollOfRecharging extends Entity {
+  textureKey = "scroll-recharging";
   type: EntityType = "item";
   tier = 1;
   equipSlot: "consumable" = "consumable";

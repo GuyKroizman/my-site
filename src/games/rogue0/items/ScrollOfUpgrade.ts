@@ -11,6 +11,7 @@ export default class ScrollOfUpgrade extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile = 15 * 49 + 36;
+  textureKey = "scroll-upgrade";
   consumable = true;
   identified = false;
   tier = 1;

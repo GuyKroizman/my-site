@@ -156,6 +156,10 @@ export class Scene0 extends Phaser.Scene {
   }
 
   preload() {
+    for (const kind of ["fireball", "lightning", "identify", "upgrade", "remove-curse", "teleport", "rage", "terror", "recharging"]) {
+      this.load.image(`scroll-${kind}`, `/rogue0/items/scroll-${kind}.png`);
+    }
+    this.load.image("unknown-scroll", "/rogue0/items/scroll.png");
     this.load.spritesheet("tiles", "/colored.png", {
       frameWidth: 16,
       frameHeight: 16,

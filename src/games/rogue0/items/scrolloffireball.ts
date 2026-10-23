@@ -5,6 +5,7 @@ import { Entity } from "../entity";
 
 export default class ScrollOfFireball extends Entity {
   type: EntityType = "item";
+  textureKey = "scroll-fireball";
   tier = 1;
   equipSlot: "weapon" = "weapon";
 

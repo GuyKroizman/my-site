@@ -8,6 +8,7 @@ import dungeon from "../dungeon";
 const MAX_VISIBLE_X = 67;
 
 export default class ScrollOfTeleport extends Entity {
+  textureKey = "scroll-teleport";
   type: EntityType = "item";
   tier = 1;
   equipSlot: "consumable" = "consumable";

@@ -5,6 +5,7 @@ import { Entity } from "../entity";
 
 export default class ScrollOfLightning extends Entity {
   type: EntityType = "item";
+  textureKey = "scroll-lightning";
   tier = 1;
   equipSlot: "weapon" = "weapon";
 

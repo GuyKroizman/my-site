@@ -9,6 +9,7 @@ export default class ScrollOfRemoveCurse extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile = 15 * 49 + 37;
+  textureKey = "scroll-remove-curse";
   consumable = true;
   identified = false;
   tier = 1;

@@ -4,6 +4,7 @@ import { Entity, removeEntity } from "../entity";
 import { applyEffect, createStrengthenedEffect } from "../effects";
 
 export default class ScrollOfRage extends Entity {
+  textureKey = "scroll-rage";
   type: EntityType = "item";
   tier = 1;
   equipSlot: "consumable" = "consumable";

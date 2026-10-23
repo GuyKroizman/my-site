@@ -10,6 +10,7 @@ export default class ScrollOfIdentify extends Entity {
   moving: boolean = false;
   type: EntityType = "item";
   tile = 15 * 49 + 35;
+  textureKey = "scroll-identify";
   consumable = true;
   identified = false;
   tier = 1;

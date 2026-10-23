@@ -94,6 +94,8 @@ export abstract class Entity {
   // Generic icon used while an item is unidentified (distinguishes category
   // without revealing what the item is).
   get unidentifiedTextureKey(): string {
+    // Preserve the scroll's glyph before identification, while hiding its name/effect.
+    if (this.textureKey?.startsWith("scroll-")) return this.textureKey;
     switch (this.equipSlot) {
       case "consumable":
         return /scroll/i.test(this.name) ? "unknown-scroll" : "unknown-potion";

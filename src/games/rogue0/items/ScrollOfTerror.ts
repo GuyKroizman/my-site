@@ -5,6 +5,7 @@ import { applyEffect, createTerrifiedEffect } from "../effects";
 import dungeon from "../dungeon";
 
 export default class ScrollOfTerror extends Entity {
+  textureKey = "scroll-terror";
   type: EntityType = "item";
   tier = 1;
   equipSlot: "consumable" = "consumable";
