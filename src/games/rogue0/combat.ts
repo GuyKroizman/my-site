@@ -37,7 +37,7 @@ const STRENGTHENED_ATTACK_BONUS = 2;
 
 function log(context: GameContext, text: string): void {
   context.messages.unshift(text);
-  context.messages = context.messages.slice(0, 8);
+  context.messages = context.messages.slice(0, 20);
 }
 
 export function isSurpriseAttack(

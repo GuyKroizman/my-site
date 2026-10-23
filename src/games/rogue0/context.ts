@@ -26,6 +26,7 @@ export type GameContext = {
   stairsY?: number;
   inventoryOpen?: boolean;
   heroModalOpen?: boolean;
+  logModalOpen?: boolean;
   helpOpen?: boolean;
   inspectChoices?: Entity[];
   inspectedEntity?: Entity;
@@ -53,7 +54,7 @@ export type GameContext = {
 };
 
 export function isModalOpen(context: GameContext): boolean {
-  return !!(context.inventoryOpen || context.heroModalOpen || context.helpOpen ||
+  return !!(context.inventoryOpen || context.heroModalOpen || context.logModalOpen || context.helpOpen ||
     context.inspectChoices?.length || context.inspectedEntity || context.inspectedTerrain);
 }
 

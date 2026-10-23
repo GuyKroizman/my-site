@@ -572,7 +572,7 @@ let dungeon = {
 
   log: function (context: GameContext, text: string): void {
     context.messages.unshift(text);
-    context.messages = context.messages.slice(0, 8);
+    context.messages = context.messages.slice(0, 20);
   },
 
   applyHitEffects: function (context: GameContext, victim: Entity): void {

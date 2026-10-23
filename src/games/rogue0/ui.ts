@@ -1,5 +1,6 @@
 import { isModalOpen, type GameContext } from "./context";
 import { InventoryWindow } from "./inventoryWindow";
+import { LogWindow } from "./logWindow";
 
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
@@ -61,6 +62,8 @@ export class UI extends Phaser.Scene {
 
   private logPanel: Phaser.GameObjects.Rectangle | undefined;
   private logTitle: Phaser.GameObjects.Text | undefined;
+  private logClip: Phaser.GameObjects.Graphics | undefined;
+  private logWindow: LogWindow | undefined;
   private toolbar: ToolbarButton[] = [];
 
   constructor(context: GameContext) {
@@ -77,11 +80,16 @@ export class UI extends Phaser.Scene {
 
   create() {
     this.inventoryWindow = new InventoryWindow(this, this.context);
+    this.logWindow = new LogWindow(this, this.context);
 
     // i / b toggle the inventory window; Esc closes it.
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
       if (this.context.helpOpen) return;
       const key = event.key;
+      if (this.context.logModalOpen) {
+        if (key === "Escape") this.logWindow?.close();
+        return;
+      }
       if (key === "i" || key === "I" || key === "b" || key === "B") {
         this.closeHeroModal();
         this.inventoryWindow?.toggle();
@@ -197,8 +205,10 @@ export class UI extends Phaser.Scene {
   }
 
   private buildLog() {
-    this.logPanel = this.add.rectangle(0, 0, 100, 60, C.panel, 0.9).setOrigin(0);
-    this.logTitle = this.add.text(0, 0, "Log", {
+    this.logPanel = this.add.rectangle(0, 0, 100, 60, C.panel, 0.9).setOrigin(0)
+      .setInteractive({ useHandCursor: true });
+    this.logPanel.on("pointerup", () => this.logWindow?.open());
+    this.logTitle = this.add.text(0, 0, "Log · tap for history", {
       fontFamily: `"${FONT_PIXEL}", monospace`,
       fontSize: 8,
       color: COL.gold
@@ -209,6 +219,12 @@ export class UI extends Phaser.Scene {
       color: COL.muted,
       lineSpacing: 2,
       wordWrap: { width: 400, useAdvancedWrap: true }
+    });
+    this.logClip = this.make.graphics({ x: 0, y: 0 });
+    this.log.setMask(this.logClip.createGeometryMask());
+    this.events.once("shutdown", () => {
+      this.log?.clearMask(true);
+      this.logClip?.destroy();
     });
   }
 
@@ -311,6 +327,8 @@ export class UI extends Phaser.Scene {
     this.logTitle?.setPosition(logX + 8, logY + 4);
     this.log?.setPosition(logX + 8, logY + 20);
     this.log?.setWordWrapWidth(logW - 16);
+    this.logClip?.clear().fillStyle(0xffffff).fillRect(logX + 8, logY + 20, logW - 16, logH - 28);
+    this.logWindow?.layout();
 
     // Hero modal: clamp to the viewport and center it.
     const heroW = Math.min(320, w - 16);

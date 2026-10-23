@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:rogue0": "node scripts/test-rogue0-movement.mjs && node scripts/test-rogue0-vision.mjs",
+    "test:rogue0": "node scripts/test-rogue0-movement.mjs && node scripts/test-rogue0-vision.mjs && node scripts/test-rogue0-log.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "security:check": "npm audit",
