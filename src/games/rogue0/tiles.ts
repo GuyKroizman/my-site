@@ -12,6 +12,8 @@ export type TrapState = "hidden" | "visible" | "triggered";
 export type TrapKind = "dart" | "fire" | "frost" | "teleport";
 
 export type TileState = {
+  // Optical override for glass walls/crystal doors, independent of movement.
+  blocksSight?: boolean;
   feature: TerrainFeature;
   door?: DoorState;
   trap?: TrapState;
@@ -20,6 +22,7 @@ export type TileState = {
 
 // Placement returned by mapgen so scene0 can populate this overlay.
 export type FeaturePlacement = {
+  blocksSight?: boolean;
   x: number;
   y: number;
   feature: TerrainFeature;
@@ -51,13 +54,14 @@ export function setFeature(
   x: number,
   y: number,
   feature: TerrainFeature,
-  opts: { door?: DoorState; trap?: TrapState; trapKind?: TrapKind } = {}
+  opts: { door?: DoorState; trap?: TrapState; trapKind?: TrapKind; blocksSight?: boolean } = {}
 ): void {
   const k = key(x, y);
   const existing = features.get(k);
   const stored: StoredTile = existing ?? { feature, x, y };
 
   stored.feature = feature;
+  stored.blocksSight = opts.blocksSight;
 
   if (feature === "door") {
     stored.door = opts.door ?? stored.door ?? "closed";

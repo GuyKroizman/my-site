@@ -2,7 +2,32 @@
 // `map` is a 2D array where 0 = walkable, 1 = wall.
 //
 // Closed doors hide tiles beyond them, but the door itself stays visible.
-import { getDoorState } from "./tiles";
+import { getDoorState, getTileState } from "./tiles";
+
+export type VisionParameters = {
+  baseRadius?: number;
+  dark?: boolean;
+  torch?: boolean;
+  magicalSight?: boolean;
+  mindVision?: boolean;
+  blinded?: boolean;
+};
+
+export function resolveVision(parameters: VisionParameters = {}) {
+  return {
+    radius: parameters.blinded ? 0 : parameters.magicalSight ? 12
+      : parameters.dark && !parameters.torch ? 4 : (parameters.baseRadius ?? 8),
+    ignoreObstacles: !!parameters.magicalSight && !parameters.blinded,
+    mindVision: !!parameters.mindVision
+  };
+}
+
+export function blocksSight(map: number[][], x: number, y: number): boolean {
+  if (map[y]?.[x] === undefined) return true;
+  const state = getTileState(x, y);
+  if (state?.blocksSight !== undefined) return state.blocksSight;
+  return map[y][x] === 1 || getDoorState(x, y) === "closed" || state?.feature === "grass";
+}
 
 export function bresenhamLine(
   x0: number,
@@ -43,10 +68,13 @@ export function hasLineOfSight(
   x1: number,
   y1: number
 ): boolean {
-  const points = bresenhamLine(x0, y0, x1, y1);
+  if (map[y0]?.[x0] === undefined || map[y1]?.[x1] === undefined) return false;
+  // Canonical direction removes Bresenham tie-breaking asymmetry.
+  const reverse = x0 > x1 || (x0 === x1 && y0 > y1);
+  const points = reverse ? bresenhamLine(x1, y1, x0, y0).reverse()
+    : bresenhamLine(x0, y0, x1, y1);
 
-  const opaque = (x: number, y: number) =>
-    map[y]?.[x] === 1 || getDoorState(x, y) === "closed";
+  const opaque = (x: number, y: number) => blocksSight(map, x, y);
 
   // Do not peek diagonally across the edge of a pillar or closed doorway.
   // Otherwise circling a single-tile pillar never reliably breaks sight.
@@ -80,20 +108,21 @@ export function computeFOV(
   map: number[][],
   px: number,
   py: number,
-  radius: number
+  radius: number = 8,
+  ignoreObstacles = false
 ): Set<string> {
   const visible = new Set<string>();
-  const r = Math.floor(radius);
+  const r = Number.isFinite(radius) ? Math.max(0, Math.floor(radius)) : 0;
 
   for (let y = py - r; y <= py + r; y++) {
     for (let x = px - r; x <= px + r; x++) {
-      if (x < 0 || y < 0 || x >= map[0].length || y >= map.length) continue;
+      if (x < 0 || y < 0 || y >= map.length || x >= map[y].length) continue;
 
       const dx = x - px;
       const dy = y - py;
       if (dx * dx + dy * dy > r * r) continue;
 
-      if (hasLineOfSight(map, px, py, x, y)) {
+      if (ignoreObstacles || hasLineOfSight(map, px, py, x, y)) {
         visible.add(`${x},${y}`);
       }
     }

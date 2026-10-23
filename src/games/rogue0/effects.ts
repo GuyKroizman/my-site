@@ -264,7 +264,20 @@ export function createTerrifiedEffect(duration = 4): StatusEffect {
   };
 }
 
-// Lowers accuracy while active and restores it exactly on expiry.
+// Vision effects are resolved dynamically by scene0; expiry restores normal sight.
+export function createTorchEffect(duration = 100): StatusEffect {
+  return { id: "torch", name: "Torchlight", iconTile: 19 * 49 + 43, duration };
+}
+
+export function createMagicalSightEffect(duration = 20): StatusEffect {
+  return { id: "magical-sight", name: "Magical Sight", iconTile: 19 * 49 + 44, duration };
+}
+
+export function createMindVisionEffect(duration = 20): StatusEffect {
+  return { id: "mind-vision", name: "Mind Vision", iconTile: 19 * 49 + 44, duration };
+}
+
+// Reduces sight to the current cell and lowers accuracy until expiry.
 export function createBlindedEffect(duration = 4): StatusEffect {
   let originalAccuracy: number | undefined;
 

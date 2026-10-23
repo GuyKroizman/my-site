@@ -274,7 +274,10 @@ assert.equal(deathContext.entities.length, 0, 'killed skeleton does not reanimat
 
 // Cover, awareness, and pursuit use real sight/combat/AI logic.
 const doors = new Map();
-const terrain = { getDoorState: (x, y) => doors.get(`${x},${y}`) };
+const terrain = {
+  getDoorState: (x, y) => doors.get(`${x},${y}`),
+  getTileState: () => undefined
+};
 const sight = load('src/games/rogue0/fov.ts', terrain);
 const arena = Array.from({ length: 7 }, () => Array(7).fill(0));
 const combat = load('src/games/rogue0/combat.ts', {

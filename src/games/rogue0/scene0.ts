@@ -55,7 +55,8 @@ import {
   findFarthestWalkable,
   randomWalkableTiles
 } from "./mapgen";
-import { computeFOV } from "./fov";
+import { computeFOV, resolveVision } from "./fov";
+import { hasEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import * as tiles from "./tiles";
@@ -132,10 +133,19 @@ export class Scene0 extends Phaser.Scene {
   private lastFovX?: number;
   private lastFovY?: number;
 
-  // Keep the first five floors well lit, then retain the deeper-floor darkness.
-  private getVisionRadius(): number {
-    if (this.context.floor <= 5) return 13 - this.context.floor;
-    return Math.max(3, 8 - (this.context.floor - 1));
+  private lastVisionState = "";
+  private mindMarkers!: Phaser.GameObjects.Graphics;
+
+  private getVision() {
+    const player = this.context.player;
+    const active = (id: string) => !!player && hasEffect(player, id);
+    return resolveVision({
+      dark: this.context.darkLevel ?? this.context.floor > 5,
+      torch: active("torch"),
+      magicalSight: active("magical-sight"),
+      mindVision: active("mind-vision"),
+      blinded: active("blinded")
+    });
   }
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private cursor!: Phaser.GameObjects.Graphics;
@@ -187,6 +197,7 @@ export class Scene0 extends Phaser.Scene {
 
     // Fog-of-war overlay drawn above tiles and entities.
     this.fog = this.add.graphics().setDepth(100);
+    this.mindMarkers = this.add.graphics().setDepth(101);
 
     // Inspect/throw cursor, drawn above entities and fog.
     this.cursor = this.add.graphics().setDepth(300);
@@ -529,9 +540,16 @@ export class Scene0 extends Phaser.Scene {
     const p = this.context.player;
     if (!p || p.x === undefined || p.y === undefined) return;
 
-    if (p.x !== this.lastFovX || p.y !== this.lastFovY) {
+    // Include effects, time and terrain: waiting, opening a door, burning grass,
+    // and buff expiry must refresh sight even when the hero does not move.
+    const terrain: string[] = [];
+    tiles.forEachFeature((x, y, state) => terrain.push(`${x},${y}:${JSON.stringify(state)}`));
+    const state = JSON.stringify([this.getVision(), this.context.simulationTime, terrain]);
+    if (p.x !== this.lastFovX || p.y !== this.lastFovY || state !== this.lastVisionState) {
+      this.lastVisionState = state;
       this.recomputeFOV();
     }
+    this.applyEntityVisibility();
   }
 
   private recomputeFOV() {
@@ -539,7 +557,8 @@ export class Scene0 extends Phaser.Scene {
     if (!p || p.x === undefined || p.y === undefined) return;
 
     const map = dungeon.getCurrentLevel();
-    this.visible = computeFOV(map, p.x, p.y, this.getVisionRadius());
+    const vision = this.getVision();
+    this.visible = computeFOV(map, p.x, p.y, vision.radius, vision.ignoreObstacles);
     this.context.visibleTiles = this.visible;
 
     for (const key of this.visible) {
@@ -587,6 +606,8 @@ export class Scene0 extends Phaser.Scene {
 
   private applyEntityVisibility() {
     const player = this.context.player;
+    const mindVision = this.getVision().mindVision;
+    this.mindMarkers.clear();
 
     for (const entity of this.context.entities) {
       if (entity === player) continue;
@@ -603,6 +624,14 @@ export class Scene0 extends Phaser.Scene {
       // Monsters are only shown while actually visible; items stay
       // remembered (dimmed by fog) once discovered.
       entity.sprite?.setVisible(entity.type === "enemy" ? visible : seen);
+      // Mark minds, not terrain: never add these cells to visible/seen or
+      // targeting LOS. Markers sit above opaque fog, unlike normal sprites.
+      if (mindVision && entity.type === "enemy" && entity.healthPoints > 0 && !visible) {
+        this.mindMarkers.lineStyle(1, 0xd99bff, 1);
+        this.mindMarkers.strokeCircle(entity.x * 16 + 8, entity.y * 16 + 8, 5);
+        this.mindMarkers.fillStyle(0xd99bff, 1);
+        this.mindMarkers.fillCircle(entity.x * 16 + 8, entity.y * 16 + 8, 2);
+      }
     }
 
     if (
@@ -648,6 +677,7 @@ export class Scene0 extends Phaser.Scene {
     for (const f of features) {
       tiles.setFeature(f.x, f.y, f.feature, {
         door: f.door,
+        blocksSight: f.blocksSight,
         trap: f.trap,
         trapKind: f.trapKind
       });

@@ -17,6 +17,8 @@ export type GameContext = {
   // Discrete-event clock, in normal-action units (not wall-clock seconds).
   simulationTime?: number;
   floor: number;
+  // Optional floor lighting override; deeper floors default to dark.
+  darkLevel?: boolean;
   maxFloor: number;
   kills: number;
   heroClass: string;

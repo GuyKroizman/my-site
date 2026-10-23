@@ -1,0 +1,77 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+
+function load(path, bindings = {}) {
+  const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
+  const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
+  const exports = {};
+  new Function('exports', ...Object.keys(bindings), js)(exports, ...Object.values(bindings));
+  return exports;
+}
+const tiles = load('src/games/rogue0/tiles.ts');
+const { computeFOV, hasLineOfSight, resolveVision } = load('src/games/rogue0/fov.ts', tiles);
+const map = Array.from({ length: 31 }, () => Array(31).fill(0));
+const sees = (x, y) => computeFOV(map, 15, 15).has(`${x},${y}`);
+assert.ok(sees(23, 15));
+assert.ok(!sees(24, 15));
+assert.ok(!sees(23, 23), 'Euclidean radius excludes distant diagonal');
+assert.deepEqual([...computeFOV(map, 15, 15, 0)], ['15,15']);
+assert.equal(hasLineOfSight(map, -1, 0, 0, 0), false);
+
+map[15][17] = 1;
+assert.ok(sees(17, 15), 'opaque endpoint is visible');
+assert.ok(!sees(18, 15), 'wall blocks tiles behind it');
+map[15][17] = 0;
+for (const feature of ['door', 'grass']) {
+  tiles.setFeature(17, 15, feature);
+  assert.ok(sees(17, 15), `${feature} is visible`);
+  assert.ok(!sees(18, 15), `${feature} blocks sight through it`);
+  tiles.clearAllFeatures();
+}
+tiles.setFeature(17, 15, 'door');
+tiles.setDoorState(17, 15, 'open');
+assert.ok(sees(18, 15), 'opening a door restores sight');
+tiles.setFeature(17, 15, 'door', { blocksSight: false, door: 'closed' });
+assert.ok(sees(18, 15), 'transparent closed door passes light');
+assert.ok(tiles.isBlocking(17, 15), 'transparent closed door still blocks movement');
+tiles.setFeature(17, 15, 'chasm');
+assert.ok(sees(18, 15), 'chasm is transparent');
+assert.ok(tiles.isBlocking(17, 15));
+tiles.clearAllFeatures();
+
+// A doorway in a solid wall produces angular shadows at its jambs.
+for (let y = 0; y < 31; y++) map[y][17] = y === 15 ? 0 : 1;
+assert.ok(sees(20, 15), 'see straight through doorway');
+assert.ok(!sees(18, 13), 'doorway jamb hides adjacent room corner');
+for (let x = 12; x <= 20; x++) {
+  for (let y = 12; y <= 20; y++) {
+    assert.equal(hasLineOfSight(map, 15, 15, x, y), hasLineOfSight(map, x, y, 15, 15), 'LOS is reciprocal');
+  }
+}
+const vision = resolveVision({ magicalSight: true, dark: true });
+assert.equal(vision.radius, 12);
+assert.ok(computeFOV(map, 15, 15, vision.radius, vision.ignoreObstacles).has('20,13'), 'magical sight ignores walls');
+assert.equal(resolveVision().radius, 8);
+assert.equal(resolveVision({ dark: true }).radius, 4);
+assert.equal(resolveVision({ dark: true, torch: true }).radius, 8);
+assert.equal(resolveVision({ magicalSight: true, blinded: true }).radius, 0);
+assert.equal(resolveVision({ magicalSight: true, blinded: true }).ignoreObstacles, false);
+assert.equal(resolveVision({ mindVision: true, blinded: true }).mindVision, true, 'mind sense is separate from optical sight');
+const ordinary = computeFOV(map, 15, 15, resolveVision().radius);
+const mind = computeFOV(map, 15, 15, resolveVision({ mindVision: true }).radius);
+assert.deepEqual(mind, ordinary, 'mind vision never reveals extra terrain');
+const effects = load('src/games/rogue0/effects.ts', { ...tiles, spawnEntityFloatingText() {} });
+const context = { simulationTime: 0, messages: [] };
+const hero = { name: 'Hero', effects: [], accuracy: 100, context };
+for (const factory of [effects.createTorchEffect, effects.createMagicalSightEffect,
+  effects.createMindVisionEffect, effects.createBlindedEffect]) {
+  const effect = factory(1);
+  effects.applyEffect(hero, effect);
+  assert.ok(effects.hasEffect(hero, effect.id));
+  context.simulationTime++;
+  effects.tickEffects(hero, context);
+  assert.ok(!effects.hasEffect(hero, effect.id), 'vision buffs expire on world time, including while waiting');
+}
+assert.equal(hero.accuracy, 100, 'blindness restores accuracy');
+console.log('Rogue0 vision geometry, terrain, doorway shadows, modifiers and effect expiry passed');
