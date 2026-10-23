@@ -12,9 +12,8 @@ import type { Entity } from "./entity";
 import type BasicHero from "./classes/basicHero";
 
 import Gem from "./items/gem";
-import Shield from "./items/shield";
 
-type Action = "use" | "equip" | "unequip" | "drop" | "throw" | "close" | "enchant-weapon" | "enchant-shield";
+type Action = "use" | "equip" | "unequip" | "drop" | "throw" | "close";
 
 const PAD = 16;
 const CELL = 38;
@@ -57,6 +56,7 @@ export class InventoryWindow {
   private open = false;
   private dirty = false;
   private menuItem: Entity | undefined;
+  private enchantingGem: Gem | undefined;
   // Top-level objects (overlay + containers) owned for cleanup. Containers
   // destroy their children when destroyed.
   private objects: Phaser.GameObjects.GameObject[] = [];
@@ -66,6 +66,12 @@ export class InventoryWindow {
   constructor(scene: Phaser.Scene, context: GameContext) {
     this.scene = scene;
     this.context = context;
+    context.onChooseEnchantment = (item) => {
+      if (!(item instanceof Gem)) return;
+      this.openWindow();
+      this.enchantingGem = item;
+      this.render();
+    };
   }
 
   isOpen(): boolean {
@@ -83,6 +89,7 @@ export class InventoryWindow {
   openWindow(): void {
     if (!this.context.player) return;
     this.open = true;
+    this.enchantingGem = undefined;
     this.context.inventoryOpen = true;
     this.menuItem = undefined;
     this.dirty = false;
@@ -98,6 +105,7 @@ export class InventoryWindow {
   close(): void {
     if (!this.open) return;
     this.open = false;
+    this.enchantingGem = undefined;
     this.context.inventoryOpen = false;
     this.menuItem = undefined;
 
@@ -183,7 +191,7 @@ export class InventoryWindow {
         .setStrokeStyle(1, C.border, 1)
     );
     this.winRoot.add(
-      this.scene.add.text(PAD, 11, "INVENTORY", {
+      this.scene.add.text(PAD, 11, this.enchantingGem ? "ENCHANT: CHOOSE GEAR" : "INVENTORY", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 9,
         color: COL.gold
       })
@@ -288,6 +296,7 @@ export class InventoryWindow {
     this.winRoot!.add(box);
 
     if (item) {
+      const disabled = !!this.enchantingGem && !this.enchantingGem.canEnchant(item);
       if (item.identified) {
         const icon = this.scene.add
           .sprite(x + CELL / 2, y + CELL / 2, item.spriteTextureKey, item.spriteFrame)
@@ -317,6 +326,11 @@ export class InventoryWindow {
         );
       }
 
+      if (disabled) {
+        // Draw over icon/count so ineligible items are visibly dimmed.
+        this.winRoot!.add(this.scene.add.rectangle(x, y, CELL, CELL, C.overlay, 0.7).setOrigin(0));
+        return;
+      }
       box.setInteractive({ useHandCursor: true });
       box.on("pointerover", () => {
         box.setStrokeStyle(selected ? 2 : 1, C.gold, 1);
@@ -329,6 +343,10 @@ export class InventoryWindow {
   }
 
   private openMenu(item: Entity): void {
+    if (this.enchantingGem) {
+      if (this.enchantingGem.enchant(item)) this.close();
+      return;
+    }
     this.menuItem = this.menuItem === item ? undefined : item;
     this.markDirty();
     this.refresh();
@@ -455,13 +473,6 @@ export class InventoryWindow {
   ): { action: Action; label: string; enabled: boolean }[] {
     const actions: { action: Action; label: string; enabled: boolean }[] = [];
 
-    if (item instanceof Gem) {
-      actions.push(
-        { action: "enchant-weapon", label: "Enchant weapon (+1 damage)", enabled: !!player.weapon },
-        { action: "enchant-shield", label: "Enchant shield (+1 protection)", enabled: player.armor instanceof Shield }
-      );
-    }
-
     if (item.consumable) {
       actions.push({ action: "use", label: "Use", enabled: true });
     }
@@ -493,10 +504,6 @@ export class InventoryWindow {
     if (!player) return;
 
     switch (action) {
-      case "enchant-weapon":
-      case "enchant-shield":
-        if (item instanceof Gem) item.enchant(action === "enchant-weapon" ? "weapon" : "armor");
-        break;
       case "use":
         player.useItem(item);
         break;

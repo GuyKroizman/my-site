@@ -124,7 +124,7 @@ const dungeon = {
   isWalkableTile: () => false, attackEntity() {}
 };
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
-  Entity, dungeon, isModalOpen: () => false, hasEffect,
+  Entity, Gem: class Gem {}, dungeon, isModalOpen: () => false, hasEffect,
   getTrapState: () => undefined, sfx: { potion() {} },
   spawnEntityFloatingText() {}
 }).default;

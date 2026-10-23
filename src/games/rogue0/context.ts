@@ -25,6 +25,7 @@ export type GameContext = {
   stairsX?: number;
   stairsY?: number;
   inventoryOpen?: boolean;
+  onChooseEnchantment?: (gem: Entity) => void;
   heroModalOpen?: boolean;
   logModalOpen?: boolean;
   helpOpen?: boolean;

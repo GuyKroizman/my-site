@@ -3,6 +3,7 @@ import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
 import { isModalOpen, type GameContext } from "../context";
 import dungeon from "../dungeon";
+import Gem from "../items/gem";
 import { getTrapState } from "../tiles";
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
@@ -408,6 +409,10 @@ export default class BasicHero extends Entity {
   useItem(item: Entity): boolean {
     if (!this.canAct() || !item.consumable || !this.getAllItems().includes(item)) return false;
 
+    if (item instanceof Gem) {
+      this.context.onChooseEnchantment?.(item);
+      return false; // Opening/cancelling target selection is not a spent action.
+    }
     if (!item.identified) {
       identify(item);
     }

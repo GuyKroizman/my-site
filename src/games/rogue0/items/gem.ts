@@ -6,7 +6,8 @@ import type { GameContext } from "../context";
 
 export default class Gem extends Entity {
   name: string = "Gem";
-  description: string = "Consumes one gem to permanently enchant your equipped weapon (+1 damage) or shield (+1 protection). Choose a target below. Costs one turn.";
+  description: string = "Use to choose a weapon (+1 damage) or shield (+1 protection) to permanently enchant. Consumes one gem and one turn only when you choose equipment.";
+  consumable = true;
   type: EntityType = "item";
   tile = 4 * 49 + 23;
   tier = 1;
@@ -17,11 +18,14 @@ export default class Gem extends Entity {
     this.init(context, x, y);
   }
 
-  enchant(slot: "weapon" | "armor"): boolean {
+  canEnchant(target: Entity): boolean {
+    return target.equipSlot === "weapon" || target instanceof Shield;
+  }
+
+  enchant(target: Entity): boolean {
     const player = this.context.player;
     if (!player || !player.canAct() || !player.getAllItems().includes(this)) return false;
-    const target = player[slot];
-    if (!target || (slot === "armor" && !(target instanceof Shield))) return false;
+    if (!player.getAllItems().includes(target) || !this.canEnchant(target)) return false;
 
     upgrade(target);
     const lastGem = this.count === 1;
