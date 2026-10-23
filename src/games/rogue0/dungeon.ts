@@ -1,5 +1,6 @@
 import type { GameContext } from "./context";
 import PF from "pathfinding";
+import { bresenhamLine } from "./fov";
 import type { Entity } from "./entity";
 import { removeEntity } from "./entity";
 import { sfx } from "./audio";
@@ -418,6 +419,26 @@ let dungeon = {
     }
   },
 
+  // Trace in travel order, not entity-list order. Items and dead actors
+  // do not stop projectiles, and the launch tile is excluded.
+  firstActorInPath: function (
+    context: GameContext,
+    attacker: Entity,
+    tx: number,
+    ty: number
+  ): Entity | undefined {
+    if (attacker.x === undefined || attacker.y === undefined) return undefined;
+    const points = bresenhamLine(attacker.x, attacker.y, tx, ty);
+    for (const [x, y] of points.slice(1)) {
+      const actor = context.entities.find(e =>
+        e !== attacker && (e.type === "enemy" || e.type === "player") &&
+        e.healthPoints > 0 && e.x === x && e.y === y
+      );
+      if (actor) return actor;
+    }
+    return undefined;
+  },
+
   attackEntity: function (
     context: GameContext,
     attacker: Entity,
@@ -428,6 +449,9 @@ let dungeon = {
   ): void {
     if (!context.scene || !context.map) {
       throw new Error("context scene or map are missing");
+    }
+    if (rangedAttack) {
+      victim = this.firstActorInPath(context, attacker, victim.x!, victim.y!) ?? victim;
     }
     attacker.moving = true;
     attacker.tweens = attacker.tweens || 0;

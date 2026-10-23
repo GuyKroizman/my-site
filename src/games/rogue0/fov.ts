@@ -4,7 +4,7 @@
 // Closed doors hide tiles beyond them, but the door itself stays visible.
 import { getDoorState } from "./tiles";
 
-function bresenhamLine(
+export function bresenhamLine(
   x0: number,
   y0: number,
   x1: number,

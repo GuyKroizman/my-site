@@ -958,6 +958,12 @@ export default class BasicHero extends Entity {
       return;
     }
 
+    const intercepted = dungeon.firstActorInPath(context, this, tx, ty);
+    if (intercepted) {
+      tx = intercepted.x!;
+      ty = intercepted.y!;
+    }
+
     // Remove the item from the hero's possession now; the landing handler
     // either consumes it (enemy hit) or puts it on the floor.
     this.removeItem(item);

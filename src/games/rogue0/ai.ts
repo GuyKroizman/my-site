@@ -87,7 +87,8 @@ export function enemyTurn(entity: Entity): void {
   //    when adjacent.
   if (seesPlayer) {
     if (entity.range() > 0) {
-      if (inRange(entity, player)) {
+      if (inRange(entity, player) &&
+          dungeon.firstActorInPath(entity.context, entity, player.x, player.y) === player) {
         dungeon.attackEntity(
           entity.context,
           entity,

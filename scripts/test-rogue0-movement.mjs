@@ -350,8 +350,52 @@ assert.equal(huntAI.enemyCanSeePlayer(hunter), false);
 // Real eight-way pathfinding: room corners, obstacles, doors and trap avoidance.
 const features = new Map();
 const realDungeon = load('src/games/rogue0/dungeon.ts', {
-  PF, tiles: { forEachFeature(fn) { for (const [key, state] of features) fn(...key.split(',').map(Number), state); } }
+  PF, bresenhamLine: sight.bresenhamLine, tiles: { forEachFeature(fn) { for (const [key, state] of features) fn(...key.split(',').map(Number), state); } }
 }).default;
+// Projectiles stop at the nearest living actor, regardless of list order.
+const shooter = Object.assign(actor('player'), { x: 0, y: 0 });
+const rear = Object.assign(actor('enemy'), { x: 4, y: 0 });
+const front = Object.assign(actor('enemy'), { x: 2, y: 0 });
+const loot = Object.assign(actor('item'), { x: 1, y: 0 });
+const shotContext = { entities: [rear, loot, shooter, front], player: shooter };
+assert.equal(realDungeon.firstActorInPath(shotContext, shooter, 4, 0), front);
+assert.equal(realDungeon.firstActorInPath(shotContext, rear, 0, 0), front);
+front.healthPoints = 0;
+assert.equal(realDungeon.firstActorInPath(shotContext, shooter, 4, 0), rear);
+front.healthPoints = 10;
+front.y = 1;
+assert.equal(realDungeon.firstActorInPath(shotContext, shooter, 4, 0), rear);
+front.y = 2; rear.y = 4;
+assert.equal(realDungeon.firstActorInPath(shotContext, shooter, 4, 4), front);
+front.y = rear.y = 0;
+let shotTween;
+let hitVictim;
+const projectile = { setOrigin() { return this; }, setDepth() { return this; }, destroy() {} };
+shotContext.scene = { add: { sprite: () => projectile }, tweens: { add(t) { shotTween = t; } } };
+shotContext.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
+shooter.currentWeapon = () => undefined;
+const originalResolve = realDungeon.resolveAndApplyAttack;
+realDungeon.resolveAndApplyAttack = (ctx, attacker, victim) => { hitVictim = victim; };
+realDungeon.attackEntity(shotContext, shooter, rear, 1);
+assert.equal(shotTween.x, 32, 'animation stops at the blocking monster');
+shotTween.onComplete();
+assert.equal(hitVictim, front, 'damage targets the blocking monster');
+realDungeon.resolveAndApplyAttack = originalResolve;
+
+let rangedShots = 0;
+const rangedAI = load('src/games/rogue0/ai.ts', {
+  canSee: () => true, hasEffect, fleeStep: () => false,
+  dungeon: { getCurrentLevel: () => arena,
+    firstActorInPath: realDungeon.firstActorInPath.bind(realDungeon),
+    attackEntity() { rangedShots++; } }
+});
+Object.assign(rear, { context: shotContext, range: () => 8, effects: [{ id: 'rooted' }] });
+rangedAI.enemyTurn(rear);
+assert.equal(rangedShots, 0, 'monsters do not shoot through allies');
+front.y = 1;
+rangedAI.enemyTurn(rear);
+assert.equal(rangedShots, 1, 'monsters shoot when the path clears');
+
 realDungeon.pathGrid = new PF.Grid(Array.from({ length: 7 }, () => Array(9).fill(0)));
 realDungeon.diagonalFinder = new PF.AStarFinder({ diagonalMovement: PF.DiagonalMovement.OnlyWhenNoObstacles });
 let path = realDungeon.findPath(1, 1, 7, 5);
