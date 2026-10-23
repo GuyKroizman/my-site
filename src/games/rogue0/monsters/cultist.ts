@@ -11,7 +11,7 @@ export default class Cultist extends Monster {
     super(context, {
       name: "Cultist",
       description: "A robed cultist who raises skeletons to fight for it.",
-      tile: 6 * 49 + 32,
+      tile: 2 * 49 + 24, // Hooded caster with a staff (row 2, column 24).
       healthPoints: 8,
       movementSpeed: 1,
       attackDelay: 1,
