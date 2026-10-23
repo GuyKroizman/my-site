@@ -353,8 +353,47 @@ assert.equal(huntAI.enemyCanSeePlayer(hunter), false);
 // Real eight-way pathfinding: room corners, obstacles, doors and trap avoidance.
 const features = new Map();
 const realDungeon = load('src/games/rogue0/dungeon.ts', {
-  PF, bresenhamLine: sight.bresenhamLine, tiles: { forEachFeature(fn) { for (const [key, state] of features) fn(...key.split(',').map(Number), state); } }
+  PF, bresenhamLine: sight.bresenhamLine, hasEffect,
+  tiles: {
+    getFeature() {}, getDoorState() {},
+    forEachFeature(fn) { for (const [key, state] of features) fn(...key.split(',').map(Number), state); }
+  }
 }).default;
+// Concurrent walk animations must reserve their destination immediately.
+const walkTweens = [];
+const walkContext = {
+  entities: [], visibleTiles: new Set(['1,1', '3,1']),
+  map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
+  scene: {
+    add: { sprite: () => ({ setOrigin() {}, setDepth(depth) { this.depth = depth; } }) },
+    tweens: { add(tween) { walkTweens.push(tween); } }
+  }
+};
+const walkerA = actor('enemy');
+const walkerB = actor('enemy');
+walkerA.init(walkContext, 1, 1);
+walkerB.init(walkContext, 3, 1);
+const floorLoot = actor('item');
+floorLoot.init(walkContext, 2, 1);
+walkContext.entities = [walkerA, walkerB, floorLoot];
+assert.ok(walkerA.sprite.depth > floorLoot.sprite.depth, 'monsters render above later-created loot');
+assert.ok(walkerA.sprite.depth < 100, 'monsters stay beneath fog');
+walkTweens.length = 0;
+realDungeon.moveEntityTo(walkContext, walkerA, 2, 1);
+assert.equal(walkerA.x, 2, 'destination is reserved before the tween completes');
+assert.equal(walkerA.moving, true);
+realDungeon.moveEntityTo(walkContext, walkerB, 2, 1);
+assert.equal(walkerB.x, 3, 'another monster cannot enter a reserved tile');
+assert.equal(walkTweens.length, 1, 'blocked movement does not animate');
+walkTweens[0].onComplete();
+realDungeon.moveEntityTo(walkContext, walkerB, 2, 1);
+assert.equal(walkerB.x, 3, 'occupied tile remains blocked after animation');
+assert.equal(floorLoot.x, 2, 'floor loot can share the monster tile');
+// Offscreen movement obeys the same occupancy rule without a tween.
+walkContext.visibleTiles.clear();
+realDungeon.moveEntityTo(walkContext, walkerB, 2, 1);
+assert.equal(walkerB.x, 3);
+
 // Projectiles stop at the nearest living actor, regardless of list order.
 const shooter = Object.assign(actor('player'), { x: 0, y: 0 });
 const rear = Object.assign(actor('enemy'), { x: 4, y: 0 });

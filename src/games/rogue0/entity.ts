@@ -129,6 +129,9 @@ export abstract class Entity {
     // (not on the map)
     if (this.x !== undefined && this.y !== undefined) {
       this.sprite = createSprite(context, this.x, this.y, this.tile, this.tint, this.textureKey);
+      // Actors render above floor loot regardless of spawn/drop order, but
+      // enemies remain below the fog layer (100).
+      this.sprite.setDepth(this.type === "item" ? 1 : this.type === "enemy" ? 2 : 200);
 
       // Floor items pulse gently so they stand out.
       if (this.type === "item" && this.sprite) {

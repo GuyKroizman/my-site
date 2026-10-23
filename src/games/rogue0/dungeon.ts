@@ -253,6 +253,12 @@ let dungeon = {
       throw new Error("context.map is undefined");
     }
 
+    // Enforce actor occupancy here too, not just in individual AI paths.
+    if (entity.type !== "item" && context.entities.some(other =>
+      other !== entity && other.type !== "item" && other.healthPoints > 0 &&
+      other.x === x && other.y === y
+    )) return;
+
     const oldX = entity.x;
     const oldY = entity.y;
     const closeDoorBehind = () => {
@@ -329,14 +335,16 @@ let dungeon = {
       );
       return;
     }
+    // Reserve the destination before another actor can choose its move.
+    // The sprite animates independently of the logical tile coordinates.
+    entity.x = destX;
+    entity.y = destY;
     entity.moving = true;
 
     context.scene.tweens.add({
       targets: entity.sprite!,
       onComplete: () => {
         entity.moving = false;
-        entity.x = destX;
-        entity.y = destY;
         closeDoorBehind();
       },
       x: context.map.tileToWorldX(destX)!,
