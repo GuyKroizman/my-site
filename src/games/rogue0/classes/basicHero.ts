@@ -1407,7 +1407,7 @@ export default class BasicHero extends Entity {
     const food =
       this.hunger <= 0
         ? "Starving!"
-        : `Food: ${this.hunger}/${this.maxHunger}`;
+        : `Food: ${Math.ceil(this.hunger)}/${this.maxHunger}`;
     text += `\n${food}  Gold: ${this.gold}`;
     if (this.skill !== "") {
       const state =
