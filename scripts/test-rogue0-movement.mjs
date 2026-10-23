@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
+import PF from 'pathfinding';
 
 // Load real TS logic with rendering/audio imports replaced by small fakes.
 function load(path, bindings = {}) {
@@ -119,6 +120,7 @@ let moved = 0;
 const dungeon = {
   entityAtTile: () => item, itemPicked() { picked++; }, log() {},
   moveEntityTo() { moved++; }, openDoor() {},
+  canStepBetween: () => true,
   isWalkableTile: () => false, attackEntity() {}
 };
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
@@ -294,7 +296,7 @@ const huntAI = load('src/games/rogue0/ai.ts', {
   ...sight, hasEffect, fleeStep: () => false, tiles: terrain,
   dungeon: {
     getCurrentLevel: () => arena,
-    findCardinalPath(sx, sy, tx, ty, throughDoors) {
+    findPath(sx, sy, tx, ty, throughDoors) {
       plannedThroughDoors = throughDoors; plannedTarget = [tx, ty]; return nextPath;
     },
     moveEntityTo(ctx, e, x, y) { e.x = x; e.y = y; },
@@ -345,4 +347,76 @@ assert.equal(hunter.awareOfPlayer, true, 'a further turn in sight removes the am
 target.effects = [{ id: 'invisible' }];
 assert.equal(huntAI.enemyCanSeePlayer(hunter), false);
 
-console.log('Rogue0 timeline, input, death, sight, pursuit and surprise regression tests passed');
+// Real eight-way pathfinding: room corners, obstacles, doors and trap avoidance.
+const features = new Map();
+const realDungeon = load('src/games/rogue0/dungeon.ts', {
+  PF, tiles: { forEachFeature(fn) { for (const [key, state] of features) fn(...key.split(',').map(Number), state); } }
+}).default;
+realDungeon.pathGrid = new PF.Grid(Array.from({ length: 7 }, () => Array(9).fill(0)));
+realDungeon.diagonalFinder = new PF.AStarFinder({ diagonalMovement: PF.DiagonalMovement.OnlyWhenNoObstacles });
+let path = realDungeon.findPath(1, 1, 7, 5);
+assert.equal(path.length, 7, 'rectangle crossing uses six steps, not ten cardinal steps');
+assert.equal(path.slice(1).filter((p, i) => p[0] !== path[i][0] && p[1] !== path[i][1]).length, 4);
+assert.deepEqual(realDungeon.findPath(1, 1, 3, 3), [[1, 1], [2, 2], [3, 3]]);
+assert.deepEqual(realDungeon.findPath(1, 1, -1, 3), [], 'off-map taps are safe');
+realDungeon.pathGrid.setWalkableAt(2, 1, false);
+assert.equal(realDungeon.canStepBetween(1, 1, 2, 2), false, 'no diagonal wall cutting');
+assert.notDeepEqual(realDungeon.findPath(1, 1, 3, 3)[1], [2, 2]);
+realDungeon.pathGrid.setWalkableAt(2, 1, true);
+features.set('2,2', { feature: 'trap', trap: 'visible' });
+assert.ok(!realDungeon.findPath(1, 1, 3, 3, true, true).some(([x, y]) => x === 2 && y === 2));
+assert.deepEqual(realDungeon.findPath(1, 1, 2, 2, true, true), [[1, 1], [2, 2]], 'explicit trap target remains reachable');
+features.clear();
+features.set('2,2', { feature: 'door', door: 'closed' });
+realDungeon.pathGrid.setWalkableAt(2, 2, false);
+assert.deepEqual(realDungeon.findPath(1, 1, 2, 2, true), [[1, 1], [2, 2]], 'diagonal entry can open a door');
+features.clear();
+realDungeon.pathGrid.setWalkableAt(2, 2, true);
+const diagonalAI = load('src/games/rogue0/ai.ts', { dungeon: realDungeon });
+assert.deepEqual(diagonalAI.nextStepToward({ x: 1, y: 1 }, 3, 3), { x: 2, y: 2 });
+
+// All four keyboard diagonals move and bump-attack, without extra time cost.
+hero.effects = [];
+hero.x = 3; hero.y = 3;
+for (const [key, dx, dy] of [['Home', -1, -1], ['PageUp', 1, -1], ['End', -1, 1], ['PageDown', 1, 1]]) {
+  hero.actionReady = true;
+  dungeon.isWalkableTile = () => true;
+  dungeon.moveEntityTo = (ctx, e, x, y) => assert.deepEqual([x, y], [3 + dx, 3 + dy]);
+  hero.processInput(key);
+  assert.equal(hero.canAct(), false);
+  hero.actionReady = true;
+  dungeon.isWalkableTile = () => false;
+  dungeon.entityAtTile = () => item;
+  item.type = 'enemy';
+  let hit = false;
+  dungeon.attackEntity = () => { hit = true; };
+  hero.processInput(key);
+  assert.equal(hit, true, `${key} attacks diagonally`);
+}
+// Click/touch targets run the real hero route planning and auto-walk attack.
+dungeon.findPath = realDungeon.findPath.bind(realDungeon);
+delete hero.nextStepToward;
+hero.x = 1; hero.y = 1;
+hero.actionReady = true;
+dungeon.entityAtTile = () => undefined;
+dungeon.isWalkableTile = () => true;
+dungeon.moveEntityTo = (ctx, e, x, y) => { e.x = x; e.y = y; };
+hero.context.map = { worldToTileX: x => x, worldToTileY: y => y };
+hero.processTouchInput(hero.context, { worldX: 3, worldY: 3 });
+assert.deepEqual(hero.walkPath, [{ x: 2, y: 2 }, { x: 3, y: 3 }]);
+hero.stepAutoWalk();
+assert.deepEqual([hero.x, hero.y], [2, 2]);
+hero.actionReady = true;
+dungeon.entityAtTile = () => item;
+let touchAttack = false;
+dungeon.attackEntity = () => { touchAttack = true; };
+hero.stepAutoWalk();
+assert.equal(touchAttack, true, 'auto-walk attacks a diagonally adjacent enemy');
+assert.deepEqual([hero.x, hero.y], [2, 2], 'attack does not overlap the enemy');
+
+monster.effects = [];
+monster.x = 1; monster.y = 1;
+enemyTurn(monster);
+assert.equal(attacks, 2, 'monster melee hits a diagonally adjacent player');
+
+console.log('Rogue0 timeline, input, death, sight, pursuit, diagonal movement and surprise regression tests passed');

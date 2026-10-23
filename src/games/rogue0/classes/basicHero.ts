@@ -106,6 +106,7 @@ export default class BasicHero extends Entity {
 
     context.scene.input.keyboard.on("keydown", (event: KeyboardEvent) => {
       if (isModalOpen(this.context)) return;
+      if (this.cursorDir(event.key)) event.preventDefault();
       // Cursor keys (x / Esc / Enter / arrows / HJKL) stay live while the
       // inspect or throw cursor is active, even when it isn't the player's
       // turn. Everything else keeps the existing canAct()/buffer behaviour.
@@ -670,12 +671,16 @@ export default class BasicHero extends Entity {
       key === "x" || key === "X" || key === "Escape" || key === "Enter" ||
       key === "ArrowLeft" || key === "ArrowRight" ||
       key === "ArrowUp" || key === "ArrowDown" ||
-      key === "h" || key === "j" || key === "k" || key === "l"
+      this.cursorDir(key) !== undefined
     );
   }
 
   private cursorDir(key: string): { dx: number; dy: number } | undefined {
     switch (key) {
+      case "Home": return { dx: -1, dy: -1 };
+      case "PageUp": return { dx: 1, dy: -1 };
+      case "End": return { dx: -1, dy: 1 };
+      case "PageDown": return { dx: 1, dy: 1 };
       case "ArrowLeft":
       case "h":
         return { dx: -1, dy: 0 };
@@ -738,7 +743,7 @@ export default class BasicHero extends Entity {
 
   private nextStepToward(tx: number, ty: number): { x: number; y: number } | null {
     if (this.x === undefined || this.y === undefined) return null;
-    const path = dungeon.findCardinalPath(this.x, this.y, tx, ty, true, true);
+    const path = dungeon.findPath(this.x, this.y, tx, ty, true, true);
     if (path.length > 1) return { x: path[1][0], y: path[1][1] };
     return null;
   }
@@ -754,7 +759,7 @@ export default class BasicHero extends Entity {
         this.context.visibleTiles.has(`${entity.x},${entity.y}`)
       )
     );
-    const path = dungeon.findCardinalPath(this.x, this.y, tx, ty, true, true);
+    const path = dungeon.findPath(this.x, this.y, tx, ty, true, true);
     this.walkPath =
       path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
   }
@@ -1322,24 +1327,10 @@ export default class BasicHero extends Entity {
       this.waitTurn();
     }
 
-    // Movement decision
-    if (key == "ArrowLeft" || key === "h") {
-      newX -= 1;
-      moved = true;
-    }
-
-    if (key == "ArrowRight" || key === "l") {
-      newX += 1;
-      moved = true;
-    }
-
-    if (key == "ArrowUp" || key === "k") {
-      newY -= 1;
-      moved = true;
-    }
-
-    if (key == "ArrowDown" || key === "j") {
-      newY += 1;
+    const dir = this.cursorDir(key);
+    if (dir) {
+      newX += dir.dx;
+      newY += dir.dy;
       moved = true;
     }
 
@@ -1347,6 +1338,7 @@ export default class BasicHero extends Entity {
     if (moved) {
       this.context.onResumeFollow?.();
       this.walkPath = []; // manual input cancels auto-walk
+      if (!dungeon.canStepBetween(oldX, oldY, newX, newY)) return;
       // Entering a revealed trap requires explicitly clicking its tile.
       if (getTrapState(newX, newY) === "visible") return;
       if (hasEffect(this, "rooted") &&

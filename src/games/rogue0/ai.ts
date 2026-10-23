@@ -158,7 +158,7 @@ export function nextStepToward(
 ): { x: number; y: number } | null {
   if (entity.x === undefined || entity.y === undefined) return null;
 
-  const path = dungeon.findCardinalPath(entity.x, entity.y, tx, ty, true);
+  const path = dungeon.findPath(entity.x, entity.y, tx, ty, true);
 
   if (path.length > 1) {
     return { x: path[1][0], y: path[1][1] };
@@ -191,7 +191,8 @@ export function randomAdjacentStep(
     [1, 0],
     [-1, 0],
     [0, 1],
-    [0, -1]
+    [0, -1],
+    [-1, -1], [1, -1], [-1, 1], [1, 1]
   ];
 
   // Shuffle so wandering feels less mechanical.
@@ -208,7 +209,8 @@ export function randomAdjacentStep(
     const nx = entity.x + dx;
     const ny = entity.y + dy;
     if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-    if (dungeon.isWalkableTile(context, nx, ny)) {
+    if (dungeon.canStepBetween(entity.x, entity.y, nx, ny) &&
+        dungeon.isWalkableTile(context, nx, ny)) {
       return { x: nx, y: ny };
     }
   }

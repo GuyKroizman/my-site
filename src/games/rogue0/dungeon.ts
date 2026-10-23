@@ -28,7 +28,6 @@ let dungeon = {
   layer: null as Phaser.Tilemaps.TilemapLayer | null,
   pathGrid: null as PF.Grid | null,
   diagonalFinder: null as PF.AStarFinder | null,
-  cardinalFinder: null as PF.AStarFinder | null,
   context: null as GameContext | null,
   onTerrainChanged: null as (() => void) | null,
 
@@ -39,9 +38,8 @@ let dungeon = {
     this.pathGrid = new PF.Grid(levelArray);
     tiles.applyToPathGrid(this.pathGrid);
     this.diagonalFinder = new PF.AStarFinder({
-      diagonalMovement: PF.DiagonalMovement.Always
+      diagonalMovement: PF.DiagonalMovement.OnlyWhenNoObstacles
     });
-    this.cardinalFinder = new PF.AStarFinder();
 
     const level0 = levelArray.map((r) =>
       r.map((t) => (t == 1 ? Sprites.wall : Sprites.floor))
@@ -90,15 +88,20 @@ let dungeon = {
     return this.pathGrid!;
   },
 
-  getCardinalFinder: function (): PF.AStarFinder {
-    return this.cardinalFinder!;
+  // Diagonal steps and melee cannot cut across walls or closed doors.
+  canStepBetween: function (sx: number, sy: number, tx: number, ty: number): boolean {
+    const dx = Math.abs(tx - sx);
+    const dy = Math.abs(ty - sy);
+    if (Math.max(dx, dy) !== 1) return false;
+    if (!dx || !dy) return true;
+    return this.pathGrid!.isWalkableAt(sx, ty) && this.pathGrid!.isWalkableAt(tx, sy);
   },
 
   // Pathfinding mutates node state (opened/closed), so always search on a
   // fresh grid clone to avoid stale state between calls.
   // `throughDoors` lets players and pursuing enemies plan routes through
   // closed doors; movement must open the door before entering.
-  findCardinalPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false, avoidTraps = false): number[][] {
+  findPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false, avoidTraps = false): number[][] {
     const grid = this.pathGrid!.clone();
     if (throughDoors) {
       tiles.forEachFeature((x, y, s) => {
@@ -116,7 +119,12 @@ let dungeon = {
         }
       });
     }
-    return this.cardinalFinder!.findPath(sx, sy, tx, ty, grid);
+    if (!grid.isInside(sx, sy) || !grid.isInside(tx, ty)) return [];
+    // Planning may enter a closed door, but not cut diagonally past it.
+    const getNeighbors = grid.getNeighbors.bind(grid);
+    grid.getNeighbors = (node, diagonalMovement) => getNeighbors(node, diagonalMovement)
+      .filter(next => this.canStepBetween(node.x, node.y, next.x, next.y));
+    return this.diagonalFinder!.findPath(sx, sy, tx, ty, grid);
   },
 
   isWalkableTile: function (context: GameContext, x: number, y: number): boolean {
@@ -140,7 +148,7 @@ let dungeon = {
           player &&
           player.x !== undefined &&
           player.y !== undefined &&
-          Math.abs(player.x - x) + Math.abs(player.y - y) === 1
+          this.canStepBetween(player.x, player.y, x, y)
         ) {
           this.openDoor(x, y);
         }

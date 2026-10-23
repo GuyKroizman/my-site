@@ -8,6 +8,7 @@
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import { spawnEntityFloatingText } from "./floatingText";
+import { isBlocking } from "./tiles";
 
 export type DamageType =
   | "physical"
@@ -315,7 +316,8 @@ export function fleeStep(entity: Entity, context: GameContext): boolean {
     [1, 0],
     [-1, 0],
     [0, 1],
-    [0, -1]
+    [0, -1],
+    [-1, -1], [1, -1], [-1, 1], [1, 1]
   ];
 
   // Prefer the step that increases distance from the player the most.
@@ -329,7 +331,9 @@ export function fleeStep(entity: Entity, context: GameContext): boolean {
     const nx = ex + dx;
     const ny = ey + dy;
     if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-    if (map[ny][nx] !== 0) continue;
+    if (map[ny][nx] !== 0 || isBlocking(nx, ny)) continue;
+    if (dx && dy && (map[ey][nx] !== 0 || map[ny][ex] !== 0 ||
+        isBlocking(nx, ey) || isBlocking(ex, ny))) continue;
 
     const occupied = context.entities.some(
       (o) => o !== entity && o.sprite && o.x === nx && o.y === ny
