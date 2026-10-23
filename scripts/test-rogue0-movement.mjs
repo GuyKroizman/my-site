@@ -195,6 +195,25 @@ for (let tick = 0; tick < 99; tick++) hero.refresh();
 assert.equal(hero.hunger, 0.25, 'restored food also lasts four times as long');
 assert.equal(starvationDamage, 2, 'eating stops starvation damage');
 
+// Starvation interrupts only on entry; resumed navigation remains usable.
+delete hero.takeDamage;
+hero.context.player = hero;
+hero.hunger = 0.25;
+hero.walkPath = [{ x: 1, y: 0 }];
+hero.refresh();
+assert.equal(hero.walkPath.length, 0, 'entering starvation stops navigation');
+hero.walkPath = [{ x: 1, y: 0 }];
+const starvingHealth = hero.healthPoints;
+hero.refresh();
+assert.equal(hero.walkPath.length, 1, 'resuming while starving keeps navigation');
+assert.equal(hero.healthPoints, starvingHealth - 1, 'ongoing starvation still damages');
+hero.takeDamage(1);
+assert.equal(hero.walkPath.length, 0, 'other damage still stops navigation');
+hero.restoreHunger(0.25);
+hero.walkPath = [{ x: 1, y: 0 }];
+hero.refresh();
+assert.equal(hero.walkPath.length, 0, 'starving again after eating stops navigation');
+
 // A buff applied between integer time boundaries keeps its full lifetime.
 const effects = load('src/games/rogue0/effects.ts', { spawnEntityFloatingText() {} });
 ({ player, enemy, entities } = setup());

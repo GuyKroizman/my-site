@@ -531,6 +531,7 @@ export default class BasicHero extends Entity {
 
   refresh() {
     // Drain a quarter point per world-time unit: food lasts 4x as long.
+    const wasStarving = this.hunger === 0;
     this.hunger = Math.max(0, this.hunger - 0.25);
 
     // Warn once when hunger first drops below 30, not every time tick.
@@ -541,7 +542,8 @@ export default class BasicHero extends Entity {
 
     // Starving: 1 damage per time unit until food is eaten.
     if (this.hunger === 0) {
-      this.takeDamage(1);
+      // Stop once on entering starvation, not when knowingly resuming travel.
+      this.takeDamage(1, !wasStarving);
       spawnEntityFloatingText(this, "-1");
       dungeon.log(this.context, "You are starving! You take 1 damage.");
       if (this.healthPoints <= 0) {

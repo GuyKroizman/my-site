@@ -149,10 +149,10 @@ export abstract class Entity {
     }
   }
 
-  takeDamage(amount: number): void {
+  takeDamage(amount: number, interruptNavigation = true): void {
     this.healthPoints -= amount;
     const player = this.context?.player;
-    if (amount > 0 && player && (player as Entity) === this) {
+    if (interruptNavigation && amount > 0 && player && (player as Entity) === this) {
       player.walkPath = [];
     }
   }
