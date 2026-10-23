@@ -464,28 +464,35 @@ body {
   box-sizing: border-box;
 }
 
-.rogue0-game-head {
-  width: 100%;
-  max-width: 1284px;
+.rogue0-game-menu {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 10;
+  line-height: 1.5;
+}
+
+.rogue0-menu-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.rogue0-menu-icon {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  padding: 0 16px;
-  box-sizing: border-box;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.rogue0-game-title {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.8rem;
-  color: var(--r0-gold);
-  letter-spacing: 1px;
-  text-shadow: 0 0 10px rgba(240, 180, 41, 0.3);
+.rogue0-menu-icon span {
+  width: 18px;
+  height: 2px;
+  background: currentColor;
 }
 
-.rogue0-game-head a,
 .rogue0-game-btn {
   font-family: 'Press Start 2P', monospace;
   font-size: 0.5rem;
@@ -500,19 +507,19 @@ body {
   transition: color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
-.rogue0-game-head a:hover,
 .rogue0-game-btn:hover {
   color: #ffffff;
   border-color: var(--r0-gold);
 }
 
-.rogue0-game-head a:focus-visible,
 .rogue0-game-btn:focus-visible {
   outline: 2px solid var(--r0-gold);
   outline-offset: 2px;
 }
 
 .rogue0-game-stage {
+  position: relative;
+  min-height: 0;
   flex: 1 1 auto;
   width: 100%;
   height: 100%;
@@ -551,10 +558,24 @@ body {
 }
 
 .rogue0-game-actions {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
+  width: 180px;
+  padding: 8px;
+  background: var(--r0-panel);
+  border: 2px solid var(--r0-border-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.rogue0-game-actions .rogue0-game-btn {
+  text-align: left;
+  min-height: 40px;
+  display: flex;
   align-items: center;
-  gap: 10px;
 }
 
 .rogue0-game-btn.is-on {

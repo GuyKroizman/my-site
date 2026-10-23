@@ -111,6 +111,32 @@ export default function Rogue0() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [helpPage, setHelpPage] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      // Keep menu navigation from also triggering the game's keyboard controls.
+      event.stopPropagation()
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setMenuOpen(false)
+        menuButtonRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown, true)
+    }
+  }, [menuOpen])
 
   useEffect(() => {
     if (!heroClass) return
@@ -122,6 +148,7 @@ export default function Rogue0() {
       phaserRef.current?.destroy(true)
       phaserRef.current = null
       setHelpOpen(false)
+      setMenuOpen(false)
       setResult(r)
     }
     context.onInspectModeChange = (mode) => setInspectMode(mode)
@@ -286,30 +313,53 @@ export default function Rogue0() {
 
   return (
     <div className="rogue0-game">
-      <div className="rogue0-game-head">
-        <span className="rogue0-game-title">Rogue0</span>
-        <div className="rogue0-game-actions">
-          <button className="rogue0-game-btn" onClick={openHelp}>Help</button>
-          <button
-            className="rogue0-game-btn"
-            onClick={toggleFullscreen}
-            aria-label="Toggle fullscreen"
-          >
-            {isFullscreen ? 'Exit FS' : 'Fullscreen'}
-          </button>
-          <button
-            className={`rogue0-game-btn ${muted ? 'off' : ''}`}
-            onClick={toggleMute}
-            aria-pressed={muted}
-          >
-            {muted ? 'Sound: OFF' : 'Sound: ON'}
-          </button>
-          <Link to="/">← back</Link>
-        </div>
-      </div>
-
       <div className="rogue0-game-stage">
         <div id="phaser"></div>
+        <div
+          className="rogue0-game-menu"
+          ref={menuRef}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false)
+          }}
+        >
+          <button
+            ref={menuButtonRef}
+            className="rogue0-game-btn rogue0-menu-toggle"
+            aria-label="Game menu"
+            aria-expanded={menuOpen}
+            aria-controls="rogue0-game-controls"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span className="rogue0-menu-icon" aria-hidden="true"><span /><span /><span /></span>
+          </button>
+          {menuOpen && (
+            <div
+              id="rogue0-game-controls"
+              className="rogue0-game-actions"
+              onClick={() => {
+                setMenuOpen(false)
+                menuButtonRef.current?.focus()
+              }}
+            >
+              <button className="rogue0-game-btn" onClick={openHelp}>Help</button>
+              <button
+                className="rogue0-game-btn"
+                onClick={toggleFullscreen}
+                aria-label="Toggle fullscreen"
+              >
+                {isFullscreen ? 'Exit FS' : 'Fullscreen'}
+              </button>
+              <button
+                className={`rogue0-game-btn ${muted ? 'off' : ''}`}
+                onClick={toggleMute}
+                aria-pressed={muted}
+              >
+                {muted ? 'Sound: OFF' : 'Sound: ON'}
+              </button>
+              <Link to="/" className="rogue0-game-btn">← back</Link>
+            </div>
+          )}
+        </div>
       </div>
 
       {helpModal}
