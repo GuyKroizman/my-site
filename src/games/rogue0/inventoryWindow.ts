@@ -11,7 +11,10 @@ import type { GameContext } from "./context";
 import type { Entity } from "./entity";
 import type BasicHero from "./classes/basicHero";
 
-type Action = "use" | "equip" | "unequip" | "drop" | "throw" | "close";
+import Gem from "./items/gem";
+import Shield from "./items/shield";
+
+type Action = "use" | "equip" | "unequip" | "drop" | "throw" | "close" | "enchant-weapon" | "enchant-shield";
 
 const PAD = 16;
 const CELL = 38;
@@ -452,6 +455,13 @@ export class InventoryWindow {
   ): { action: Action; label: string; enabled: boolean }[] {
     const actions: { action: Action; label: string; enabled: boolean }[] = [];
 
+    if (item instanceof Gem) {
+      actions.push(
+        { action: "enchant-weapon", label: "Enchant weapon (+1 damage)", enabled: !!player.weapon },
+        { action: "enchant-shield", label: "Enchant shield (+1 protection)", enabled: player.armor instanceof Shield }
+      );
+    }
+
     if (item.consumable) {
       actions.push({ action: "use", label: "Use", enabled: true });
     }
@@ -483,6 +493,10 @@ export class InventoryWindow {
     if (!player) return;
 
     switch (action) {
+      case "enchant-weapon":
+      case "enchant-shield":
+        if (item instanceof Gem) item.enchant(action === "enchant-weapon" ? "weapon" : "armor");
+        break;
       case "use":
         player.useItem(item);
         break;

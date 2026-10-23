@@ -73,7 +73,7 @@ export abstract class Entity {
   // Hidden-style name used before an item is identified ("?scroll", "?ring").
   get displayName(): string {
     if (this.identified) {
-      return this.name;
+      return this.type === "item" && this.level > 0 ? `${this.name} +${this.level}` : this.name;
     }
     switch (this.equipSlot) {
       case "weapon":
