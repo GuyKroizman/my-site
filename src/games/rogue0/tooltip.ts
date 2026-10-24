@@ -5,7 +5,8 @@ export function attachTooltip(
   scene: Phaser.Scene,
   context: GameContext,
   target: Phaser.GameObjects.Rectangle,
-  label: string | (() => string)
+  label: string | (() => string),
+  enabled: () => boolean = () => !isModalOpen(context)
 ): void {
   const text = scene.add.text(0, 0, '', {
     fontFamily: 'VT323, monospace', fontSize: 18,
@@ -20,7 +21,7 @@ export function attachTooltip(
   };
   const show = () => {
     hoverTimer = undefined;
-    if (isModalOpen(context)) return;
+    if (!enabled()) return;
     text.setWordWrapWidth(Math.max(40, scene.scale.width - 32));
     text.setText(typeof label === 'function' ? label() : label);
     const bounds = target.getBounds();
@@ -33,16 +34,21 @@ export function attachTooltip(
   };
   target.on('pointerover', () => {
     hide();
-    if (!isModalOpen(context)) hoverTimer = scene.time.delayedCall(2000, show);
+    if (enabled()) hoverTimer = scene.time.delayedCall(2000, show);
   });
   target.on('pointerout', hide);
   target.on('pointerdown', hide);
-  const update = () => { if (isModalOpen(context)) hide(); };
+  const update = () => { if (!enabled()) hide(); };
   scene.events.on('update', update);
   scene.scale.on('resize', hide);
-  scene.events.once('shutdown', () => {
+  const cleanup = () => {
     hide();
     scene.events.off('update', update);
     scene.scale.off('resize', hide);
-  });
+    scene.events.off('shutdown', cleanup);
+    target.off('destroy', cleanup);
+    text.destroy();
+  };
+  target.once('destroy', cleanup);
+  scene.events.once('shutdown', cleanup);
 }

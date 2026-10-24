@@ -13,6 +13,7 @@ import type BasicHero from "./classes/basicHero";
 
 import Gem from "./items/gem";
 import Wand from "./items/wand";
+import { attachTooltip } from "./tooltip";
 
 type Action = "use" | "equip" | "unequip" | "drop" | "throw" | "close";
 
@@ -346,12 +347,15 @@ export class InventoryWindow {
         );
       }
 
+      box.setInteractive({ useHandCursor: !disabled });
+      attachTooltip(this.scene, this.context, box, () => item.displayName,
+        () => this.open && !this.menuItem);
+
       if (disabled) {
         // Draw over icon/count so ineligible items are visibly dimmed.
         this.winRoot!.add(this.scene.add.rectangle(x, y, CELL, CELL, C.overlay, 0.7).setOrigin(0));
         return;
       }
-      box.setInteractive({ useHandCursor: true });
       box.on("pointerover", () => {
         box.setStrokeStyle(selected ? 2 : 1, C.gold, 1);
       });
