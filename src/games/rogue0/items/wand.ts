@@ -27,6 +27,16 @@ export default abstract class Wand extends Entity {
   maxCharges: number = 0;
   wandRange: number = 5;
 
+  // Category is intrinsic, not derived from the equipment slot: wands are
+  // backpack tools, but remain recognizable before their magic is identified.
+  get displayName(): string {
+    return this.identified ? super.displayName : "Wand";
+  }
+
+  get unidentifiedTextureKey(): string {
+    return "unknown-wand";
+  }
+
 
   constructor(context: GameContext, config: WandConfig, x?: number, y?: number) {
     super();

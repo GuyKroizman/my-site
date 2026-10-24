@@ -24,6 +24,9 @@ export type GameContext = {
   heroClass: string;
   stairsX?: number;
   stairsY?: number;
+  upstairsX?: number;
+  upstairsY?: number;
+  onAscend?: () => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   heroModalOpen?: boolean;

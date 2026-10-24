@@ -47,6 +47,17 @@ const { Entity } = load('src/games/rogue0/entity.ts');
 const dungeon = { log() {}, getCurrentLevel: () => Array.from({length: 8}, () => Array(8).fill(0)),
   firstActorInPath: () => undefined, entityAtTile: () => undefined };
 const Wand = load('src/games/rogue0/items/wand.ts', { Entity, dungeon, identify: i => { i.identified = true; } }).default;
+for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
+  const unknownWand = Object.assign(Object.create(Wand.prototype), {
+    name, type: 'item', equipSlot: 'junk', identified: false, level: 0,
+  });
+  assert.equal(unknownWand.displayName, 'Wand', 'backpack wands retain their category');
+  assert.equal(unknownWand.unidentifiedTextureKey, 'unknown-wand');
+  unknownWand.identified = true;
+  assert.equal(unknownWand.displayName, name);
+  unknownWand.level = 2;
+  assert.equal(unknownWand.displayName, `${name} +2`);
+}
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, Wand, Gem: class {}, dungeon, hasLineOfSight: () => true,
 }).default;

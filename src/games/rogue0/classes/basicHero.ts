@@ -648,6 +648,12 @@ export default class BasicHero extends Entity {
       return;
     }
 
+    if (x !== null && y !== null && this.x === x && this.y === y &&
+        x === context.upstairsX && y === context.upstairsY) {
+      context.onAscend?.();
+      return;
+    }
+
     // Tap the stairs you're standing on to descend (mobile-friendly).
     if (
       x !== null &&

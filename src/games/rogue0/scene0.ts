@@ -1,4 +1,15 @@
 import Phaser from "phaser";
+import type { Entity } from './entity';
+
+type SavedFloor = {
+  savedAt: number;
+  map: number[][];
+  seen: boolean[][];
+  features: FeaturePlacement[];
+  entities: Entity[];
+  up: { x: number; y: number };
+  down: { x: number; y: number };
+};
 import { createForegroundAtlas, foregroundEntities } from './rendering';
 import dungeon from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
@@ -128,6 +139,8 @@ export class Scene0 extends Phaser.Scene {
   context: GameContext;
   private ended: boolean = false;
   private stairsLabel?: Phaser.GameObjects.Graphics;
+  private upstairsLabel?: Phaser.GameObjects.Graphics;
+  private floors = new Map<number, SavedFloor>();
   private fog!: Phaser.GameObjects.Graphics;
   private seen: boolean[][] = [];
   private visible: Set<string> = new Set();
@@ -241,6 +254,7 @@ export class Scene0 extends Phaser.Scene {
 
     // Mobile/tap descend hook.
     this.context.onDescend = () => this.tryDescend();
+    this.context.onAscend = () => this.tryAscend();
     // Re-center the camera on the player after a free pan.
     this.context.onResumeFollow = () => this.resumeFollow();
   }
@@ -263,6 +277,7 @@ export class Scene0 extends Phaser.Scene {
     // "." / ">" descends (or escapes) only while standing on the stairs.
     this.input.keyboard?.on("keydown", (e: KeyboardEvent) => {
       if (e.key === ">" || e.key === ".") this.tryDescend();
+      if (e.key === "<" || e.key === ",") this.tryAscend();
     });
 
     // Pinch zoom + one-finger pan (mobile).
@@ -431,13 +446,14 @@ export class Scene0 extends Phaser.Scene {
     floor: number,
     levelArray: number[][],
     spawn: { x: number; y: number },
-    stairs?: { x: number; y: number }
+    stairs?: { x: number; y: number },
+    restored?: SavedFloor
   ) {
     this.context.floor = floor;
     this.resizeCamera();
     this.stairsHinted = false;
 
-    this.seen = [];
+    this.seen = restored?.seen ?? [];
     this.visible = new Set();
     this.lastFovX = undefined;
     this.lastFovY = undefined;
@@ -448,6 +464,7 @@ export class Scene0 extends Phaser.Scene {
     // Drop everything from the previous floor except the player and its gear.
     for (const entity of this.context.entities) {
       if (!kept.has(entity)) {
+        if (entity.sprite) this.tweens.killTweensOf(entity.sprite);
         entity.sprite?.destroy();
         entity.sprite = undefined;
       }
@@ -466,13 +483,40 @@ export class Scene0 extends Phaser.Scene {
       stairs ?? findFarthestWalkable(levelArray, spawn.x, spawn.y, MAX_VISIBLE_X);
     this.context.stairsX = stairsPos.x;
     this.context.stairsY = stairsPos.y;
+    const up = restored?.up ?? spawn;
+    this.context.upstairsX = up.x;
+    this.context.upstairsY = up.y;
     this.renderStairs(stairsPos.x, stairsPos.y);
 
     this.syncFeatures();
 
-    this.spawnFloorContent(floor, levelArray, spawn);
+    if (restored) {
+      for (const entity of restored.entities) {
+        // A creature may have ended its last turn on the arrival staircase.
+        // Move it to the nearest free floor cell rather than overlap the hero.
+        if (entity.type === 'enemy' && entity.x === spawn.x && entity.y === spawn.y) {
+          const candidates: { x: number; y: number }[] = [];
+          levelArray.forEach((row, y) => row.forEach((cell, x) => {
+            if (cell === 0 && !tiles.isBlocking(x, y) && (x !== spawn.x || y !== spawn.y) &&
+                !restored.entities.some(other => other.type === 'enemy' && other !== entity && other.x === x && other.y === y)) {
+              candidates.push({ x, y });
+            }
+          }));
+          candidates.sort((a, b) => Math.hypot(a.x - spawn.x, a.y - spawn.y) - Math.hypot(b.x - spawn.x, b.y - spawn.y));
+          if (candidates[0]) { entity.x = candidates[0].x; entity.y = candidates[0].y; }
+        }
+        const pausedTime = (this.context.simulationTime ?? 0) - restored.savedAt;
+        for (const effect of entity.effects) {
+          if (effect.nextTick !== undefined) effect.nextTick += pausedTime;
+        }
+        entity.init(this.context, entity.x, entity.y);
+        this.context.entities.push(entity);
+      }
+    } else {
+      this.spawnFloorContent(floor, levelArray, spawn);
+    }
 
-    turnManager.reset(this.context.entities, floor > 1);
+    turnManager.reset(this.context.entities, !!restored || floor > 1);
     this.recomputeFOV();
     this.events.emit("floor-changed", { floor });
   }
@@ -509,13 +553,62 @@ export class Scene0 extends Phaser.Scene {
       return;
     }
 
+    this.saveFloor();
     const next = this.context.floor + 1;
+    const saved = this.floors.get(next);
+    if (saved) {
+      this.restoreFloor(next, saved, saved.up);
+      sfx.stairs();
+      dungeon.log(this.context, `You descend to floor ${next}.`);
+      return;
+    }
     const { levelArray, spawn, stairs } = this.generateLevel(next);
 
     dungeon.initialize(this.context, levelArray);
     this.setupFloor(next, levelArray, spawn, stairs);
     sfx.stairs();
     dungeon.log(this.context, `You descend to floor ${next}.`);
+  }
+
+  private saveFloor() {
+    const player = this.context.player!;
+    const carried = new Set([player, ...player.getAllItems()]);
+    const features: FeaturePlacement[] = [];
+    tiles.forEachFeature((x, y, state) => features.push({ ...state, x, y }));
+    this.floors.set(this.context.floor, {
+      savedAt: this.context.simulationTime ?? 0,
+      map: dungeon.getCurrentLevel().map(row => [...row]),
+      seen: this.seen.map(row => [...row]), features,
+      entities: this.context.entities.filter(entity => !carried.has(entity)),
+      up: { x: this.context.upstairsX!, y: this.context.upstairsY! },
+      down: { x: this.context.stairsX!, y: this.context.stairsY! }
+    });
+  }
+
+  private restoreFloor(floor: number, saved: SavedFloor, arrival: { x: number; y: number }) {
+    this.applyFeatures(saved.features);
+    dungeon.initialize(this.context, saved.map);
+    this.setupFloor(floor, saved.map, arrival, saved.down, saved);
+  }
+
+  private tryAscend() {
+    const p = this.context.player;
+    if (this.ended || isModalOpen(this.context) || !p?.canAct() ||
+        this.context.entities.some(entity => entity.moving)) return;
+    if (p.x !== this.context.upstairsX || p.y !== this.context.upstairsY) {
+      dungeon.log(this.context, 'You are not standing on the upstairs.');
+      return;
+    }
+    const previous = this.context.floor - 1;
+    const saved = this.floors.get(previous);
+    if (!saved) {
+      dungeon.log(this.context, 'The entrance is sealed. Find the exit below.');
+      return;
+    }
+    this.saveFloor();
+    this.restoreFloor(previous, saved, saved.down);
+    sfx.stairs();
+    dungeon.log(this.context, `You ascend to floor ${previous}.`);
   }
 
   private checkStairs() {
@@ -540,7 +633,8 @@ export class Scene0 extends Phaser.Scene {
   private tryDescend(): void {
     if (this.ended || isModalOpen(this.context)) return;
     const p = this.context.player;
-    if (!p || p.x === undefined || p.y === undefined) return;
+    if (!p || p.x === undefined || p.y === undefined || !p.canAct() ||
+        this.context.entities.some(entity => entity.moving)) return;
 
     if (p.x === this.context.stairsX && p.y === this.context.stairsY) {
       this.descend();
@@ -648,6 +742,9 @@ export class Scene0 extends Phaser.Scene {
       }
     }
 
+    if (this.context.upstairsX !== undefined && this.context.upstairsY !== undefined) {
+      this.upstairsLabel?.setVisible(this.seen[this.context.upstairsY]?.[this.context.upstairsX] === true);
+    }
     if (
       this.stairsLabel &&
       this.context.stairsX !== undefined &&
@@ -802,22 +899,32 @@ export class Scene0 extends Phaser.Scene {
 
   private renderStairs(x: number, y: number) {
     this.stairsLabel?.destroy();
+    this.upstairsLabel?.destroy();
 
     if (!this.context.map) return;
 
-    const isExit = this.context.floor >= this.context.maxFloor;
-    const color = isExit ? 0x00ff00 : 0x00ffff;
+    const color = 0x918b94;
     const wx = this.context.map.tileToWorldX(x)!;
     const wy = this.context.map.tileToWorldY(y)!;
 
     const g = this.add.graphics();
     g.fillStyle(color, 1);
     // Descending staircase drawn as narrowing steps.
-    g.fillRect(wx + 1, wy + 1, 14, 3);
-    g.fillRect(wx + 1, wy + 5, 11, 3);
-    g.fillRect(wx + 1, wy + 9, 8, 3);
-    g.fillRect(wx + 1, wy + 13, 5, 3);
+    g.fillRect(wx + 3, wy + 3, 10, 2);
+    g.fillRect(wx + 3, wy + 6, 8, 2);
+    g.fillRect(wx + 3, wy + 9, 6, 2);
+    g.fillRect(wx + 3, wy + 12, 4, 1);
+    g.setDepth(0.5);
     this.stairsLabel = g;
+    const ux = this.context.map.tileToWorldX(this.context.upstairsX!)!;
+    const uy = this.context.map.tileToWorldY(this.context.upstairsY!)!;
+    const up = this.add.graphics().setDepth(0.5);
+    up.fillStyle(color, 1);
+    up.fillRect(ux + 3, uy + 3, 4, 1);
+    up.fillRect(ux + 3, uy + 5, 6, 2);
+    up.fillRect(ux + 3, uy + 8, 8, 2);
+    up.fillRect(ux + 3, uy + 11, 10, 2);
+    this.upstairsLabel = up;
   }
 
   private spawnFloorContent(floor: number, levelArray: number[][], spawn: { x: number; y: number }) {

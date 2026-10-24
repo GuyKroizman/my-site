@@ -55,7 +55,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Progress',
-    body: `• Find the stairs and descend. Escape at the bottom floor.\n• Monsters drop gold and grant XP.\n• Leveling up raises max HP and attack.\n• Dying ends the run — plan food, health, and positioning.`,
+    body: `• Use > (or .) to descend and < (or ,) to ascend. On mobile, tap the stairs while standing on them.\n• Visited floors keep their map, exploration, terrain changes, monsters and loot during your run. Inactive floors pause.\n• The entrance on floor 1 is sealed. Escape at the bottom floor.\n• Monsters drop gold and grant XP.\n• Leveling up raises max HP and attack.\n• Dying ends the run — plan food, health, and positioning.`,
   },
 ] as const
 

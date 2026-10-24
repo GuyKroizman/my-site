@@ -438,7 +438,9 @@ export class InventoryWindow {
     // Full description, hidden until the item is identified.
     const description = item.identified
       ? item.description
-      : "You have not identified this item.";
+      : item instanceof Wand
+        ? "An unidentified wand. Its kind of magic is unknown."
+        : "You have not identified this item.";
     const desc = this.scene.add.text(iconX, ay, description, {
       fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
       color: item.identified ? COL.text : COL.muted,
