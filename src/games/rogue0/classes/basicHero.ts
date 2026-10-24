@@ -4,6 +4,7 @@ import { Entity, removeEntity, identify } from "../entity";
 import { isModalOpen, type GameContext } from "../context";
 import dungeon from "../dungeon";
 import Gem from "../items/gem";
+import Wand from "../items/wand";
 import { getTrapState } from "../tiles";
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
@@ -69,6 +70,30 @@ export default class BasicHero extends Entity {
   ring2: Entity | undefined;
   artifact: Entity | undefined;
   backpack: Entity[] = [];
+  quickslots: (Entity | undefined)[] = Array(4).fill(undefined);
+  private zapping = false;
+
+  canQuickslot(item: Entity): boolean {
+    return item instanceof Wand || item.consumable;
+  }
+
+  quickslotItem(index: number): Entity | undefined {
+    const item = this.quickslots[index];
+    if (item && !this.getAllItems().includes(item)) this.quickslots[index] = undefined;
+    return this.quickslots[index];
+  }
+
+  assignQuickslot(index: number, item: Entity): boolean {
+    if (index < 0 || index >= this.quickslots.length || !Number.isInteger(index) ||
+        !this.getAllItems().includes(item) || !this.canQuickslot(item)) return false;
+    this.quickslots[index] = item;
+    return true;
+  }
+
+  activateQuickslot(index: number): void {
+    const item = this.quickslotItem(index);
+    if (item) this.useItem(item);
+  }
   capacity: number = 20;
 
   UIHeader?: Phaser.GameObjects.Text;
@@ -416,7 +441,16 @@ export default class BasicHero extends Entity {
 
   // Use a consumable. Identifies it (if needed) and runs its consume effect.
   useItem(item: Entity): boolean {
-    if (!this.canAct() || !item.consumable || !this.getAllItems().includes(item)) return false;
+    if (!this.canAct() || !this.getAllItems().includes(item)) return false;
+    if (item instanceof Wand) {
+      if (item.charges <= 0) {
+        dungeon.log(this.context, "The wand is spent.");
+        return false;
+      }
+      this.beginThrow(item, true);
+      return false;
+    }
+    if (!item.consumable) return false;
 
     if (item instanceof Gem) {
       this.context.onChooseEnchantment?.(item);
@@ -439,7 +473,7 @@ export default class BasicHero extends Entity {
     const item = this.backpack[index];
     if (!item) return;
 
-    if (item.consumable) {
+    if (item.consumable || item instanceof Wand) {
       this.useItem(item);
     } else {
       this.equipItem(item);
@@ -913,17 +947,18 @@ export default class BasicHero extends Entity {
     }
   }
 
-  beginThrow(item: Entity): void {
+  beginThrow(item: Entity, zap = false): void {
     const context = this.context;
     if (!this.getAllItems().includes(item)) {
       dungeon.log(context, "You don't have that item.");
       return;
     }
-    if (item.cursed) {
+    if (item.cursed && !zap) {
       dungeon.log(context, `${item.displayName} is cursed and cannot be thrown.`);
       return;
     }
 
+    this.zapping = zap;
     context.throwMode = true;
     context.throwItem = item;
     if (context.cursorX === undefined || context.cursorY === undefined) {
@@ -932,7 +967,7 @@ export default class BasicHero extends Entity {
     }
     dungeon.log(
       context,
-      `Throwing ${item.displayName} — tap a tile (<=5 tiles, line of sight), or move the cursor and press Enter. Esc cancels.`
+      `${zap ? "Zapping" : "Throwing"} ${item.displayName} — tap a tile in range and line of sight, or move the cursor and press Enter. Esc cancels.`
     );
   }
 
@@ -941,7 +976,8 @@ export default class BasicHero extends Entity {
     if (!context.throwMode) return;
     context.throwMode = false;
     context.throwItem = undefined;
-    dungeon.log(context, "You stop throwing.");
+    this.zapping = false;
+    dungeon.log(context, "Targeting cancelled.");
   }
 
   throwAtCursor(): void {
@@ -968,7 +1004,8 @@ export default class BasicHero extends Entity {
     const isWall = inBounds && level[ty][tx] === 1;
     const hasLOS = inBounds && hasLineOfSight(level, this.x, this.y, tx, ty);
 
-    if (!inBounds || distance > 5 || !hasLOS || isWall) {
+    const range = this.zapping && item instanceof Wand ? item.range() : 5;
+    if (!inBounds || distance > range || !hasLOS || isWall) {
       dungeon.log(context, "You can't throw there.");
       this.cancelThrow();
       return;
@@ -978,6 +1015,41 @@ export default class BasicHero extends Entity {
     if (intercepted) {
       tx = intercepted.x!;
       ty = intercepted.y!;
+    }
+
+    if (this.zapping && item instanceof Wand) {
+      if (!this.getAllItems().includes(item) || item.charges <= 0) {
+        this.cancelThrow();
+        return;
+      }
+      const damage = item.damage();
+      const enemy = intercepted ?? dungeon.entityAtTile(context, tx, ty);
+      if (enemy?.type === "enemy") {
+        const attack = this.attack;
+        this.attack = () => damage;
+        try {
+          const result = resolveAttack(context, this, enemy, {
+            damageType: item.damageType, isRanged: true, onHitEffects: [item.wandEffect()]
+          });
+          if (result.hit) {
+            enemy.takeDamage(result.damage);
+            for (const effect of result.appliedEffects) {
+              if (enemy.healthPoints > 0) applyEffect(enemy, effect);
+            }
+            dungeon.applyHitEffects(context, enemy);
+            if (enemy.healthPoints <= 0) removeEntity(context, enemy);
+          }
+          dungeon.log(context, `${item.displayName}: ${result.hit ? `${result.damage} damage` : "miss"}.`);
+        } finally {
+          this.attack = attack;
+        }
+      }
+      context.throwMode = false;
+      context.throwItem = undefined;
+      this.zapping = false;
+      this.spendTurn("use");
+      this.refreshUI();
+      return;
     }
 
     // Remove the item from the hero's possession now; the landing handler

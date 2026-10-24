@@ -12,6 +12,7 @@ import type { Entity } from "./entity";
 import type BasicHero from "./classes/basicHero";
 
 import Gem from "./items/gem";
+import Wand from "./items/wand";
 
 type Action = "use" | "equip" | "unequip" | "drop" | "throw" | "close";
 
@@ -57,6 +58,13 @@ export class InventoryWindow {
   private dirty = false;
   private menuItem: Entity | undefined;
   private enchantingGem: Gem | undefined;
+  private quickslot: number | undefined;
+
+  chooseQuickslot(index: number): void {
+    this.openWindow();
+    this.quickslot = index;
+    this.render();
+  }
   // Top-level objects (overlay + containers) owned for cleanup. Containers
   // destroy their children when destroyed.
   private objects: Phaser.GameObjects.GameObject[] = [];
@@ -89,6 +97,7 @@ export class InventoryWindow {
   openWindow(): void {
     if (!this.context.player) return;
     this.open = true;
+    this.quickslot = undefined;
     this.enchantingGem = undefined;
     this.context.inventoryOpen = true;
     this.menuItem = undefined;
@@ -105,6 +114,7 @@ export class InventoryWindow {
   close(): void {
     if (!this.open) return;
     this.open = false;
+    this.quickslot = undefined;
     this.enchantingGem = undefined;
     this.context.inventoryOpen = false;
     this.menuItem = undefined;
@@ -192,7 +202,7 @@ export class InventoryWindow {
         .setStrokeStyle(1, C.border, 1)
     );
     this.winRoot.add(
-      this.scene.add.text(PAD, 11, this.enchantingGem ? "ENCHANT: CHOOSE GEAR" : "INVENTORY", {
+      this.scene.add.text(PAD, 11, this.quickslot !== undefined ? "QUICKSLOT: CHOOSE" : this.enchantingGem ? "ENCHANT: CHOOSE GEAR" : "INVENTORY", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 9,
         color: COL.gold
       })
@@ -305,7 +315,8 @@ export class InventoryWindow {
     this.winRoot!.add(box);
 
     if (item) {
-      const disabled = !!this.enchantingGem && !this.enchantingGem.canEnchant(item);
+      const disabled = (!!this.enchantingGem && !this.enchantingGem.canEnchant(item)) ||
+        (this.quickslot !== undefined && !this.context.player!.canQuickslot(item));
       if (item.identified) {
         const icon = this.scene.add
           .sprite(x + CELL / 2, y + CELL / 2, item.spriteTextureKey, item.spriteFrame)
@@ -352,6 +363,10 @@ export class InventoryWindow {
   }
 
   private openMenu(item: Entity): void {
+    if (this.quickslot !== undefined) {
+      if (this.context.player?.assignQuickslot(this.quickslot, item)) this.close();
+      return;
+    }
     if (this.enchantingGem) {
       if (this.enchantingGem.enchant(item)) this.close();
       return;
@@ -482,8 +497,8 @@ export class InventoryWindow {
   ): { action: Action; label: string; enabled: boolean }[] {
     const actions: { action: Action; label: string; enabled: boolean }[] = [];
 
-    if (item.consumable) {
-      actions.push({ action: "use", label: "Use", enabled: true });
+    if (item.consumable || item instanceof Wand) {
+      actions.push({ action: "use", label: item instanceof Wand ? "Zap" : "Use", enabled: true });
     }
 
     actions.push({ action: "throw", label: "Throw", enabled: !item.cursed });
@@ -515,6 +530,10 @@ export class InventoryWindow {
     switch (action) {
       case "use":
         player.useItem(item);
+        if (this.context.throwMode) {
+          this.close();
+          return;
+        }
         break;
       case "equip":
         player.equipItem(item);

@@ -1,6 +1,7 @@
 import { isModalOpen, type GameContext } from "./context";
 import { InventoryWindow } from "./inventoryWindow";
 import { LogWindow } from "./logWindow";
+import { QuickslotPane } from "./quickslotPane";
 
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
@@ -37,7 +38,7 @@ export function getHudMetrics(w: number, h: number): {
   const count = 6; // hero, wait, search, inspect, skill, bag
   const size = Math.max(34, Math.min(46, Math.floor((w - 16 - (count - 1) * gap) / count)));
   // Toolbar block = size + 24 bottom margin; log (72px) sits 8px above it.
-  const hudHeight = size + 24 + 8 + 72;
+  const hudHeight = size + 24 + 8 + 72 + 52;
   return { size, hudHeight, hudTop: h - hudHeight };
 }
 
@@ -65,6 +66,7 @@ export class UI extends Phaser.Scene {
   private logClip: Phaser.GameObjects.Graphics | undefined;
   private logWindow: LogWindow | undefined;
   private toolbar: ToolbarButton[] = [];
+  private quickslotPane: QuickslotPane | undefined;
 
   constructor(context: GameContext) {
     super("ui-scene");
@@ -111,6 +113,7 @@ export class UI extends Phaser.Scene {
 
   buildHUD() {
     this.buildToolbar();
+    this.quickslotPane = new QuickslotPane(this, this.context, this.inventoryWindow!);
     this.buildLog();
     this.buildHeroModal();
     this.buildInspectModal();
@@ -322,7 +325,8 @@ export class UI extends Phaser.Scene {
     const logW = Math.min(w - 16, 520);
     const logH = 72;
     const logX = (w - logW) / 2;
-    const logY = y - logH - 8;
+    this.quickslotPane?.layout(w, y - 30);
+    const logY = y - logH - 8 - 52;
     this.logPanel?.setPosition(logX, logY).setSize(logW, logH);
     this.logTitle?.setPosition(logX + 8, logY + 4);
     this.log?.setPosition(logX + 8, logY + 20);
@@ -372,6 +376,7 @@ export class UI extends Phaser.Scene {
     this.updateHeroModal();
     this.updateInspectModal();
     this.inventoryWindow?.refresh();
+    this.quickslotPane?.refresh();
   }
 
   private updateHeroModal() {

@@ -47,7 +47,7 @@ assert.equal(turns, 2);
 assert.equal(items.length, 2);
 assert.equal(context.entities.length, 0);
 assert.equal(gem.enchant({ equipSlot: 'consumable' }), false);
-const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Gem });
+const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Gem, Wand: class {} });
 const window = new InventoryWindow({}, context);
 window.render = () => {};
 window.clearObjects = () => {};

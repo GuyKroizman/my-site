@@ -1,10 +1,7 @@
 // Shared base for the Phase 6 wands.
 //
-// A wand is a ranged weapon with finite `charges`. It deals its damage through
-// `damage()` (the same path melee weapons use) and, while it has charges left,
-// contributes an on-hit status effect by patching the equipped hero's
-// `onHitEffects()` for as long as it stays equipped. At 0 charges it deals no
-// damage and logs that the wand is spent.
+// Wands stay in the backpack and zap through targeting, never replacing
+// the main weapon. Each valid zap consumes one charge, even on a miss.
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, identify } from "../entity";
@@ -24,13 +21,12 @@ export type WandConfig = {
 export default abstract class Wand extends Entity {
   type: EntityType = "item";
   tier = 1;
-  equipSlot: "weapon" = "weapon";
+
   identified = false;
   charges: number = 0;
   maxCharges: number = 0;
   wandRange: number = 5;
 
-  private originalOnHitEffects: (() => StatusEffect[]) | undefined;
 
   constructor(context: GameContext, config: WandConfig, x?: number, y?: number) {
     super();
@@ -50,25 +46,9 @@ export default abstract class Wand extends Entity {
   abstract wandDamage(): number;
   abstract wandEffect(): StatusEffect;
 
-  equip() {
-    const player = this.context.player;
-    if (!player) return;
+  equip() {}
 
-    this.originalOnHitEffects = player.onHitEffects;
-    player.onHitEffects = () => this.hitEffects();
-  }
-
-  unequip() {
-    const player = this.context.player;
-    if (player && this.originalOnHitEffects) {
-      player.onHitEffects = this.originalOnHitEffects;
-      this.originalOnHitEffects = undefined;
-    }
-  }
-
-  private hitEffects(): StatusEffect[] {
-    return this.charges > 0 ? [this.wandEffect()] : [];
-  }
+  unequip() {}
 
   // Restore this wand to full charges (used by Scroll of Recharging).
   refill(): void {
