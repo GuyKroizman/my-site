@@ -99,7 +99,7 @@ export function createBurningEffect(duration = 3): StatusEffect {
     name: "Burning",
     iconTile: 13 * 49 + 43,
     duration,
-    tick(entity, context) {
+    tick(entity) {
       const amount = 1;
       entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
@@ -114,7 +114,7 @@ export function createPoisonedEffect(duration = 3): StatusEffect {
     name: "Poisoned",
     iconTile: 14 * 49 + 43,
     duration,
-    tick(entity, context) {
+    tick(entity) {
       const amount = 1;
       entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
@@ -129,7 +129,7 @@ export function createBleedingEffect(duration = 3): StatusEffect {
     name: "Bleeding",
     iconTile: 14 * 49 + 44,
     duration,
-    tick(entity, context) {
+    tick(entity) {
       const amount = 1;
       entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
@@ -144,7 +144,7 @@ export function createRegenerationEffect(duration = 4): StatusEffect {
     name: "Regeneration",
     iconTile: 13 * 49 + 44,
     duration,
-    tick(entity, context) {
+    tick(entity) {
       if (entity.healthPoints >= entity.maxHealthPoints) return;
 
       const amount = 1;
@@ -206,7 +206,7 @@ export function createCursedEffect(): StatusEffect {
     iconTile: 17 * 49 + 43,
     duration: Number.POSITIVE_INFINITY,
     manualExpiry: true,
-    tick(entity, context) {
+    tick(entity) {
       const amount = 1;
       entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);

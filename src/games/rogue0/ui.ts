@@ -395,7 +395,7 @@ export class UI extends Phaser.Scene {
       const fraction = Phaser.Math.Clamp(player.healthPoints / Math.max(1, player.maxHealthPoints), 0, 1);
       this.healthFill?.setSize((this.healthWidth - 2) * fraction, 14).setVisible(fraction > 0);
       this.healthText?.setText(`${player.healthPoints}/${player.maxHealthPoints}`);
-      this.heroStatus?.setText(`Lv ${player.level} · Food ${Math.ceil(player.hunger)}`);
+      this.heroStatus?.setText(`Lv ${player.level} · Food ${Math.ceil(player.hunger)} · ${player.hungerState}`);
     }
     this.updateHeroModal();
     this.updateInspectModal();

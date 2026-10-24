@@ -254,6 +254,42 @@ hero.walkPath = [{ x: 1, y: 0 }];
 hero.refresh();
 assert.equal(hero.walkPath.length, 0, 'starving again after eating stops navigation');
 
+// Fed healing, hungry suppression, and starving damage have distinct boundaries.
+Object.assign(hero, { hunger: 60, healthPoints: 50, maxHealthPoints: 100 });
+assert.equal(hero.hungerState, 'Fed');
+hero.refresh();
+assert.equal(hero.healthPoints, 51, 'food below the old 80 threshold still heals');
+hero.hunger = 30.25;
+hero.refresh();
+assert.equal(hero.hungerState, 'Fed', 'exactly 30 food is fed');
+assert.equal(hero.healthPoints, 52);
+hero.refresh();
+assert.equal(hero.hungerState, 'Hungry');
+assert.equal(hero.healthPoints, 52, 'entering hunger stops healing immediately');
+assert.ok(hero.statsText().includes('(Hungry)'));
+hero.hunger = 0.5;
+hero.refresh();
+assert.equal(hero.healthPoints, 52, 'hungry does not deal damage');
+hero.refresh();
+assert.equal(hero.hungerState, 'Starving');
+assert.equal(hero.healthPoints, 51);
+assert.ok(hero.statsText().includes('(Starving)'));
+hero.restoreHunger(10);
+hero.refresh();
+assert.equal(hero.hungerState, 'Hungry');
+assert.equal(hero.healthPoints, 51, 'small meals stop damage without enabling healing');
+hero.restoreHunger(30);
+hero.refresh();
+assert.equal(hero.healthPoints, 52, 'sufficient food resumes natural healing');
+assert.ok(hero.statsText().includes('(Fed)'));
+hero.healthPoints = 99.5;
+hero.refresh();
+assert.equal(hero.healthPoints, 100, 'natural healing cannot exceed max HP');
+hero.refresh();
+assert.equal(hero.healthPoints, 100);
+hero.restoreHunger(1000);
+assert.equal(hero.hunger, 100, 'food remains capped');
+
 // A buff applied between integer time boundaries keeps its full lifetime.
 const effects = load('src/games/rogue0/effects.ts', { spawnEntityFloatingText() {} });
 ({ player, enemy, entities } = setup());

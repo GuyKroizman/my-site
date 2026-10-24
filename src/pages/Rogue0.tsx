@@ -39,7 +39,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Food & Hunger',
-    body: `• Your Food meter drops by 0.25 per world-time unit (1 point every 4 normal moves).\n• Above 80 you are well-fed and slowly regain health.\n• Below 30 you get a warning that you are hungry.\n• At 0 you are starving: take 1 damage per round until you eat.\n• Eat Rations to restore hunger.`,
+    body: `• Your Food meter drops by 0.25 per world-time unit (1 point every 4 normal moves).\n• Fed (30–100 Food): regain 1 HP per world-time unit, up to maximum health.\n• Hungry (above 0, below 30): natural healing stops, but hunger does not damage you yet.\n• Starving (0 Food): lose 1 HP per world-time unit until you eat.\n• Eat Rations to restore Food. Reach 30 Food to resume natural healing. Healing happens over time, not on entering a floor; potions and magical healing still work while hungry.`,
   },
   {
     title: 'Items & Equipment',

@@ -35,6 +35,14 @@ use absolute ready timestamps. Faster movement does not accelerate hunger,
 poison, or cooldowns. Floor changes preserve the clock and buff/cooldown timing.
 Animation durations and frame rate never determine logical action costs.
 
+Food drops by 0.25 per world-time unit. Fed (30–100 Food) heroes naturally
+recover 1 HP per unit, capped at maximum HP. Hungry (0 < Food < 30) heroes
+neither naturally heal nor take hunger damage. Starving (0 Food) heroes lose
+1 HP per unit. Eating stops starvation immediately; natural healing resumes
+once Food is at least 30 (evaluated after that unit's food drain). Potions and
+magical healing are unaffected. These are SPD-inspired states with Rogue0
+balance values, not an exact reproduction of SPD. Entering a floor does not heal.
+
 Run the headless regression checks with `node scripts/test-rogue0-movement.mjs`.
 
 ```mermaid

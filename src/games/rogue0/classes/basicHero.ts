@@ -572,6 +572,11 @@ export default class BasicHero extends Entity {
     return total;
   }
 
+  get hungerState(): "Fed" | "Hungry" | "Starving" {
+    if (this.hunger <= 0) return "Starving";
+    return this.hunger < 30 ? "Hungry" : "Fed";
+  }
+
   refresh() {
     // Drain a quarter point per world-time unit: food lasts 4x as long.
     const wasStarving = this.hunger === 0;
@@ -580,7 +585,7 @@ export default class BasicHero extends Entity {
     // Warn once when hunger first drops below 30, not every time tick.
     if (this.hunger > 0 && this.hunger < 30 && !this.hungerWarned) {
       this.hungerWarned = true;
-      dungeon.log(this.context, "You are getting hungry.");
+      dungeon.log(this.context, "You are hungry. Natural healing has stopped.");
     }
 
     // Starving: 1 damage per time unit until food is eaten.
@@ -594,9 +599,9 @@ export default class BasicHero extends Entity {
       }
     }
 
-    // Well-fed: regain 1 HP per time unit while hunger is high.
-    if (this.hunger >= 80 && this.healthPoints < this.maxHealthPoints) {
-      this.healthPoints += 1;
+    // Fed: regain 1 HP per world-time unit; hunger stops natural healing.
+    if (this.hungerState === "Fed" && this.healthPoints < this.maxHealthPoints) {
+      this.healthPoints = Math.min(this.maxHealthPoints, this.healthPoints + 1);
       spawnEntityFloatingText(this, "+1", "#6aff6a");
     }
   }
@@ -1533,10 +1538,7 @@ export default class BasicHero extends Entity {
 
   statsText(): string {
     let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}/${this.maxHealthPoints}`;
-    const food =
-      this.hunger <= 0
-        ? "Starving!"
-        : `Food: ${Math.ceil(this.hunger)}/${this.maxHunger}`;
+    const food = `Food: ${Math.ceil(this.hunger)}/${this.maxHunger} (${this.hungerState})`;
     text += `\n${food}  Gold: ${this.gold}`;
     if (this.skill !== "") {
       const state =
