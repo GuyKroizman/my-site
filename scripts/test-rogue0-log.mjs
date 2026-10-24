@@ -1,3 +1,5 @@
+import { recordTestRun } from './rogue0-test-history.mjs';
+recordTestRun('log');
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
