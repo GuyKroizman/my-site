@@ -31,7 +31,9 @@ export function createForegroundAtlas(scene: Phaser.Scene): void {
     }
   }
   ctx.putImageData(pixels, 0, 0);
-  const texture = scene.textures.addCanvas('foreground-source', canvas);
+  // addSpriteSheet reuses a supplied Texture's key, ignoring its key argument.
+  // Register the canvas under the final key so entities can actually find it.
+  const texture = scene.textures.addCanvas('foreground-tiles', canvas);
   if (texture) scene.textures.addSpriteSheet('foreground-tiles', texture, {
     frameWidth: 16, frameHeight: 16, spacing: 1
   });
