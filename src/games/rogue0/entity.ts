@@ -61,6 +61,8 @@ export abstract class Entity {
   equipSlot: EquipSlot = "junk";
   // Number of identical items stacked in this one slot (consumables).
   count: number = 1;
+  // Floor currency is collected into the wallet, never into backpack slots.
+  goldAmount: number = 0;
 
   // Status effects and combat stats used by effects.ts / combat.ts.
   effects: StatusEffect[] = [];

@@ -203,6 +203,15 @@ export default class BasicHero extends Entity {
   // in the backpack. Returns false (and leaves the item untouched on the
   // ground) when there is no room.
   addItem(item: Entity): boolean {
+    if (item.goldAmount > 0) {
+      // Only live floor piles can be collected; prevent duplicate credit.
+      const index = this.context.entities.indexOf(item);
+      if (index === -1 || item.x === undefined || item.y === undefined) return false;
+      this.gold += item.goldAmount;
+      this.context.entities.splice(index, 1);
+      this.refreshUI();
+      return true;
+    }
     // Stack identical consumables (potions, scrolls, food, etc.).
     if (item.equipSlot === "consumable") {
       const existing = this.backpack.find(

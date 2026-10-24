@@ -167,7 +167,8 @@ export class InventoryWindow {
     const gridW = BACKPACK_COLS * CELL + (BACKPACK_COLS - 1) * GAP;
     const gridX = PAD + Math.floor((WINDOW_W - PAD * 2 - gridW) / 2);
 
-    const equipLabelY = TITLE_BAR_H + 12;
+    const goldY = TITLE_BAR_H + 10;
+    const equipLabelY = goldY + 30;
     const slotLabelY = equipLabelY + 16;
     const equipCellY = slotLabelY + 14;
     const backpackLabelY = equipCellY + CELL + 18;
@@ -219,6 +220,14 @@ export class InventoryWindow {
     closeBtn.on("pointerup", () => this.close());
     this.winRoot.add(closeBtn);
     this.winRoot.add(closeLabel);
+
+    // Currency is tracked separately and does not occupy backpack slots.
+    this.winRoot.add(
+      this.scene.add.text(PAD, goldY, `Gold: ${player.gold}`, {
+        fontFamily: `${FONT_MONO}, monospace`, fontSize: 20,
+        color: COL.gold
+      })
+    );
 
     // Equipped slots row.
     this.winRoot.add(

@@ -5,6 +5,7 @@ import type { GameContext } from "../context";
 import type { DamageType } from "../effects";
 import dungeon from "../dungeon";
 import { enemyTurn } from "../ai";
+import Gold from "../items/gold";
 
 export type MonsterConfig = {
   name: string;
@@ -123,12 +124,16 @@ export default class Monster extends Entity {
         const instance = new item(this.context, x, y);
         this.context.entities.push(instance);
         dungeon.log(this.context, `${this.name} drops ${instance.name}.`);
+        return; // An item or gold, never both.
       }
     }
 
-    if (this.gold > 0 && this.context.player) {
-      this.context.player.gold += this.gold;
-      dungeon.log(this.context, `You find ${this.gold} gold.`);
+    // If the item roll produced nothing, give a 25% chance of floor currency.
+    // Death never credits the wallet; gold uses the normal floor pickup flow.
+    if (this.gold > 0 && Phaser.Math.Between(1, 4) === 1) {
+      const pile = new Gold(this.context, x, y, this.gold);
+      this.context.entities.push(pile);
+      dungeon.log(this.context, `${this.name} drops ${pile.name}.`);
     }
   }
 }

@@ -183,6 +183,17 @@ export class Scene0 extends Phaser.Scene {
     this.context.kills = 0;
     this.ended = false;
 
+    if (!this.textures.exists("gold-pile")) {
+      const coins = this.make.graphics({ x: 0, y: 0 });
+      for (const [x, y] of [[5, 10], [11, 10], [8, 6]]) {
+        coins.fillStyle(0x805018).fillEllipse(x, y + 1, 7, 5);
+        coins.fillStyle(0xf0b429).fillEllipse(x, y, 7, 4);
+        coins.fillStyle(0xffe49a).fillRect(x - 1, y - 1, 2, 1);
+      }
+      coins.generateTexture("gold-pile", 16, 16);
+      coins.destroy();
+    }
+
     this.makeSparkTexture();
     this.makeArrowTexture();
     generatePotionTextures(this);
