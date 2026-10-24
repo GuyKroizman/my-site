@@ -1,8 +1,9 @@
 import { isModalOpen, type GameContext } from './context';
 import { InventoryWindow } from './inventoryWindow';
 import Wand from './items/wand';
+import { attachTooltip } from './tooltip';
 
-// Separate row of touch-sized shortcuts; assignment never spends a turn.
+// Compact shortcuts beside the backpack; assignment never spends a turn.
 export class QuickslotPane {
   private slots: { root: Phaser.GameObjects.Container; icon: Phaser.GameObjects.Sprite;
     label: Phaser.GameObjects.Text }[] = [];
@@ -15,6 +16,10 @@ export class QuickslotPane {
       const icon = scene.add.sprite(0, 0, 'tiles', 0).setVisible(false);
       const label = scene.add.text(19, 19, '+', { fontSize: '12px', color: '#f0b429' }).setOrigin(1);
       root.add([box, icon, label]);
+      attachTooltip(scene, context, box, () => {
+        const item = context.player?.quickslotItem(i);
+        return `Quick slot ${i + 1}: ${item ? item.displayName : 'empty'}\nHold to assign`;
+      });
       let timer: Phaser.Time.TimerEvent | undefined;
       let pressed = false;
       let held = false;
@@ -44,8 +49,11 @@ export class QuickslotPane {
     }
   }
 
-  layout(width: number, y: number): void {
-    this.slots.forEach((slot, i) => slot.root.setPosition(width / 2 + (i - 1.5) * 52, y));
+  layout(right: number, y: number, size = 34, gap = 3): void {
+    this.slots.forEach((slot, i) => {
+      slot.root.setPosition(right - size / 2 - (3 - i) * (size + gap), y);
+      slot.root.setScale(size / 44);
+    });
   }
 
   refresh(): void {

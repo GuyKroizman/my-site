@@ -2,6 +2,7 @@ import { isModalOpen, type GameContext } from "./context";
 import { InventoryWindow } from "./inventoryWindow";
 import { LogWindow } from "./logWindow";
 import { QuickslotPane } from "./quickslotPane";
+import { attachTooltip } from "./tooltip";
 
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
@@ -26,19 +27,15 @@ type ToolbarButton = {
   label?: Phaser.GameObjects.Text;
 };
 
-// Shared HUD geometry. scene0 uses this to shrink its camera viewport so the
-// bottom HUD (log + toolbar) never hides playable map area; keep in sync with
-// layout() below.
+// Compact edge-anchored HUD geometry; the map remains full screen.
 export function getHudMetrics(w: number, h: number): {
   size: number;
   hudHeight: number;
   hudTop: number;
 } {
-  const gap = 8;
-  const count = 6; // hero, wait, search, inspect, skill, bag
-  const size = Math.max(34, Math.min(46, Math.floor((w - 16 - (count - 1) * gap) / count)));
-  // Toolbar block = size + 24 bottom margin; log (72px) sits 8px above it.
-  const hudHeight = size + 24 + 8 + 72 + 52;
+  // Wait/search + four quick slots + backpack, with a gap between groups.
+  const size = Math.max(24, Math.min(34, Math.floor((w - 36) / 7)));
+  const hudHeight = size + 8 + 6 + 48;
   return { size, hudHeight, hudTop: h - hudHeight };
 }
 
@@ -67,6 +64,11 @@ export class UI extends Phaser.Scene {
   private logWindow: LogWindow | undefined;
   private toolbar: ToolbarButton[] = [];
   private quickslotPane: QuickslotPane | undefined;
+  private healthTrack: Phaser.GameObjects.Rectangle | undefined;
+  private healthFill: Phaser.GameObjects.Rectangle | undefined;
+  private healthText: Phaser.GameObjects.Text | undefined;
+  private heroStatus: Phaser.GameObjects.Text | undefined;
+  private healthWidth = 140;
 
   constructor(context: GameContext) {
     super("ui-scene");
@@ -113,6 +115,16 @@ export class UI extends Phaser.Scene {
 
   buildHUD() {
     this.buildToolbar();
+    this.healthTrack = this.add.rectangle(0, 0, 140, 16, C.panel)
+      .setOrigin(0).setStrokeStyle(1, C.borderStrong);
+    this.healthFill = this.add.rectangle(0, 0, 138, 14, 0xf0b429).setOrigin(0);
+    this.healthText = this.add.text(0, 0, '', {
+      fontFamily: `${FONT_MONO}, monospace`, fontSize: 16, color: COL.text,
+      stroke: '#16121c', strokeThickness: 3
+    }).setOrigin(0.5);
+    this.heroStatus = this.add.text(0, 0, '', {
+      fontFamily: `${FONT_MONO}, monospace`, fontSize: 14, color: COL.muted
+    });
     this.quickslotPane = new QuickslotPane(this, this.context, this.inventoryWindow!);
     this.buildLog();
     this.buildHeroModal();
@@ -133,6 +145,7 @@ export class UI extends Phaser.Scene {
     heroBg.on("pointerover", () => heroBg.setStrokeStyle(2, 0xf0b429, 1));
     heroBg.on("pointerout", () => heroBg.setStrokeStyle(2, C.borderStrong, 1));
     heroBg.on("pointerup", () => this.toggleHeroModal());
+    attachTooltip(this, this.context, heroBg, 'Character info');
     this.toolbar.push({ bg: heroBg, icon: heroIcon });
 
     // Wait.
@@ -162,7 +175,7 @@ export class UI extends Phaser.Scene {
     this.toolbar.push(this.makeButton(() => this.context.player?.tryUseSkill(), (g) => {
       g.lineStyle(2, iconColor, 1);
       g.strokeTriangle(0, -8, 7, 6, -7, 6);
-    }));
+    }, "Character special"));
 
     // Backpack.
     this.toolbar.push(this.makeButton(() => {
@@ -172,7 +185,7 @@ export class UI extends Phaser.Scene {
       g.lineStyle(2, iconColor, 1);
       g.strokeRect(-6, -3, 12, 9);
       g.strokeCircle(0, -4, 2);
-    }, "Bag"));
+    }, "Backpack"));
   }
 
   private makeButton(
@@ -204,6 +217,7 @@ export class UI extends Phaser.Scene {
       if (!isModalOpen(this.context)) onClick();
     });
 
+    if (label) attachTooltip(this, this.context, bg, label);
     return { bg, icon: g, label: txt };
   }
 
@@ -308,30 +322,42 @@ export class UI extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
 
-    // Toolbar: responsive button size so it always fits horizontally.
-    const gap = 8;
-    const count = this.toolbar.length;
+    const gap = 3;
+    const edge = 8;
     const { size } = getHudMetrics(w, h);
-    const totalW = count * size + (count - 1) * gap;
-    let x = (w - totalW) / 2;
-    const y = h - size - 24;
-    for (const b of this.toolbar) {
-      b.bg.setPosition(x + size / 2, y + size / 2).setSize(size, size);
-      b.icon.setPosition(x + size / 2, y + size / 2);
-      if (b.label) b.label.setPosition(x + size / 2, y + size + 8);
-      x += size + gap;
-    }
-    // Log above the toolbar.
-    const logW = Math.min(w - 16, 520);
-    const logH = 72;
-    const logX = (w - logW) / 2;
-    this.quickslotPane?.layout(w, y - 30);
-    const logY = y - logH - 8 - 52;
+    const y = h - size - edge;
+    const positions = [
+      [edge, edge], // portrait
+      [edge, y], [edge + size + gap, y], // wait, search
+      [w - edge - size, y - 2 * (size + gap)], // inspect
+      [w - edge - size, y - size - gap], // special, directly above backpack
+      [w - edge - size, y] // backpack
+    ];
+    this.toolbar.forEach((b, i) => {
+      const [x, top] = positions[i];
+      b.bg.setPosition(x + size / 2, top + size / 2).setSize(size, size);
+      b.icon.setPosition(x + size / 2, top + size / 2);
+      if (i === 0) b.icon.setScale(size / 32);
+      b.label?.setVisible(false);
+    });
+    const healthX = edge + size + 6;
+    this.healthWidth = Math.max(60, Math.min(160, w - healthX - 64));
+    this.healthTrack?.setPosition(healthX, edge).setSize(this.healthWidth, 16);
+    this.healthFill?.setPosition(healthX + 1, edge + 1);
+    this.healthText?.setPosition(healthX + this.healthWidth / 2, edge + 8);
+    this.heroStatus?.setPosition(healthX, edge + 20);
+    // A lightweight message strip above the bottom controls, with history on tap.
+    const logW = Math.min(w - 16 - size - gap, 520);
+    const logH = 48;
+    const logX = edge;
+    this.quickslotPane?.layout(w - edge - size - gap, y + size / 2, size, gap);
+    const logY = y - logH - 6;
     this.logPanel?.setPosition(logX, logY).setSize(logW, logH);
-    this.logTitle?.setPosition(logX + 8, logY + 4);
-    this.log?.setPosition(logX + 8, logY + 20);
-    this.log?.setWordWrapWidth(logW - 16);
-    this.logClip?.clear().fillStyle(0xffffff).fillRect(logX + 8, logY + 20, logW - 16, logH - 28);
+    this.logPanel?.setFillStyle(C.bg, 0.65);
+    this.logTitle?.setVisible(false);
+    this.log?.setPosition(logX + 4, logY + 4);
+    this.log?.setWordWrapWidth(logW - 8);
+    this.logClip?.clear().fillStyle(0xffffff).fillRect(logX + 4, logY + 4, logW - 8, logH - 8);
     this.logWindow?.layout();
 
     // Hero modal: clamp to the viewport and center it.
@@ -372,7 +398,14 @@ export class UI extends Phaser.Scene {
   update() {
     if (!this.log) return;
 
-    this.log.setText(this.context.messages.join("\n\n"));
+    this.log.setText(this.context.messages.join("\n"));
+    const player = this.context.player;
+    if (player) {
+      const fraction = Phaser.Math.Clamp(player.healthPoints / Math.max(1, player.maxHealthPoints), 0, 1);
+      this.healthFill?.setSize((this.healthWidth - 2) * fraction, 14).setVisible(fraction > 0);
+      this.healthText?.setText(`${player.healthPoints}/${player.maxHealthPoints}`);
+      this.heroStatus?.setText(`Lv ${player.level} · Food ${Math.ceil(player.hunger)}`);
+    }
     this.updateHeroModal();
     this.updateInspectModal();
     this.inventoryWindow?.refresh();
