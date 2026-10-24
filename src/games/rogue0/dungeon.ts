@@ -90,20 +90,28 @@ let dungeon = {
   },
 
   // Diagonal steps and melee cannot cut across walls or closed doors.
-  canStepBetween: function (sx: number, sy: number, tx: number, ty: number): boolean {
+  canStepBetween: function (sx: number, sy: number, tx: number, ty: number, actor?: Entity): boolean {
     const dx = Math.abs(tx - sx);
     const dy = Math.abs(ty - sy);
     if (Math.max(dx, dy) !== 1) return false;
     if (!dx || !dy) return true;
-    return this.pathGrid!.isWalkableAt(sx, ty) && this.pathGrid!.isWalkableAt(tx, sy);
+    const passable = (x: number, y: number) => this.pathGrid!.isWalkableAt(x, y) ||
+      (!!actor && hasEffect(actor, "levitating") && tiles.getFeature(x, y) === "chasm" && this.currentLevel[y]?.[x] === 0);
+    return passable(sx, ty) && passable(tx, sy);
   },
 
   // Pathfinding mutates node state (opened/closed), so always search on a
   // fresh grid clone to avoid stale state between calls.
   // `throughDoors` lets players and pursuing enemies plan routes through
   // closed doors; movement must open the door before entering.
-  findPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false, avoidTraps = false): number[][] {
+  findPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false, avoidTraps = false, actor?: Entity): number[][] {
     const grid = this.pathGrid!.clone();
+    const flying = !!actor && hasEffect(actor, "levitating");
+    if (flying) {
+      tiles.forEachFeature((x, y, s) => {
+        if (s.feature === "chasm" && this.currentLevel[y]?.[x] === 0) grid.setWalkableAt(x, y, true);
+      });
+    }
     if (throughDoors) {
       tiles.forEachFeature((x, y, s) => {
         if (s.feature === "door" && s.door === "closed") {
@@ -113,7 +121,7 @@ let dungeon = {
     }
     // Only the explicitly selected destination may be a revealed trap.
     // Apply this on every search so newly revealed traps also stop auto-walk.
-    if (avoidTraps) {
+    if (avoidTraps && !flying) {
       tiles.forEachFeature((x, y, s) => {
         if (s.feature === "trap" && s.trap === "visible" && (x !== tx || y !== ty)) {
           grid.setWalkableAt(x, y, false);
@@ -124,7 +132,7 @@ let dungeon = {
     // Planning may enter a closed door, but not cut diagonally past it.
     const getNeighbors = grid.getNeighbors.bind(grid);
     grid.getNeighbors = (node, diagonalMovement) => getNeighbors(node, diagonalMovement)
-      .filter(next => this.canStepBetween(node.x, node.y, next.x, next.y));
+      .filter(next => this.canStepBetween(node.x, node.y, next.x, next.y, actor));
     return this.diagonalFinder!.findPath(sx, sy, tx, ty, grid);
   },
 
@@ -138,7 +146,9 @@ let dungeon = {
       if (entity.sprite && entity.x === x && entity.y === y) return false;
     }
 
-    if (tiles.isBlocking(x, y)) {
+    if (level[y][x] !== 0) return false;
+    const flying = !!context.player && hasEffect(context.player, "levitating");
+    if (tiles.isBlocking(x, y) && !(flying && tiles.getFeature(x, y) === "chasm")) {
       // Closed doors open when the player tries to step into them. This lives
       // here because the player's movement code is in basicHero.processInput
       // (which is outside the set of files this terrain pass may edit).
@@ -149,7 +159,7 @@ let dungeon = {
           player &&
           player.x !== undefined &&
           player.y !== undefined &&
-          this.canStepBetween(player.x, player.y, x, y)
+          this.canStepBetween(player.x, player.y, x, y, player)
         ) {
           this.openDoor(x, y);
         }
@@ -302,6 +312,18 @@ let dungeon = {
     return path.length >= 2 ? path.length : 0;
   },
 
+  expireLevitation: function (context: GameContext, entity: Entity): void {
+    if (entity.x === undefined || entity.y === undefined || entity.healthPoints <= 0 ||
+        tiles.getFeature(entity.x, entity.y) !== "chasm") return;
+    if (entity.type === "player") {
+      context.pendingFall = true;
+      entity.actionReady = false;
+    } else if (entity.type === "enemy") {
+      entity.takeDamage(entity.healthPoints);
+      removeEntity(context, entity);
+    }
+  },
+
   moveEntityTo: function (context: GameContext, entity: Entity, x: number, y: number): void {
     if (context.map == undefined || context.scene == undefined) {
       throw new Error("context.map is undefined");
@@ -329,14 +351,15 @@ let dungeon = {
     let destX = x;
     let destY = y;
 
-    // Water douses fire for any entity that steps in.
-    if (tiles.getFeature(destX, destY) === "water" && hasEffect(entity, "burning")) {
+    const flying = hasEffect(entity, "levitating");
+    // Flying actors do not contact water, vegetation or pressure plates.
+    if (!flying && tiles.getFeature(destX, destY) === "water" && hasEffect(entity, "burning")) {
       removeEffect(entity, "burning");
       this.log(context, `${entity.name} steps into water and the flames go out.`);
     }
 
-    // Only the player triggers traps.
-    if (entity.type === "player") {
+    // Only grounded players trigger ordinary traps.
+    if (entity.type === "player" && !flying) {
       const state = tiles.getTileState(destX, destY);
       if (state && state.feature === "trap" && state.trapKind !== "arrow" && state.trap !== "triggered") {
         tiles.setTrapState(destX, destY, "triggered");
@@ -369,7 +392,7 @@ let dungeon = {
     }
 
     // Grass is flammable: a burning creature ignites grass on or next to it.
-    if (hasEffect(entity, "burning")) {
+    if (!flying && hasEffect(entity, "burning")) {
       this.igniteGrass(context, entity, destX, destY);
     }
 
@@ -383,7 +406,7 @@ let dungeon = {
         !context.visibleTiles.has(`${destX},${destY}`)) {
       entity.x = destX;
       entity.y = destY;
-      this.triggerArrowTrap(context, destX, destY);
+      if (!flying) this.triggerArrowTrap(context, destX, destY);
       closeDoorBehind();
       entity.sprite?.setPosition(
         context.map.tileToWorldX(destX)!, context.map.tileToWorldY(destY)!
@@ -394,7 +417,7 @@ let dungeon = {
     // The sprite animates independently of the logical tile coordinates.
     entity.x = destX;
     entity.y = destY;
-    if (entity.type !== "item") this.triggerArrowTrap(context, destX, destY);
+    if (entity.type !== "item" && !flying) this.triggerArrowTrap(context, destX, destY);
     if (entity.healthPoints <= 0 && entity.type !== "item") {
       closeDoorBehind();
       return;

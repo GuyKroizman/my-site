@@ -28,6 +28,7 @@ const turnManager = {
     // Bound CPU work, not game time. Resume on the next frame if a large floor
     // needs more events; never advance time while the hero is awaiting input.
     for (let events = 0; events < 256; events++) {
+      if (entities.some(e => e.context.pendingFall)) return;
       const actors = entities.filter(e => e.type !== "item" && e.healthPoints > 0);
       if (!actors.some(e => e.type === "player")) return;
       for (const entity of this.known) {
@@ -65,6 +66,7 @@ const turnManager = {
           if (!entities.includes(entity)) continue;
           if (upkeep) entity.refresh();
           if (entities.includes(entity)) entity.tickEffects();
+          if (entity.context.pendingFall) return;
         }
         continue;
       }

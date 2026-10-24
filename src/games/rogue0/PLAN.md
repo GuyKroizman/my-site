@@ -28,8 +28,8 @@ has been playtested. Checked boxes mean the described implementation exists.
   active-item aggregation. Inventory is modal, with item actions and stacking.
 - Terrain uses a coordinate-keyed feature overlay on the binary floor/wall
   map—not the originally proposed tile enum. Doors, searchable hidden traps,
-  burning grass, water extinguishing fire and blocking chasms exist; advanced
-  elemental combinations and secret doors remain outstanding.
+  burning grass, water extinguishing fire, blocking chasms and searchable
+  secret doors exist; advanced elemental combinations remain outstanding.
 - Monster roster includes cultists, splitting swarms, mimics, three elementals
   and wraiths. Several proposed signature abilities remain unimplemented;
   the Bone Lord still lacks phases/telegraphs/arena mechanics.
@@ -153,8 +153,9 @@ Move the map from `0|1` to a tile enum so terrain can carry behaviour.
 - `dungeon.isWalkableTile`/pathfinding must respect closed doors and chasms.
 - Doors: open/close (walk into to open; monsters can open). Secret doors are
   found by searching or standing adjacent.
-- Traps: hidden until stepped on (or searched); one-shot effects (dart=poison,
-  fire, frost, summon, teleport, alarm).
+- Traps: hidden until stepped on (or searched); effects include dart=poison,
+  fire, frost, summon, teleport and alarm. Support single-use and reusable traps;
+  search only reveals them, never disarms them.
 - Grass: flammable (spreads fire), hides items/enemies. Water: douses fire,
   freezes. Chasms: fall damage / push target into.
 
@@ -211,6 +212,7 @@ HUD + modal window system.
 - [x] Wire burning/poison/bleed/frozen into items and monsters.
 - [x] Surprise attack: unseen/unaware defender, auto-hit + bonus + possible bleed.
 - [ ] Playtest damage/status interactions and balance across all five classes.
+  Deferred at user request; not a gate for the next terrain work.
 - **Acceptance:** a fight can end in multiple ways (burn tick, bleed-out, crit,
   frozen skip) and the log explains what happened.
 
@@ -224,6 +226,21 @@ HUD + modal window system.
 - [x] Wands with charges + Recharging scroll.
 - [x] Rings (Accuracy, Evasion, Elements, Haste, Might) and two artifacts.
 - [ ] Audit identification leaks and curse handling across every inventory action.
+  - Stabilisation pass: all 11 regression suites pass, including scheduling and
+    equipped-curse removal guards. Fixed upgrade logs revealing unidentified
+    equipment names/levels (including the upgrade-cap path), with regression
+    coverage. Stack drops now preserve item state like stack throws rather
+    than reconstructing default items; potion/gem regressions cover upgrades,
+    identification, curses, charges, independent effects/UI and action cost.
+    Pickup now merges only matching consumable class, identification, level,
+    tier, curse/blessing and charges; items with timed effects stay separate.
+    Regressions cover differing-state pickup with full/available backpack space
+    and matching stacks merging at capacity.
+    Equipment regressions also verify full-backpack unequip rejection, swaps
+    at capacity, preservation of unknown gear/upgrades, and free cancellation
+    when a throw target item is removed or becomes equipped and cursed.
+    Visual UI verification and five-class balance playtesting are deferred at
+    user request, not completed.
 - **Acceptance:** deciding whether to equip an unidentified item is a real,
   tense choice with consequences in both directions.
 
@@ -234,8 +251,24 @@ HUD + modal window system.
 - [x] Search reveals adjacent hidden traps; dart/fire/frost/teleport traps trigger.
 - [x] Burning actors ignite grass; stepping into water douses burning.
 - [x] Chasms block ordinary movement.
-- [ ] Secret doors, trap disarming and summon/alarm traps.
-- [ ] Grass concealment, frozen water, chasm falling/pushing and functional levitation.
+- [x] Secret doors: generated hidden dead-end branches look like walls and
+      block sight/pathfinding until adjacent search reveals a closed door.
+      Regression coverage checks discovery range, inspect secrecy, terrain
+      refresh, opening, pathfinding/FOV and restored feature state across 200
+      generated maps. Visual playtesting remains deferred.
+- [ ] Support both single-use and reusable traps (current implementation is
+      single-use); decide use limits/rearming behavior per trap type.
+- Search only reveals traps and secrets; it must never disarm traps.
+  Item-based disarming is a possible future mechanic, not currently implemented.
+- [ ] Summon/alarm traps.
+- [x] Functional levitation: chasm traversal for keyboard/auto-walk, no ground
+      trap/water/grass contact, and world-time expiry. Over a chasm, expiry
+      makes the player fall to the next floor and take ceil(max HP / 3) damage,
+      ignoring armour and potentially killing them. Final-floor falls are fatal,
+      never a win. Falls preserve floor snapshots and resolve outside scheduler
+      iteration; no safe-return or emergency-hover behaviour. Shared path grids
+      remain unchanged. Covered by terrain/stair regressions; not visually playtested.
+- [ ] Grass concealment, frozen water and chasm pushing/voluntary jumping.
 - [ ] Elemental combos: fire spreads on grass, frost freezes water, shock arcs
       in water, poison lingers in gas clouds.
 - **Acceptance:** positioning and terrain become a first-class tactical layer,
@@ -291,7 +324,8 @@ Archer currently attacks in range rather than kiting. Door-aware pursuit exists.
 
 - [x] Add Strength, Invisibility, Toxic Gas, Liquid Flame, Frost, Levitation,
       Experience and scaled Healing potions; Teleport/Rage/Terror/Recharging scrolls.
-- [ ] Complete terrain integration (notably levitation) and audit consumable balance.
+- [x] Levitation terrain integration (see Phase 7).
+- [ ] Complete remaining terrain integration and audit consumable balance.
 - [ ] Seeds dropped from plants; plant/grow seeds in grass.
 - [ ] Alchemy pot: combine seeds + potions to brew (e.g. 3 seeds → 1 potion,
       potion + seed → exotic potion).

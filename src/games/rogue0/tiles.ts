@@ -175,7 +175,7 @@ export function describeTile(
       case "grass":
         return "Tall grass. It can burn.";
       case "chasm":
-        return "A chasm. You cannot cross it.";
+        return "A chasm. Only levitation allows safe passage.";
       case "trap": {
         // Hidden traps are invisible — inspect must not reveal them.
         if (state.trap === "hidden") return "Stone floor.";

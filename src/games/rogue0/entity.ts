@@ -272,11 +272,15 @@ export function identify(item: Entity): void {
 // methods (see the weapon and armour item files).
 export function upgrade(item: Entity): void {
   if (item.level >= item.maxLevel) {
-    logMessage(item.context, `${item.name} is already at its maximum level (${item.maxLevel}).`);
+    logMessage(item.context, item.identified
+      ? `${item.name} is already at its maximum level (${item.maxLevel}).`
+      : `${item.displayName} is already at its maximum level.`);
     return;
   }
   item.level += 1;
-  logMessage(item.context, `${item.name} upgraded to level ${item.level}.`);
+  logMessage(item.context, item.identified
+    ? `${item.name} upgraded to level ${item.level}.`
+    : `${item.displayName} upgraded.`);
 }
 
 function createSprite(context: GameContext, x: number, y: number, tile: number, tint?: number, textureKey?: string): Phaser.GameObjects.Sprite {

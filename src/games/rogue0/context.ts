@@ -52,6 +52,8 @@ export type GameContext = {
   onInspectModeChange?: (mode: boolean) => void;
   // Requests a stairs descent (set by scene0; used by tap-to-descend).
   onDescend?: () => void;
+  // Resolved by the scene after the current scheduler event, never mid-iteration.
+  pendingFall?: boolean;
   // Re-centers the camera on the player after a free pan.
   onResumeFollow?: () => void;
   onEnd?: (result: EndResult) => void;

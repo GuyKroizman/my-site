@@ -14,6 +14,22 @@ function load(path, bindings = {}) {
   return exports;
 }
 const { Entity, upgrade, identify, removeEntity } = load('src/games/rogue0/entity.ts');
+// Upgrading must not identify unknown gear through log text or reveal its level.
+const unknownGear = Object.assign(new Entity(), {
+  context: { messages: [] }, type: 'item', equipSlot: 'weapon',
+  name: 'Secret Sword', identified: false, level: 2, maxLevel: 3,
+});
+upgrade(unknownGear);
+assert.equal(unknownGear.level, 3);
+assert.equal(unknownGear.identified, false);
+assert.equal(unknownGear.context.messages[0], 'Weapon upgraded.');
+upgrade(unknownGear);
+assert.equal(unknownGear.context.messages[0], 'Weapon is already at its maximum level.');
+unknownGear.identified = true;
+unknownGear.level = 1;
+upgrade(unknownGear);
+assert.equal(unknownGear.context.messages[0], 'Secret Sword upgraded to level 2.');
+
 let maximum = false;
 const Phaser = { Math: { Between: (min, max) => maximum ? max : min } };
 const dungeon = { log(context, text) { context.messages.push(text); } };

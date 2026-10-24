@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import type { Entity } from './entity';
+import { removeEntity, type Entity } from './entity';
 
 type SavedFloor = {
   savedAt: number;
@@ -405,6 +405,10 @@ export class Scene0 extends Phaser.Scene {
     }
 
     turnManager.update(this.context.entities);
+    if (this.context.pendingFall) {
+      this.resolveFall();
+      return;
+    }
     this.checkStairs();
     this.refreshFovIfNeeded();
     updateMonsterSleepVisuals(this, this.context.entities, this.time.now);
@@ -547,6 +551,28 @@ export class Scene0 extends Phaser.Scene {
     tiles.clearFeature(stairs.x, stairs.y);
 
     return { levelArray, spawn, stairs };
+  }
+
+  private resolveFall() {
+    if (!this.context.pendingFall) return;
+    this.context.pendingFall = false;
+    const player = this.context.player;
+    if (!player || player.healthPoints <= 0 || this.ended) return;
+    player.inputBuffer = [];
+    player.walkPath = [];
+    player.cancelThrow();
+    if (this.context.floor >= this.context.maxFloor) {
+      dungeon.log(this.context, "You fall into the abyss. There is no floor below!");
+      player.takeDamage(player.healthPoints);
+      removeEntity(this.context, player);
+      return;
+    }
+    const damage = Math.max(1, Math.ceil(player.maxHealthPoints / 3));
+    this.descend();
+    dungeon.log(this.context, `You fall to floor ${this.context.floor} and take ${damage} damage!`);
+    player.takeDamage(damage);
+    if (player.healthPoints <= 0) removeEntity(this.context, player);
+    else player.refreshUI();
   }
 
   private descend() {

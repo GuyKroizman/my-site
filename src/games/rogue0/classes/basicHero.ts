@@ -237,10 +237,17 @@ export default class BasicHero extends Entity {
       this.refreshUI();
       return true;
     }
-    // Stack identical consumables (potions, scrolls, food, etc.).
+    // Stack only equivalent consumables. Name alone would discard upgrades,
+    // identification and curse state. Timed effects retain independent phases,
+    // so affected items must remain separate even if their effects look alike.
     if (item.equipSlot === "consumable") {
       const existing = this.backpack.find(
-        (i) => i.equipSlot === "consumable" && i.name === item.name
+        (i) => i.equipSlot === "consumable" && i.name === item.name &&
+          i.constructor === item.constructor &&
+          i.identified === item.identified && i.level === item.level &&
+          i.tier === item.tier && i.cursed === item.cursed &&
+          i.blessed === item.blessed && i.charges === item.charges &&
+          i.effects.length === 0 && item.effects.length === 0
       );
       if (existing) {
         existing.count += item.count;
@@ -369,30 +376,21 @@ export default class BasicHero extends Entity {
       return;
     }
 
-    // Drop one at a time from a stack: decrement and spawn a fresh single item.
+    // Split without calling a constructor: rerolling an item would discard
+    // upgrades, curses and other state. The original keeps its inventory UI.
     if (item.count > 1) {
       item.count -= 1;
-      const Cls = item.constructor as any;
-      const dropped: Entity = new Cls(this.context, this.x, this.y);
-      dropped.count = 1;
-      dropped.identified = item.identified;
-      if (!this.context.entities.includes(dropped)) {
-        this.context.entities.push(dropped);
-      }
-      dungeon.log(this.context, `${this.name} drops ${item.displayName}.`);
-      this.spendTurn("drop");
-      this.refreshUI();
-      return;
-    }
-
-    const slot = this.slotOf(item);
-    if (slot) {
-      this[slot] = undefined;
-      this.onUnequip(item);
+      item = this.splitStackItem(item);
     } else {
-      this.backpack = this.backpack.filter((i) => i !== item);
+      const slot = this.slotOf(item);
+      if (slot) {
+        this[slot] = undefined;
+        this.onUnequip(item);
+      } else {
+        this.backpack = this.backpack.filter((i) => i !== item);
+      }
+      this.clearItemUI(item);
     }
-    this.clearItemUI(item);
 
     // Put the item back on the map and recreate its sprite so it can be
     // picked up again (matches the floor-item setup in entity.init()).
@@ -819,7 +817,7 @@ export default class BasicHero extends Entity {
 
   private nextStepToward(tx: number, ty: number): { x: number; y: number } | null {
     if (this.x === undefined || this.y === undefined) return null;
-    const path = dungeon.findPath(this.x, this.y, tx, ty, true, true);
+    const path = dungeon.findPath(this.x, this.y, tx, ty, true, true, this);
     if (path.length > 1) return { x: path[1][0], y: path[1][1] };
     return null;
   }
@@ -835,7 +833,7 @@ export default class BasicHero extends Entity {
         this.context.visibleTiles.has(`${entity.x},${entity.y}`)
       )
     );
-    const path = dungeon.findPath(this.x, this.y, tx, ty, true, true);
+    const path = dungeon.findPath(this.x, this.y, tx, ty, true, true, this);
     this.walkPath =
       path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
   }
@@ -1013,6 +1011,14 @@ export default class BasicHero extends Entity {
     this.throwAt(context.cursorX, context.cursorY);
   }
 
+  private splitStackItem(item: Entity): Entity {
+    return Object.assign(Object.create(Object.getPrototypeOf(item)), item, {
+      count: 1, x: undefined, y: undefined, sprite: undefined,
+      UISprite: undefined, UIText: undefined,
+      effects: item.effects.map(effect => ({ ...effect }))
+    });
+  }
+
   // Resolve a throw at a tile (reached from a pointer tap or the cursor).
   throwAt(tx: number, ty: number): void {
     const context = this.context;
@@ -1095,11 +1101,7 @@ export default class BasicHero extends Entity {
     // Split a single projectile from a stack without reusing the inventory
     // entity. Preserve upgrades/identification, but never share sprites/UI.
     const thrown: Entity = item.count > 1
-      ? Object.assign(Object.create(Object.getPrototypeOf(item)), item, {
-          count: 1, x: undefined, y: undefined, sprite: undefined,
-          UISprite: undefined, UIText: undefined,
-          effects: item.effects.map(effect => ({ ...effect }))
-        })
+      ? this.splitStackItem(item)
       : item;
     this.removeItem(item);
     if (!context.entities.includes(thrown)) context.entities.push(thrown);
@@ -1456,7 +1458,7 @@ export default class BasicHero extends Entity {
       return;
     }
 
-    // Search (s / S): reveal hidden traps around the hero.
+    // Search (s / S): reveal nearby secrets without disabling traps.
     if (key === "s" || key === "S") {
       this.search();
       return;
@@ -1478,7 +1480,7 @@ export default class BasicHero extends Entity {
     if (moved) {
       this.context.onResumeFollow?.();
       this.walkPath = []; // manual input cancels auto-walk
-      if (!dungeon.canStepBetween(oldX, oldY, newX, newY)) return;
+      if (!dungeon.canStepBetween(oldX, oldY, newX, newY, this)) return;
       // Entering a revealed trap requires explicitly clicking its tile.
       if (getTrapState(newX, newY) === "visible") return;
       if (hasEffect(this, "rooted") &&

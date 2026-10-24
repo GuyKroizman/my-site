@@ -127,7 +127,7 @@ const dungeon = {
 };
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, Gem: class Gem {}, Wand: class Wand {}, dungeon, isModalOpen: () => false, hasEffect, removeEffect,
-  getTrapState: () => undefined, sfx: { potion() {} },
+  getTrapState: () => undefined, sfx: { potion() {}, equip() {} },
   spawnEntityFloatingText() {}
 }).default;
 // Combined magnifying glass: inspection is free; a second press searches.
@@ -724,5 +724,75 @@ assert.equal(curseHero.weapon, undefined);
 assert.ok(curseHero.backpack.includes(cursedGear));
 assert.equal(cursedGear.level, 3, 'uncursing and unequipping preserve upgrades');
 assert.equal(curseHero.nextActionTime, 1);
+
+// Capacity blocks unequipping, but swapping uses the incoming item's slot.
+const fullHero = Object.assign(new Entity(), {
+  context: { messages: [], entities: [], simulationTime: 0 },
+  type: 'player', healthPoints: 10, actionReady: true, capacity: 1,
+  refreshUI() {}, sprite: {}, x: 1, y: 1
+});
+Object.setPrototypeOf(fullHero, Hero.prototype);
+let equips = 0, unequips = 0, equipmentTurns = 0;
+const oldGear = Object.assign(new Entity(), {
+  type: 'item', equipSlot: 'weapon', identified: false, level: 2,
+  unequip() { unequips++; }
+});
+const newGear = Object.assign(new Entity(), {
+  type: 'item', equipSlot: 'weapon', identified: false, level: 4,
+  equip() { equips++; }
+});
+fullHero.weapon = oldGear;
+fullHero.backpack = [newGear];
+fullHero.spendTurn = action => { assert.equal(action, 'equip'); equipmentTurns++; };
+fullHero.unequipItem(oldGear);
+assert.equal(fullHero.weapon, oldGear);
+assert.deepEqual(fullHero.backpack, [newGear]);
+assert.equal(unequips, 0);
+assert.equal(equipmentTurns, 0, 'full-backpack rejection costs no time');
+fullHero.equipItem(newGear);
+assert.equal(fullHero.weapon, newGear);
+assert.deepEqual(fullHero.backpack, [oldGear]);
+assert.equal(equips, 1);
+assert.equal(unequips, 1);
+assert.equal(equipmentTurns, 1);
+assert.equal(oldGear.level, 2);
+assert.equal(newGear.level, 4);
+assert.equal(oldGear.identified, false);
+assert.equal(newGear.identified, false);
+
+// Recheck ownership/curse at confirmation, not only when targeting opens.
+for (const invalidate of ['removed', 'equipped-curse']) {
+  fullHero.backpack = [oldGear];
+  fullHero.weapon = newGear;
+  oldGear.cursed = false;
+  fullHero.beginThrow(oldGear);
+  assert.equal(fullHero.context.throwItem, oldGear);
+  fullHero.backpack = [];
+  if (invalidate === 'equipped-curse') {
+    fullHero.weapon = oldGear;
+    oldGear.cursed = true;
+  }
+  fullHero.throwAt(2, 1);
+  assert.equal(fullHero.context.throwItem, undefined);
+  assert.equal(fullHero.context.throwMode, false);
+  assert.equal(equipmentTurns, 1, 'invalidated throws cost no time');
+  assert.equal(oldGear.x, undefined);
+  if (invalidate === 'equipped-curse') assert.equal(fullHero.weapon, oldGear);
+}
+
+// A fall interrupts the old floor's scheduler before any later actor/effect
+// can run. The scene, not an effect callback, performs the floor transition.
+const fallingPlayer = actor('player');
+const oldFloorEnemy = actor('enemy');
+oldFloorEnemy.context = fallingPlayer.context;
+fallingPlayer.tickEffects = () => { fallingPlayer.context.pendingFall = true; };
+oldFloorEnemy.tickEffects = () => { assert.fail('old-floor effects ran after fall'); };
+manager.reset([fallingPlayer, oldFloorEnemy]);
+fallingPlayer.nextActionTime = oldFloorEnemy.nextActionTime = 2;
+manager.update([fallingPlayer, oldFloorEnemy]);
+assert.equal(manager.time, 1);
+assert.equal(oldFloorEnemy.turns, 0);
+manager.update([fallingPlayer, oldFloorEnemy]);
+assert.equal(manager.time, 1, 'pending transition freezes the old-floor timeline');
 
 console.log('Rogue0 timeline, input, death, sight, pursuit, diagonal movement, surprise and curse regression tests passed');

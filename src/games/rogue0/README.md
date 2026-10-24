@@ -22,6 +22,12 @@ Current Rogue0 action costs (normal action = 1 time unit):
 | Search | 2 |
 | Invalid action, inspection, open backpack | 0 |
 
+Search (`s`, the Search button, or a second press of the magnifying glass)
+reveals nearby hidden traps and secret doors. It never disarms traps, including
+on repeated searches. Inspecting a trap remains free. Item-based disarming is
+only a possible future mechanic. Current traps are single-use; support for both
+single-use and reusable traps is planned, with per-type behavior still to be decided.
+
 Normal actors move at speed 1. Ghouls move at speed 2 but attack at normal speed.
 Haste doubles movement speed only; cripple halves it. Rooting prevents movement
 but permits attacks and other actions. Frozen actors lose one scheduled action;

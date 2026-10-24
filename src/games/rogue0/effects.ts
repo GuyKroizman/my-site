@@ -9,6 +9,7 @@ import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import { spawnEntityFloatingText } from "./floatingText";
 import { isBlocking } from "./tiles";
+import dungeon from "./dungeon";
 
 export type DamageType =
   | "physical"
@@ -244,14 +245,17 @@ export function createHasteEffect(duration = 8): StatusEffect {
   };
 }
 
-// Flavour buff from the Levitation potion. Terrain (chasms/water) does not
-// exist yet, so this is a timed marker rather than a movement mechanic.
+// Flight bypasses ground contact. Expiry over a chasm queues a fall; floor
+// transitions resolve outside the scheduler's current actor/effect iteration.
 export function createLevitatingEffect(duration = 20): StatusEffect {
   return {
     id: "levitating",
     name: "Levitating",
     iconTile: 18 * 49 + 44,
-    duration
+    duration,
+    remove(entity, context) {
+      dungeon.expireLevitation(context, entity);
+    }
   };
 }
 

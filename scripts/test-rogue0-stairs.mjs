@@ -11,8 +11,10 @@ const map = [[0, 1], [0, 0]];
 const door = { feature: 'door', door: 'open' };
 const tiles = { forEachFeature: fn => fn(0, 1, door) };
 const dungeon = { getCurrentLevel: () => map, log() {} };
-new Function('exports', 'Phaser', 'tiles', 'dungeon', 'isModalOpen', 'sfx', js)(
-  exports, { Scene: class {} }, tiles, dungeon, () => false, { stairs() {} });
+let deaths = 0;
+new Function('exports', 'Phaser', 'tiles', 'dungeon', 'isModalOpen', 'sfx', 'removeEntity', js)(
+  exports, { Scene: class {} }, tiles, dungeon, () => false, { stairs() {} },
+  () => { deaths++; });
 const scene = Object.create(exports.Scene0.prototype);
 const gear = { name: 'carried potion' };
 const player = { x: 0, y: 0, canAct: () => true, getAllItems: () => [gear] };
@@ -50,4 +52,47 @@ scene.context.floor = 1;
 scene.descend();
 assert.equal(restored[0], 2);
 assert.deepEqual(restored[2], saved.up);
-console.log('Rogue0 floor snapshots, exploration, terrain, entity retention and stair travel passed');
+// Falling uses the normal snapshot/restore path, never the exit/win path.
+Object.assign(player, { healthPoints: 30, maxHealthPoints: 30,
+  inputBuffer: ['ArrowRight'], walkPath: [{ x: 1, y: 1 }],
+  cancelThrow() { this.throwCancelled = true; }, refreshUI() {},
+  takeDamage(amount) { this.healthPoints -= amount; } });
+scene.context.maxFloor = 5;
+scene.context.floor = 1;
+scene.context.pendingFall = true;
+scene.restoreFloor = (floor, snapshot, arrival) => {
+  restored = [floor, snapshot, arrival];
+  scene.context.floor = floor;
+};
+scene.resolveFall();
+assert.equal(scene.context.floor, 2);
+assert.equal(player.healthPoints, 20);
+assert.equal(scene.context.pendingFall, false);
+assert.deepEqual(player.inputBuffer, []);
+assert.deepEqual(player.walkPath, []);
+assert.equal(player.throwCancelled, true);
+assert.equal(deaths, 0);
+scene.resolveFall();
+assert.equal(player.healthPoints, 20, 'fall is resolved exactly once');
+// First visit also generates a floor through the normal descent pipeline.
+scene.context.floor = 2;
+scene.context.pendingFall = true;
+scene.generateLevel = floor => { assert.equal(floor, 3); return {
+  levelArray: [[0]], spawn: { x: 0, y: 0 }, stairs: { x: 0, y: 0 }
+}; };
+dungeon.initialize = () => {};
+scene.setupFloor = floor => { scene.context.floor = floor; };
+player.healthPoints = 5;
+scene.resolveFall();
+assert.equal(scene.context.floor, 3);
+assert.equal(player.healthPoints, -5, 'fall damage can kill on arrival');
+assert.equal(deaths, 1);
+scene.context.floor = 5;
+scene.context.pendingFall = true;
+player.healthPoints = 30;
+scene.events = { emit() { assert.fail('falling must never win the run'); } };
+scene.resolveFall();
+assert.equal(scene.context.floor, 5);
+assert.equal(player.healthPoints, 0);
+assert.equal(deaths, 2);
+console.log('Rogue0 floor snapshots, exploration, terrain, entity retention, stair travel and damaging falls passed');

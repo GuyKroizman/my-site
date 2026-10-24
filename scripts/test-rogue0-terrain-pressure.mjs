@@ -44,10 +44,20 @@ for (let i = 0; i < 200; i++) {
   let redraw;
   dungeon.layer = { putTileAt: (...args) => { redraw = args; } };
   assert.equal(dungeon.findPath(x, y + 1, x, y - 1, true).length, 0);
+  assert.equal(dungeon.inspectTile(x, y), 'A wall.', 'inspect does not leak secret doors');
+  assert.equal(tiles.isBlocking(x, y), true);
+  assert.equal(fov.blocksSight(map, x, y), true);
+  // Other generated traps may be nearby; only the secret must stay hidden.
+  dungeon.searchAround(x, y + 2);
+  assert.equal(tiles.getFeature(x, y), 'secretDoor', 'search cannot reveal a distant secret');
+  const changesBeforeSearch = changes;
   tiles.setFeature(x + 1, y + 1, 'trap', { trap: 'hidden' });
   assert.equal(dungeon.searchAround(x, y + 1), 2, 'search preserves trap discovery');
   assert.equal(tiles.getTrapState(x + 1, y + 1), 'visible');
   assert.equal(map[y][x], 0);
+  assert.equal(tiles.getDoorState(x, y), 'closed', 'discovery does not open the door');
+  assert.equal(dungeon.pathGrid.isWalkableAt(x, y), false);
+  assert.equal(changes, changesBeforeSearch + 1, 'discovery refreshes terrain once');
   assert.deepEqual(redraw, [0, x, y]);
   assert.equal(fov.blocksSight(map, x, y), true);
   assert.equal(dungeon.findPath(x, y + 1, x, y - 1, true).length, 3);
@@ -106,6 +116,25 @@ ctx.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
 ctx.scene = {};
 dungeon.moveEntityTo(ctx, walker, 3, 3);
 assert.equal(walker.healthPoints, 5, 'monster stepping triggers plate at new position');
+// Search reveals traps but never disables them, even on repeated use.
+for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow']) {
+  const searcher = Object.create(Hero.prototype);
+  Object.assign(searcher, { x: 2, y: 3, context: setup([]), walkPath: [1] });
+  tiles.setFeature(3, 3, 'trap', { trapKind, trap: 'visible' });
+  tiles.setFeature(2, 4, 'trap', { trapKind, trap: 'hidden' });
+  searcher.canAct = () => true;
+  const costs = [];
+  searcher.spendTurn = action => costs.push(action);
+  searcher.search();
+  searcher.search();
+  assert.deepEqual(costs, ['search', 'search']);
+  assert.equal(searcher.walkPath.length, 0);
+  assert.equal(tiles.getTrapState(3, 3), 'visible', 'known trap remains armed');
+  assert.equal(tiles.getTrapState(2, 4), 'visible', 'revealed trap remains armed');
+  searcher.canAct = () => false;
+  searcher.search();
+  assert.equal(costs.length, 2, 'search respects action readiness');
+}
 // Physical arrows cannot cut corners, but can fly over a chasm.
 ctx = setup([actor('enemy', 4, 4)]);
 dungeon.currentLevel[3][4] = 1;
@@ -179,7 +208,69 @@ assert.ok(thrownSetup.ctx.entities.includes(thrownSetup.item), 'hit cannot remov
 // into an enemy. The remaining inventory entity survives both paths.
 const Potion = load('items/PotionOfHealing', { Entity }).default;
 const Gem = load('items/gem', { Entity }).default;
+// Pickup may merge only equivalent stack state, never silently erase it.
+for (const difference of [
+  { identified: true }, { level: 3 }, { cursed: true }, { blessed: true },
+  { charges: 4 }, { tier: 2 }, { effects: [{ id: 'test', duration: 2 }] }
+]) {
+  const { hero, ctx, item } = throwingHero(3, Potion);
+  hero.capacity = 1;
+  const incoming = Object.assign(new Potion(ctx), {
+    x: 2, y: 3, level: item.level, identified: item.identified, ...difference
+  });
+  ctx.entities.push(incoming);
+  assert.equal(hero.addItem(incoming), false, 'different state cannot bypass a full backpack');
+  assert.equal(item.count, 3);
+  assert.equal(incoming.x, 2);
+  assert.ok(ctx.entities.includes(incoming));
+  hero.capacity = 2;
+  assert.equal(hero.addItem(incoming), true);
+  assert.deepEqual(hero.backpack, [item, incoming]);
+  assert.equal(incoming.x, undefined);
+  for (const [key, value] of Object.entries(difference)) assert.deepEqual(incoming[key], value);
+}
+{
+  const { hero, ctx, item } = throwingHero(3, Potion);
+  hero.capacity = 1;
+  const incoming = Object.assign(new Potion(ctx), {
+    x: 2, y: 3, level: item.level, identified: item.identified, count: 2
+  });
+  ctx.entities.push(incoming);
+  assert.equal(hero.addItem(incoming), true, 'equivalent items still stack in a full backpack');
+  assert.equal(item.count, 5);
+  assert.deepEqual(hero.backpack, [item]);
+  assert.ok(!ctx.entities.includes(incoming));
+}
 for (const Item of [Potion, Gem]) {
+  // Dropping a stack must preserve the same state as throwing one unit.
+  {
+    const { hero, ctx, item } = throwingHero(3, Item);
+    item.cursed = true; // Backpack curses do not prevent dropping.
+    item.charges = 4;
+    item.effects = [{ id: 'test', duration: 2 }];
+    const icon = {};
+    item.UISprite = icon;
+    let turns = 0;
+    hero.spendTurn = action => { assert.equal(action, 'drop'); turns++; };
+    hero.dropItem(item);
+    const dropped = ctx.entities.find(e => e.x === hero.x && e.y === hero.y);
+    assert.ok(dropped instanceof Item);
+    assert.notEqual(dropped, item);
+    assert.equal(dropped.count, 1);
+    assert.equal(dropped.level, 2);
+    assert.equal(dropped.identified, false);
+    assert.equal(dropped.cursed, true);
+    assert.equal(dropped.charges, 4);
+    assert.deepEqual(dropped.effects, item.effects);
+    assert.notEqual(dropped.effects[0], item.effects[0]);
+    assert.equal(dropped.UISprite, undefined);
+    assert.equal(item.UISprite, icon);
+    assert.ok(dropped.sprite);
+    assert.equal(item.x, undefined);
+    assert.equal(item.count, 2);
+    assert.equal(hero.backpack[0], item);
+    assert.equal(turns, 1);
+  }
   for (const hitEnemy of [false, true]) {
     const { hero, ctx, item } = throwingHero(3, Item);
     if (hitEnemy) ctx.entities.push(actor('enemy', 3, 3));
@@ -232,4 +323,96 @@ for (const type of ['player', 'enemy']) {
   }
 }
 assert.ok(changes > 0);
-console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, arrows, stack throws and visible/offscreen deaths passed');
+// Exercise real levitation effects and terrain together, including fractional
+// expiry timing. Rendering is synchronous; logical time advances only explicitly.
+const flightDungeon = load('dungeon', { PF, tiles, ...fov,
+  hasEffect: (e, id) => e.effects.some(effect => effect.id === id),
+  removeEffect: (e, id) => flightEffects.removeEffect(e, id),
+  applyEffect: (e, effect) => flightEffects.applyEffect(e, effect),
+  createPoisonedEffect: () => flightEffects.createPoisonedEffect(),
+  sfx: { step() {} }
+}).default;
+const flightEffects = load('effects', { dungeon: flightDungeon, spawnEntityFloatingText() {} });
+function flightSetup() {
+  tiles.clearAllFeatures();
+  const map = Array.from({ length: 5 }, (_, y) =>
+    Array.from({ length: 7 }, (_, x) => y === 2 && x > 0 && x < 6 ? 0 : 1));
+  tiles.setFeature(3, 2, 'chasm');
+  flightDungeon.currentLevel = map;
+  flightDungeon.pathGrid = new PF.Grid(map);
+  tiles.applyToPathGrid(flightDungeon.pathGrid);
+  flightDungeon.diagonalFinder = new PF.AStarFinder({ diagonalMovement: PF.DiagonalMovement.OnlyWhenNoObstacles });
+  const ctx = renderContext({ entities: [], messages: [], visibleTiles: new Set(), simulationTime: 0.5 });
+  ctx.map.getTileAt = (x, y) => ({ index: map[y][x] === 1 ? 637 : 0 });
+  const flyer = Object.assign(new Entity(), { context: ctx, type: 'player', name: 'Hero',
+    healthPoints: 10, x: 2, y: 2, sprite: sprite(), protection: () => 0,
+    takeDamage(amount) { this.healthPoints -= amount; } });
+  ctx.player = flyer; ctx.entities = [flyer];
+  return { ctx, flyer };
+}
+{
+  const { ctx, flyer } = flightSetup();
+  assert.equal(flightDungeon.isWalkableTile(ctx, 3, 2), false);
+  assert.deepEqual(flightDungeon.findPath(2, 2, 4, 2, true, true, flyer), []);
+  flightEffects.applyEffect(flyer, flightEffects.createLevitatingEffect(2));
+  assert.equal(flightDungeon.isWalkableTile(ctx, 3, 2), true);
+  assert.equal(flightDungeon.isWalkableTile(ctx, 3, 1), false, 'flight never crosses walls');
+  assert.equal(flightDungeon.findPath(2, 2, 4, 2, true, true, flyer).length, 3);
+  assert.equal(flightDungeon.pathGrid.isWalkableAt(3, 2), false, 'flight never changes shared grid');
+  assert.equal(flightDungeon.canStepBetween(2, 2, 3, 1, flyer), false, 'no wall corner cutting');
+  flightDungeon.moveEntityTo(ctx, flyer, 3, 2);
+  ctx.simulationTime = 1.49;
+  flightEffects.tickEffects(flyer, ctx);
+  assert.equal(flyer.effects[0].duration, 2);
+  ctx.simulationTime = 1.5; flightEffects.tickEffects(flyer, ctx);
+  assert.equal(flyer.effects[0].duration, 1);
+  ctx.simulationTime = 2.5; flightEffects.tickEffects(flyer, ctx);
+  assert.equal(flightEffects.hasEffect(flyer, 'levitating'), false);
+  assert.deepEqual([flyer.x, flyer.y], [3, 2], 'expiry does not rescue the player');
+  assert.equal(ctx.pendingFall, true);
+  assert.equal(flyer.actionReady, false);
+  assert.equal(flightDungeon.isWalkableTile(ctx, 3, 2), false);
+}
+for (const feature of ['water', 'grass', 'dart', 'arrow']) {
+  const { ctx, flyer } = flightSetup();
+  tiles.setFeature(2, 2, feature === 'dart' || feature === 'arrow' ? 'trap' : feature,
+    { trapKind: feature, trap: 'hidden' });
+  flightEffects.applyEffect(flyer, flightEffects.createLevitatingEffect());
+  flightEffects.applyEffect(flyer, flightEffects.createBurningEffect());
+  flyer.x = 1;
+  flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+  assert.equal(flightEffects.hasEffect(flyer, 'burning'), true, 'flight prevents water contact');
+  assert.equal(tiles.getFeature(2, 2), feature === 'dart' || feature === 'arrow' ? 'trap' : feature);
+  if (feature === 'dart' || feature === 'arrow') assert.equal(tiles.getTrapState(2, 2), 'hidden');
+  assert.equal(flightEffects.hasEffect(flyer, 'poisoned'), false);
+  flightEffects.removeEffect(flyer, 'levitating');
+  assert.equal(flyer.x, 2, 'expiry on solid ground does not relocate');
+  assert.ok(!ctx.pendingFall);
+  flyer.x = 1;
+  flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+  if (feature === 'water') assert.equal(flightEffects.hasEffect(flyer, 'burning'), false);
+  if (feature === 'dart') assert.equal(flightEffects.hasEffect(flyer, 'poisoned'), true);
+  if (feature === 'dart' || feature === 'arrow') assert.equal(tiles.getTrapState(2, 2), 'triggered');
+}
+{
+  const { ctx, flyer } = flightSetup();
+  flyer.x = 3;
+  // Traps are not safe landing sites; an occupied tile is not displaced.
+  tiles.setFeature(2, 2, 'trap', { trapKind: 'dart', trap: 'hidden' });
+  ctx.entities.push(actor('enemy', 4, 2));
+  flightEffects.applyEffect(flyer, flightEffects.createLevitatingEffect(1));
+  flightEffects.removeEffect(flyer, 'levitating');
+  assert.deepEqual([flyer.x, flyer.y], [3, 2]);
+  assert.equal(ctx.pendingFall, true, 'explicit removal also falls');
+}
+{
+  const { ctx, flyer } = flightSetup();
+  flyer.x = 3;
+  for (const x of [1, 2, 4, 5]) ctx.entities.push(actor('enemy', x, 2));
+  flightEffects.applyEffect(flyer, flightEffects.createLevitatingEffect(1));
+  ctx.simulationTime = 1.5; flightEffects.tickEffects(flyer, ctx);
+  assert.equal(flightEffects.hasEffect(flyer, 'levitating'), false, 'no emergency hovering');
+  assert.equal(ctx.pendingFall, true);
+  assert.equal(flyer.x, 3);
+}
+console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, arrows, stacks, deaths and levitation passed');
