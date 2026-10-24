@@ -12,7 +12,6 @@ export default class Shield extends Entity {
     super();
     this.tile = 776;
     this.name = "A Shield";
-    this.description = "A basic shield. Gives +1 protection.";
 
     this.init(context, x, y);
   }
@@ -20,6 +19,10 @@ export default class Shield extends Entity {
   equip() {
   }
 
+
+  get displayDescription(): string {
+    return `A basic shield. Gives +${this.protection()} protection.`;
+  }
 
   damage() {
     return 0;

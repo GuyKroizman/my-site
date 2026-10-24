@@ -492,7 +492,7 @@ export class UI extends Phaser.Scene {
         const prot = typeof e.protection === "function" ? e.protection() : 0;
         const range = typeof e.range === "function" ? e.range() : 0;
         this.inspectModalText.setText(
-          `${e.name}\n${e.description}\nHP: ${hp}/${maxHp}\nATK: ${atk}  DEF: ${prot}  Range: ${range}`
+          `${e.name}\n${e.displayDescription}\nHP: ${hp}/${maxHp}\nATK: ${atk}  DEF: ${prot}  Range: ${range}`
         );
       } else {
         const desc = e.identified ? e.displayDescription : "You have not identified this item.";

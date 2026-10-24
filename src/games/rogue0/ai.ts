@@ -125,7 +125,8 @@ export function enemyTurn(entity: Entity): void {
       const step = nextStepToward(entity, entity.lastSeenX, entity.lastSeenY);
       if (step) {
         acted = followStep(entity, step);
-      } else if (entity.x === entity.lastSeenX && entity.y === entity.lastSeenY) {
+      } else {
+        // Arrived or the route no longer exists: resume roaming next action.
         entity.lastSeenX = undefined;
         entity.lastSeenY = undefined;
       }
@@ -142,12 +143,25 @@ export function enemyTurn(entity: Entity): void {
   if (!acted) entity.spendTime("wait");
 }
 
-function wanderStep(entity: Entity): boolean {
-  if (Math.random() >= 0.5) return false;
+// Keep a heading for a few turns so idle creatures patrol corridors rather
+// than vibrating in one spot. Weak keys also preserve headings on floor revisits.
+const roamingHeadings = new WeakMap<Entity, { x: number; y: number }>();
 
-  const step = randomAdjacentStep(entity.context, entity);
+function wanderStep(entity: Entity): boolean {
+  if (Math.random() >= 0.5 || entity.x === undefined || entity.y === undefined) return false;
+
+  const heading = roamingHeadings.get(entity);
+  let step: { x: number; y: number } | null = null;
+  if (heading && Math.random() < 0.75) {
+    const nx = entity.x + heading.x;
+    const ny = entity.y + heading.y;
+    if (dungeon.canStepBetween(entity.x, entity.y, nx, ny) &&
+        dungeon.isWalkableTile(entity.context, nx, ny)) step = { x: nx, y: ny };
+  }
+  step ??= randomAdjacentStep(entity.context, entity);
   if (!step) return false;
 
+  roamingHeadings.set(entity, { x: step.x - entity.x, y: step.y - entity.y });
   dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
   return true;
 }

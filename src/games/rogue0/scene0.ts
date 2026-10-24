@@ -22,7 +22,6 @@ import FullHealPotion from "./items/fullHealPotion";
 import MinorHealPotion from "./items/minorHealPotion";
 import Sword from "./items/sword";
 import Axe from "./items/axe";
-import Bow from "./items/bow";
 import Shield from "./items/shield";
 import Shoe from "./items/Shoe";
 import ScrollOfIdentify from "./items/ScrollOfIdentify";
@@ -60,6 +59,7 @@ import Cultist from "./monsters/cultist";
 import FireElemental, { IceElemental, ShockElemental } from "./monsters/elemental";
 import Mimic from "./monsters/mimic";
 import SwarmOfFlies from "./monsters/swarmOfFlies";
+import { updateMonsterSleepVisuals, clearMonsterSleepVisuals } from "./monsters/monsterSleepVisuals";
 import Wraith from "./monsters/wraith";
 import classes from "./classes";
 import {
@@ -96,7 +96,6 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   [ScrollOfIdentify, 4],
   [Sword, 5],
   [Axe, 4],
-  [Bow, 4],
   [Shield, 4],
   [LongSword, 2],
   [ScrollOfUpgrade, 3],
@@ -180,6 +179,8 @@ export class Scene0 extends Phaser.Scene {
   }
 
   preload() {
+    this.load.image("ration", "/rogue0/items/ration.png");
+    this.load.image("chalice-of-blood", "/rogue0/items/chalice-of-blood.png");
     for (const kind of ["fireball", "lightning", "identify", "upgrade", "remove-curse", "teleport", "rage", "terror", "recharging"]) {
       this.load.image(`scroll-${kind}`, `/rogue0/items/scroll-${kind}.png`);
     }
@@ -193,6 +194,7 @@ export class Scene0 extends Phaser.Scene {
 
   create() {
     createForegroundAtlas(this);
+    this.events.once("shutdown", () => clearMonsterSleepVisuals(this));
     this.context.scene = this;
     this.context.floor = 1;
     this.context.kills = 0;
@@ -405,6 +407,7 @@ export class Scene0 extends Phaser.Scene {
     turnManager.update(this.context.entities);
     this.checkStairs();
     this.refreshFovIfNeeded();
+    updateMonsterSleepVisuals(this, this.context.entities, this.time.now);
 
     // Fast-forward animations while the player is waiting on buffered input.
     const p = this.context.player;
@@ -449,6 +452,7 @@ export class Scene0 extends Phaser.Scene {
     stairs?: { x: number; y: number },
     restored?: SavedFloor
   ) {
+    clearMonsterSleepVisuals(this);
     this.context.floor = floor;
     this.resizeCamera();
     this.stairsHinted = false;
@@ -808,6 +812,8 @@ export class Scene0 extends Phaser.Scene {
     tint?: number;
   } {
     switch (state.feature) {
+      case "secretDoor":
+        return {};
       case "door":
         return state.door === "open"
           ? { textureKey: "door-threshold" }
@@ -821,7 +827,7 @@ export class Scene0 extends Phaser.Scene {
       case "trap":
         return {
           tile: tiles.FeatureTiles.trap,
-          tint: state.trap === "triggered" ? 0x666666 : 0xff4444
+          tint: state.trap === "triggered" ? 0x666666 : state.trapKind === "arrow" ? 0xe8b34d : 0xff4444
         };
       default:
         throw new Error(`Unknown terrain feature: ${state.feature}`);
@@ -840,7 +846,7 @@ export class Scene0 extends Phaser.Scene {
 
       let sprite = this.featureSprites.get(key);
       const visual = this.featureVisual(state);
-      const visible = state.feature !== "trap" || state.trap !== "hidden";
+      const visible = state.feature !== "secretDoor" && (state.feature !== "trap" || state.trap !== "hidden");
       const texKey = visual.textureKey ?? "tiles";
       const frame = visual.textureKey ? 0 : (visual.tile ?? 0);
 

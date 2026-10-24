@@ -25,6 +25,7 @@ export default class Cultist extends Monster {
   }
 
   turn() {
+    if (this.waitWhileSleeping()) return;
     if (this.summonCooldown > 0) {
       this.summonCooldown -= 1;
     }
@@ -32,7 +33,9 @@ export default class Cultist extends Monster {
     if (this.summonCooldown === 0 && !this.hasFriendlySkeleton()) {
       const spot = this.findAdjacentSummonTile();
       if (spot) {
-        this.context.entities.push(new Skeleton(this.context, spot.x, spot.y));
+        const skeleton = new Skeleton(this.context, spot.x, spot.y);
+        skeleton.wakeUp(); // Summoned reinforcements enter combat awake.
+        this.context.entities.push(skeleton);
         dungeon.log(this.context, `${this.name} summons a Skeleton.`);
         this.summonCooldown = 3;
       }

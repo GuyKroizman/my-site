@@ -484,7 +484,7 @@ const features = new Map();
 const realDungeon = load('src/games/rogue0/dungeon.ts', {
   PF, bresenhamLine: sight.bresenhamLine, hasEffect,
   tiles: {
-    getFeature() {}, getDoorState() {},
+    getFeature() {}, getDoorState() {}, getTileState() {},
     forEachFeature(fn) { for (const [key, state] of features) fn(...key.split(',').map(Number), state); }
   }
 }).default;

@@ -4,7 +4,7 @@ import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
 import type { DamageType } from "../effects";
 import dungeon from "../dungeon";
-import { enemyTurn } from "../ai";
+import { enemyTurn, enemyCanSeePlayer } from "../ai";
 import Gold from "../items/gold";
 
 export type MonsterConfig = {
@@ -21,6 +21,8 @@ export type MonsterConfig = {
   range: number;
   attackTile?: number;
   scale?: number;
+  textureKey?: string;
+  initiallyAwake?: boolean;
   loot?: any[];
   xp?: number;
   gold?: number;
@@ -45,6 +47,14 @@ export default class Monster extends Entity {
   rangeValue: number;
   loot: any[];
   gold: number;
+  // Remaining world ticks, not a wall-clock deadline: saved floors pause sleep.
+  sleepTurnsRemaining = 0;
+  private spriteScale = 1;
+
+  get sleeping(): boolean {
+    // Combat marks awareness even on a miss/fully blocked attack.
+    return this.sleepTurnsRemaining > 0 && !this.awareOfPlayer;
+  }
 
   constructor(context: GameContext, config: MonsterConfig, x?: number, y?: number) {
     super();
@@ -53,6 +63,9 @@ export default class Monster extends Entity {
     this.description = config.description;
     this.tile = config.tile;
     this.tint = config.tint;
+    this.textureKey = config.textureKey;
+    this.spriteScale = config.scale ?? 1;
+    this.sleepTurnsRemaining = config.initiallyAwake ? 0 : Phaser.Math.Between(4, 12);
 
     this.healthPoints = config.healthPoints;
     this.maxHealthPoints = config.healthPoints;
@@ -73,9 +86,38 @@ export default class Monster extends Entity {
 
     this.init(context, x, y);
 
-    if (config.scale) {
-      this.sprite?.setScale(config.scale);
+  }
+
+  init(context: GameContext, x?: number, y?: number) {
+    super.init(context, x, y);
+    // init is also used when returning to a saved floor. Do not reroll sleep.
+    this.sprite?.setScale(this.spriteScale);
+  }
+
+  wakeUp() {
+    this.sleepTurnsRemaining = 0;
+  }
+
+  takeDamage(amount: number, interruptNavigation = true): void {
+    super.takeDamage(amount, interruptNavigation);
+    if (amount > 0) this.wakeUp();
+  }
+
+  protected waitWhileSleeping(): boolean {
+    if (this.awareOfPlayer) this.wakeUp();
+    if (!this.sleeping) return false;
+    const player = this.context.player;
+    // Nearby movement wakes a sleeper, but not through walls or invisibility.
+    if (player?.x !== undefined && player.y !== undefined &&
+        this.x !== undefined && this.y !== undefined &&
+        Math.max(Math.abs(this.x - player.x), Math.abs(this.y - player.y)) <= 2 &&
+        enemyCanSeePlayer(this)) {
+      this.wakeUp();
+      return false;
     }
+    this.awareOfPlayer = false;
+    this.spendTime("wait");
+    return true;
   }
 
   equip() {
@@ -83,10 +125,13 @@ export default class Monster extends Entity {
   }
 
   refresh() {
-    // Status effects tick in world time; actions are scheduled independently.
+    // The scheduler calls refresh once per elapsed world-time unit, regardless
+    // of movement speed. Idle input/render frames and inactive floors do not tick.
+    if (this.sleeping) this.sleepTurnsRemaining--;
   }
 
   turn() {
+    if (this.waitWhileSleeping()) return;
     enemyTurn(this);
   }
 

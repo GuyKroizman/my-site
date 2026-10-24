@@ -13,12 +13,15 @@ export default class Hammer extends Entity {
     super();
     this.tile = 7 * 49 + 37;
     this.name = "A war hammer";
-    this.description = "A basic war hammer. Causes between 3 and 8 damage. Slow attack (1.5 time).";
 
     this.init(context, x, y);
 }
 
     equip() {
+    }
+
+    get displayDescription(): string {
+      return `A basic war hammer. Causes between ${3 + this.level} and ${8 + this.level} damage. Slow attack (${this.attackDelay} time).`;
     }
 
     damage() {

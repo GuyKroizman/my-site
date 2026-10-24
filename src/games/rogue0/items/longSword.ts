@@ -5,7 +5,9 @@ import type { GameContext } from "../context";
 
 export default class LongSword extends Entity {
   name: string = "A Long Sword";
-  description = "A long sword that causes between 1 and 8 damage.";
+  get displayDescription(): string {
+    return `A long sword. Causes between ${4 + this.level} and ${8 + this.level} damage.`;
+  }
   tile = 329;
   tier = 1;
   equipSlot: "weapon" = "weapon";

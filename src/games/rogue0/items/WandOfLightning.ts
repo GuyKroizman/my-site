@@ -19,8 +19,8 @@ export default class WandOfLightning extends Wand {
     );
   }
 
-  wandDamage() {
-    return Phaser.Math.Between(2, 6);
+  get damageBounds(): readonly [number, number] {
+    return [2, 6];
   }
 
   wandEffect() {

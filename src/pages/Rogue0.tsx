@@ -47,7 +47,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Skills',
-    body: `• Each class has a passive and one active skill.\n• Press f to use your active skill.\n• Skills have a cooldown shown in your stats.\n• Warrior: Power Strike · Dwarf: Shield Bash · Cleric: Heal.\n• Elf: Multishot · Wizard: Nova.`,
+    body: `• Each class has a passive and one active skill.\n• Press f to use your active skill.\n• Skills have a cooldown shown in your stats.\n• Warrior: Power Strike · Dwarf: Shield Bash · Cleric: Heal.\n• Elf: Double Strike · Wizard: Nova.`,
   },
   {
     title: 'Terrain',

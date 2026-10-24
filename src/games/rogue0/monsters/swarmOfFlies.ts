@@ -1,15 +1,19 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
 import dungeon from "../dungeon";
+import { FLY_SWARM_TEXTURE, generateFlySwarmTexture } from "./flySwarmTexture";
 
 export default class SwarmOfFlies extends Monster {
   private offspring = false;
 
   constructor(context: GameContext, x?: number, y?: number, offspring = false) {
+    if (context.scene) generateFlySwarmTexture(context.scene);
     super(context, {
       name: "Swarm of Flies",
       description: "A buzzing cloud that splits apart when swatted.",
-      tile: 6 * 49 + 31,
+      tile: 0,
+      textureKey: FLY_SWARM_TEXTURE,
+      initiallyAwake: offspring,
       healthPoints: offspring ? 4 : 8,
       movementSpeed: 1,
       attackDelay: 1,

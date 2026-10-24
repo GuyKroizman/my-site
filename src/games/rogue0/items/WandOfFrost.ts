@@ -19,8 +19,8 @@ export default class WandOfFrost extends Wand {
     );
   }
 
-  wandDamage() {
-    return Phaser.Math.Between(2, 5);
+  get damageBounds(): readonly [number, number] {
+    return [2, 5];
   }
 
   wandEffect() {

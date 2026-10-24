@@ -1,7 +1,7 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import BasicHero from "./basicHero";
 import type { GameContext } from "../context";
-import Bow from "../items/bow";
+import Sword from "../items/sword";
 import dungeon from "../dungeon";
 
 export default class Elf extends BasicHero {
@@ -10,34 +10,33 @@ export default class Elf extends BasicHero {
 
     this.name = "Elf";
     this.description =
-      "A swift archer. Passive (Elven Grace): +10 evasion. Active (Multishot, f): fire two arrows at the nearest visible enemy within range.";
+      "A swift swordsman. Passive (Elven Grace): +10 evasion. Active (Double Strike, f): strike the nearest visible adjacent enemy twice.";
     this.healthPoints = 20;
     this.maxHealthPoints = 20;
     this.tile = 49 + 28;
 
-    this.skill = "Multishot";
-    this.skillDescription = "Fire two arrows at the nearest visible enemy within range.";
+    this.skill = "Double Strike";
+    this.skillDescription = "Strike the nearest visible adjacent enemy twice.";
     this.skillMaxCooldown = 6;
 
-    const bow = new Bow(context)
-    this.addItem(bow)
-    this.equipItem(bow)
+    const sword = new Sword(context);
+    this.addItem(sword);
+    this.equipItem(sword);
 
     this.evasion = 10;
 
     this.init(context, x, y);
   }
 
-  // Active: Multishot — two arrows at the nearest visible enemy in bow range.
+  // Active: Double Strike is always melee, including while unarmed.
   useSkill() {
-    const range = this.currentWeapon()?.range() ?? 5;
-    const enemy = this.nearestVisibleEnemy(range);
+    const enemy = this.nearestVisibleEnemy(1);
     if (!enemy) {
-      dungeon.log(this.context, "No visible enemy in range for Multishot.");
+      dungeon.log(this.context, "No visible adjacent enemy for Double Strike.");
       return;
     }
 
-    dungeon.log(this.context, `${this.name} fires a Multishot at ${enemy.name}!`);
+    dungeon.log(this.context, `${this.name} uses Double Strike on ${enemy.name}!`);
     this.resolveSkillAttack(enemy, {});
     if (enemy.healthPoints > 0) {
       this.resolveSkillAttack(enemy, {});

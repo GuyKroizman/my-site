@@ -19,8 +19,8 @@ export default class WandOfFirebolt extends Wand {
     );
   }
 
-  wandDamage() {
-    return Phaser.Math.Between(3, 6);
+  get damageBounds(): readonly [number, number] {
+    return [3, 6];
   }
 
   wandEffect() {

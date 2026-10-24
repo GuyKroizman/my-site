@@ -21,6 +21,10 @@ export default class RingOfMight extends Ring {
   removePassive() {
   }
 
+  get displayDescription(): string {
+    return `Grants +${this.damage()} damage while equipped.`;
+  }
+
   damage() {
     return 2 + this.level;
   }

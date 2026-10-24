@@ -23,6 +23,7 @@ export default class Ghoul extends Monster {
   }
 
   turn() {
+    if (this.waitWhileSleeping()) return;
     if (!hasEffect(this, "regeneration")) {
       applyEffect(this, createRegenerationEffect());
     }

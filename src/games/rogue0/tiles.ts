@@ -5,11 +5,11 @@
 // coordinate-keyed overlay (`"x,y"`) so doors/traps/grass/water/chasms can
 // carry per-tile state without turning the base map into a tile enum.
 
-export type TerrainFeature = "door" | "trap" | "grass" | "water" | "chasm";
+export type TerrainFeature = "door" | "secretDoor" | "trap" | "grass" | "water" | "chasm";
 
 export type DoorState = "open" | "closed";
 export type TrapState = "hidden" | "visible" | "triggered";
-export type TrapKind = "dart" | "fire" | "frost" | "teleport";
+export type TrapKind = "dart" | "arrow" | "fire" | "frost" | "teleport";
 
 export type TileState = {
   // Optical override for glass walls/crystal doors, independent of movement.
@@ -127,7 +127,7 @@ export function isBlocking(x: number, y: number): boolean {
   const tile = features.get(key(x, y));
   if (!tile) return false;
   if (tile.feature === "door" && tile.door === "closed") return true;
-  if (tile.feature === "chasm") return true;
+  if (tile.feature === "chasm" || tile.feature === "secretDoor") return true;
   return false;
 }
 
@@ -151,6 +151,7 @@ export function applyToPathGrid(grid: {
 
 const TRAP_LABELS: Record<TrapKind, string> = {
   dart: "dart trap (poisons)",
+  arrow: "arrow trap (throw an object onto it to shoot the nearest character)",
   fire: "fire trap (burns)",
   frost: "frost trap (freezes)",
   teleport: "teleport trap"
@@ -163,6 +164,8 @@ export function describeTile(
 ): string {
   if (state) {
     switch (state.feature) {
+      case "secretDoor":
+        return "A wall.";
       case "door":
         return state.door === "closed"
           ? "A closed door. Walk into it to open."

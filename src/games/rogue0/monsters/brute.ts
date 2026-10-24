@@ -27,6 +27,7 @@ export default class Brute extends Monster {
   }
 
   turn() {
+    if (this.waitWhileSleeping()) return;
     if (!this.enraged && this.healthPoints < this.maxHealthPoints / 2) {
       this.enraged = true;
       applyEffect(this, createStrengthenedEffect());

@@ -57,6 +57,7 @@ export abstract class Entity {
   cursed: boolean = false;
   blessed: boolean = false;
   level: number = 0;
+  maxLevel: number = Number.POSITIVE_INFINITY;
   charges: number = 0;
   equipSlot: EquipSlot = "junk";
   // Number of identical items stacked in this one slot (consumables).
@@ -267,6 +268,10 @@ export function identify(item: Entity): void {
 // +1 damage / +1 protection bonus inside their own damage()/protection()
 // methods (see the weapon and armour item files).
 export function upgrade(item: Entity): void {
+  if (item.level >= item.maxLevel) {
+    logMessage(item.context, `${item.name} is already at its maximum level (${item.maxLevel}).`);
+    return;
+  }
   item.level += 1;
   logMessage(item.context, `${item.name} upgraded to level ${item.level}.`);
 }

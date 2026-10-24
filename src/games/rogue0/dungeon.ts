@@ -184,8 +184,8 @@ let dungeon = {
     return tiles.describeTile(state, isWall);
   },
 
-  // SPD-style search: reveal hidden traps in the 3x3 area around (x, y).
-  // Returns the number of traps uncovered.
+  // Reveal hidden traps and secret end walls in the surrounding 3x3 area.
+  // Returns the total discoveries; terrain callbacks refresh FOV and visuals.
   searchAround: function (x: number, y: number): number {
     const map = this.currentLevel;
     if (!map) return 0;
@@ -200,12 +200,66 @@ let dungeon = {
         if (state?.feature === "trap" && state.trap === "hidden") {
           tiles.setTrapState(nx, ny, "visible");
           found++;
+        } else if (state?.feature === "secretDoor") {
+          map[ny][nx] = 0;
+          tiles.setFeature(nx, ny, "door", { door: "closed" });
+          this.layer?.putTileAt(Sprites.floor, nx, ny);
+          this.pathGrid?.setWalkableAt(nx, ny, false);
+          if (this.context) this.log(this.context, "You discover a secret door in the end wall!");
+          found++;
         }
       }
     }
 
     if (found > 0) this.onTerrainChanged?.();
     return found;
+  },
+
+  // A pressure plate fires once, choosing the nearest living actor of either
+  // faction. Walls/closed doors stop the arrow, not the targeting mechanism.
+  triggerArrowTrap: function (context: GameContext, x: number, y: number): boolean {
+    const state = tiles.getTileState(x, y);
+    if (state?.feature !== "trap" || state.trapKind !== "arrow" || state.trap === "triggered") return false;
+    tiles.setTrapState(x, y, "triggered");
+    this.onTerrainChanged?.();
+    const actors = context.entities.filter(e =>
+      (e.type === "player" || e.type === "enemy") && e.healthPoints > 0 &&
+      e.x !== undefined && e.y !== undefined
+    );
+    actors.sort((a, b) => Math.hypot(a.x! - x, a.y! - y) - Math.hypot(b.x! - x, b.y! - y));
+    const target = actors[0];
+    this.log(context, "The arrow trap fires!");
+    if (!target) return true;
+    let endX = x, endY = y;
+    let victim: Entity | undefined;
+    // Chasms/water/grass affect movement or sight, not physical arrows.
+    const blocksArrow = (px: number, py: number) =>
+      this.currentLevel[py]?.[px] !== 0 || tiles.getDoorState(px, py) === "closed";
+    for (const [px, py] of bresenhamLine(x, y, target.x!, target.y!)) {
+      if (blocksArrow(px, py)) break;
+      if (px !== endX && py !== endY &&
+          (blocksArrow(px, endY) || blocksArrow(endX, py))) break;
+      endX = px; endY = py;
+      victim = actors.find(e => e.x === px && e.y === py);
+      if (victim) break;
+    }
+    if (context.scene && context.map && context.visibleTiles.has(`${x},${y}`)) {
+      const arrow = context.scene.add.sprite(
+        context.map.tileToWorldX(x)! + 8, context.map.tileToWorldY(y)! + 8, "bow-arrow"
+      ).setOrigin(0.5).setDepth(250).setRotation(Math.atan2(endY - y, endX - x));
+      context.scene.tweens.add({ targets: arrow,
+        x: context.map.tileToWorldX(endX)! + 8, y: context.map.tileToWorldY(endY)! + 8,
+        duration: 120, onComplete: () => arrow.destroy() });
+    }
+    // Damage resolves immediately so subsequent simulation events cannot
+    // outrun the cosmetic projectile or target a dead actor.
+    if (victim) {
+      const damage = Math.max(1, 5 - victim.protection());
+      victim.takeDamage(damage);
+      this.log(context, `The arrow hits ${victim.name} for ${damage} damage.`);
+      if (victim.healthPoints <= 0) removeEntity(context, victim);
+    }
+    return true;
   },
 
   entityAtTile: function (context: GameContext, x: number, y: number): Entity | undefined {
@@ -284,7 +338,7 @@ let dungeon = {
     // Only the player triggers traps.
     if (entity.type === "player") {
       const state = tiles.getTileState(destX, destY);
-      if (state && state.feature === "trap" && state.trap !== "triggered") {
+      if (state && state.feature === "trap" && state.trapKind !== "arrow" && state.trap !== "triggered") {
         tiles.setTrapState(destX, destY, "triggered");
         this.onTerrainChanged?.();
 
@@ -329,6 +383,7 @@ let dungeon = {
         !context.visibleTiles.has(`${destX},${destY}`)) {
       entity.x = destX;
       entity.y = destY;
+      this.triggerArrowTrap(context, destX, destY);
       closeDoorBehind();
       entity.sprite?.setPosition(
         context.map.tileToWorldX(destX)!, context.map.tileToWorldY(destY)!
@@ -339,6 +394,11 @@ let dungeon = {
     // The sprite animates independently of the logical tile coordinates.
     entity.x = destX;
     entity.y = destY;
+    if (entity.type !== "item") this.triggerArrowTrap(context, destX, destY);
+    if (entity.healthPoints <= 0 && entity.type !== "item") {
+      closeDoorBehind();
+      return;
+    }
     entity.moving = true;
 
     context.scene.tweens.add({

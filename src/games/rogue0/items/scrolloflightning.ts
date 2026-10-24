@@ -14,7 +14,6 @@ export default class ScrollOfLightning extends Entity {
 
     this.tile = 15 * 49 + 34;
     this.name = "Scroll of Lightning";
-    this.description = "A scroll of Lightning. Causes between 1 and 2 damage. Range is seven tiles.";
     this.attackTile = 413;
     this.damageType = "shock";
 
@@ -22,6 +21,10 @@ export default class ScrollOfLightning extends Entity {
   }
 
   equip() {
+  }
+
+  get displayDescription(): string {
+    return `A scroll of lightning. Causes between ${1 + this.level} and ${2 + this.level} damage. Range is ${this.range()} tiles.`;
   }
 
   damage() {

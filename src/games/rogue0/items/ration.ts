@@ -7,6 +7,7 @@ import dungeon from "../dungeon";
 export default class Ration extends Entity {
   type: EntityType = "item";
   tier = 1;
+  textureKey = "ration";
   equipSlot: "consumable" = "consumable";
 
   constructor(context: GameContext, x?: number, y?: number) {

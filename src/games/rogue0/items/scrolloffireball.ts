@@ -13,7 +13,6 @@ export default class ScrollOfFireball extends Entity {
     super();
     this.tile = 15 * 49 + 33;
     this.name = "Scroll of Fireball";
-    this.description = "A scroll of fireball. Causes between 1 and 4 damage. Range is four tiles.";
     this.attackTile = 10 * 49 + 15;
     this.damageType = "fire";
 
@@ -21,6 +20,10 @@ export default class ScrollOfFireball extends Entity {
   }
 
   equip() {
+  }
+
+  get displayDescription(): string {
+    return `A scroll of fireball. Causes between ${1 + this.level} and ${4 + this.level} damage. Range is ${this.range()} tiles.`;
   }
 
   damage() {

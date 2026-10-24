@@ -53,8 +53,18 @@ export default abstract class Wand extends Entity {
     this.init(context, x, y);
   }
 
-  abstract wandDamage(): number;
+  abstract get damageBounds(): readonly [number, number];
   abstract wandEffect(): StatusEffect;
+
+  wandDamage(): number {
+    const [min, max] = this.damageBounds;
+    return Phaser.Math.Between(min, max);
+  }
+
+  get displayDescription(): string {
+    const [min, max] = this.damageBounds;
+    return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. Range is ${this.range()} tiles. Charges: ${this.charges}/${this.maxCharges}.`;
+  }
 
   equip() {}
 

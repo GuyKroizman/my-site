@@ -173,7 +173,8 @@ export function generateMap(floor = 1): GeneratedMap {
     const w = 4 + Math.floor(Math.random() * 8);
     const h = 4 + Math.floor(Math.random() * 6);
     const x = 1 + Math.floor(Math.random() * (width - w - 2));
-    const y = 1 + Math.floor(Math.random() * (height - h - 2));
+    // Reserve a northern wall band for a guaranteed secret dead-end branch.
+    const y = 7 + Math.floor(Math.random() * (height - h - 8));
 
     const room: Room = {
       x,
@@ -293,6 +294,21 @@ export function generateMap(floor = 1): GeneratedMap {
       features.push({ x: tile.x, y: tile.y, feature: "chasm" });
       used.add(`${tile.x},${tile.y}`);
     }
+  }
+
+  // One visible pressure plate: unlike hidden status traps it can be used
+  // deliberately by throwing an object onto it.
+  const arrowTile = shuffle(roomTiles.filter(t => !used.has(`${t.x},${t.y}`)))[0];
+  if (arrowTile) features.push({ ...arrowTile, feature: "trap", trap: "visible", trapKind: "arrow" });
+
+  // The northernmost floor belongs to the connected dungeon. Above it the
+  // reserved band is solid wall, so the branch cannot accidentally reconnect
+  // around the secret. Two approach tiles, an end wall, two floors behind it.
+  const northY = map.findIndex(row => row.includes(0));
+  if (northY >= 6) {
+    const x = map[northY].indexOf(0);
+    for (const offset of [1, 2, 4, 5]) map[northY - offset][x] = 0;
+    features.push({ x, y: northY - 3, feature: "secretDoor" });
   }
 
   return { map, rooms, features };

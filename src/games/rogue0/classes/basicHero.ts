@@ -799,8 +799,8 @@ export default class BasicHero extends Entity {
       dungeon.log(
         this.context,
         found === 1
-          ? "You search and uncover a hidden trap!"
-          : `You search and uncover ${found} hidden traps!`
+          ? "You search and uncover a secret!"
+          : `You search and uncover ${found} secrets!`
       );
     } else {
       dungeon.log(this.context, "You search but find nothing.");
@@ -1013,6 +1013,13 @@ export default class BasicHero extends Entity {
     const context = this.context;
     const item = context.throwItem;
     if (!item || !this.canAct()) return;
+    // Target selection may outlive an inventory change. Never throw a stale
+    // reference (or an item that became cursed while equipped).
+    if (!this.getAllItems().includes(item) ||
+        (!this.zapping && item.cursed && this.slotOf(item))) {
+      this.cancelThrow();
+      return;
+    }
     if (this.x === undefined || this.y === undefined) {
       this.cancelThrow();
       return;
@@ -1073,17 +1080,24 @@ export default class BasicHero extends Entity {
       return;
     }
 
-    // Remove the item from the hero's possession now; the landing handler
-    // either consumes it (enemy hit) or puts it on the floor.
-    this.removeItem(item);
-
     const scene = context.scene;
     const map = context.map;
     if (!scene || !map) {
-      this.addItem(item);
       this.cancelThrow();
       return;
     }
+
+    // Split a single projectile from a stack without reusing the inventory
+    // entity. Preserve upgrades/identification, but never share sprites/UI.
+    const thrown: Entity = item.count > 1
+      ? Object.assign(Object.create(Object.getPrototypeOf(item)), item, {
+          count: 1, x: undefined, y: undefined, sprite: undefined,
+          UISprite: undefined, UIText: undefined,
+          effects: item.effects.map(effect => ({ ...effect }))
+        })
+      : item;
+    this.removeItem(item);
+    if (!context.entities.includes(thrown)) context.entities.push(thrown);
 
     this.spendTurn("throw");
     this.moving = true;
@@ -1101,7 +1115,7 @@ export default class BasicHero extends Entity {
       ease: "Power2",
       onComplete: () => {
         projectile.destroy();
-        this.resolveThrowLanding(item, tx, ty);
+        this.resolveThrowLanding(thrown, tx, ty);
         this.moving = false;
       }
     });
@@ -1112,15 +1126,21 @@ export default class BasicHero extends Entity {
 
   private resolveThrowLanding(item: Entity, tx: number, ty: number): void {
     const context = this.context;
-    const target = dungeon.entityAtTile(context, tx, ty);
+    // Loot can share an actor's tile; entity array order must not hide the
+    // living target from the impact handler.
+    const target = context.entities.find(entity =>
+      entity.type === "enemy" && entity.healthPoints > 0 && entity.x === tx && entity.y === ty
+    );
 
-    if (target && target.type === "enemy") {
+    if (target) {
       this.applyThrownItemToEnemy(item, target);
       removeEntity(context, item);
+      dungeon.triggerArrowTrap(context, tx, ty);
       return;
     }
 
     this.placeItemOnGround(item, tx, ty);
+    dungeon.triggerArrowTrap(context, tx, ty);
   }
 
   private applyThrownItemToEnemy(item: Entity, enemy: Entity): void {
