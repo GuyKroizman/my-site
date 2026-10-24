@@ -13,9 +13,12 @@ export default class Axe extends Entity {
     super();
     this.tile = 7 * 49 + 39;
     this.name = "An Axe";
-    this.description = "A basic axe. Causes between 2 and 7 damage. Slow attack (1.25 time).";
 
     this.init(context, x, y);
+  }
+
+  get displayDescription(): string {
+    return `A basic axe. Causes between ${2 + this.level} and ${7 + this.level} damage. Slow attack (1.25 time).`;
   }
 
   equip() {

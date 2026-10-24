@@ -72,6 +72,11 @@ export abstract class Entity {
   vulnerability: Partial<Record<DamageType, number>> = {};
   damageType: DamageType = "physical";
 
+  // Override for descriptions whose stats change with upgrades.
+  get displayDescription(): string {
+    return this.description;
+  }
+
   // Hidden-style name used before an item is identified ("?scroll", "?ring").
   get displayName(): string {
     if (this.identified) {
@@ -255,7 +260,7 @@ function logMessage(context: GameContext, text: string): void {
 // Reveals an item's real name and description (the G3 identify loop).
 export function identify(item: Entity): void {
   item.identified = true;
-  logMessage(item.context, `Identified: ${item.name} — ${item.description}`);
+  logMessage(item.context, `Identified: ${item.name} — ${item.displayDescription}`);
 }
 
 // Upgrade rule: +1 `level`. Weapons and armour convert each level into a

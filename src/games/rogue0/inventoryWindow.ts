@@ -441,7 +441,7 @@ export class InventoryWindow {
 
     // Full description, hidden until the item is identified.
     const description = item.identified
-      ? item.description
+      ? item.displayDescription
       : item instanceof Wand
         ? "An unidentified wand. Its kind of magic is unknown."
         : "You have not identified this item.";

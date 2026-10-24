@@ -279,7 +279,7 @@ export default class BasicHero extends Entity {
   }
 
   private onEquip(item: Entity): void {
-    const detail = item.identified ? `: ${item.description}` : "";
+    const detail = item.identified ? `: ${item.displayDescription}` : "";
     dungeon.log(this.context, `${this.name} equips ${item.displayName}${detail}.`);
     sfx.equip();
     item.equip();
@@ -1470,7 +1470,7 @@ export default class BasicHero extends Entity {
         if (entity && entity.type == "item" && !hasEffect(this, "rooted")) {
           if (this.addItem(entity)) {
             dungeon.itemPicked(entity);
-            const detail = entity.identified ? `: ${entity.description}` : "";
+            const detail = entity.identified ? `: ${entity.displayDescription}` : "";
             dungeon.log(this.context, `${this.name} picked ${entity.displayName}${detail}`);
             // Pickup shares the movement turn below.
           } else {

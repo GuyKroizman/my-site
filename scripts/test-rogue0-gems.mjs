@@ -11,6 +11,20 @@ function load(path, bindings = {}) {
   return exports;
 }
 const { Entity, upgrade, removeEntity } = load('src/games/rogue0/entity.ts');
+let rollMaximum = false;
+const Axe = load('src/games/rogue0/items/axe.ts', {
+  Entity, Phaser: { Math: { Between: (min, max) => rollMaximum ? max : min } },
+}).default;
+const axe = new Axe({ messages: [] });
+for (let level = 0; level <= 3; level++) {
+  assert.equal(axe.level, level);
+  assert.ok(axe.displayDescription.includes(`between ${2 + level} and ${7 + level} damage`));
+  rollMaximum = false;
+  assert.equal(axe.damage(), 2 + level);
+  rollMaximum = true;
+  assert.equal(axe.damage(), 7 + level);
+  if (level < 3) upgrade(axe);
+}
 const Shield = load('src/games/rogue0/items/shield.ts', { Entity }).default;
 const Gem = load('src/games/rogue0/items/gem.ts', { Entity, upgrade, removeEntity, Shield }).default;
 // Avoid sprite construction; exercise actual item and entity methods.

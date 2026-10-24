@@ -504,7 +504,7 @@ export class UI extends Phaser.Scene {
           `${e.name}\n${e.description}\nHP: ${hp}/${maxHp}\nATK: ${atk}  DEF: ${prot}  Range: ${range}`
         );
       } else {
-        const desc = e.identified ? e.description : "You have not identified this item.";
+        const desc = e.identified ? e.displayDescription : "You have not identified this item.";
         this.inspectModalText.setText(`${e.displayName}\n${desc}`);
       }
       return;
