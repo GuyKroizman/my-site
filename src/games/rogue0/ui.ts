@@ -156,20 +156,12 @@ export class UI extends Phaser.Scene {
       g.lineBetween(0, 0, 4, 2);
     }, "Wait"));
 
-    // Search.
-    this.toolbar.push(this.makeButton(() => this.context.player?.search(), (g) => {
+    // One tap targets inspection; a second tap on this button searches.
+    this.toolbar.push(this.makeButton(() => this.context.player?.inspectOrSearch(), (g) => {
       g.lineStyle(2, iconColor, 1);
       g.strokeCircle(0, 0, 6);
       g.lineBetween(4, 4, 10, 10);
-    }, "Search"));
-
-    // Inspect (eye) — toggles inspect mode; the next tap inspects a tile.
-    this.toolbar.push(this.makeButton(() => this.context.player?.toggleInspectMode(), (g) => {
-      g.lineStyle(2, iconColor, 1);
-      g.strokeEllipse(0, 0, 13, 9);
-      g.fillStyle(iconColor, 1);
-      g.fillCircle(0, 0, 2.5);
-    }, "Inspect"));
+    }, "Inspect / Search: tap a tile to inspect, or tap again to search"));
 
     // Skill.
     this.toolbar.push(this.makeButton(() => this.context.player?.tryUseSkill(), (g) => {
@@ -328,8 +320,7 @@ export class UI extends Phaser.Scene {
     const y = h - size - edge;
     const positions = [
       [edge, edge], // portrait
-      [edge, y], [edge + size + gap, y], // wait, search
-      [w - edge - size, y - 2 * (size + gap)], // inspect
+      [edge, y], [edge + size + gap, y], // wait, inspect/search
       [w - edge - size, y - size - gap], // special, directly above backpack
       [w - edge - size, y] // backpack
     ];

@@ -130,6 +130,44 @@ const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   getTrapState: () => undefined, sfx: { potion() {} },
   spawnEntityFloatingText() {}
 }).default;
+// Combined magnifying glass: inspection is free; a second press searches.
+const lookHero = new Entity();
+Object.setPrototypeOf(lookHero, Hero.prototype);
+const modeChanges = [];
+Object.assign(lookHero, {
+  context: { inspectMode: false, onInspectModeChange: mode => modeChanges.push(mode) },
+  x: 3, y: 4, walkPath: [{ x: 4, y: 4 }], actionReady: true,
+});
+let searches = 0;
+dungeon.searchAround = () => { searches++; return 0; };
+lookHero.inspectOrSearch();
+assert.equal(lookHero.context.inspectMode, true);
+assert.equal(lookHero.context.cursorX, 3);
+assert.equal(lookHero.walkPath.length, 0, 'inspection stops auto-walking');
+assert.equal(searches, 0, 'first press never searches');
+assert.equal(lookHero.nextActionTime, 0, 'arming inspection is free');
+lookHero.inspectOrSearch();
+assert.equal(searches, 1);
+assert.equal(lookHero.context.inspectMode, false);
+assert.equal(lookHero.nextActionTime, 2, 'second press pays normal search cost');
+assert.deepEqual(modeChanges, [true, false]);
+lookHero.inspectOrSearch();
+lookHero.inspectOrSearch();
+assert.equal(searches, 1, 'search cannot bypass action readiness');
+assert.equal(lookHero.context.inspectMode, false);
+
+lookHero.inspectOrSearch();
+Object.assign(lookHero.context, {
+  map: { worldToTileX: () => 5, worldToTileY: () => 6 },
+  entities: [], visibleTiles: new Set(['5,6']),
+});
+dungeon.inspectTile = () => 'Stone floor';
+lookHero.processTouchInput(lookHero.context, { worldX: 5, worldY: 6 });
+assert.equal(lookHero.context.inspectedTerrain, 'Stone floor');
+assert.equal(lookHero.context.inspectMode, false, 'tile selection ends targeting');
+assert.equal(lookHero.nextActionTime, 2, 'tile inspection spends no time');
+assert.equal(searches, 1, 'selecting a tile does not search');
+
 const hero = new Entity();
 Object.setPrototypeOf(hero, Hero.prototype);
 Object.assign(hero, {

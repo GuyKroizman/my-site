@@ -23,7 +23,7 @@ const CONTROLS = [
   ['Move', 'Arrows / HJKL; diagonals: Home / PgUp / End / PgDn'],
   ['Melee attack', 'Walk into enemy'],
   ['Ranged attack', 'Equip bow/scroll, then click/tap enemy'],
-  ['Inspect', 'Inspect button or x, then tap a tile'],
+  ['Inspect / Search', 'Magnifying glass, then a tile to inspect; tap the button again to search (x: inspect, s: search)'],
   ['Throw', 'Inventory → item → Throw → tap tile'],
   ['Wait', 'Space'],
 ] as const
@@ -31,7 +31,7 @@ const CONTROLS = [
 const HELP_PAGES = [
   {
     title: 'Basics',
-    body: `• Move with the Arrow keys or HJKL. Diagonals: Home (↖), Page Up (↗), End (↙), Page Down (↘). Click/tap a destination to walk the shortest available route.\n• Walk into an enemy to attack it (melee).\n• Space waits one turn.\n• Press i or b to open your backpack.\n• Press the Inspect button or x, then tap/click a tile to inspect it.`,
+    body: `• Move with the Arrow keys or HJKL. Diagonals: Home (↖), Page Up (↗), End (↙), Page Down (↘). Click/tap a destination to walk the shortest available route.\n• Walk into an enemy to attack it (melee).\n• Space waits one turn.\n• Press i or b to open your backpack.\n• Press the magnifying-glass button or x, then tap/click a tile to inspect it. Tap the button again instead to search nearby (or press s).`,
   },
   {
     title: 'Combat',

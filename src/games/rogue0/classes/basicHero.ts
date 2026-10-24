@@ -644,7 +644,10 @@ export default class BasicHero extends Entity {
 
     // Inspect is a UI action: always available, on any turn.
     if (context.inspectMode) {
-      if (x !== null && y !== null) this.inspectTile(x, y);
+      if (x !== null && y !== null) {
+        this.exitCursorModes();
+        this.inspectTile(x, y);
+      }
       return;
     }
 
@@ -751,6 +754,18 @@ export default class BasicHero extends Entity {
         return { dx: 0, dy: 1 };
       default:
         return undefined;
+    }
+  }
+
+  inspectOrSearch(): void {
+    if (this.context.throwMode) this.cancelThrow();
+    this.walkPath = [];
+    if (this.context.inspectMode) {
+      this.exitCursorModes();
+      this.context.inspectChoices = undefined;
+      this.search();
+    } else {
+      this.toggleInspectMode();
     }
   }
 
