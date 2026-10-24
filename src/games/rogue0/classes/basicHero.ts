@@ -974,7 +974,7 @@ export default class BasicHero extends Entity {
       dungeon.log(context, "You don't have that item.");
       return;
     }
-    if (item.cursed && !zap) {
+    if (item.cursed && this.slotOf(item) && !zap) {
       dungeon.log(context, `${item.displayName} is cursed and cannot be thrown.`);
       return;
     }

@@ -126,7 +126,7 @@ const dungeon = {
   isWalkableTile: () => false, attackEntity() {}
 };
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
-  Entity, Gem: class Gem {}, Wand: class Wand {}, dungeon, isModalOpen: () => false, hasEffect,
+  Entity, Gem: class Gem {}, Wand: class Wand {}, dungeon, isModalOpen: () => false, hasEffect, removeEffect,
   getTrapState: () => undefined, sfx: { potion() {} },
   spawnEntityFloatingText() {}
 }).default;
@@ -286,6 +286,76 @@ assert.equal(hero.skillCooldown, 0);
 manager.reset(entities, true);
 assert.equal(manager.time, 2.5, 'floor transitions preserve the world clock');
 assert.equal(player.nextActionTime, 2.5);
+// Equal elapsed time must produce identical survival/effect/cooldown outcomes,
+// regardless of action count or extra render polling. Use real hero upkeep.
+function elapsedRun(action, count, delay = 1, polls = 0) {
+  const p = new Entity();
+  Object.setPrototypeOf(p, Hero.prototype);
+  Object.assign(p, {
+    type: 'player', context: { simulationTime: 0, messages: [] },
+    healthPoints: 50, maxHealthPoints: 100, hunger: 100, maxHunger: 100,
+    movementSpeed: 4, turn() {},
+    tickEffects() { effects.tickEffects(this, this.context); }
+  });
+  manager.reset([p]);
+  p.skillCooldown = 7;
+  effects.applyEffect(p, effects.createPoisonedEffect(4));
+  for (let i = 0; i < count; i++) {
+    p.spendTime(action, delay);
+    manager.update([p]);
+    const before = [manager.time, p.hunger, p.healthPoints, p.skillCooldown];
+    for (let frame = 0; frame < polls; frame++) manager.update([p]);
+    assert.deepEqual([manager.time, p.hunger, p.healthPoints, p.skillCooldown], before,
+      'idle rendering cannot advance upkeep, effects or cooldowns');
+  }
+  return { time: manager.time, hunger: p.hunger, hp: p.healthPoints,
+    cooldown: p.skillCooldown, effects: p.effects.length };
+}
+const elapsedExpected = { time: 6, hunger: 98.5, hp: 52, cooldown: 1, effects: 0 };
+assert.deepEqual(elapsedRun('move', 24, 1, 10), elapsedExpected);
+assert.deepEqual(elapsedRun('attack', 4, 1.5), elapsedExpected);
+assert.deepEqual(elapsedRun('wait', 6), elapsedExpected);
+
+// Non-binary fractions expose drift that four 1.25-cost actions cannot.
+({ player, enemy, entities } = setup());
+player.movementSpeed = 3;
+for (let i = 0; i < 3000; i++) {
+  player.spendTime('move');
+  manager.update(entities);
+}
+assert.ok(Math.abs(manager.time - 1000) < 1e-9, 'fractional costs retain elapsed time');
+assert.equal(player.ticks, 1000, 'fractional drift cannot lose world ticks');
+assert.equal(enemy.turns, 1000, 'fractional drift cannot grant extra enemy turns');
+
+// Two effects applied at different phases tick and expire independently,
+// including during one long action spanning several events.
+({ player, enemy, entities } = setup());
+const phaseEvents = [];
+player.tickEffects = () => effects.tickEffects(player, player.context);
+function phasedEffect(id, duration) {
+  return { id, name: id, duration,
+    tick(e) { phaseEvents.push([id, 'tick', e.context.simulationTime]); },
+    remove(e) { phaseEvents.push([id, 'remove', e.context.simulationTime]); } };
+}
+player.spendTime('attack', 0.25);
+manager.update(entities);
+effects.applyEffect(player, phasedEffect('early', 2));
+player.spendTime('attack', 0.5);
+manager.update(entities);
+effects.applyEffect(player, phasedEffect('late', 2));
+player.spendTime('attack', 0.49);
+manager.update(entities);
+assert.deepEqual(phaseEvents, [], 'neither effect ticks before its own boundary');
+player.spendTime('attack', 2.51);
+manager.update(entities);
+assert.deepEqual(phaseEvents, [
+  ['early', 'tick', 1.25], ['late', 'tick', 1.75],
+  ['early', 'tick', 2.25], ['early', 'remove', 2.25],
+  ['late', 'tick', 2.75], ['late', 'remove', 2.75]
+]);
+assert.equal(player.effects.length, 0);
+assert.equal(player.ticks, 3, 'fractional effect events do not trigger extra upkeep');
+
 // Exercise actual monster decision logic, not just fake scheduled actors.
 let attacks = 0;
 const { enemyTurn } = load('src/games/rogue0/ai.ts', {
@@ -564,4 +634,59 @@ monster.x = 1; monster.y = 1;
 enemyTurn(monster);
 assert.equal(attacks, 2, 'monster melee hits a diagonally adjacent player');
 
-console.log('Rogue0 timeline, input, death, sight, pursuit, diagonal movement and surprise regression tests passed');
+// Unknown backpack curses must not leak through action availability, while
+// equipped curses block every player-facing removal path without spending time.
+const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', {
+  Gem: class {}, Wand: class {}
+});
+const inventory = Object.create(InventoryWindow.prototype);
+const curseHero = new Entity();
+Object.setPrototypeOf(curseHero, Hero.prototype);
+Object.assign(curseHero, {
+  context: { messages: [], entities: [], simulationTime: 0 },
+  type: 'player', healthPoints: 10, actionReady: true, backpack: [],
+  capacity: 20, refreshUI() {}, x: 1, y: 1
+});
+const cursedGear = Object.assign(new Entity(), {
+  type: 'item', name: 'Secret Blade', equipSlot: 'weapon',
+  identified: false, cursed: true, level: 3
+});
+const replacement = Object.assign(new Entity(), { type: 'item', equipSlot: 'weapon' });
+curseHero.backpack = [cursedGear, replacement];
+assert.equal(cursedGear.displayName, 'Weapon', 'unknown gear hides identity and upgrades');
+const unknownActions = inventory.buildActions(curseHero, cursedGear);
+cursedGear.cursed = false;
+assert.deepEqual(inventory.buildActions(curseHero, cursedGear), unknownActions,
+  'backpack action availability must not reveal an unknown curse');
+cursedGear.cursed = true;
+curseHero.beginThrow(cursedGear);
+assert.equal(curseHero.context.throwItem, cursedGear, 'unequipped cursed gear can be thrown');
+curseHero.cancelThrow();
+assert.equal(curseHero.nextActionTime, 0, 'throw targeting and cancellation are free');
+curseHero.backpack = [replacement];
+curseHero.weapon = cursedGear;
+for (const reject of [
+  () => curseHero.unequipItem(cursedGear),
+  () => curseHero.equipItem(replacement),
+  () => curseHero.dropItem(cursedGear),
+  () => curseHero.beginThrow(cursedGear),
+  () => curseHero.useOrEquipBackpackSlot(0)
+]) {
+  reject();
+  assert.equal(curseHero.weapon, cursedGear, 'equipped curse cannot be bypassed');
+  assert.deepEqual(curseHero.backpack, [replacement]);
+  assert.equal(curseHero.context.throwItem, undefined);
+  assert.equal(curseHero.nextActionTime, 0, 'rejected curse actions are free');
+}
+for (const action of inventory.buildActions(curseHero, cursedGear)) {
+  if (['throw', 'drop', 'unequip'].includes(action.action)) assert.equal(action.enabled, false);
+}
+curseHero.removeCurse();
+assert.equal(cursedGear.cursed, false);
+curseHero.unequipItem(cursedGear);
+assert.equal(curseHero.weapon, undefined);
+assert.ok(curseHero.backpack.includes(cursedGear));
+assert.equal(cursedGear.level, 3, 'uncursing and unequipping preserve upgrades');
+assert.equal(curseHero.nextActionTime, 1);
+
+console.log('Rogue0 timeline, input, death, sight, pursuit, diagonal movement, surprise and curse regression tests passed');

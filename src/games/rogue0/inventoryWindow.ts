@@ -422,7 +422,7 @@ export class InventoryWindow {
     this.menuRoot.add(name);
     ay += Math.max(iconSize, name.height) + 10;
 
-    if (item.cursed) {
+    if (item.cursed && (item.identified || player.slotOf(item))) {
       this.menuRoot.add(
         this.scene.add.text(iconX, ay, "(cursed)", {
           fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
@@ -507,7 +507,7 @@ export class InventoryWindow {
       actions.push({ action: "use", label: item instanceof Wand ? "Zap" : "Use", enabled: true });
     }
 
-    actions.push({ action: "throw", label: "Throw", enabled: !item.cursed });
+    actions.push({ action: "throw", label: "Throw", enabled: !item.cursed || !player.slotOf(item) });
 
     if (player.slotOf(item)) {
       actions.push({
