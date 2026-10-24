@@ -115,24 +115,43 @@ function healingTick(missing = 10) {
   context.player.healthPoints = context.player.maxHealthPoints - missing;
   effect.tick(context.player, context);
 }
-for (let level = 0; level < 3; level++) {
-  const threshold = 60 * (level + 1);
-  assert.equal(chalice.healsToNextLevel, threshold);
-  for (let i = 0; i < threshold - 1; i++) healingTick();
-  assert.equal(chalice.level, level, 'must not level early');
-  assert.ok(chalice.displayDescription.includes(`${threshold - 1}/${threshold} healing ticks`));
-  context.player.healthPoints = context.player.maxHealthPoints;
-  for (let i = 0; i < 100; i++) effect.tick(context.player, context);
-  assert.equal(chalice.level, level, 'full-health turns do not advance progress');
+// Use the actual monster death callback, including its XP/kill accounting.
+const Monster = load('src/games/rogue0/monsters/monster.ts', { Entity, dungeon, Phaser }).default;
+const monster = Object.assign(Object.create(Monster.prototype), {
+  context, name: 'Rat', xpValue: 1, loot: [], gold: 0,
+});
+context.player.gainXp = () => {};
+monster.onDestroy();
+assert.ok(chalice.displayDescription.includes('0/5 monster kills'), 'unequipped kills do not count');
+context.player.artifact = chalice;
+for (let level = 1; level <= 10; level++) {
+  assert.equal(chalice.level, level);
+  assert.equal(chalice.healingInterval, 11 - level);
+  healingTick(0); // Full health resets the healing clock.
+  for (let turn = 1; turn < chalice.healingInterval; turn++) {
+    healingTick();
+    assert.equal(context.player.healthPoints, 90, 'no early healing');
+  }
   healingTick();
+  assert.equal(context.player.healthPoints, 91, 'heals exactly one HP');
+  for (let i = 0; i < 100; i++) healingTick();
+  assert.equal(chalice.level, level, 'healing never grants levels');
+  if (level === 10) break;
+  const threshold = 5 * level;
+  assert.equal(chalice.killsToNextLevel, threshold);
+  for (let i = 0; i < threshold - 1; i++) monster.onDestroy();
+  assert.equal(chalice.level, level, 'must not level early');
+  assert.ok(chalice.displayDescription.includes(`${threshold - 1}/${threshold} monster kills`));
+  context.player.healthPoints = context.player.maxHealthPoints;
+  monster.onDestroy(); // Kills count even at full health.
   assert.equal(chalice.level, level + 1);
 }
-for (let i = 0; i < 1000; i++) healingTick();
-assert.equal(chalice.level, 3);
-assert.equal(context.player.healthPoints, 94);
-assert.match(chalice.displayDescription, /up to 4 health.*Maximum level reached.*Level cap: \+3/);
+for (let i = 0; i < 1000; i++) { monster.onDestroy(); healingTick(); }
+assert.equal(chalice.level, 10);
+assert.equal(context.player.healthPoints, 91);
+assert.match(chalice.displayDescription, /Level 10\/10.*1 health every 1 world turn.*Maximum level reached/);
 upgrade(chalice);
-assert.equal(chalice.level, 3, 'generic upgrades must respect the artifact cap');
+assert.equal(chalice.level, 10, 'generic upgrades must respect the artifact cap');
 healingTick(1);
 assert.equal(context.player.healthPoints, 100);
 assert.equal(context.messages.at(-1), 'Elf regenerates 1 health.');

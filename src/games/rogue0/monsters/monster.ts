@@ -158,6 +158,7 @@ export default class Monster extends Entity {
   onDestroy() {
     this.context.kills = (this.context.kills ?? 0) + 1;
     this.context.player?.gainXp(this.xpValue);
+    this.context.player?.artifact?.onMonsterKilled?.();
     dungeon.log(this.context, `${this.name} was killed.`);
 
     const x = this.x;

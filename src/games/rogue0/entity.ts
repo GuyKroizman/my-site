@@ -192,6 +192,9 @@ export abstract class Entity {
 
   abstract damage(): number;
 
+  // Equipped artifacts may react to the same monster deaths that award XP.
+  onMonsterKilled?(): void;
+
   abstract onDestroy(): void;
 
   createUI?(options: { scene: Phaser.Scene, x: number, y: number, width?: number }): number;

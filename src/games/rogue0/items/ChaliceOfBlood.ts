@@ -5,41 +5,51 @@ import type { StatusEffect } from "../effects";
 import { applyEffect, removeEffect } from "../effects";
 import dungeon from "../dungeon";
 
-// Only ticks that actually restore health count. Each successive level takes
-// longer: 60, 120, then 180 healing ticks, rather than 15 at every level.
-const HEALS_PER_LEVEL = 60;
-export const CHALICE_MAX_LEVEL = 3;
+const KILLS_PER_LEVEL = 5;
+export const CHALICE_MAX_LEVEL = 10;
 
 export default class ChaliceOfBlood extends Entity {
   name: string = "Chalice of Blood";
   description: string =
-    "Regenerates health while equipped, growing stronger as it heals you.";
+    "Slowly regenerates health while equipped, growing stronger as you defeat monsters.";
   type: EntityType = "item";
   textureKey = "chalice-of-blood";
+  level = 1;
   maxLevel = CHALICE_MAX_LEVEL;
   tier = 1;
   equipSlot: "artifact" = "artifact";
   identified = false;
 
   private bloodProgress = 0;
+  private healingTurns = 0;
 
   get unidentifiedTextureKey(): string {
     return this.spriteTextureKey;
   }
 
-  get healingAmount(): number {
-    return 1 + Math.min(this.level, this.maxLevel);
+  get healingInterval(): number {
+    return 11 - Math.max(1, Math.min(this.level, this.maxLevel));
   }
 
-  get healsToNextLevel(): number {
-    return HEALS_PER_LEVEL * (this.level + 1);
+  get killsToNextLevel(): number {
+    return KILLS_PER_LEVEL * this.level;
+  }
+
+  onMonsterKilled(): void {
+    if (this.context.player?.artifact !== this || this.level >= this.maxLevel) return;
+    this.bloodProgress += 1;
+    if (this.bloodProgress >= this.killsToNextLevel) {
+      this.bloodProgress = 0;
+      this.level += 1;
+      dungeon.log(this.context, `${this.name} grows stronger (level ${this.level}).`);
+    }
   }
 
   get displayDescription(): string {
     const progress = this.level >= this.maxLevel
       ? "Maximum level reached."
-      : `${this.bloodProgress}/${this.healsToNextLevel} healing ticks toward the next level.`;
-    return `Regenerates up to ${this.healingAmount} health per world turn while equipped. ${progress} Level cap: +${this.maxLevel} (${1 + this.maxLevel} health per turn).`;
+      : `${this.bloodProgress}/${this.killsToNextLevel} monster kills while equipped toward the next level.`;
+    return `Level ${this.level}/${this.maxLevel}. Regenerates 1 health every ${this.healingInterval} world turn${this.healingInterval === 1 ? "" : "s"} while equipped. ${progress} At level 10: 1 health per turn.`;
   }
 
   constructor(context: GameContext, x?: number, y?: number) {
@@ -71,22 +81,19 @@ export default class ChaliceOfBlood extends Entity {
       duration: Number.POSITIVE_INFINITY,
       manualExpiry: true,
       tick(entity, context) {
-        if (entity.healthPoints >= entity.maxHealthPoints) return;
+        // Do not bank healing at full health or accelerate it by re-equipping.
+        if (entity.healthPoints >= entity.maxHealthPoints) {
+          artifact.healingTurns = 0;
+          return;
+        }
+        artifact.healingTurns += 1;
+        if (artifact.healingTurns < artifact.healingInterval) return;
+        artifact.healingTurns = 0;
 
-        const amount = Math.min(artifact.healingAmount, entity.maxHealthPoints - entity.healthPoints);
+        const amount = Math.min(1, entity.maxHealthPoints - entity.healthPoints);
         entity.healthPoints += amount;
         dungeon.log(context, `${entity.name} regenerates ${amount} health.`);
 
-        if (artifact.level >= artifact.maxLevel) return;
-        artifact.bloodProgress += 1;
-        if (artifact.bloodProgress >= artifact.healsToNextLevel) {
-          artifact.bloodProgress = 0;
-          artifact.level += 1;
-          dungeon.log(
-            context,
-            `${artifact.name} grows stronger (level ${artifact.level}).`
-          );
-        }
       }
     };
   }
