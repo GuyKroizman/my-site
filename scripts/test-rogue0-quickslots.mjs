@@ -44,6 +44,21 @@ assert.deepEqual([...foregroundEntities([potionOnFloor])], [potionOnFloor]);
 assert.equal(foregroundEntities([{ type: 'item' }]).size, 0);
 assert.equal(foregroundEntities([scrollOnFloor, { type: 'item', x: 4, y: 3 }]).size, 2);
 const { Entity } = load('src/games/rogue0/entity.ts');
+for (const colour of ['red', 'green', 'blue', 'gold', 'purple']) {
+  const potion = Object.assign(new Entity(), {
+    name: 'Potion of Healing', type: 'item', equipSlot: 'consumable',
+    identified: false, textureKey: `potion-${colour}`,
+  });
+  assert.equal(potion.unidentifiedTextureKey, potion.spriteTextureKey,
+    'unidentified potion icons retain their floor colour in inventory and quickslots');
+  assert.equal(potion.displayName, 'Potion', 'colour must not reveal the potion effect');
+  assert.equal(potion.identified, false);
+  potion.identified = true;
+  assert.equal(potion.spriteTextureKey, `potion-${colour}`);
+  assert.equal(potion.displayName, 'Potion of Healing');
+}
+const genericPotion = Object.assign(new Entity(), { equipSlot: 'consumable', identified: false });
+assert.equal(genericPotion.unidentifiedTextureKey, 'unknown-potion', 'missing art keeps a fallback icon');
 const dungeon = { log() {}, getCurrentLevel: () => Array.from({length: 8}, () => Array(8).fill(0)),
   firstActorInPath: () => undefined, entityAtTile: () => undefined };
 const Wand = load('src/games/rogue0/items/wand.ts', { Entity, dungeon, identify: i => { i.identified = true; } }).default;
