@@ -114,7 +114,7 @@ export abstract class Entity {
 
   // Texture + frame to use when rendering this entity's sprite.
   get spriteTextureKey(): string {
-    return this.textureKey ?? "tiles";
+    return this.textureKey ?? "foreground-tiles";
   }
 
   get spriteFrame(): number {
@@ -269,7 +269,7 @@ function createSprite(context: GameContext, x: number, y: number, tile: number, 
   const sprite = context.scene!.add.sprite(
     xx || 0,
     yy || 0,
-    textureKey ?? "tiles",
+    textureKey ?? "foreground-tiles",
     textureKey ? 0 : tile
   );
   sprite.setOrigin(0);

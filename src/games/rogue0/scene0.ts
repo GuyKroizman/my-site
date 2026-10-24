@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { createForegroundAtlas, foregroundEntities } from './rendering';
 import dungeon from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
 import turnManager from "./turnManager";
@@ -178,6 +179,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   create() {
+    createForegroundAtlas(this);
     this.context.scene = this;
     this.context.floor = 1;
     this.context.kills = 0;
@@ -619,6 +621,7 @@ export class Scene0 extends Phaser.Scene {
     const player = this.context.player;
     const mindVision = this.getVision().mindVision;
     this.mindMarkers.clear();
+    const foreground = foregroundEntities(this.context.entities, player);
 
     for (const entity of this.context.entities) {
       if (entity === player) continue;
@@ -634,7 +637,7 @@ export class Scene0 extends Phaser.Scene {
 
       // Monsters are only shown while actually visible; items stay
       // remembered (dimmed by fog) once discovered.
-      entity.sprite?.setVisible(entity.type === "enemy" ? visible : seen);
+      entity.sprite?.setVisible(foreground.has(entity) && (entity.type === "enemy" ? visible : seen));
       // Mark minds, not terrain: never add these cells to visible/seen or
       // targeting LOS. Markers sit above opaque fog, unlike normal sprites.
       if (mindVision && entity.type === "enemy" && entity.healthPoints > 0 && !visible) {

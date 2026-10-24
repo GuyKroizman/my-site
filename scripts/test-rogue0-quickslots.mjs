@@ -10,6 +10,18 @@ function load(path, bindings = {}) {
   new Function('exports', ...Object.keys(bindings), js)(exports, ...Object.values(bindings));
   return exports;
 }
+const { foregroundEntities } = load('src/games/rogue0/rendering.ts');
+const scrollOnFloor = { type: 'item', x: 2, y: 3 };
+const potionOnFloor = { type: 'item', x: 2, y: 3 };
+const monsterOnFloor = { type: 'enemy', x: 2, y: 3 };
+const playerOnFloor = { type: 'player', x: 2, y: 3 };
+assert.deepEqual([...foregroundEntities([scrollOnFloor, potionOnFloor])], [scrollOnFloor]);
+assert.deepEqual([...foregroundEntities([scrollOnFloor, monsterOnFloor, potionOnFloor])], [monsterOnFloor]);
+assert.deepEqual([...foregroundEntities([monsterOnFloor, scrollOnFloor])], [monsterOnFloor]);
+assert.deepEqual([...foregroundEntities([scrollOnFloor, playerOnFloor], playerOnFloor)], [playerOnFloor]);
+assert.deepEqual([...foregroundEntities([potionOnFloor])], [potionOnFloor]);
+assert.equal(foregroundEntities([{ type: 'item' }]).size, 0);
+assert.equal(foregroundEntities([scrollOnFloor, { type: 'item', x: 4, y: 3 }]).size, 2);
 const { Entity } = load('src/games/rogue0/entity.ts');
 const dungeon = { log() {}, getCurrentLevel: () => Array.from({length: 8}, () => Array(8).fill(0)),
   firstActorInPath: () => undefined, entityAtTile: () => undefined };
