@@ -62,10 +62,40 @@ context.inventoryOpen = true;
 window.open();
 assert.ok(!context.logModalOpen, 'does not stack over inventory');
 
-const effects = load('src/games/rogue0/effects.ts');
-const hero = { name: 'Hero', effects: [], context: { messages: [] } };
+const effects = load('src/games/rogue0/effects.ts', { spawnEntityFloatingText() {} });
+const hero = { name: 'Hero', type: 'player', effects: [], context: { messages: [], visibleTiles: new Set() } };
 for (let i = 0; i < 25; i++) effects.applyEffect(hero, { id: `buff-${i}`, name: `Buff ${i}`, duration: 1 });
 assert.equal(hero.context.messages.length, 20);
 assert.equal(hero.context.messages[0], 'Hero is Buff 24.');
 assert.equal(hero.context.messages[19], 'Hero is Buff 5.');
-console.log('Rogue0 log pagination, modal lifecycle and 20-message retention passed');
+// Unseen monsters still heal and expire/refresh buffs without filling the log.
+const ctx = { messages: [], visibleTiles: new Set(), simulationTime: 0 };
+const ghoul = { name: 'Ghoul', type: 'enemy', x: 3, y: 4, effects: [],
+  healthPoints: 2, maxHealthPoints: 10, context: ctx };
+effects.applyEffect(ghoul, effects.createRegenerationEffect(1));
+effects.applyEffect(ghoul, effects.createRegenerationEffect(1));
+ctx.simulationTime = 1;
+effects.tickEffects(ghoul, ctx);
+assert.equal(ghoul.healthPoints, 3);
+assert.equal(ghoul.effects.length, 0);
+assert.deepEqual(ctx.messages, []);
+
+// Visibility is checked at each event, not only when a buff starts.
+ctx.visibleTiles.add('3,4');
+effects.applyEffect(ghoul, effects.createRegenerationEffect(2));
+effects.applyEffect(ghoul, effects.createRegenerationEffect(2));
+ctx.simulationTime = 2;
+effects.tickEffects(ghoul, ctx);
+assert.deepEqual(ctx.messages, ['Ghoul regenerates 1 health.',
+  'Ghoul is already Regeneration.', 'Ghoul is Regeneration.']);
+ctx.visibleTiles.clear();
+ctx.simulationTime = 3;
+effects.tickEffects(ghoul, ctx);
+assert.equal(ctx.messages.length, 3, 'expiry outside sight is silent');
+effects.applyEffect(ghoul, effects.createRegenerationEffect(1));
+ctx.visibleTiles.add('3,4');
+ctx.simulationTime = 4;
+effects.tickEffects(ghoul, ctx);
+assert.equal(ctx.messages[0], "Ghoul's Regeneration wears off.");
+assert.equal(ghoul.healthPoints, 6);
+console.log('Rogue0 log pagination, modal lifecycle, retention and effect visibility passed');

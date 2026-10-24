@@ -34,7 +34,10 @@ export type StatusEffect = {
   remove?(entity: Entity, context: GameContext): void;
 };
 
-function log(context: GameContext, text: string): void {
+function log(entity: Entity, text: string): void {
+  const context = entity.context;
+  // Off-screen effects still run, but must not leak monster activity into the log.
+  if (entity.type === "enemy" && !context.visibleTiles.has(`${entity.x},${entity.y}`)) return;
   context.messages.unshift(text);
   context.messages = context.messages.slice(0, 20);
 }
@@ -48,7 +51,7 @@ export function applyEffect(entity: Entity, effect: StatusEffect): void {
   if (existing) {
     existing.duration = Math.max(existing.duration, effect.duration);
     existing.nextTick = (entity.context.simulationTime ?? 0) + 1;
-    log(entity.context, `${entity.name} is already ${effect.name}.`);
+    log(entity, `${entity.name} is already ${effect.name}.`);
     return;
   }
 
@@ -58,7 +61,7 @@ export function applyEffect(entity: Entity, effect: StatusEffect): void {
   };
   entity.effects.push(applied);
   applied.apply?.(entity, entity.context);
-  log(entity.context, `${entity.name} is ${applied.name}.`);
+  log(entity, `${entity.name} is ${applied.name}.`);
 }
 
 export function removeEffect(entity: Entity, effectId: string): void {
@@ -67,7 +70,7 @@ export function removeEffect(entity: Entity, effectId: string): void {
 
   const [effect] = entity.effects.splice(index, 1);
   effect.remove?.(entity, entity.context);
-  log(entity.context, `${entity.name}'s ${effect.name} wears off.`);
+  log(entity, `${entity.name}'s ${effect.name} wears off.`);
 }
 
 export function tickEffects(entity: Entity, context: GameContext): void {
@@ -100,7 +103,7 @@ export function createBurningEffect(duration = 3): StatusEffect {
       const amount = 1;
       entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
-      log(context, `${entity.name} burns for ${amount} fire damage.`);
+      log(entity, `${entity.name} burns for ${amount} fire damage.`);
     }
   };
 }
@@ -115,7 +118,7 @@ export function createPoisonedEffect(duration = 3): StatusEffect {
       const amount = 1;
       entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
-      log(context, `${entity.name} takes ${amount} poison damage.`);
+      log(entity, `${entity.name} takes ${amount} poison damage.`);
     }
   };
 }
@@ -130,7 +133,7 @@ export function createBleedingEffect(duration = 3): StatusEffect {
       const amount = 1;
       entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
-      log(context, `${entity.name} bleeds for ${amount} physical damage.`);
+      log(entity, `${entity.name} bleeds for ${amount} physical damage.`);
     }
   };
 }
@@ -150,7 +153,7 @@ export function createRegenerationEffect(duration = 4): StatusEffect {
         entity.healthPoints + amount
       );
       spawnEntityFloatingText(entity, `+${amount}`, "#6aff6a");
-      log(context, `${entity.name} regenerates ${amount} health.`);
+      log(entity, `${entity.name} regenerates ${amount} health.`);
     }
   };
 }
@@ -207,7 +210,7 @@ export function createCursedEffect(): StatusEffect {
       const amount = 1;
       entity.takeDamage(amount);
       spawnEntityFloatingText(entity, `-${amount}`);
-      log(context, `${entity.name} is cursed and takes ${amount} damage.`);
+      log(entity, `${entity.name} is cursed and takes ${amount} damage.`);
     }
   };
 }
