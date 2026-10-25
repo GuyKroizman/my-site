@@ -290,8 +290,42 @@ assert.equal(hero.healthPoints, 100);
 hero.restoreHunger(1000);
 assert.equal(hero.hunger, 100, 'food remains capped');
 
-// A buff applied between integer time boundaries keeps its full lifetime.
 const effects = load('src/games/rogue0/effects.ts', { spawnEntityFloatingText() {} });
+// Continuous frost hits must not steal every action, even with two fast enemies.
+for (const delay of [1, 0.25]) {
+  ({ player, enemy, entities } = setup());
+  const second = actor('enemy');
+  entities.push(second);
+  for (const attacker of [enemy, second]) {
+    attacker.turn = function () {
+      this.turns++;
+      effects.applyEffect(player, effects.createFrozenEffect());
+      this.spendTime('attack', delay);
+    };
+  }
+  let frostSplashes = 0;
+  player.x = player.y = 1;
+  player.context.onFrostTerrain = () => frostSplashes++;
+  for (let hit = 0; hit < 5; hit++) {
+    player.spendTime('attack', 1.5);
+    manager.update(entities);
+    assert.equal(player.actionReady, true, 'frost victims get another action');
+    assert.equal(hasEffect(player, 'frozen'), false);
+    assert.equal(player.freezeRecovery, true);
+    const time = manager.time;
+    manager.update(entities);
+    assert.equal(manager.time, time, 'choosing an action is still free');
+    effects.applyEffect(player, effects.createFrozenEffect());
+    assert.equal(hasEffect(player, 'frozen'), false, 'input wait retains protection');
+  }
+  assert.ok(frostSplashes > 5, 'blocked freezes still affect terrain');
+  player.spendTime('move');
+  assert.equal(player.freezeRecovery, false, 'committing an action ends protection');
+  effects.applyEffect(player, effects.createFrozenEffect());
+  assert.equal(hasEffect(player, 'frozen'), true, 'frost can freeze again after recovery');
+}
+
+// A buff applied between integer time boundaries keeps its full lifetime.
 ({ player, enemy, entities } = setup());
 player.spendTime('attack', 0.5);
 manager.update(entities);

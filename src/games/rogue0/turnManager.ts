@@ -82,6 +82,7 @@ const turnManager = {
         dungeon.log(actor.context, `${actor.name} is frozen and misses an action.`);
         removeEffect(actor, "frozen");
         actor.spendTime("wait");
+        actor.freezeRecovery = true;
       } else {
         actor.turn();
       }

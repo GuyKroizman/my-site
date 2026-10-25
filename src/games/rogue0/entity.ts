@@ -98,6 +98,8 @@ export abstract class Entity {
 
   // Status effects and combat stats used by effects.ts / combat.ts.
   effects: StatusEffect[] = [];
+  // After losing an action to frost, guarantee one real action before refreezing.
+  freezeRecovery = false;
   accuracy: number = 95;
   evasion: number = 0;
   resistance: Partial<Record<DamageType, number>> = {};
@@ -210,6 +212,7 @@ export abstract class Entity {
   }
 
   spendTime(action: ActionKind, weaponDelay = this.attackDelay): void {
+    this.freezeRecovery = false;
     this.nextActionTime += actionCost(this, action, weaponDelay);
     this.actionReady = false;
   }

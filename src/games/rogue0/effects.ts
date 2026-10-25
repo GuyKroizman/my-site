@@ -52,6 +52,9 @@ export function applyEffect(entity: Entity, effect: StatusEffect): void {
   if (effect.id === "frozen" && entity.x !== undefined && entity.y !== undefined) {
     entity.context.onFrostTerrain?.(entity.x, entity.y);
   }
+  // Recovery lasts until an actual action is committed, not a timer: even
+  // multiple fast frost attackers cannot take away the victim's next action.
+  if (effect.id === "frozen" && entity.freezeRecovery) return;
   const existing = entity.effects.find((e) => e.id === effect.id);
   if (existing) {
     existing.duration = Math.max(existing.duration, effect.duration);
