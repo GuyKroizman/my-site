@@ -30,7 +30,7 @@ const Gem = load('src/games/rogue0/items/gem.ts', { Entity, upgrade, removeEntit
 // Avoid sprite construction; exercise actual item and entity methods.
 const context = { entities: [], messages: [] };
 const gem = Object.assign(Object.create(Gem.prototype), { context, count: 2, type: 'item', consumable: true });
-const shield = Object.assign(Object.create(Shield.prototype), { context, level: 0, name: 'Shield', type: 'item', identified: true });
+const shield = Object.assign(Object.create(Shield.prototype), { context, level: 0, name: 'Shield', type: 'item', equipSlot: 'armor', identified: true });
 let ready = true, turns = 0;
 const items = [gem];
 context.entities.push(gem);

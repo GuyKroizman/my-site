@@ -14,7 +14,7 @@ export default class PotionOfStrength extends Entity {
     this.tile = 13 * 49 + 39;
     this.textureKey = "potion-red";
     this.name = "Potion of Strength";
-    this.description = "Permanently grants +1 attack.";
+    this.description = "Permanently grants +1 Strength, helping you wield heavier weapons and armor.";
     this.consumable = true;
 
     this.init(context, x, y);
@@ -24,8 +24,8 @@ export default class PotionOfStrength extends Entity {
     const player = this.context.player;
     if (!player) return;
 
-    player.baseAttack += 1;
-    dungeon.log(this.context, "You feel stronger! Your attack is permanently increased.");
+    player.strength += 1;
+    dungeon.log(this.context, `You feel stronger! Your Strength is now ${player.strength}.`);
 
     player.removeItem(this);
     removeEntity(this.context, this);

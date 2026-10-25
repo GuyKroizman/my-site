@@ -53,6 +53,31 @@ export abstract class Entity {
   // Item model v2 (G3). Optional with defaults so existing items still
   // compile without setting them.
   tier: number = 1;
+  // Opt-in for physical weapons/armor; wands and utility gear are exempt.
+  usesStrength: boolean = false;
+
+  get requiredStrength(): number {
+    if (!this.usesStrength) return 0;
+    // Upgrade milestones +1, +3, +6, +10, ... each remove one requirement.
+    const reduction = Math.floor((Math.sqrt(8 * Math.max(0, this.level) + 1) - 1) / 2);
+    return Math.max(0, 8 + 2 * this.tier - reduction);
+  }
+
+  strengthDescription(strength: number): string {
+    if (!this.identified || !this.usesStrength) return "";
+    const deficit = Math.max(0, this.requiredStrength - strength);
+    const warning = deficit > 0
+      ? this.equipSlot === "weapon"
+        ? ` Under-strength by ${deficit}: reduced accuracy and slower attacks.`
+        : ` Under-strength by ${deficit}: reduced evasion and slower movement.`
+      : "";
+    return `Tier ${this.tier}; requires ${this.requiredStrength} Strength.${warning}`;
+  }
+
+  get effectiveAccuracy(): number { return this.accuracy; }
+  get effectiveEvasion(): number { return this.evasion; }
+  movementCostMultiplier(): number { return 1; }
+  attackCostMultiplier(): number { return 1; }
   identified: boolean = true;
   cursed: boolean = false;
   blessed: boolean = false;

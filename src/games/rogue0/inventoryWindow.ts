@@ -441,7 +441,7 @@ export class InventoryWindow {
 
     // Full description, hidden until the item is identified.
     const description = item.identified
-      ? item.displayDescription
+      ? [item.displayDescription, item.strengthDescription(player.strength)].filter(Boolean).join("\n")
       : item instanceof Wand
         ? "An unidentified wand. Its kind of magic is unknown."
         : "You have not identified this item.";

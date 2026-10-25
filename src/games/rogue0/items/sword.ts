@@ -14,6 +14,7 @@ export default class Sword extends Entity{
   tile: number = 328;
   moving: boolean = false;
   tier = 1;
+  usesStrength = true;
   equipSlot: "weapon" = "weapon";
 
 

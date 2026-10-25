@@ -5,6 +5,8 @@ export interface TimedActor {
   movementSpeed: number;
   attackDelay: number;
   effects: Array<{ id: string }>;
+  movementCostMultiplier?(): number;
+  attackCostMultiplier?(): number;
 }
 
 export function actionCost(actor: TimedActor, action: ActionKind, weaponDelay = actor.attackDelay): number {
@@ -13,9 +15,9 @@ export function actionCost(actor: TimedActor, action: ActionKind, weaponDelay = 
     let speed = actor.movementSpeed;
     if (actor.effects.some(e => e.id === "haste")) speed *= 2;
     if (actor.effects.some(e => e.id === "crippled")) speed *= 0.5;
-    cost = 1 / speed;
+    cost = (actor.movementCostMultiplier?.() ?? 1) / speed;
   } else if (action === "attack") {
-    cost = weaponDelay;
+    cost = weaponDelay * (actor.attackCostMultiplier?.() ?? 1);
   } else if (action === "search") {
     cost = 2;
   }

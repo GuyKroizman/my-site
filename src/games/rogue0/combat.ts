@@ -99,8 +99,10 @@ export function resolveAttack(
   // Hit roll (skipped for surprise attacks, which always connect).
   if (!surprise) {
     const roll = Math.random() * 100;
-    if (roll >= attacker.accuracy - defender.evasion) {
-      if (defender.evasion > 0) {
+    const accuracy = attacker.effectiveAccuracy ?? attacker.accuracy;
+    const evasion = defender.effectiveEvasion ?? defender.evasion;
+    if (roll >= accuracy - evasion) {
+      if (evasion > 0) {
         log(context, `${defender.name} dodges ${attacker.name}'s attack.`);
       } else {
         log(context, `${attacker.name} misses ${defender.name}.`);

@@ -15,14 +15,12 @@ import dungeon from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
 import turnManager from "./turnManager";
 import Skeleton from "./monsters/skelaton";
-import LongSword from "./items/longSword";
+import { TieredWeapon, TieredArmor } from "./items/tieredEquipment";
+import { floorProgression, lootTier } from "./progression";
 import CursedGem from "./items/cursedGem";
 import HolyPotion from "./items/holyPotion";
 import FullHealPotion from "./items/fullHealPotion";
 import MinorHealPotion from "./items/minorHealPotion";
-import Sword from "./items/sword";
-import Axe from "./items/axe";
-import Shield from "./items/shield";
 import Shoe from "./items/Shoe";
 import ScrollOfIdentify from "./items/ScrollOfIdentify";
 import ScrollOfUpgrade from "./items/ScrollOfUpgrade";
@@ -94,13 +92,9 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   [HolyPotion, 4],
   [FullHealPotion, 4],
   [ScrollOfIdentify, 4],
-  [Sword, 5],
-  [Axe, 4],
-  [Shield, 4],
-  [LongSword, 2],
-  [ScrollOfUpgrade, 3],
+  [TieredWeapon, 11],
+  [TieredArmor, 4],
   [ScrollOfRemoveCurse, 3],
-  [PotionOfStrength, 3],
   [PotionOfFrost, 3],
   [PotionOfLiquidFlame, 3],
   [PotionOfToxicGas, 2],
@@ -967,12 +961,18 @@ export class Scene0 extends Phaser.Scene {
       `${this.context.stairsX},${this.context.stairsY}`
     ]);
 
-    const skeletonCount = 2 + floor;
-    const archerCount = Math.max(0, floor - 1);
+    // Preserve the existing maximum encounter density rather than inflating
+    // floor 25 to dozens of extra enemies just because the test run was shorter.
+    const density = Math.min(floor, 5);
+    const progression = floorProgression(floor);
+    const progressionCount = progression.strengthPotions + progression.upgradeScrolls
+      + Number(progression.weapon) + Number(progression.armor);
+    const skeletonCount = 2 + density;
+    const archerCount = Math.max(0, density - 1);
     const ghoulCount = floor >= 3 ? 1 : 0;
     const bruteCount = floor >= 3 ? 1 : 0;
     const bossCount = floor === this.context.maxFloor ? 1 : 0;
-    const quloptshCount = Math.max(0, floor - 2);
+    const quloptshCount = Math.max(0, density - 2);
     const swarmCount = floor >= 2 ? 1 : 0;
     const mimicCount = floor >= 2 ? 1 : 0;
     const cultistCount = floor >= 3 ? 1 : 0;
@@ -986,7 +986,7 @@ export class Scene0 extends Phaser.Scene {
       levelArray,
       skeletonCount + archerCount + ghoulCount + bruteCount + bossCount + quloptshCount +
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
-        cursedGemCount + foodCount + itemCount,
+        cursedGemCount + foodCount + itemCount + progressionCount,
       exclude,
       MAX_VISIBLE_X
     );
@@ -999,12 +999,24 @@ export class Scene0 extends Phaser.Scene {
       }
     };
 
+    // Reserve progression, food and the final boss before optional enemies.
+    // This only runs on first generation; revisits restore the saved entities.
+    spawnGroup(PotionOfStrength, progression.strengthPotions);
+    spawnGroup(ScrollOfUpgrade, progression.upgradeScrolls);
+    for (const [Cls, enabled] of [[TieredWeapon, progression.weapon], [TieredArmor, progression.armor]] as const) {
+      if (enabled && i < tiles.length) {
+        context.entities.push(new Cls(context, tiles[i].x, tiles[i].y, progression.tier));
+        i++;
+      }
+    }
+    spawnGroup(Ration, foodCount);
+    spawnGroup(Boss, bossCount);
+
     spawnGroup(Skeleton, skeletonCount);
     spawnGroup(Quloptsh, quloptshCount);
     spawnGroup(Archer, archerCount);
     spawnGroup(Ghoul, ghoulCount);
     spawnGroup(Brute, bruteCount);
-    spawnGroup(Boss, bossCount);
     spawnGroup(SwarmOfFlies, swarmCount);
     spawnGroup(Mimic, mimicCount);
     spawnGroup(Cultist, cultistCount);
@@ -1018,16 +1030,15 @@ export class Scene0 extends Phaser.Scene {
       context.entities.push(new Elemental(context, tiles[i].x, tiles[i].y));
     }
 
-    // Cursed gem: randomly appears on floors 1..5.
+    // Cursed gem: can appear throughout the run.
     spawnGroup(CursedGem, cursedGemCount);
-
-    // Guaranteed food each floor (prevents starvation).
-    spawnGroup(Ration, foodCount);
 
     // Random loot drawn from a weighted, SPD-style table.
     for (let l = 0; l < itemCount && i < tiles.length; l++, i++) {
       const Loot = weightedPick(LOOT_TABLE);
-      context.entities.push(new Loot(context, tiles[i].x, tiles[i].y));
+      context.entities.push(Loot === TieredWeapon || Loot === TieredArmor
+        ? new Loot(context, tiles[i].x, tiles[i].y, lootTier(floor))
+        : new Loot(context, tiles[i].x, tiles[i].y));
     }
   }
 

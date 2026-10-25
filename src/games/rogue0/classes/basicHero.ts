@@ -58,6 +58,7 @@ export default class BasicHero extends Entity {
   xp: number = 0;
   level: number = 1;
   baseAttack: number = 0;
+  strength: number = 10;
   tile: number = 26;
   moving: boolean = false;
   type: EntityType = "player";
@@ -546,6 +547,26 @@ export default class BasicHero extends Entity {
 
   currentWeapon() {
     return this.weapon;
+  }
+
+  strengthDeficit(item?: Entity): number {
+    return item ? Math.max(0, item.requiredStrength - this.strength) : 0;
+  }
+
+  get effectiveAccuracy(): number {
+    return this.accuracy / Math.pow(1.2, this.strengthDeficit(this.weapon));
+  }
+
+  get effectiveEvasion(): number {
+    return this.evasion / Math.pow(1.2, this.strengthDeficit(this.armor));
+  }
+
+  movementCostMultiplier(): number {
+    return Math.pow(1.2, this.strengthDeficit(this.armor));
+  }
+
+  attackCostMultiplier(): number {
+    return Math.pow(1.2, this.strengthDeficit(this.weapon));
   }
 
   attack() {
@@ -1539,7 +1560,7 @@ export default class BasicHero extends Entity {
   }
 
   statsText(): string {
-    let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}\nHp: ${this.healthPoints}/${this.maxHealthPoints}`;
+    let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}  Str ${this.strength}\nHp: ${this.healthPoints}/${this.maxHealthPoints}`;
     const food = `Food: ${Math.ceil(this.hunger)}/${this.maxHunger} (${this.hungerState})`;
     text += `\n${food}  Gold: ${this.gold}`;
     if (this.skill !== "") {

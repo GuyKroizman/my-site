@@ -15,9 +15,9 @@ Current Rogue0 action costs (normal action = 1 time unit):
 
 | Action | Cost |
 | --- | --- |
-| Move, including pickup on the destination tile | `1 / movementSpeed` |
-| Attack, hit or miss | Equipped weapon's `attackDelay` |
-| Weapon-based skill | Weapon's attack delay |
+| Move, including pickup on the destination tile | `armorStrengthPenalty / movementSpeed` |
+| Attack, hit or miss | Equipped weapon's `attackDelay × weaponStrengthPenalty` |
+| Weapon-based skill | Weapon's penalized attack delay |
 | Use item, throw, equip/unequip, drop, non-weapon skill, wait | 1 |
 | Search | 2 |
 | Invalid action, inspection, open backpack | 0 |
@@ -49,7 +49,37 @@ once Food is at least 30 (evaluated after that unit's food drain). Potions and
 magical healing are unaffected. These are SPD-inspired states with Rogue0
 balance values, not an exact reproduction of SPD. Entering a floor does not heal.
 
-Run the headless regression checks with `node scripts/test-rogue0-movement.mjs`.
+## Run length and equipment progression
+
+A run has **25 floors**, with the unchanged Bone Lord on floor **25**. The old
+five-floor limit was for testing. Themed regions and later-region enemy scaling
+are still future work; ordinary enemy counts stop growing after floor 5.
+
+Heroes start with **10 Strength**. Strength potions permanently add one Strength,
+not attack. XP still grants +5 max HP / +1 attack; talents are not implemented.
+Physical equipment requires `8 + 2 × tier` Strength. Upgrades reduce that
+requirement at +1, +3, +6, +10, … (minimum 0). For each missing point, weapons
+multiply attack time by 1.2 and divide accuracy by 1.2; armor multiplies movement
+time by 1.2 and divides evasion by 1.2. Meeting the requirement removes penalties.
+Wands and utility items are exempt. Status/hunger clocks remain world-time based.
+
+Dungeon equipment spans tiers 1–5: Dagger through Greataxe and Cloth through
+Plate Armor. Tier and upgrade level are independent. Weapon damage at tier `t`,
+upgrade `u` ranges from `t + u` to `5t + (t + 1)u`; armor absorbs `2t + tu`.
+Class starting gear retains its previous stats. Armor replaces a shield in the
+same slot. Both gems and upgrade scrolls support the new gear. Artwork remains
+a placeholder using the existing weapon/shield silhouettes.
+
+Each five-floor band guarantees two Strength potions (floors 2/4 within the
+band), three upgrade scrolls (1/3/4), a band-tier weapon (1), and armor (3).
+That is **10 Strength potions and 15 upgrade scrolls** across the run; neither
+appears as extra random floor loot. Gems from monsters still provide additional
+upgrades. Random equipment normally matches its band but can be one tier earlier
+or later. Floor snapshots preserve remaining loot, so revisits do not refill it.
+These are initial progression curves, not a claim of full-run balance.
+
+Run all headless regressions with `npm run test:rogue0`; run the focused
+progression checks with `node scripts/test-rogue0-progression.mjs`.
 
 ```mermaid
 classDiagram

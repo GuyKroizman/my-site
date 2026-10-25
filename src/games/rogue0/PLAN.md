@@ -23,7 +23,8 @@ has been playtested. Checked boxes mean the described implementation exists.
   attacks (auto-hit, bonus damage, possible bleed).
 - Item identification, cursed equipment, upgrade levels, charged wands,
   five rings, two artifacts, expanded scrolls/potions and food exist.
-  Durability and a complete tier/enchantment progression are not implemented.
+  Strength requirements and weapon/armor tiers 1–5 are implemented.
+  Durability, enchantments/glyphs and balance playtesting remain outstanding.
 - Explicit weapon/armor/two-ring/artifact slots and a 20-slot backpack replace
   active-item aggregation. Inventory is modal, with item actions and stacking.
 - Terrain uses a coordinate-keyed feature overlay on the binary floor/wall
@@ -35,7 +36,9 @@ has been playtested. Checked boxes mean the described implementation exists.
   the Bone Lord still lacks phases/telegraphs/arena mechanics.
 - Hunger, starvation, well-fed regeneration, rations and monster gold rewards
   exist. Shops, trading and revival items do not.
-- `context.ts` defaults to **5 floors**, with procedural floors after the first.
+- `context.ts` defaults to **25 floors**. Five floors was a testing limit.
+  The Bone Lord spawns only on floor 25; its stats are unchanged.
+  Five-floor equipment/supply bands exist, but themed regions do not yet.
 - Bottom toolbar, hero/inspect panels, inventory modal and generated potion
   textures exist. Full HUD polish and the custom-art overhaul remain open.
 - The turn engine is now a **discrete-event action-time scheduler**:
@@ -222,7 +225,86 @@ HUD + modal window system.
 - [x] Identification: unknown consumables/gear; identify by use or scroll.
 - [x] Cursed gear (can't unequip, penalty) + Remove Curse.
 - [x] Scroll of Upgrade and item upgrade-level model.
-- [ ] Complete and balance equipment tiers 1–5, enchantments/glyphs.
+- [x] Implement SPD-style Strength, weapon/armor tiers 1–5, upgrade scaling
+      and guaranteed progression supplies (specification below).
+- [ ] Balance progression across all five classes over 25 floors; expand
+      same-tier weapon trade-offs. Boss balancing is explicitly deferred.
+- [ ] Add weapon enchantments / armor glyphs after the core progression loop.
+
+#### SPD-style progression specification (core implemented; balance/talents pending)
+
+Implemented foundation: heroes start at **10 Strength**; Strength potions grant
+**+1 Strength**, independently of XP/attack. Existing swords, axes, hammers and
+shields opt into requirements; wands/utility gear do not. Requirements are
+`8 + 2 × tier`, reduced by one at upgrade levels **+1, +3, +6, +10, …**
+(triangular milestones, minimum requirement 0). Each missing Strength point
+multiplies weapon attack time / armor movement time by **1.2** and divides
+weapon accuracy / armor evasion by **1.2**. Bonuses are computed from current
+equipment, so drinking/upgrading/swapping updates them immediately. Hero UI
+shows Strength; identified inventory details show tier, requirement and warnings.
+Regression coverage lives in the item-upgrades and progression suites; all
+12 suites pass, as does the production build. Visual verification and balance
+playtesting remain deferred.
+
+**Tier roster:** Dagger / Shortsword / Broadsword / Greatsword / Greataxe and
+Cloth / Leather / Mail / Scale / Plate Armor. At tier `t`, upgrade `u`, weapon
+damage is `t + u` to `5t + (t + 1)u`; base attack delays are 0.8 / 1 / 1 / 1.2 /
+1.4. Armor absorbs `2t + tu` physical damage. Equipment upgrades are uncapped,
+matching the existing upgrade system. Class starter equipment retains its old
+stats/tier; shields and the new armor share one slot. Gems now accept all armor.
+Art reuses existing sword/shield silhouettes pending Phase 16.
+
+**25-floor supply:** each five-floor band guarantees Strength potions on its
+second/fourth floors, upgrade scrolls on its first/third/fourth floors, a
+current-band weapon on its first floor, and armor on its third floor. Total:
+**10 Strength potions, 15 upgrade scrolls, 5 weapons and 5 armor pieces**.
+Strength/upgrade scrolls are no longer in random floor loot; monster gem drops
+remain an additional source of upgrades. Random equipment is usually current
+band, with 20% chances of one tier lower/higher (clamped to 1–5). Saved-floor
+revisits never regenerate supplies. Food remains guaranteed each floor.
+Ordinary encounter density stops increasing after floor 5; later regional
+monster scaling is still future work. The Bone Lord is unchanged on floor 25.
+
+**Not yet complete:** talents, same-tier weapon variety and full-run balancing.
+XP still grants +5 max HP / +1 ATK pending balance.
+
+Keep three separate progression tracks, rather than treating all growth as ATK:
+
+- **Hero XP/level:** combat experience advances hero level, improving survivability
+  and unlocking talent points (Phase 9). Do not grant Strength automatically on
+  level-up. Revisit the current flat +1 ATK per level when balancing this system.
+- **Strength:** add a permanent hero Strength stat, distinct from attack damage.
+  Potion of Strength now grants **+1 Strength**, not +1 ATK.
+  Temporary attack buffs remain separate from permanent Strength.
+- **Equipment:** weapons and armor have **tiers 1–5** and a separate upgrade
+  level (`+0`, `+1`, …). Tier controls base damage/absorption, upgrade scaling
+  and base Strength requirement; upgrading an item does not change its tier.
+  Include actual weapon and armor options across all five tiers, not just a
+  tier field. Weapons within a tier should have distinct tactical trade-offs.
+- **Strength requirements:** higher-tier gear requires more Strength. Allow
+  equipping gear while under-strength, with clear penalties rather than a hard
+  equip lock: weapon accuracy/attack-delay penalties and armor evasion/movement
+  penalties. Apply timing penalties through the existing action-time scheduler,
+  never by changing effect/hunger tick rates. Initial curves are recorded above;
+  they remain subject to five-class balance playtesting.
+- **Upgrades:** upgrade scrolls improve damage/absorption and reduce Strength
+  requirements at defined upgrade milestones, creating a choice between investing
+  in early gear and saving upgrades for a higher-tier find. Specify formulas and
+  caps before implementation; do not assume current generic upgrade math suffices.
+- **Supply/pacing:** guarantee a bounded supply of Strength potions and upgrade
+  scrolls through floor generation, rather than relying solely on random drops.
+  Distribution and tier availability now span the full 25-floor run, with
+  supplies reserved before optional enemy spawns.
+- **UI:** show hero Strength and, for identified equipment, tier, upgrade level,
+  required Strength, effective stats and under-strength warnings. Preserve
+  identification secrecy in descriptions, comparisons and logs.
+- **Regression coverage:** Strength potion permanence; XP/Strength independence;
+  tier versus upgrade independence; requirement reductions; under-strength combat
+  and fractional timing; identification secrecy; guaranteed progression supplies.
+- **Acceptance:** finding stronger gear creates a real decision: use it now with
+  penalties, keep it for a later Strength potion, or invest upgrades in it (or
+  the lower-tier equipment already in use).
+
 - [x] Wands with charges + Recharging scroll.
 - [x] Rings (Accuracy, Evasion, Elements, Haste, Might) and two artifacts.
 - [ ] Audit identification leaks and curse handling across every inventory action.
@@ -303,8 +385,11 @@ Archer currently attacks in range rather than kiting. Door-aware pursuit exists.
 - [ ] Subclasses / specialisations (e.g. Warrior → Gladiator/Berserker,
       Dwarf → Vanguard/Siegebreaker, Cleric → Warden/Sun, Elf → Sniper/Ranger,
       Wizard → Pyro/Storm).
-- [ ] Talents: pick 1 of N per level-up (passive/active), replacing flat +5/+1.
-- [ ] Level-up lets the player choose a stat (HP/ATK/DEF/speed/vision).
+- [ ] SPD-style talent points at defined hero levels, spent on class talents
+      (passive/active) with ranks and unlock bands; specify cadence and choices.
+- [ ] Define XP thresholds and level-based HP/combat scaling alongside Phase 6.
+      Strength comes from Strength potions, not XP levels. Drop the original
+      generic HP/ATK/DEF/speed/vision stat-picker proposal in favour of talents.
 - [x] Per-class active skill with a cooldown (elapsed-world-time timestamps).
 - **Acceptance:** two runs of the same class can diverge meaningfully by
   floor 5.
@@ -324,6 +409,8 @@ Archer currently attacks in range rather than kiting. Door-aware pursuit exists.
 
 - [x] Add Strength, Invisibility, Toxic Gas, Liquid Flame, Frost, Levitation,
       Experience and scaled Healing potions; Teleport/Rage/Terror/Recharging scrolls.
+  Strength now grants +1 permanent Strength (Phase 6). This checkbox denotes
+  potion presence, not completion of tier content or guaranteed supply.
 - [x] Levitation terrain integration (see Phase 7).
 - [ ] Complete remaining terrain integration and audit consumable balance.
 - [ ] Seeds dropped from plants; plant/grow seeds in grass.
@@ -352,9 +439,10 @@ Archer currently attacks in range rather than kiting. Door-aware pursuit exists.
 ### Phase 14 — Regions & run length
 *Depends on G7; the content-multiplication layer.*
 
-- [ ] `maxFloor` → ~25, split into themed regions (sewers → prison → caves →
-      dwarven halls → demon halls), each with its own palette, enemy set,
-      trap set and region boss.
+- [x] Restore the intended **25-floor** run; move the existing Bone Lord from
+      floor 5 to floor 25 without rebalancing it.
+- [ ] Split into themed regions (sewers → prison → caves → dwarven halls →
+      demon halls), each with its own palette, enemy set, trap set and region boss.
 - [ ] Difficulty/HP/ATK scale per region; introduce new enemies per region.
 - [ ] Region-unique environmental hazards (e.g. gas vents in caves, lava in
       halls).
@@ -418,14 +506,16 @@ coverage and small-screen readability before marking this phase complete.
 
 ### Next implementation priorities
 
-1. **Stabilise the implemented systems:** run scheduling regressions and
-   playtest identification, curses, inventory actions and status timing.
+1. **Phase 9 XP/talents:** the Phase 6 Strength/tier/supply core is implemented
+   across 25 floors. Next define class talent points and level unlocks, retaining
+   separate XP, Strength and equipment-upgrade tracks. Run regressions throughout;
+   visual and five-class balance playtesting remain deferred, not completed.
 2. **Finish Phase 7's terrain interactions** before adding more consumables.
-3. **Finish Phase 8:** archer kiting and remaining signatures, then a
-   telegraphed, multi-phase Bone Lord fight within the existing five floors.
+3. **Finish Phase 8:** archer kiting and remaining signatures. The Bone Lord
+   now lives on floor 25; boss balance/redesign is deferred at user request.
 4. **Phase 9 choices + Phase 10 shops:** make class builds and gold meaningful.
-5. **Phase 15 polish and Phase 13 save/resume**, then expand regions only after
-   the short run is balanced. Keep Phase 16 deferred unless explicitly prioritised.
+5. **Phase 15 polish and Phase 13 save/resume**, then add region identities
+   within the existing 25 floors. Keep Phase 16 deferred unless prioritised.
 
 ### Original dependency order (reference)
 
@@ -457,8 +547,9 @@ coverage and small-screen readability before marking this phase complete.
   monster/hero classes only declare stats + resistances.
 - **Unidentified items use generic category names and placeholder textures**
   and reveal their identity on use — the core SPD risk loop.
-- **Current `maxFloor` is 5.** The ~25-floor region target remains provisional:
-  validate it against the 20–40 minute run goal before expanding.
+- **The run is 25 floors.** Five floors was only an initial testing limit.
+  The Bone Lord is on floor 25; do not rebalance it as part of progression work.
+  Region themes and additional bosses remain separate future work.
 - **Cursed items are locked on** until Remove Curse/well — do not allow
   unequipping via the normal toggle path.
 - **Ranged/melee and click-vs-keyboard controls stay as-is**; new systems

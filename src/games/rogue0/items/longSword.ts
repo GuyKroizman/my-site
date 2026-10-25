@@ -10,6 +10,7 @@ export default class LongSword extends Entity {
   }
   tile = 329;
   tier = 1;
+  usesStrength = true;
   equipSlot: "weapon" = "weapon";
   healthPoints: number = 0;
   moving: boolean = false;

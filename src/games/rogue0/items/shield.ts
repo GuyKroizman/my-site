@@ -6,6 +6,7 @@ import type { GameContext } from "../context";
 export default class Shield extends Entity {
   type: EntityType = "item";
   tier = 1;
+  usesStrength = true;
   equipSlot: "armor" = "armor";
 
   constructor(context: GameContext, x?: number, y?: number) {

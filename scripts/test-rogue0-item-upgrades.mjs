@@ -35,6 +35,76 @@ const Phaser = { Math: { Between: (min, max) => maximum ? max : min } };
 const dungeon = { log(context, text) { context.messages.push(text); } };
 const bindings = { Entity, upgrade, identify, removeEntity, Phaser, dungeon };
 const itemClass = (name, extra = {}) => load(`src/games/rogue0/items/${name}.ts`, { ...bindings, ...extra }).default;
+// Strength is permanent progression, independent of XP and attack buffs.
+const { actionCost } = load('src/games/rogue0/timing.ts');
+const Hero = load('src/games/rogue0/classes/basicHero.ts', {
+  Entity, dungeon, sfx: { levelUp() {} },
+}).default;
+const strengthContext = {
+  messages: [], entities: [],
+  scene: { input: { on() {}, keyboard: { on() {} } } },
+};
+const hero = new Hero(strengthContext);
+strengthContext.player = hero;
+assert.equal(hero.strength, 10);
+const attackBefore = hero.baseAttack;
+const strengthPotion = new (itemClass('PotionOfStrength'))(strengthContext);
+hero.removeItem = () => {};
+strengthPotion.equip();
+assert.equal(hero.strength, 11);
+assert.equal(hero.baseAttack, attackBefore, 'Strength is not raw attack');
+hero.gainXp(hero.xpForNextLevel());
+assert.equal(hero.strength, 11, 'XP must not increase Strength');
+const heavy = new (itemClass('sword'))(strengthContext);
+heavy.tier = 3;
+hero.weapon = heavy;
+assert.equal(heavy.requiredStrength, 14);
+assert.equal(hero.strengthDeficit(heavy), 3);
+assert.equal(hero.effectiveAccuracy, hero.accuracy / 1.2 ** 3);
+assert.equal(actionCost(hero, 'attack', 0.75), 0.75 * 1.2 ** 3);
+assert.equal(actionCost(hero, 'move'), 1, 'weapon weight does not slow walking');
+assert.equal(actionCost(hero, 'use'), 1);
+for (const [level, requirement] of [[0,14], [1,13], [2,13], [3,12], [5,12], [6,11], [10,10]]) {
+  heavy.level = level;
+  assert.equal(heavy.requiredStrength, requirement);
+  assert.equal(heavy.tier, 3, 'upgrading never changes tier');
+}
+heavy.level = 0;
+assert.match(heavy.strengthDescription(hero.strength), /Under-strength by 3/);
+heavy.identified = false;
+assert.equal(heavy.strengthDescription(hero.strength), '', 'no hidden requirement leaks');
+heavy.identified = true;
+hero.strength = 14;
+assert.equal(actionCost(hero, 'attack', 0.75), 0.75);
+assert.equal(hero.effectiveAccuracy, hero.accuracy);
+hero.strength = 10;
+const heavyArmor = new (itemClass('shield'))(strengthContext);
+heavyArmor.tier = 2;
+hero.armor = heavyArmor;
+hero.evasion = 20;
+assert.equal(hero.effectiveEvasion, 20 / 1.2 ** 2);
+assert.equal(actionCost(hero, 'move'), 1.2 ** 2);
+hero.effects = [{ id: 'haste' }];
+assert.equal(actionCost(hero, 'move'), 1.2 ** 2 / 2);
+assert.equal(actionCost(hero, 'wait'), 1, 'weight does not change world-time ticks');
+assert.equal(new Entity().requiredStrength, 0, 'nonphysical items are exempt');
+const { resolveAttack } = load('src/games/rogue0/combat.ts', { hasEffect: () => false });
+const defender = Object.assign(new Entity(), {
+  name: 'Target', attack: () => 1, protection: () => 0,
+});
+const oldRandom = Math.random;
+try {
+  Math.random = () => 0.7;
+  hero.strength = 10;
+  assert.equal(resolveAttack(strengthContext, hero, defender).hit, false,
+    'combat actually uses under-strength accuracy');
+  hero.strength = 14;
+  assert.equal(resolveAttack(strengthContext, hero, defender).hit, true,
+    'meeting the requirement restores accuracy');
+} finally {
+  Math.random = oldRandom;
+}
+
 const Shield = itemClass('shield');
 const Gem = itemClass('gem', { Shield });
 const ScrollOfUpgrade = itemClass('ScrollOfUpgrade');

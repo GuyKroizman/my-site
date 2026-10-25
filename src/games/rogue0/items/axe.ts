@@ -6,6 +6,7 @@ import { Entity } from "../entity";
 export default class Axe extends Entity {
   type: EntityType = "item";
   tier = 1;
+  usesStrength = true;
   equipSlot: "weapon" = "weapon";
   attackDelay = 1.25;
 

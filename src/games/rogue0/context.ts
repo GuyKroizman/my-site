@@ -78,7 +78,7 @@ export function createGameContext(): GameContext {
     panning: false,
     simulationTime: 0,
     floor: 1,
-    maxFloor: 5,
+    maxFloor: 25,
     kills: 0,
     heroClass: "Wizard",
     stairsX: undefined,
