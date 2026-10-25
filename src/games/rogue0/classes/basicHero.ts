@@ -78,6 +78,7 @@ export default class BasicHero extends Entity {
   maxHunger: number = 100;
   gold: number = 0;
   private hungerWarned: boolean = false;
+  private regenerationTicks: number = 0;
   xp: number = 0;
   level: number = 1;
   talentClass?: keyof typeof CLASS_TALENTS;
@@ -666,10 +667,16 @@ export default class BasicHero extends Entity {
       }
     }
 
-    // Fed: regain 1 HP per world-time unit; hunger stops natural healing.
+    // Fed: regain 1 HP every 3 world-time units; hunger stops natural healing.
     if (this.hungerState === "Fed" && this.healthPoints < this.maxHealthPoints) {
-      this.healthPoints = Math.min(this.maxHealthPoints, this.healthPoints + 1);
-      spawnEntityFloatingText(this, "+1", "#6aff6a");
+      this.regenerationTicks = (this.regenerationTicks ?? 0) + 1;
+      if (this.regenerationTicks >= 3) {
+        this.healthPoints = Math.min(this.maxHealthPoints, this.healthPoints + 1);
+        spawnEntityFloatingText(this, "+1", "#6aff6a");
+        this.regenerationTicks = 0;
+      }
+    } else {
+      this.regenerationTicks = 0;
     }
   }
 

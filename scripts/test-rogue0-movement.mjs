@@ -258,7 +258,12 @@ assert.equal(hero.walkPath.length, 0, 'starving again after eating stops navigat
 Object.assign(hero, { hunger: 60, healthPoints: 50, maxHealthPoints: 100 });
 assert.equal(hero.hungerState, 'Fed');
 hero.refresh();
+hero.refresh();
+assert.equal(hero.healthPoints, 50, 'no regeneration before three world-time units');
+hero.refresh();
 assert.equal(hero.healthPoints, 51, 'food below the old 80 threshold still heals');
+hero.refresh();
+hero.refresh();
 hero.hunger = 30.25;
 hero.refresh();
 assert.equal(hero.hungerState, 'Fed', 'exactly 30 food is fed');
@@ -280,9 +285,13 @@ assert.equal(hero.hungerState, 'Hungry');
 assert.equal(hero.healthPoints, 51, 'small meals stop damage without enabling healing');
 hero.restoreHunger(30);
 hero.refresh();
+hero.refresh();
+hero.refresh();
 assert.equal(hero.healthPoints, 52, 'sufficient food resumes natural healing');
 assert.ok(hero.statsText().includes('(Fed)'));
 hero.healthPoints = 99.5;
+hero.refresh();
+hero.refresh();
 hero.refresh();
 assert.equal(hero.healthPoints, 100, 'natural healing cannot exceed max HP');
 hero.refresh();
@@ -381,7 +390,7 @@ function elapsedRun(action, count, delay = 1, polls = 0) {
   return { time: manager.time, hunger: p.hunger, hp: p.healthPoints,
     cooldown: p.skillCooldown, effects: p.effects.length };
 }
-const elapsedExpected = { time: 6, hunger: 98.5, hp: 52, cooldown: 1, effects: 0 };
+const elapsedExpected = { time: 6, hunger: 98.5, hp: 48, cooldown: 1, effects: 0 };
 assert.deepEqual(elapsedRun('move', 24, 1, 10), elapsedExpected);
 assert.deepEqual(elapsedRun('attack', 4, 1.5), elapsedExpected);
 assert.deepEqual(elapsedRun('wait', 6), elapsedExpected);

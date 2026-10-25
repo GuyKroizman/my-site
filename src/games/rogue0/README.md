@@ -81,7 +81,7 @@ only displays visible clouds; it never advances their lifetime.
 Animation durations and frame rate never determine logical action costs.
 
 Food drops by 0.25 per world-time unit. Fed (30–100 Food) heroes naturally
-recover 1 HP per unit, capped at maximum HP. Hungry (0 < Food < 30) heroes
+recover 1 HP every 3 units, capped at maximum HP. Hungry (0 < Food < 30) heroes
 neither naturally heal nor take hunger damage. Starving (0 Food) heroes lose
 1 HP per unit. Eating stops starvation immediately; natural healing resumes
 once Food is at least 30 (evaluated after that unit's food drain). Potions and
