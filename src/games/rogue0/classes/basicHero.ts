@@ -1144,6 +1144,7 @@ export default class BasicHero extends Entity {
           });
           if (result.hit) {
             enemy.takeDamage(result.damage);
+            if (result.damageType === "shock" && result.damage > 0) context.onShockWater?.(enemy, result.damage);
             for (const effect of result.appliedEffects) {
               if (enemy.healthPoints > 0) applyEffect(enemy, effect);
             }
@@ -1218,6 +1219,17 @@ export default class BasicHero extends Entity {
       return;
     }
 
+    if (item.consumable && item.name === "Potion of Toxic Gas" && context.onCreatePoisonGas?.(tx, ty)) {
+      removeEntity(context, item);
+      dungeon.triggerArrowTrap(context, tx, ty);
+      return;
+    }
+    // Frost can prepare a terrain hazard without needing a living target.
+    if (item.consumable && item.name === "Potion of Frost" && context.onFrostTerrain?.(tx, ty)) {
+      removeEntity(context, item);
+      dungeon.triggerArrowTrap(context, tx, ty);
+      return;
+    }
     this.placeItemOnGround(item, tx, ty);
     dungeon.triggerArrowTrap(context, tx, ty);
   }
@@ -1246,6 +1258,7 @@ export default class BasicHero extends Entity {
 
       if (result.damage > 0) {
         enemy.takeDamage(result.damage);
+        if (result.damageType === "shock") context.onShockWater?.(enemy, result.damage);
         dungeon.log(
           context,
           `${this.name} throws ${item.displayName} at ${enemy.name} for ${result.damage} ${result.damageType} damage.`
@@ -1286,6 +1299,7 @@ export default class BasicHero extends Entity {
       applyEffect(enemy, createBurningEffect(4));
     } else if (name.includes("toxic gas")) {
       applyEffect(enemy, createPoisonedEffect(4));
+      if (enemy.x !== undefined && enemy.y !== undefined) context.onCreatePoisonGas?.(enemy.x, enemy.y);
     } else if (name.includes("frost")) {
       applyEffect(enemy, createFrozenEffect(1));
     } else {
@@ -1389,6 +1403,7 @@ export default class BasicHero extends Entity {
 
     if (result.damage > 0) {
       victim.takeDamage(result.damage);
+      if (result.damageType === "shock") this.context.onShockWater?.(victim, result.damage);
       dungeon.log(
         this.context,
         `${this.name} hits ${victim.name} for ${result.damage} ${result.damageType} damage.`

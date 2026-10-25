@@ -335,6 +335,7 @@ const flightDungeon = load('dungeon', { PF, tiles, ...fov,
   createPoisonedEffect: () => flightEffects.createPoisonedEffect(),
   createBurningEffect: () => flightEffects.createBurningEffect(),
   createFrozenEffect: () => flightEffects.createFrozenEffect(),
+  createCrippledEffect: duration => flightEffects.createCrippledEffect(duration),
   sfx: { step() {} }
 }).default;
 const flightEffects = load('effects', { dungeon: flightDungeon, spawnEntityFloatingText() {} });
@@ -567,4 +568,70 @@ for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 
   let remaining = 0; tiles.forEachFeature(() => remaining++);
   assert.equal(remaining, 0); assert.equal(refreshes, 1);
 }
-console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, reusable/summon/alarm traps, fire spread, arrows, stacks, deaths and levitation passed');
+// Frost/ice use existing effect phases; terrain itself persists until melted.
+{
+  const { ctx, flyer } = flightSetup();
+  tiles.clearAllFeatures();
+  flightDungeon.currentLevel = Array.from({ length: 7 }, () => Array(7).fill(0));
+  ctx.onFrostTerrain = (x, y) => flightDungeon.freezeWater(ctx, x, y);
+  for (const [x, y] of [[2, 2], [3, 2], [1, 2], [2, 3], [2, 1], [3, 3]]) {
+    tiles.setFeature(x, y, 'water');
+  }
+  flightDungeon.currentLevel[1][2] = 1;
+  let refreshes = 0; flightDungeon.onTerrainChanged = () => refreshes++;
+  flightEffects.applyEffect(flyer, flightEffects.createFrozenEffect());
+  assert.equal(refreshes, 1);
+  for (const [x, y] of [[2, 2], [3, 2], [1, 2], [2, 3]]) assert.equal(tiles.getFeature(x, y), 'ice');
+  assert.equal(tiles.getFeature(3, 3), 'water', 'no diagonal splash');
+  assert.equal(tiles.getFeature(2, 1), 'water', 'no freezing a wall overlay');
+  assert.equal(tiles.isBlocking(2, 2), false, 'ice is walkable');
+  assert.equal(fov.blocksSight(flightDungeon.currentLevel, 2, 2), false);
+  assert.match(tiles.describeTile(tiles.getTileState(2, 2), false), /slows movement/);
+  tiles.setFeature(3, 2, 'water');
+  flightEffects.applyEffect(flyer, flightEffects.createFrozenEffect());
+  assert.equal(tiles.getFeature(3, 2), 'ice', 'repeated frost still freezes terrain');
+  flightEffects.removeEffect(flyer, 'frozen');
+  flyer.x = 1; flyer.y = 1;
+  flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+  assert.equal(flightEffects.hasEffect(flyer, 'crippled'), true);
+  const { actionCost } = load('timing');
+  assert.equal(actionCost(flyer, 'move'), 2);
+  assert.equal(actionCost(flyer, 'attack'), 1, 'ice never slows attack delay');
+  ctx.simulationTime = 1.49; flightEffects.tickEffects(flyer, ctx);
+  assert.equal(actionCost(flyer, 'move'), 2);
+  ctx.simulationTime = 2.5; flightEffects.tickEffects(flyer, ctx);
+  flightEffects.tickEffects(flyer, ctx);
+  assert.equal(flightEffects.hasEffect(flyer, 'crippled'), false);
+  flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+  assert.equal(flightEffects.hasEffect(flyer, 'crippled'), false, 'standing still does not reapply slow');
+  assert.equal(tiles.getFeature(2, 2), 'ice', 'status expiry does not thaw terrain');
+  // Flight bypasses both slow and melting.
+  flyer.x = 1;
+  flightEffects.applyEffect(flyer, flightEffects.createLevitatingEffect());
+  flightEffects.applyEffect(flyer, flightEffects.createBurningEffect());
+  flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+  assert.equal(tiles.getFeature(2, 2), 'ice');
+  assert.equal(flightEffects.hasEffect(flyer, 'burning'), true);
+  assert.equal(flightEffects.hasEffect(flyer, 'crippled'), false);
+  flightEffects.removeEffect(flyer, 'levitating'); flyer.x = 1;
+  flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+  assert.equal(tiles.getFeature(2, 2), 'water');
+  assert.equal(flightEffects.hasEffect(flyer, 'burning'), false, 'meltwater extinguishes contact fire');
+  assert.equal(flightEffects.hasEffect(flyer, 'crippled'), false, 'melt before slowing');
+  const saved = [];
+  tiles.forEachFeature((x, y, state) => saved.push({ ...state, x, y }));
+  tiles.clearAllFeatures(); saved.forEach(f => tiles.setFeature(f.x, f.y, f.feature, f));
+  assert.equal(tiles.getFeature(2, 2), 'water');
+  assert.equal(tiles.getFeature(3, 2), 'ice');
+  // Real thrown-potion landing freezes empty water and consumes the potion.
+  const thrower = Object.create(Hero.prototype);
+  thrower.context = ctx;
+  thrower.placeItemOnGround = () => assert.fail('frost splash must be consumed');
+  const potion = { type: 'item', consumable: true, name: 'Potion of Frost' };
+  ctx.entities.push(potion);
+  tiles.setFeature(4, 4, 'water');
+  thrower.resolveThrowLanding(potion, 4, 4);
+  assert.equal(tiles.getFeature(4, 4), 'ice');
+  assert.equal(ctx.entities.includes(potion), false);
+}
+console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, reusable/summon/alarm traps, fire spread, frozen water, arrows, stacks, deaths and levitation passed');

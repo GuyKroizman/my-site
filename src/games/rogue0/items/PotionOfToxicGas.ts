@@ -14,7 +14,7 @@ export default class PotionOfToxicGas extends Entity {
     this.tile = 13 * 49 + 41;
     this.textureKey = "potion-green";
     this.name = "Potion of Toxic Gas";
-    this.description = "Poisons you when drunk.";
+    this.description = "Poisons you when drunk and releases a lingering cloud. Throw to fill the impact tile and open cardinal neighbors with gas for 4 time units.";
     this.consumable = true;
 
     this.init(context, x, y);
@@ -25,6 +25,7 @@ export default class PotionOfToxicGas extends Entity {
     if (!player) return;
 
     applyEffect(player, createPoisonedEffect(4));
+    if (player.x !== undefined && player.y !== undefined) this.context.onCreatePoisonGas?.(player.x, player.y);
 
     player.removeItem(this);
     removeEntity(this.context, this);

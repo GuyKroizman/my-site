@@ -53,7 +53,9 @@ const turnManager = {
         e.effects.filter(effect => !effect.manualExpiry || effect.tick)
           .map(effect => effect.nextTick ?? Infinity)
       ));
-      const nextEvent = Math.min(this.nextTick, effectTime);
+      const context = actor.context;
+      const terrainTime = context.nextTerrainEvent?.() ?? Infinity;
+      const nextEvent = Math.min(this.nextTick, effectTime, terrainTime);
       if (nextEvent <= targetTime + 1e-9) {
         this.time = Math.max(this.time, nextEvent);
         for (const entity of actors) entity.context.simulationTime = this.time;
@@ -68,6 +70,7 @@ const turnManager = {
           if (entities.includes(entity)) entity.tickEffects();
           if (entity.context.pendingFall) return;
         }
+        if (terrainTime <= this.time + 1e-9) context.onTerrainEvent?.();
         continue;
       }
 

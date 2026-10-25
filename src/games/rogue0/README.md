@@ -39,6 +39,13 @@ Hunger and regeneration tick per elapsed world-time unit. Buffs keep their own
 tick phase (a two-time-unit buff applied at 0.5 expires at 2.5), and skill cooldowns
 use absolute ready timestamps. Faster movement does not accelerate hunger,
 poison, or cooldowns. Floor changes preserve the clock and buff/cooldown timing.
+
+Poison clouds add independent fractional terrain events to this same scheduler:
+clouds last 4 time units and pulse once per unit from their creation phase.
+Exposure sustains Poisoned for at least 2 units without postponing its damage
+phase; expiry wins ties with a cloud pulse. Clouds are separate from ground
+features, affect levitating actors too, and pause with inactive floors. Rendering
+only displays visible clouds; it never advances their lifetime.
 Animation durations and frame rate never determine logical action costs.
 
 Food drops by 0.25 per world-time unit. Fed (30–100 Food) heroes naturally

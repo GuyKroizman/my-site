@@ -48,6 +48,10 @@ export function hasEffect(entity: Entity, effectId: string): boolean {
 }
 
 export function applyEffect(entity: Entity, effect: StatusEffect): void {
+  // Repeated frost applications still affect terrain, even if already frozen.
+  if (effect.id === "frozen" && entity.x !== undefined && entity.y !== undefined) {
+    entity.context.onFrostTerrain?.(entity.x, entity.y);
+  }
   const existing = entity.effects.find((e) => e.id === effect.id);
   if (existing) {
     existing.duration = Math.max(existing.duration, effect.duration);

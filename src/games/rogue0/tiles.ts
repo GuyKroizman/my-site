@@ -5,7 +5,7 @@
 // coordinate-keyed overlay (`"x,y"`) so doors/traps/grass/water/chasms can
 // carry per-tile state without turning the base map into a tile enum.
 
-export type TerrainFeature = "door" | "secretDoor" | "trap" | "grass" | "water" | "chasm";
+export type TerrainFeature = "door" | "secretDoor" | "trap" | "grass" | "water" | "ice" | "chasm";
 
 export type DoorState = "open" | "closed";
 export type TrapState = "hidden" | "visible" | "triggered";
@@ -188,7 +188,9 @@ export function describeTile(
           ? "A closed door. Walk into it to open."
           : "An open door.";
       case "water":
-        return "Water. It douses fire.";
+        return "Water. Douses fire; frost turns it to ice. Shock hits arc through connected water into other grounded actors, including the caster.";
+      case "ice":
+        return "Ice. Grounded entry slows movement for 2 time units. Burning actors melt it back to water. Does not conduct shock.";
       case "grass":
         return "Tall grass. Blocks sight. Fire burns connected grass and ignites grounded actors.";
       case "chasm":

@@ -11,6 +11,7 @@ import {
   applyEffect,
   createBurningEffect,
   createFrozenEffect,
+  createCrippledEffect,
   createPoisonedEffect,
   hasEffect,
   removeEffect
@@ -191,7 +192,9 @@ let dungeon = {
     const state = tiles.getTileState(x, y);
     const map = this.currentLevel;
     const isWall = !!map && map[y]?.[x] === 1;
-    return tiles.describeTile(state, isWall);
+    const gas = this.context?.poisonClouds?.some(c => c.x === x && c.y === y &&
+      c.expiresAt > (this.context?.simulationTime ?? 0) + 1e-9);
+    return tiles.describeTile(state, isWall) + (gas ? " Poison gas: poisons on entry and while you remain here, even when levitating." : "");
   },
 
   // Reveal hidden traps and secret end walls in the surrounding 3x3 area.
@@ -353,7 +356,16 @@ let dungeon = {
     let destY = y;
 
     const flying = hasEffect(entity, "levitating");
-    // Flying actors do not contact water, vegetation or pressure plates.
+    // Flying actors do not contact water, ice, vegetation or pressure plates.
+    if (entity.type !== "item" && !flying && entering && tiles.getFeature(destX, destY) === "ice") {
+      if (hasEffect(entity, "burning")) {
+        tiles.setFeature(destX, destY, "water");
+        this.onTerrainChanged?.();
+        this.log(context, "The ice melts back into water.");
+      } else {
+        applyEffect(entity, createCrippledEffect(2));
+      }
+    }
     if (!flying && tiles.getFeature(destX, destY) === "water" && hasEffect(entity, "burning")) {
       removeEffect(entity, "burning");
       this.log(context, `${entity.name} steps into water and the flames go out.`);
@@ -422,6 +434,7 @@ let dungeon = {
         !context.visibleTiles.has(`${destX},${destY}`)) {
       entity.x = destX;
       entity.y = destY;
+      if (entering) context.onGasContact?.(entity);
       if (!flying && entering) this.triggerArrowTrap(context, destX, destY);
       closeDoorBehind();
       entity.sprite?.setPosition(
@@ -433,6 +446,7 @@ let dungeon = {
     // The sprite animates independently of the logical tile coordinates.
     entity.x = destX;
     entity.y = destY;
+    if (entering) context.onGasContact?.(entity);
     if (entity.type !== "item" && !flying && entering) this.triggerArrowTrap(context, destX, destY);
     if (entity.healthPoints <= 0 && entity.type !== "item") {
       closeDoorBehind();
@@ -482,6 +496,54 @@ let dungeon = {
 
     if (cells.length === 0) return null;
     return cells[Math.floor(Math.random() * cells.length)];
+  },
+
+  conductShock: function (context: GameContext, target: Entity, primaryDamage: number): void {
+    if (!Number.isFinite(primaryDamage) || primaryDamage <= 0 ||
+        target.x === undefined || target.y === undefined || hasEffect(target, "levitating") ||
+        tiles.getFeature(target.x, target.y) !== "water") return;
+    const connected = new Set<string>();
+    const pending: Array<[number, number]> = [[target.x, target.y]];
+    for (let index = 0; index < pending.length; index++) {
+      const [x, y] = pending[index];
+      const key = `${x},${y}`;
+      if (connected.has(key) || this.currentLevel[y]?.[x] !== 0 || tiles.getFeature(x, y) !== "water") continue;
+      connected.add(key);
+      pending.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    }
+    // Snapshot victims before deaths/drop hooks mutate the entity list. No recursive
+    // attacks, hit effects, crits or accuracy rolls: each secondary victim is hit once.
+    const victims = context.entities.filter(e => e !== target &&
+      (e.type === "player" || e.type === "enemy") && e.healthPoints > 0 &&
+      e.x !== undefined && e.y !== undefined && connected.has(`${e.x},${e.y}`) &&
+      !hasEffect(e, "levitating"));
+    const baseDamage = Math.ceil(primaryDamage / 2);
+    for (const victim of victims) {
+      if (!context.entities.includes(victim) || victim.healthPoints <= 0) continue;
+      const damage = Math.max(0, baseDamage - (victim.resistance.shock ?? 0) + (victim.vulnerability.shock ?? 0));
+      if (damage > 0) victim.takeDamage(damage);
+      if (victim.type === "player" || context.visibleTiles.has(`${victim.x},${victim.y}`)) {
+        this.log(context, `Water conducts lightning into ${victim.name} for ${damage} shock damage.`);
+      }
+      if (victim.healthPoints <= 0) removeEntity(context, victim);
+    }
+  },
+
+  freezeWater: function (context: GameContext, x: number, y: number): number {
+    // A cardinal splash cannot freeze through corners, doors or walls.
+    let count = 0;
+    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (this.currentLevel[ny]?.[nx] !== 0 || tiles.getFeature(nx, ny) !== "water") continue;
+      tiles.setFeature(nx, ny, "ice");
+      count++;
+    }
+    if (count) {
+      this.onTerrainChanged?.();
+      // Do not announce offscreen enemy frost activity.
+      if (context.visibleTiles.has(`${x},${y}`)) this.log(context, "The water freezes into ice.");
+    }
+    return count;
   },
 
   igniteGrass: function (
@@ -648,6 +710,7 @@ let dungeon = {
 
     if (result.damage > 0) {
       victim.takeDamage(result.damage);
+      if (result.damageType === "shock") context.onShockWater?.(victim, result.damage);
       spawnEntityFloatingText(victim, `-${result.damage}`);
       this.log(
         context,

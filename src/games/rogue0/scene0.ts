@@ -1,8 +1,11 @@
 import Phaser from "phaser";
+import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
+import type { PoisonCloud } from "./context";
 import { removeEntity, type Entity } from './entity';
 
 type SavedFloor = {
   savedAt: number;
+  poisonClouds?: PoisonCloud[];
   map: number[][];
   seen: boolean[][];
   features: FeaturePlacement[];
@@ -142,6 +145,7 @@ export class Scene0 extends Phaser.Scene {
 
   private lastVisionState = "";
   private mindMarkers!: Phaser.GameObjects.Graphics;
+  private gasOverlay?: Phaser.GameObjects.Graphics;
 
   private getVision() {
     const player = this.context.player;
@@ -220,6 +224,7 @@ export class Scene0 extends Phaser.Scene {
     // Fog-of-war overlay drawn above tiles and entities.
     this.fog = this.add.graphics().setDepth(100);
     this.mindMarkers = this.add.graphics().setDepth(101);
+    this.gasOverlay = this.add.graphics().setDepth(99);
 
     // Inspect/throw cursor, drawn above entities and fog.
     this.cursor = this.add.graphics().setDepth(300);
@@ -252,6 +257,12 @@ export class Scene0 extends Phaser.Scene {
     this.context.onDescend = () => this.tryDescend();
     this.context.onAscend = () => this.tryAscend();
     this.context.onSummonTrap = (x, y) => this.summonFromTrap(x, y);
+    this.context.onFrostTerrain = (x, y) => dungeon.freezeWater(this.context, x, y);
+    this.context.onShockWater = (target, damage) => dungeon.conductShock(this.context, target, damage);
+    this.context.onCreatePoisonGas = (x, y) => createPoisonGas(this.context, dungeon.getCurrentLevel(), x, y);
+    this.context.onGasContact = actor => exposeToGas(this.context, actor);
+    this.context.nextTerrainEvent = () => nextGasEvent(this.context);
+    this.context.onTerrainEvent = () => tickGas(this.context);
     // Re-center the camera on the player after a free pan.
     this.context.onResumeFollow = () => this.resumeFollow();
   }
@@ -453,6 +464,8 @@ export class Scene0 extends Phaser.Scene {
   ) {
     clearMonsterSleepVisuals(this);
     this.context.floor = floor;
+    this.context.poisonClouds = restoreGas(restored?.poisonClouds,
+      restored ? (this.context.simulationTime ?? 0) - restored.savedAt : 0);
     this.resizeCamera();
     this.stairsHinted = false;
 
@@ -622,6 +635,7 @@ export class Scene0 extends Phaser.Scene {
     tiles.forEachFeature((x, y, state) => features.push({ ...state, x, y }));
     this.floors.set(this.context.floor, {
       savedAt: this.context.simulationTime ?? 0,
+      poisonClouds: (this.context.poisonClouds ?? []).map(cloud => ({ ...cloud })),
       map: dungeon.getCurrentLevel().map(row => [...row]),
       seen: this.seen.map(row => [...row]), features,
       entities: this.context.entities.filter(entity => !carried.has(entity)),
@@ -760,6 +774,12 @@ export class Scene0 extends Phaser.Scene {
     const player = this.context.player;
     const mindVision = this.getVision().mindVision;
     this.mindMarkers.clear();
+    this.gasOverlay?.clear();
+    for (const cloud of this.context.poisonClouds ?? []) {
+      if (cloud.expiresAt <= (this.context.simulationTime ?? 0) + 1e-9 || !this.visible.has(`${cloud.x},${cloud.y}`)) continue;
+      this.gasOverlay?.fillStyle(0x88bb44, 0.4);
+      this.gasOverlay?.fillRect(cloud.x * 16, cloud.y * 16, 16, 16);
+    }
     const foreground = foregroundEntities(this.context.entities, player);
 
     for (const entity of this.context.entities) {
@@ -864,6 +884,8 @@ export class Scene0 extends Phaser.Scene {
         return { tile: tiles.FeatureTiles.grass, tint: 0x55aa55 };
       case "water":
         return { tile: tiles.FeatureTiles.water, tint: 0x4488cc };
+      case "ice":
+        return { tile: tiles.FeatureTiles.water, tint: 0xbbeeff };
       case "chasm":
         return { tile: tiles.FeatureTiles.chasm, tint: 0x111111 };
       case "trap":

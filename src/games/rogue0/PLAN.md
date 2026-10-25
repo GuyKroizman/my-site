@@ -370,7 +370,19 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
       never a win. Falls preserve floor snapshots and resolve outside scheduler
       iteration; no safe-return or emergency-hover behaviour. Shared path grids
       remain unchanged. Covered by terrain/stair regressions; not visually playtested.
-- [ ] Grass concealment, frozen water and chasm pushing/voluntary jumping.
+- [ ] Grass concealment and chasm pushing/voluntary jumping.
+- [x] Frozen water: applying Frozen freezes water under/cardinally adjacent to
+      the target (including repeat applications). Frost potions thrown onto empty
+      water can create ice and are consumed on a successful terrain splash.
+      Ice is walkable and transparent; grounded entry applies Crippled for two
+      world-time units (half movement speed, no attack-delay change). Re-entry
+      refreshes the slow; waiting on ice does not. Burning grounded actors melt
+      their destination tile to water and are extinguished before ice can slow
+      them. Levitation bypasses contact. Ice persists until melted, with a pale
+      water tint and inspect description; snapshots preserve frozen/melted tiles.
+      Terrain regressions cover frost sources/reapplication, splash bounds,
+      movement costs, fractional expiry, flight, melting and persistence.
+      Visual playtesting remains deferred.
 - [x] Fire spreads through grass: a grounded burning actor's movement ignites
       grass underfoot/cardinally adjacent, immediately consuming every connected
       cardinal grass patch. Water, bare floor, walls and diagonal-only contact
@@ -380,8 +392,31 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
       phases control subsequent damage—no extra action or terrain timer. Regression
       coverage includes offscreen actors, firebreaks, sight, persistence and large
       cyclic patches. Visual playtesting remains deferred.
-- [ ] Remaining elemental combos: frost freezes water, shock arcs in water,
-      poison lingers in gas clouds.
+- [x] Shock conducts through cardinally connected water. A successful shock
+      hit dealing positive damage to a grounded target in water arcs once into
+      every other living grounded actor in that pool—including the caster.
+      Secondary base damage is `ceil(primary damage dealt / 2)`, reduced by each
+      victim's shock resistance and increased by shock vulnerability; physical
+      armor does not apply. Ice, walls, dry gaps and diagonal-only contact break
+      conduction; levitation avoids it. No recursive arcs, extra crits/on-hit
+      effects, charges or action costs. Lethal primary hits still conduct, and
+      secondary deaths use normal removal. Normal attacks, skills, thrown weapons
+      and wands share this behavior. `test-rogue0-shock-water.mjs` covers networks,
+      exclusions, resistances, caster risk, deaths and all four attack paths.
+      Visual and balance playtesting remain deferred.
+- [x] Lingering poison clouds: Toxic Gas potions create a cardinal five-cell
+      splash (clipped by walls/closed doors), whether drunk or thrown, including
+      throws at empty floor. Clouds last four world-time units with independent
+      fractional pulse phases. Entry and pulses sustain Poisoned for at least two
+      units without resetting its damage phase; original direct potion poison
+      remains four units. Levitation does not protect against airborne gas, and
+      clouds can hurt the player. Overlapping cells merge and extend lifetime,
+      not damage stacks. Expiry wins pulse ties. A separate overlay preserves
+      ground terrain, with visible-only green shading and inspect descriptions.
+      Saved floors copy cloud state and shift event clocks on restoration, so
+      inactive floors pause gas. `gas.ts` plus the gas/stair suites cover geometry,
+      exposure, overlap, idle frames, timing, expiry, deaths, movement and potions.
+      Visual and balance playtesting remain deferred.
 - **Acceptance:** positioning and terrain become a first-class tactical layer,
   not just walls.
 
@@ -563,7 +598,7 @@ coverage and small-screen readability before marking this phase complete.
 1. **Phase 9 first-tier XP/talents landed:** levels 2–4 award three points for
    two rank-2 class talents, selected in the Hero panel. Separate XP, Strength
    and equipment-upgrade tracks are preserved. Later tiers/subclasses remain
-   open; proceed to terrain next. All 13 regression suites and the production
+   open; terrain work continues. All 15 regression suites and the production
    build pass; visual and five-class balance playtesting remain deferred.
 2. **Finish Phase 7's terrain interactions** before adding more consumables.
 3. **Finish Phase 8:** archer kiting and remaining signatures. The Bone Lord

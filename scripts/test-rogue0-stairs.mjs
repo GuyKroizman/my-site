@@ -31,12 +31,16 @@ const player = { x: 0, y: 0, canAct: () => true, getAllItems: () => [gear] };
 const monster = { healthPoints: 7, x: 1, y: 1 };
 const loot = { name: 'floor scroll', x: 1, y: 0 };
 scene.context = { floor: 2, player, entities: [player, gear, monster, loot],
+  poisonClouds: [{ x: 1, y: 1, nextTick: 1.5, expiresAt: 4.5 }],
   upstairsX: 0, upstairsY: 0, stairsX: 1, stairsY: 1 };
 scene.floors = new Map();
 scene.seen = [[true, false], [true, true]];
 scene.saveFloor();
 const saved = scene.floors.get(2);
 assert.deepEqual(saved.entities, [monster, loot]);
+assert.deepEqual(saved.poisonClouds, scene.context.poisonClouds);
+scene.context.poisonClouds[0].expiresAt = 99;
+assert.equal(saved.poisonClouds[0].expiresAt, 4.5, 'floor gas snapshots are independent copies');
 assert.equal(saved.entities[0].healthPoints, 7);
 map[0][0] = 1;
 door.door = 'closed';

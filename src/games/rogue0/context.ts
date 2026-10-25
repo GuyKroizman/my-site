@@ -7,6 +7,8 @@ export type EndResult = {
   kills: number;
 };
 
+export type PoisonCloud = { x: number; y: number; expiresAt: number; nextTick: number };
+
 export type GameContext = {
   map: Phaser.Tilemaps.Tilemap | undefined;
   currentLevel?: number[][];
@@ -29,6 +31,15 @@ export type GameContext = {
   onAscend?: () => void;
   // Scene owns monster construction; terrain requests one bounded reinforcement.
   onSummonTrap?: (x: number, y: number) => boolean;
+  // Frost effects notify terrain without coupling effect scheduling to rendering.
+  onFrostTerrain?: (x: number, y: number) => number;
+  // Called only after a successful shock hit has applied its primary damage.
+  onShockWater?: (target: Entity, damage: number) => void;
+  poisonClouds?: PoisonCloud[];
+  onCreatePoisonGas?: (x: number, y: number) => number;
+  onGasContact?: (actor: Entity) => void;
+  nextTerrainEvent?: () => number;
+  onTerrainEvent?: () => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   heroModalOpen?: boolean;
