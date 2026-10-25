@@ -421,9 +421,11 @@ for (const feature of ['water', 'grass', 'dart', 'arrow']) {
   assert.equal(ctx.pendingFall, true);
   assert.equal(flyer.x, 3);
 }
-// Activation policy is independent of trap kind, and is never a world-time timer.
+// Teleport traps are always reusable; other kinds honor their configured policy.
+// Reactivation never depends on a world-time timer.
 for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 'alarm']) {
-  for (const trapReusable of [false, true]) {
+  for (const configuredReusable of [undefined, false, true]) {
+    const trapReusable = trapKind === 'teleport' || !!configuredReusable;
     const { ctx, flyer } = flightSetup();
     flyer.healthPoints = 100; flyer.x = 1;
     let summons = 0;
@@ -435,7 +437,7 @@ for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 
     ctx.entities.push(...listeners);
     tiles.clearFeature(3, 2);
     flightDungeon.pathGrid.setWalkableAt(3, 2, true);
-    tiles.setFeature(2, 2, 'trap', { trapKind, trapReusable, trap: 'hidden' });
+    tiles.setFeature(2, 2, 'trap', { trapKind, trapReusable: configuredReusable, trap: 'hidden' });
     assert.equal(tiles.describeTile(tiles.getTileState(2, 2), false), 'Stone floor.');
     assert.equal(flightDungeon.searchAround(1, 2), 1);
     assert.equal(flightDungeon.searchAround(1, 2), 0);

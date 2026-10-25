@@ -74,7 +74,8 @@ export function setFeature(
   } else if (feature === "trap") {
     stored.trap = opts.trap ?? stored.trap ?? "hidden";
     stored.trapKind = opts.trapKind ?? stored.trapKind ?? "dart";
-    stored.trapReusable = opts.trapReusable ?? stored.trapReusable ?? false;
+    // Teleport traps never expend their charge, including older saved placements.
+    stored.trapReusable = stored.trapKind === "teleport" || (opts.trapReusable ?? stored.trapReusable ?? false);
     delete stored.door;
   } else {
     delete stored.door;
