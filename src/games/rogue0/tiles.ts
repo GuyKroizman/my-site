@@ -190,7 +190,7 @@ export function describeTile(
       case "water":
         return "Water. It douses fire.";
       case "grass":
-        return "Tall grass. It can burn.";
+        return "Tall grass. Blocks sight. Fire burns connected grass and ignites grounded actors.";
       case "chasm":
         return "A chasm. Only levitation allows safe passage.";
       case "trap": {

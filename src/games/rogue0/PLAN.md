@@ -371,8 +371,17 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
       iteration; no safe-return or emergency-hover behaviour. Shared path grids
       remain unchanged. Covered by terrain/stair regressions; not visually playtested.
 - [ ] Grass concealment, frozen water and chasm pushing/voluntary jumping.
-- [ ] Elemental combos: fire spreads on grass, frost freezes water, shock arcs
-      in water, poison lingers in gas clouds.
+- [x] Fire spreads through grass: a grounded burning actor's movement ignites
+      grass underfoot/cardinally adjacent, immediately consuming every connected
+      cardinal grass patch. Water, bare floor, walls and diagonal-only contact
+      break the spread. Living grounded actors on burned tiles gain burning;
+      levitating actors, items and corpses do not. Terrain/FOV refresh once per
+      ignition; removed cover stays gone on floor revisits. Existing effect tick
+      phases control subsequent damage—no extra action or terrain timer. Regression
+      coverage includes offscreen actors, firebreaks, sight, persistence and large
+      cyclic patches. Visual playtesting remains deferred.
+- [ ] Remaining elemental combos: frost freezes water, shock arcs in water,
+      poison lingers in gas clouds.
 - **Acceptance:** positioning and terrain become a first-class tactical layer,
   not just walls.
 

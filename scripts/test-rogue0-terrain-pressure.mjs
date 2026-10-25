@@ -507,4 +507,64 @@ for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 
   flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
   assert.equal(attempts, 1, 'fizzled single-use trap does not retry');
 }
-console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, reusable/summon/alarm traps, arrows, stacks, deaths and levitation passed');
+// Fire consumes an entire connected patch, not just one tile per movement.
+{
+  const { ctx, flyer: source } = flightSetup();
+  tiles.clearAllFeatures();
+  flightDungeon.currentLevel = Array.from({ length: 9 }, () => Array(10).fill(0));
+  const patch = [[2, 2], [3, 2], [3, 3], [2, 3], [4, 3], [5, 3]];
+  for (const [x, y] of patch) tiles.setFeature(x, y, 'grass');
+  for (const [x, y] of [[6, 4], [7, 3], [5, 5], [1, 5]]) tiles.setFeature(x, y, 'grass');
+  tiles.setFeature(6, 3, 'water'); // firebreak before (7,3)
+  tiles.setFeature(5, 4, 'grass');
+  flightDungeon.currentLevel[4][5] = 1; // stale overlay on a wall must not burn through it
+  const make = (type, x, y, hp = 20) => Object.assign(new Entity(), {
+    type, x, y, healthPoints: hp, context: ctx, name: type
+  });
+  const grounded = make('enemy', 5, 3);
+  const airborne = make('enemy', 4, 3);
+  const item = make('item', 3, 3);
+  const corpse = make('enemy', 3, 2, 0);
+  ctx.entities.push(grounded, airborne, item, corpse);
+  flightEffects.applyEffect(airborne, flightEffects.createLevitatingEffect());
+  flightEffects.applyEffect(source, flightEffects.createBurningEffect());
+  let refreshes = 0;
+  flightDungeon.onTerrainChanged = () => refreshes++;
+  assert.equal(fov.blocksSight(flightDungeon.currentLevel, 3, 2), true);
+  flightDungeon.igniteGrass(ctx, source, 2, 2);
+  for (const [x, y] of patch) assert.equal(tiles.getFeature(x, y), undefined);
+  for (const [x, y] of [[6, 4], [7, 3], [5, 5], [1, 5], [5, 4]]) {
+    assert.equal(tiles.getFeature(x, y), 'grass', 'diagonal, separated and wall grass survives');
+  }
+  assert.equal(tiles.getFeature(6, 3), 'water');
+  assert.equal(flightEffects.hasEffect(grounded, 'burning'), true, 'offscreen actors burn without sprites');
+  assert.equal(flightEffects.hasEffect(airborne, 'burning'), false);
+  assert.equal(flightEffects.hasEffect(item, 'burning'), false);
+  assert.equal(flightEffects.hasEffect(corpse, 'burning'), false);
+  assert.equal(refreshes, 1, 'refresh terrain/FOV once per spread');
+  assert.equal(fov.blocksSight(flightDungeon.currentLevel, 3, 2), false);
+  assert.equal(ctx.simulationTime, 0.5);
+  const hp = grounded.healthPoints;
+  ctx.simulationTime = 1.49; flightEffects.tickEffects(grounded, ctx);
+  assert.equal(grounded.healthPoints, hp, 'ignition does not invent an extra damage tick');
+  ctx.simulationTime = 1.5; flightEffects.tickEffects(grounded, ctx);
+  assert.ok(grounded.healthPoints < hp, 'burn damage uses the existing world-time clock');
+  flightDungeon.igniteGrass(ctx, source, 2, 2);
+  assert.equal(refreshes, 1, 'spent patch cannot ignite again');
+  const saved = [];
+  tiles.forEachFeature((x, y, state) => saved.push({ ...state, x, y }));
+  tiles.clearAllFeatures(); saved.forEach(f => tiles.setFeature(f.x, f.y, f.feature, f));
+  assert.equal(tiles.getFeature(3, 2), undefined, 'burned grass stays gone on restoration');
+}
+// Large, cyclic patches terminate iteratively with a single terrain refresh.
+{
+  const { ctx, flyer } = flightSetup();
+  tiles.clearAllFeatures();
+  flightDungeon.currentLevel = Array.from({ length: 50 }, () => Array(50).fill(0));
+  for (let y = 0; y < 50; y++) for (let x = 0; x < 50; x++) tiles.setFeature(x, y, 'grass');
+  let refreshes = 0; flightDungeon.onTerrainChanged = () => refreshes++;
+  flightDungeon.igniteGrass(ctx, flyer, 0, 0);
+  let remaining = 0; tiles.forEachFeature(() => remaining++);
+  assert.equal(remaining, 0); assert.equal(refreshes, 1);
+}
+console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, reusable/summon/alarm traps, fire spread, arrows, stacks, deaths and levitation passed');

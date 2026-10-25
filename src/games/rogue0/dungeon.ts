@@ -493,37 +493,32 @@ let dungeon = {
     const level = this.currentLevel;
     if (!level) return;
 
-    const dirs: Array<[number, number]> = [
-      [0, 0],
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1]
-    ];
-
-    for (const [dx, dy] of dirs) {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= level[0].length || ny >= level.length) continue;
-      if (tiles.getFeature(nx, ny) !== "grass") continue;
-
+    const dirs: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    // Preserve contact ignition (underfoot or cardinally adjacent), then spread
+    // through connected grass only. Iteration avoids recursion limits on big patches.
+    const pending: Array<[number, number]> = [[x, y], ...dirs.map(([dx, dy]) =>
+      [x + dx, y + dy] as [number, number])];
+    const burned = new Set<string>();
+    for (let index = 0; index < pending.length; index++) {
+      const [nx, ny] = pending[index];
+      if (level[ny]?.[nx] !== 0 || tiles.getFeature(nx, ny) !== "grass") continue;
+      // Clearing immediately also marks this cell visited, even around loops.
       tiles.clearFeature(nx, ny);
-      this.onTerrainChanged?.();
-      this.log(context, `The grass at ${nx},${ny} ignites and burns away.`);
-
-      for (const other of context.entities) {
-        if (
-          other !== entity &&
-          other.sprite &&
-          other.x === nx &&
-          other.y === ny &&
-          other.type !== "item"
-        ) {
-          applyEffect(other, createBurningEffect());
-        }
-      }
-      return;
+      burned.add(`${nx},${ny}`);
+      for (const [dx, dy] of dirs) pending.push([nx + dx, ny + dy]);
     }
+    if (!burned.size) return;
+
+    // Terrain contact is logical, independent of sprites or current visibility.
+    for (const other of context.entities) {
+      if (other !== entity && (other.type === "player" || other.type === "enemy") &&
+          other.healthPoints > 0 && other.x !== undefined && other.y !== undefined &&
+          burned.has(`${other.x},${other.y}`) && !hasEffect(other, "levitating")) {
+        applyEffect(other, createBurningEffect());
+      }
+    }
+    this.onTerrainChanged?.();
+    this.log(context, `Fire burns through ${burned.size} grass tile${burned.size === 1 ? "" : "s"}!`);
   },
 
   // Trace in travel order, not entity-list order. Items and dead actors
