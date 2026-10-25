@@ -179,6 +179,7 @@ export class Scene0 extends Phaser.Scene {
   preload() {
     this.load.image("ration", "/rogue0/items/ration.png");
     this.load.image("chalice-of-blood", "/rogue0/items/chalice-of-blood.png");
+    this.load.image("fang-of-the-beast", "/rogue0/items/fang-of-the-beast.png");
     for (const kind of ["fireball", "lightning", "identify", "upgrade", "remove-curse", "teleport", "rage", "terror", "recharging"]) {
       this.load.image(`scroll-${kind}`, `/rogue0/items/scroll-${kind}.png`);
     }

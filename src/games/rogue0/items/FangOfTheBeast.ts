@@ -10,12 +10,16 @@ export default class FangOfTheBeast extends Entity {
   description: string =
     "A fang that hungers for battle. Grants bonus damage that grows as you fight.";
   type: EntityType = "item";
-  tile = 4 * 49 + 30;
+  textureKey = "fang-of-the-beast";
   tier = 1;
   equipSlot: "artifact" = "artifact";
   identified = false;
 
   private strikes = 0;
+
+  get unidentifiedTextureKey(): string {
+    return this.spriteTextureKey;
+  }
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();

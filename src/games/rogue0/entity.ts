@@ -109,25 +109,35 @@ export abstract class Entity {
     return this.description;
   }
 
-  // Hidden-style name used before an item is identified ("?scroll", "?ring").
+  // Derive a pronounceable nonsense label from the true item kind, never from
+  // instance state or RNG. Copies, floor changes and stack splits keep the name.
+  get unidentifiedName(): string {
+    let hash = 2166136261;
+    for (const char of `${this.equipSlot}:${this.name}`) {
+      hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
+    }
+    const syllables = ['ba', 'zu', 'kir', 'vo', 'nel', 'sha', 'dor', 'mi',
+      'fen', 'ra', 'tol', 'xi', 'gub', 'po', 'vek', 'lun'];
+    let label = '';
+    for (let i = 0; i < 5; i++) {
+      label += syllables[hash & 15];
+      hash >>>= 4;
+    }
+    return label[0].toUpperCase() + label.slice(1);
+  }
+
+  // Keep the category visible without revealing the item's actual effect.
   get displayName(): string {
     if (this.identified) {
       return this.type === "item" && this.level > 0 ? `${this.name} +${this.level}` : this.name;
     }
-    switch (this.equipSlot) {
-      case "weapon":
-        return /wand/i.test(this.name) ? "Wand" : "Weapon";
-      case "armor":
-        return "Armor";
-      case "ring":
-        return "Ring";
-      case "artifact":
-        return "Artifact";
-      case "consumable":
-        return /scroll/i.test(this.name) ? "Scroll" : "Potion";
-      default:
-        return "Item";
-    }
+    const category = this.equipSlot === "weapon"
+      ? (/wand/i.test(this.name) ? "Wand" : "Weapon")
+      : this.equipSlot === "consumable"
+        ? (/scroll/i.test(this.name) ? "Scroll" : "Potion")
+        : ({ armor: "Armor", ring: "Ring", artifact: "Artifact", junk: "Item" }[this.equipSlot]);
+    return `${category} “${this.unidentifiedName}”`;
+
   }
 
   // Generic icon used while an item is unidentified (distinguishes category

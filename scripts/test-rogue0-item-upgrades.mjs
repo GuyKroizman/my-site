@@ -49,9 +49,9 @@ const unknownGear = Object.assign(new Entity(), {
 upgrade(unknownGear);
 assert.equal(unknownGear.level, 3);
 assert.equal(unknownGear.identified, false);
-assert.equal(unknownGear.context.messages[0], 'Weapon upgraded.');
+assert.equal(unknownGear.context.messages[0], `${unknownGear.displayName} upgraded.`);
 upgrade(unknownGear);
-assert.equal(unknownGear.context.messages[0], 'Weapon is already at its maximum level.');
+assert.equal(unknownGear.context.messages[0], `${unknownGear.displayName} is already at its maximum level.`);
 unknownGear.identified = true;
 unknownGear.level = 1;
 upgrade(unknownGear);
@@ -67,6 +67,41 @@ const { actionCost } = load('src/games/rogue0/timing.ts');
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, dungeon, sfx: { levelUp() {} },
 }).default;
+// Unknown names remain stable across instances and state changes; identical
+// unknown consumables merge even when the backpack is already full.
+const unknownItem = (name = 'Healing Potion') => Object.assign(new Entity(), {
+  type: 'item', equipSlot: 'consumable', name, identified: false,
+});
+const firstUnknown = unknownItem();
+const secondUnknown = unknownItem();
+const label = firstUnknown.displayName;
+assert.match(label, /^Potion “.+”$/);
+assert.doesNotMatch(label, /Healing/);
+assert.equal(secondUnknown.displayName, label);
+assert.notEqual(unknownItem('Poison Potion').displayName, label);
+secondUnknown.level = 2;
+secondUnknown.x = 8;
+secondUnknown.count = 3;
+assert.equal(secondUnknown.displayName, label);
+secondUnknown.level = 0;
+const stackContext = { entities: [secondUnknown] };
+const stackHero = {
+  backpack: [firstUnknown], capacity: 1, context: stackContext,
+  refreshUI() {},
+};
+assert.equal(Hero.prototype.addItem.call(stackHero, secondUnknown), true);
+assert.equal(stackHero.backpack.length, 1);
+assert.equal(firstUnknown.count, 4);
+assert.equal(firstUnknown.displayName, label);
+assert.equal(firstUnknown.identified, false);
+assert.equal(stackContext.entities.length, 0);
+stackContext.messages = [];
+stackContext.entities.push(unknownItem('Poison Potion'));
+assert.equal(Hero.prototype.addItem.call(stackHero, stackContext.entities[0]), false);
+assert.equal(firstUnknown.count, 4, 'different unknown kinds must not merge');
+firstUnknown.identified = true;
+assert.equal(firstUnknown.displayName, 'Healing Potion');
+
 const strengthContext = {
   messages: [], entities: [],
   scene: { input: { on() {}, keyboard: { on() {} } } },
@@ -201,6 +236,9 @@ for (const [name, min, max] of [['WandOfFirebolt', 3, 6], ['WandOfFrost', 2, 5],
 }
 const might = new (itemClass('RingOfMight', { Ring }))({ messages: [] });
 const fang = new (itemClass('FangOfTheBeast'))({ messages: [] });
+assert.equal(fang.spriteTextureKey, 'fang-of-the-beast');
+assert.equal(fang.spriteFrame, 0);
+assert.equal(fang.unidentifiedTextureKey, fang.spriteTextureKey);
 for (let level = 0; level <= 3; level++) {
   for (const item of [might, fang]) {
     assert.ok(item.displayDescription.includes(`+${2 + level} damage`));

@@ -30,7 +30,7 @@ export default abstract class Wand extends Entity {
   // Category is intrinsic, not derived from the equipment slot: wands are
   // backpack tools, but remain recognizable before their magic is identified.
   get displayName(): string {
-    return this.identified ? super.displayName : "Wand";
+    return this.identified ? super.displayName : `Wand “${this.unidentifiedName}”`;
   }
 
   get unidentifiedTextureKey(): string {

@@ -51,7 +51,8 @@ for (const colour of ['red', 'green', 'blue', 'gold', 'purple']) {
   });
   assert.equal(potion.unidentifiedTextureKey, potion.spriteTextureKey,
     'unidentified potion icons retain their floor colour in inventory and quickslots');
-  assert.equal(potion.displayName, 'Potion', 'colour must not reveal the potion effect');
+  assert.match(potion.displayName, /^Potion “.+”$/);
+  assert.doesNotMatch(potion.displayName, /Healing/, 'colour must not reveal the potion effect');
   assert.equal(potion.identified, false);
   potion.identified = true;
   assert.equal(potion.spriteTextureKey, `potion-${colour}`);
@@ -66,7 +67,7 @@ for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
   const unknownWand = Object.assign(Object.create(Wand.prototype), {
     name, type: 'item', equipSlot: 'junk', identified: false, level: 0,
   });
-  assert.equal(unknownWand.displayName, 'Wand', 'backpack wands retain their category');
+  assert.match(unknownWand.displayName, /^Wand “.+”$/, 'backpack wands retain their category');
   assert.equal(unknownWand.unidentifiedTextureKey, 'unknown-wand');
   unknownWand.identified = true;
   assert.equal(unknownWand.displayName, name);

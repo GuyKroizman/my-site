@@ -689,7 +689,8 @@ const cursedGear = Object.assign(new Entity(), {
 });
 const replacement = Object.assign(new Entity(), { type: 'item', equipSlot: 'weapon' });
 curseHero.backpack = [cursedGear, replacement];
-assert.equal(cursedGear.displayName, 'Weapon', 'unknown gear hides identity and upgrades');
+assert.match(cursedGear.displayName, /^Weapon “.+”$/);
+assert.doesNotMatch(cursedGear.displayName, /Secret|Blade|\+3/, 'unknown gear hides identity and upgrades');
 const unknownActions = inventory.buildActions(curseHero, cursedGear);
 cursedGear.cursed = false;
 assert.deepEqual(inventory.buildActions(curseHero, cursedGear), unknownActions,
