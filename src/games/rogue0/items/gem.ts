@@ -10,7 +10,7 @@ export default class Gem extends Entity {
   type: EntityType = "item";
   tile = 4 * 49 + 23;
   tier = 1;
-  equipSlot: "junk" = "junk";
+  equipSlot: "consumable" = "consumable";
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();

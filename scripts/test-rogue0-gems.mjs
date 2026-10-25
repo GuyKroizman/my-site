@@ -27,6 +27,25 @@ for (let level = 0; level <= 3; level++) {
 }
 const Shield = load('src/games/rogue0/items/shield.ts', { Entity }).default;
 const Gem = load('src/games/rogue0/items/gem.ts', { Entity, upgrade, removeEntity, Shield }).default;
+// Real gem pickups must merge, including when the backpack is full.
+const Hero = load('src/games/rogue0/classes/basicHero.ts', { Entity }).default;
+const pickupContext = { entities: [], messages: [] };
+const collector = Object.assign(Object.create(Hero.prototype), {
+  context: pickupContext, backpack: [], capacity: 1, refreshUI() {},
+});
+const firstGem = new Gem(pickupContext);
+const secondGem = new Gem(pickupContext);
+secondGem.count = 3;
+pickupContext.entities.push(firstGem, secondGem);
+assert.equal(collector.addItem(firstGem), true);
+assert.equal(collector.addItem(secondGem), true);
+assert.deepEqual(collector.backpack, [firstGem]);
+assert.equal(firstGem.count, 4);
+assert.ok(!pickupContext.entities.includes(secondGem));
+collector.removeItem(firstGem);
+assert.equal(firstGem.count, 3);
+assert.deepEqual(collector.backpack, [firstGem]);
+
 // Avoid sprite construction; exercise actual item and entity methods.
 const context = { entities: [], messages: [] };
 const gem = Object.assign(Object.create(Gem.prototype), { context, count: 2, type: 'item', consumable: true });
