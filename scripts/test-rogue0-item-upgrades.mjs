@@ -257,6 +257,21 @@ const Chalice = itemClass('ChaliceOfBlood', {
 });
 const context = { messages: [], player: { name: 'Elf', healthPoints: 99, maxHealthPoints: 100 } };
 const chalice = new Chalice(context);
+// Artifact identity is visible independently of identification and curse state.
+for (const artifact of [chalice, fang]) {
+  const original = { identified: artifact.identified, cursed: artifact.cursed };
+  for (const cursed of [false, true]) {
+    artifact.identified = false;
+    artifact.cursed = cursed;
+    const suffix = artifact.level > 0 ? ` +${artifact.level}` : '';
+    assert.equal(artifact.displayName, `${artifact.name}${suffix}`);
+    assert.equal(artifact.isRecognizableEquipment, true);
+    assert.equal(artifact.isPhysicalEquipment, false, 'artifacts do not gain physical tiers');
+    assert.equal(artifact.identified, false, 'recognizing an artifact does not identify it');
+    assert.doesNotMatch(artifact.displayName, /cursed|Tier|“/);
+  }
+  Object.assign(artifact, original);
+}
 assert.equal(chalice.spriteTextureKey, 'chalice-of-blood');
 assert.equal(chalice.spriteFrame, 0);
 assert.equal(chalice.unidentifiedTextureKey, chalice.spriteTextureKey);

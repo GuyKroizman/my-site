@@ -459,10 +459,10 @@ export class InventoryWindow {
     );
     ay += 12;
 
-    // Physical properties are visible even while the curse status is unknown.
-    const description = item.identified || item.isPhysicalEquipment
+    // Recognizable equipment reveals its identity, but not its curse status.
+    const description = item.identified || item.isRecognizableEquipment
       ? [item.displayDescription, item.strengthDescription(player.strength),
-          !item.identified && item.isPhysicalEquipment
+          !item.identified && item.isRecognizableEquipment
             ? "Curse status unknown. Cursed equipment cannot be removed once equipped and may have other harmful effects."
             : ""].filter(Boolean).join("\n")
       : item instanceof Wand

@@ -134,12 +134,17 @@ export abstract class Entity {
     return this.type === "item" && (this.equipSlot === "weapon" || this.equipSlot === "armor");
   }
 
+  // Artifacts are recognizable on sight too; curse knowledge remains separate.
+  get isRecognizableEquipment(): boolean {
+    return this.isPhysicalEquipment || (this.type === "item" && this.equipSlot === "artifact");
+  }
+
   get displayName(): string {
     if (this.isPhysicalEquipment) {
       const level = this.level > 0 ? ` +${this.level}` : "";
       return `${this.name}${level} (Tier ${this.tier})`;
     }
-    if (this.identified) {
+    if (this.identified || this.isRecognizableEquipment) {
       return this.type === "item" && this.level > 0 ? `${this.name} +${this.level}` : this.name;
     }
     const category = this.equipSlot === "weapon"
