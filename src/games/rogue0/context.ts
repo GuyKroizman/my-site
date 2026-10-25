@@ -27,6 +27,8 @@ export type GameContext = {
   upstairsX?: number;
   upstairsY?: number;
   onAscend?: () => void;
+  // Scene owns monster construction; terrain requests one bounded reinforcement.
+  onSummonTrap?: (x: number, y: number) => boolean;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   heroModalOpen?: boolean;

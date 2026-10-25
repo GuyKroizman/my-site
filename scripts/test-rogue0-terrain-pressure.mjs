@@ -28,6 +28,9 @@ for (let i = 0; i < 200; i++) {
   const secret = features.find(f => f.feature === 'secretDoor');
   assert.ok(secret, 'every floor has a secret branch');
   assert.ok(features.some(f => f.trapKind === 'arrow' && f.trap === 'visible'));
+  for (const f of features.filter(f => f.feature === 'trap')) {
+    assert.equal(!!f.trapReusable, ['frost', 'teleport', 'alarm'].includes(f.trapKind));
+  }
   const { x, y } = secret;
   assert.equal(map[y][x], 1);
   assert.equal(map[y + 1][x], 0);
@@ -117,7 +120,7 @@ ctx.scene = {};
 dungeon.moveEntityTo(ctx, walker, 3, 3);
 assert.equal(walker.healthPoints, 5, 'monster stepping triggers plate at new position');
 // Search reveals traps but never disables them, even on repeated use.
-for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow']) {
+for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 'alarm']) {
   const searcher = Object.create(Hero.prototype);
   Object.assign(searcher, { x: 2, y: 3, context: setup([]), walkPath: [1] });
   tiles.setFeature(3, 3, 'trap', { trapKind, trap: 'visible' });
@@ -330,6 +333,8 @@ const flightDungeon = load('dungeon', { PF, tiles, ...fov,
   removeEffect: (e, id) => flightEffects.removeEffect(e, id),
   applyEffect: (e, effect) => flightEffects.applyEffect(e, effect),
   createPoisonedEffect: () => flightEffects.createPoisonedEffect(),
+  createBurningEffect: () => flightEffects.createBurningEffect(),
+  createFrozenEffect: () => flightEffects.createFrozenEffect(),
   sfx: { step() {} }
 }).default;
 const flightEffects = load('effects', { dungeon: flightDungeon, spawnEntityFloatingText() {} });
@@ -415,4 +420,91 @@ for (const feature of ['water', 'grass', 'dart', 'arrow']) {
   assert.equal(ctx.pendingFall, true);
   assert.equal(flyer.x, 3);
 }
-console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, arrows, stacks, deaths and levitation passed');
+// Activation policy is independent of trap kind, and is never a world-time timer.
+for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 'alarm']) {
+  for (const trapReusable of [false, true]) {
+    const { ctx, flyer } = flightSetup();
+    flyer.healthPoints = 100; flyer.x = 1;
+    let summons = 0;
+    ctx.onSummonTrap = (x, y) => {
+      assert.deepEqual([x, y], [2, 2]); summons++; return true;
+    };
+    const listeners = [[10, 2, 10], [11, 2, 10], [2, 1, 0]].map(([x, y, hp]) =>
+      Object.assign(new Entity(), { type: 'enemy', x, y, healthPoints: hp }));
+    ctx.entities.push(...listeners);
+    tiles.clearFeature(3, 2);
+    flightDungeon.pathGrid.setWalkableAt(3, 2, true);
+    tiles.setFeature(2, 2, 'trap', { trapKind, trapReusable, trap: 'hidden' });
+    assert.equal(tiles.describeTile(tiles.getTileState(2, 2), false), 'Stone floor.');
+    assert.equal(flightDungeon.searchAround(1, 2), 1);
+    assert.equal(flightDungeon.searchAround(1, 2), 0);
+    assert.equal(tiles.getTrapState(2, 2), 'visible', 'search reveals, never disarms');
+    assert.equal(tiles.getTileState(2, 2).trapReusable, trapReusable);
+    assert.match(tiles.describeTile(tiles.getTileState(2, 2), false),
+      trapReusable ? /Reusable/ : /Single-use/);
+    tiles.setTrapState(2, 2, 'hidden');
+    let activations = 0;
+    flightDungeon.onTerrainChanged = () => activations++;
+    const randomTile = flightDungeon.randomWalkableTile;
+    flightDungeon.randomWalkableTile = () => ({ x: 4, y: 2 });
+    flightEffects.applyEffect(flyer, flightEffects.createLevitatingEffect());
+    flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+    assert.equal(activations, 0, 'flight never activates reusable traps either');
+    assert.equal(summons, 0);
+    assert.equal(listeners[0].lastSeenX, undefined);
+    flightEffects.removeEffect(flyer, 'levitating');
+    flyer.x = 1;
+    flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+    assert.equal(activations, 1);
+    assert.equal(tiles.getTrapState(2, 2), trapReusable ? 'visible' : 'triggered');
+    assert.match(tiles.describeTile(tiles.getTileState(2, 2), false),
+      trapReusable ? /Reusable/ : /triggered/);
+    if (trapReusable) {
+      assert.deepEqual(flightDungeon.findPath(1, 2, 4, 2, true, true, flyer), [],
+        'auto-walk still avoids an activated reusable trap');
+      assert.equal(flightDungeon.findPath(1, 2, 2, 2, true, true, flyer).length, 2,
+        'explicitly selecting the trap permits entry');
+    }
+    if (trapKind === 'teleport') assert.equal(flyer.x, 4);
+    if (trapKind === 'frost') assert.equal(flightEffects.hasEffect(flyer, 'frozen'), true);
+    flightDungeon.moveEntityTo(ctx, flyer, flyer.x, flyer.y);
+    assert.equal(activations, 1, 'standing on the tile is not another entry');
+    flightDungeon.moveEntityTo(ctx, flyer, 1, 2);
+    flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+    assert.equal(activations, trapReusable ? 2 : 1, 'only reusable traps reactivate');
+    assert.equal(ctx.simulationTime, 0.5, 'no rearming timer or extra action cost');
+    assert.equal(summons, trapKind === 'summon' ? (trapReusable ? 2 : 1) : 0);
+    if (trapKind === 'alarm') {
+      assert.deepEqual([listeners[0].lastSeenX, listeners[0].lastSeenY], [2, 2], 'inclusive noise radius');
+      assert.equal(listeners[0].awareOfPlayer, false, 'noise is not player vision');
+      assert.equal(listeners[1].lastSeenX, undefined, 'outside radius unaffected');
+      assert.equal(listeners[2].lastSeenX, undefined, 'dead actors unaffected');
+    }
+    // Search and snapshot restoration must preserve the activation policy/state.
+    flightDungeon.searchAround(1, 2);
+    const saved = { ...tiles.getTileState(2, 2) };
+    tiles.clearAllFeatures();
+    tiles.setFeature(2, 2, saved.feature, saved);
+    assert.equal(tiles.getTileState(2, 2).trapReusable, trapReusable);
+    assert.equal(tiles.activateTrap(2, 2), trapReusable);
+    flightDungeon.randomWalkableTile = randomTile;
+    tiles.setFeature(2, 2, 'grass');
+    assert.equal(tiles.getTileState(2, 2).trapReusable, undefined);
+    tiles.setFeature(2, 2, 'trap');
+    assert.equal(tiles.getTileState(2, 2).trapReusable, false, 'legacy traps remain single-use');
+  }
+}
+{
+  const { ctx, flyer } = flightSetup();
+  flyer.x = 1;
+  let attempts = 0;
+  ctx.onSummonTrap = () => { attempts++; return false; };
+  tiles.setFeature(2, 2, 'trap', { trapKind: 'summon', trap: 'hidden' });
+  flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+  assert.equal(tiles.getTrapState(2, 2), 'triggered', 'blocked summons still consume the trap');
+  assert.ok(ctx.messages.some(message => message.includes('fizzles')));
+  flightDungeon.moveEntityTo(ctx, flyer, 1, 2);
+  flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
+  assert.equal(attempts, 1, 'fizzled single-use trap does not retry');
+}
+console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, reusable/summon/alarm traps, arrows, stacks, deaths and levitation passed');

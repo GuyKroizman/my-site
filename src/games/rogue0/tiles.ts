@@ -9,7 +9,7 @@ export type TerrainFeature = "door" | "secretDoor" | "trap" | "grass" | "water" 
 
 export type DoorState = "open" | "closed";
 export type TrapState = "hidden" | "visible" | "triggered";
-export type TrapKind = "dart" | "arrow" | "fire" | "frost" | "teleport";
+export type TrapKind = "dart" | "arrow" | "fire" | "frost" | "teleport" | "summon" | "alarm";
 
 export type TileState = {
   // Optical override for glass walls/crystal doors, independent of movement.
@@ -18,6 +18,8 @@ export type TileState = {
   door?: DoorState;
   trap?: TrapState;
   trapKind?: TrapKind;
+  // Reusable traps stay visibly armed and activate on each new contact.
+  trapReusable?: boolean;
 };
 
 // Placement returned by mapgen so scene0 can populate this overlay.
@@ -29,6 +31,7 @@ export type FeaturePlacement = {
   door?: DoorState;
   trap?: TrapState;
   trapKind?: TrapKind;
+  trapReusable?: boolean;
 };
 
 // Placeholder tile indices picked from colored.png. These are intentionally
@@ -54,7 +57,7 @@ export function setFeature(
   x: number,
   y: number,
   feature: TerrainFeature,
-  opts: { door?: DoorState; trap?: TrapState; trapKind?: TrapKind; blocksSight?: boolean } = {}
+  opts: { door?: DoorState; trap?: TrapState; trapKind?: TrapKind; trapReusable?: boolean; blocksSight?: boolean } = {}
 ): void {
   const k = key(x, y);
   const existing = features.get(k);
@@ -67,14 +70,17 @@ export function setFeature(
     stored.door = opts.door ?? stored.door ?? "closed";
     delete stored.trap;
     delete stored.trapKind;
+    delete stored.trapReusable;
   } else if (feature === "trap") {
     stored.trap = opts.trap ?? stored.trap ?? "hidden";
     stored.trapKind = opts.trapKind ?? stored.trapKind ?? "dart";
+    stored.trapReusable = opts.trapReusable ?? stored.trapReusable ?? false;
     delete stored.door;
   } else {
     delete stored.door;
     delete stored.trap;
     delete stored.trapKind;
+    delete stored.trapReusable;
   }
 
   features.set(k, stored);
@@ -118,6 +124,15 @@ export function setTrapState(x: number, y: number, state: TrapState): void {
   tile.trap = state;
 }
 
+// Consume the activation before resolving its effect (teleports can move actors).
+// No timer: reusable traps reveal themselves and stay armed for the next entry.
+export function activateTrap(x: number, y: number): boolean {
+  const tile = features.get(key(x, y));
+  if (!tile || tile.feature !== "trap" || tile.trap === "triggered") return false;
+  tile.trap = tile.trapReusable ? "visible" : "triggered";
+  return true;
+}
+
 export function getTrapKind(x: number, y: number): TrapKind | undefined {
   const tile = features.get(key(x, y));
   return tile?.feature === "trap" ? tile.trapKind : undefined;
@@ -154,7 +169,9 @@ const TRAP_LABELS: Record<TrapKind, string> = {
   arrow: "arrow trap (throw an object onto it to shoot the nearest character)",
   fire: "fire trap (burns)",
   frost: "frost trap (freezes)",
-  teleport: "teleport trap"
+  teleport: "teleport trap",
+  summon: "summoning trap (calls one Skeleton into an empty adjacent tile)",
+  alarm: "alarm trap (wakes enemies within 8 tiles, even through walls)"
 };
 
 // Human-readable description of a tile for the Inspect command.
@@ -181,7 +198,9 @@ export function describeTile(
         if (state.trap === "hidden") return "Stone floor.";
         const label = TRAP_LABELS[state.trapKind ?? "dart"] ?? "trap";
         if (state.trap === "triggered") return `A triggered ${label}.`;
-        return `A ${label}.`;
+        return `A ${label}. ${state.trapReusable
+          ? "Reusable: triggers on each entry; remains armed."
+          : "Single-use: spent after activation."}`;
       }
     }
   }

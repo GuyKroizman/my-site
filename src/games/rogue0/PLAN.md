@@ -339,11 +339,30 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
       Regression coverage checks discovery range, inspect secrecy, terrain
       refresh, opening, pathfinding/FOV and restored feature state across 200
       generated maps. Visual playtesting remains deferred.
-- [ ] Support both single-use and reusable traps (current implementation is
-      single-use); decide use limits/rearming behavior per trap type.
+- [x] Support single-use and reusable traps. Newly generated frost/teleport
+      traps are reusable; dart/fire/arrow traps remain single-use (summon/alarm
+      policies below). Reusable traps
+      reveal themselves on activation and remain armed indefinitely, with no
+      cooldown or timer: each new entry triggers them, standing still does not.
+      Search never disarms them; levitation bypasses contact. Inspect explains
+      reuse only after discovery, auto-walk keeps avoiding armed traps, and
+      floor snapshots preserve the policy/state. Legacy traps without a reuse
+      flag remain single-use. Terrain/stair regressions cover both policies,
+      all seven trap kinds, re-entry, no-op movement, search and persistence.
+      Visual playtesting remains deferred.
 - Search only reveals traps and secrets; it must never disarm traps.
   Item-based disarming is a possible future mechanic, not currently implemented.
-- [ ] Summon/alarm traps.
+- [x] Summon/alarm traps join the two-hidden-traps generation pool (no extra
+      trap density). Summon is single-use: one awake Skeleton appears on an
+      empty cardinally adjacent floor/grass/water tile, excluding stairs,
+      doors, hazards, actors and loot. If no tile is available it fizzles and
+      is still spent. New summons enter the current simulation timeline.
+      Alarm is reusable: living enemies within Chebyshev radius 8 wake and
+      investigate the trap coordinate, even through walls or player invisibility;
+      it does not grant ongoing player awareness or free attacks. Both retain
+      inspect secrecy, search-only discovery, levitation bypass and saved-floor
+      state. Terrain/stair/monster suites cover activation, safe placement,
+      range, investigation and persistence. Visual playtesting remains deferred.
 - [x] Functional levitation: chasm traversal for keyboard/auto-walk, no ground
       trap/water/grass contact, and world-time expiry. Over a chasm, expiry
       makes the player fall to the next floor and take ceil(max HP / 3) damage,

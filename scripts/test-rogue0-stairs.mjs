@@ -9,12 +9,22 @@ const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.Mod
 const exports = {};
 const map = [[0, 1], [0, 0]];
 const door = { feature: 'door', door: 'open' };
-const tiles = { forEachFeature: fn => fn(0, 1, door) };
+const trap = { feature: 'trap', trap: 'visible', trapKind: 'frost', trapReusable: true };
+const applied = [];
+const tiles = {
+  forEachFeature: fn => { fn(0, 1, door); fn(1, 1, trap); },
+  clearAllFeatures() { applied.length = 0; },
+  setFeature(x, y, feature, opts) { applied.push({ x, y, feature, ...opts }); }
+};
 const dungeon = { getCurrentLevel: () => map, log() {} };
 let deaths = 0;
-new Function('exports', 'Phaser', 'tiles', 'dungeon', 'isModalOpen', 'sfx', 'removeEntity', js)(
+class TrapSkeleton {
+  constructor(context, x, y) { Object.assign(this, { context, x, y, type: 'enemy' }); }
+  hearNoise(x, y) { this.noise = [x, y]; }
+}
+new Function('exports', 'Phaser', 'tiles', 'dungeon', 'isModalOpen', 'sfx', 'removeEntity', 'Skeleton', js)(
   exports, { Scene: class {} }, tiles, dungeon, () => false, { stairs() {} },
-  () => { deaths++; });
+  () => { deaths++; }, TrapSkeleton);
 const scene = Object.create(exports.Scene0.prototype);
 const gear = { name: 'carried potion' };
 const player = { x: 0, y: 0, canAct: () => true, getAllItems: () => [gear] };
@@ -34,6 +44,12 @@ scene.seen[0][0] = false;
 assert.equal(saved.map[0][0], 0);
 assert.equal(saved.features[0].door, 'open');
 assert.equal(saved.seen[0][0], true);
+trap.trapReusable = false;
+assert.equal(saved.features[1].trapReusable, true, 'snapshot copies reuse policy');
+scene.featureSprites = new Map();
+scene.applyFeatures(saved.features);
+assert.equal(applied[1].trapReusable, true, 'floor restoration forwards reuse policy');
+assert.equal(applied[1].trap, 'visible', 'reusable trap remains armed on revisit');
 let restored;
 scene.restoreFloor = (...args) => { restored = args; };
 scene.floors.set(1, { ...saved, down: { x: 4, y: 5 } });
@@ -95,4 +111,36 @@ scene.resolveFall();
 assert.equal(scene.context.floor, 5);
 assert.equal(player.healthPoints, 0);
 assert.equal(deaths, 2);
-console.log('Rogue0 floor snapshots, exploration, terrain, entity retention, stair travel and damaging falls passed');
+// Real scene-owned summon placement: bounded, cardinal, safe, current timeline.
+{
+  const summoner = Object.create(exports.Scene0.prototype);
+  const summonMap = Array.from({ length: 5 }, () => Array(5).fill(0));
+  dungeon.getCurrentLevel = () => summonMap;
+  const features = new Map();
+  tiles.getFeature = (x, y) => features.get(`${x},${y}`);
+  const ctx = { simulationTime: 37.5, entities: [{ type: 'player', x: 1, y: 2 }],
+    stairsX: 2, stairsY: 3, upstairsX: 2, upstairsY: 1 };
+  summoner.context = ctx;
+  assert.equal(summoner.summonFromTrap(2, 2), true);
+  assert.equal(ctx.entities.length, 2, 'exactly one reinforcement');
+  const skeleton = ctx.entities[1];
+  assert.ok(skeleton instanceof TrapSkeleton);
+  assert.deepEqual([skeleton.x, skeleton.y], [3, 2]);
+  assert.deepEqual(skeleton.noise, [2, 2]);
+  assert.equal(skeleton.nextActionTime, 37.5);
+  assert.equal(summoner.summonFromTrap(2, 2), false, 'occupied/stair tiles excluded');
+  ctx.entities.pop();
+  for (const feature of ['chasm', 'trap', 'secretDoor', 'door']) {
+    features.set('3,2', feature);
+    assert.equal(summoner.summonFromTrap(2, 2), false, `${feature} not a safe summon tile`);
+  }
+  features.clear();
+  ctx.entities.push({ type: 'item', x: 3, y: 2 });
+  assert.equal(summoner.summonFromTrap(2, 2), false, 'loot tiles excluded');
+  ctx.entities.pop(); summonMap[2][3] = 1;
+  assert.equal(summoner.summonFromTrap(2, 2), false, 'wall excluded');
+  summonMap[2][3] = 0;
+  features.set('3,2', 'water');
+  assert.equal(summoner.summonFromTrap(2, 2), true, 'water is safe for grounded summons');
+}
+console.log('Rogue0 floor snapshots, exploration, terrain, safe trap summons, entity retention, stair travel and damaging falls passed');

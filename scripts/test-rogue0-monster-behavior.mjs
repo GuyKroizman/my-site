@@ -62,6 +62,18 @@ function setup() {
   manager.reset(context.entities);
   return { context, player, monster };
 }
+// Alarm-style noise wakes sleepers but only supplies a fixed investigation target.
+{
+  const { player, monster } = setup();
+  player.effects = [{ id: 'invisible' }];
+  monster.hearNoise(4, 2);
+  assert.equal(monster.sleeping, false);
+  assert.equal(monster.awareOfPlayer, false);
+  assert.deepEqual([monster.lastSeenX, monster.lastSeenY], [4, 2]);
+  monster.turn();
+  assert.deepEqual([monster.x, monster.y], [3, 2], 'investigates noise without seeing the player');
+  assert.deepEqual([monster.lastSeenX, monster.lastSeenY], [4, 2], 'does not track invisible player');
+}
 let { context, player, monster } = setup();
 assert.equal(monster.sleeping, true);
 roll = 12;

@@ -98,6 +98,11 @@ export default class Monster extends Entity {
     this.sleepTurnsRemaining = 0;
   }
 
+  hearNoise(x: number, y: number): void {
+    this.wakeUp();
+    super.hearNoise(x, y);
+  }
+
   takeDamage(amount: number, interruptNavigation = true): void {
     super.takeDamage(amount, interruptNavigation);
     if (amount > 0) this.wakeUp();

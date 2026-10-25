@@ -48,6 +48,12 @@ export abstract class Entity {
   awareOfPlayer: boolean = false;
   lastSeenX?: number;
   lastSeenY?: number;
+
+  hearNoise(x: number, y: number): void {
+    // An investigation target, not magical awareness of the player's position.
+    this.lastSeenX = x;
+    this.lastSeenY = y;
+  }
   xpValue: number = 0;
 
   // Item model v2 (G3). Optional with defaults so existing items still

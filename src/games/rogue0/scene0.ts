@@ -251,6 +251,7 @@ export class Scene0 extends Phaser.Scene {
     // Mobile/tap descend hook.
     this.context.onDescend = () => this.tryDescend();
     this.context.onAscend = () => this.tryAscend();
+    this.context.onSummonTrap = (x, y) => this.summonFromTrap(x, y);
     // Re-center the camera on the player after a free pan.
     this.context.onResumeFollow = () => this.resumeFollow();
   }
@@ -594,6 +595,26 @@ export class Scene0 extends Phaser.Scene {
     dungeon.log(this.context, `You descend to floor ${next}.`);
   }
 
+  private summonFromTrap(x: number, y: number): boolean {
+    const context = this.context;
+    const map = dungeon.getCurrentLevel();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      const feature = tiles.getFeature(nx, ny);
+      if (map[ny]?.[nx] !== 0 || (feature && feature !== "grass" && feature !== "water") ||
+          (nx === context.stairsX && ny === context.stairsY) ||
+          (nx === context.upstairsX && ny === context.upstairsY) ||
+          context.entities.some(e => e.x === nx && e.y === ny)) continue;
+      const skeleton = new Skeleton(context, nx, ny);
+      skeleton.hearNoise(x, y);
+      // Spawn on the current timeline, never with overdue actions from time zero.
+      skeleton.nextActionTime = context.simulationTime ?? 0;
+      context.entities.push(skeleton);
+      return true;
+    }
+    return false;
+  }
+
   private saveFloor() {
     const player = this.context.player!;
     const carried = new Set([player, ...player.getAllItems()]);
@@ -814,7 +835,8 @@ export class Scene0 extends Phaser.Scene {
         door: f.door,
         blocksSight: f.blocksSight,
         trap: f.trap,
-        trapKind: f.trapKind
+        trapKind: f.trapKind,
+        trapReusable: f.trapReusable
       });
     }
   }

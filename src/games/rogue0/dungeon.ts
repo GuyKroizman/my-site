@@ -230,7 +230,7 @@ let dungeon = {
   triggerArrowTrap: function (context: GameContext, x: number, y: number): boolean {
     const state = tiles.getTileState(x, y);
     if (state?.feature !== "trap" || state.trapKind !== "arrow" || state.trap === "triggered") return false;
-    tiles.setTrapState(x, y, "triggered");
+    if (!tiles.activateTrap(x, y)) return false;
     this.onTerrainChanged?.();
     const actors = context.entities.filter(e =>
       (e.type === "player" || e.type === "enemy") && e.healthPoints > 0 &&
@@ -337,6 +337,7 @@ let dungeon = {
 
     const oldX = entity.x;
     const oldY = entity.y;
+    const entering = oldX !== x || oldY !== y;
     const closeDoorBehind = () => {
       if (oldX === undefined || oldY === undefined ||
           (oldX === entity.x && oldY === entity.y) ||
@@ -359,16 +360,31 @@ let dungeon = {
     }
 
     // Only grounded players trigger ordinary traps.
-    if (entity.type === "player" && !flying) {
+    if (entity.type === "player" && !flying && entering) {
       const state = tiles.getTileState(destX, destY);
       if (state && state.feature === "trap" && state.trapKind !== "arrow" && state.trap !== "triggered") {
-        tiles.setTrapState(destX, destY, "triggered");
+        tiles.activateTrap(destX, destY);
         this.onTerrainChanged?.();
 
         const kind = state.trapKind ?? "dart";
         this.log(context, `You step on a ${kind} trap!`);
 
         switch (kind) {
+          case "summon":
+            this.log(context, context.onSummonTrap?.(destX, destY)
+              ? "The trap summons a Skeleton!"
+              : "The summoning trap fizzles: no room for a Skeleton.");
+            break;
+          case "alarm":
+            for (const enemy of context.entities) {
+              if (enemy.type === "enemy" && enemy.healthPoints > 0 &&
+                  enemy.x !== undefined && enemy.y !== undefined &&
+                  Math.max(Math.abs(enemy.x - destX), Math.abs(enemy.y - destY)) <= 8) {
+                enemy.hearNoise(destX, destY);
+              }
+            }
+            this.log(context, "An alarm rings out! Nearby enemies investigate the noise.");
+            break;
           case "dart":
             applyEffect(entity, createPoisonedEffect());
             break;
@@ -406,7 +422,7 @@ let dungeon = {
         !context.visibleTiles.has(`${destX},${destY}`)) {
       entity.x = destX;
       entity.y = destY;
-      if (!flying) this.triggerArrowTrap(context, destX, destY);
+      if (!flying && entering) this.triggerArrowTrap(context, destX, destY);
       closeDoorBehind();
       entity.sprite?.setPosition(
         context.map.tileToWorldX(destX)!, context.map.tileToWorldY(destY)!
@@ -417,7 +433,7 @@ let dungeon = {
     // The sprite animates independently of the logical tile coordinates.
     entity.x = destX;
     entity.y = destY;
-    if (entity.type !== "item" && !flying) this.triggerArrowTrap(context, destX, destY);
+    if (entity.type !== "item" && !flying && entering) this.triggerArrowTrap(context, destX, destY);
     if (entity.healthPoints <= 0 && entity.type !== "item") {
       closeDoorBehind();
       return;
