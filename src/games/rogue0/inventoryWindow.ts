@@ -422,9 +422,12 @@ export class InventoryWindow {
     );
     ay += 12;
 
-    // Full description, hidden until the item is identified.
-    const description = item.identified
-      ? [item.displayDescription, item.strengthDescription(player.strength)].filter(Boolean).join("\n")
+    // Physical properties are visible even while the curse status is unknown.
+    const description = item.identified || item.isPhysicalEquipment
+      ? [item.displayDescription, item.strengthDescription(player.strength),
+          !item.identified && item.isPhysicalEquipment
+            ? "Curse status unknown. Cursed equipment cannot be removed once equipped and may have other harmful effects."
+            : ""].filter(Boolean).join("\n")
       : item instanceof Wand
         ? "An unidentified wand. Its kind of magic is unknown."
         : "You have not identified this item.";

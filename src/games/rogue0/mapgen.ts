@@ -263,7 +263,7 @@ export function generateMap(floor = 1): GeneratedMap {
   }
 
   // A couple of hidden traps.
-  const trapKinds: TrapKind[] = ["dart", "fire", "frost", "teleport", "summon", "alarm"];
+  const trapKinds: TrapKind[] = ["dart", "fire", "frost", "teleport", "summon", "alarm", "geyser", "confusion"];
   const trapCount = 2;
   for (let i = 0; i < trapCount; i++) {
     const tile = shuffle(roomTiles.filter((t) => !used.has(`${t.x},${t.y}`)))[0];

@@ -2,7 +2,7 @@
 // `map` is a 2D array where 0 = walkable, 1 = wall.
 //
 // Closed doors hide tiles beyond them, but the door itself stays visible.
-import { getDoorState, getTileState } from "./tiles";
+import { getDoorState, getTileState, isGrassConcealed } from "./tiles";
 
 export type VisionParameters = {
   baseRadius?: number;
@@ -101,6 +101,7 @@ export function canSee(
   const dx = x1 - x0;
   const dy = y1 - y0;
   if (dx * dx + dy * dy > radius * radius) return false;
+  if (isGrassConcealed(x1, y1, x0, y0)) return false;
   return hasLineOfSight(map, x0, y0, x1, y1);
 }
 

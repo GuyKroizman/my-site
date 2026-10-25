@@ -370,7 +370,57 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
       never a win. Falls preserve floor snapshots and resolve outside scheduler
       iteration; no safe-return or emergency-hover behaviour. Shared path grids
       remain unchanged. Covered by terrain/stair regressions; not visually playtested.
-- [ ] Grass concealment and chasm pushing/voluntary jumping.
+- [x] Grass concealment: grass tiles remain visible, but occupants (actors and
+      loot) are hidden beyond Chebyshev distance 1, including while levitating.
+      Adjacent observers reveal them; enemy awareness, player inspection,
+      automatic skill targeting and click attacks respect cover. Mind Vision
+      still marks hidden enemies without enabling optical targeting; Magical
+      Sight reveals terrain but does not bypass grass concealment. Tile-aimed
+      throws can still hit concealed actors. Attacks flatten the attacker's
+      grass after computing surprise, even on a miss, preventing repeated cover
+      ambushes. Cleared cover uses the existing terrain snapshot mechanism;
+      fire also removes concealment. Vision regressions cover detection,
+      ambush consumption, targeting and inspect secrecy. Visual/balance
+      playtesting remains deferred.
+- [x] Voluntary chasm drops: Jump (`v` or the HUD arrow) targets a cardinally
+      adjacent empty chasm; Enter/tap commits and Esc cancels. Successful jumps
+      cost movement time, invalid/cancelled attempts cost nothing. Rooted and
+      levitating players cannot deliberately drop. Existing fall rules apply:
+      descend one floor, lose ceil(max HP / 3), potentially die; final-floor
+      falls are fatal. Normal movement and auto-walk still avoid chasms.
+- [x] Effect-level knockback groundwork: a cardinal one-tile displacement can
+      move either player or monster, preserving terrain contacts and victim
+      scheduling. Walls/closed doors, occupied destinations and rooted victims
+      block it. Grounded chasm victims fall (monsters die through normal removal;
+      players queue the existing floor transition); levitating victims stay aloft.
+      There is deliberately **no player shove ability**. Terrain/movement/stair
+      regressions cover the primitives, targeting and fall rules. Visual and
+      balance playtesting remain deferred.
+- [x] Geyser traps provide an actual involuntary push source. They join the
+      existing two-hidden-traps generation pool (no density increase), single-use
+      by default. Entry by a grounded player or monster reveals/spends the trap
+      and pushes that actor one tile in the entry direction; diagonal entry uses
+      the horizontal component. Walls, closed doors, occupied destinations and
+      roots stop displacement, but still spend the trap. No direct damage or
+      extra victim action cost. Levitation/items bypass activation; standing still
+      never triggers it. Landings retain terrain contacts and can chain geysers
+      or cause chasm falls using the existing player/monster fall paths. Search
+      reveals without disarming; spent state survives floor snapshots. Terrain
+      regressions cover both actor types, flight, blockers, directions, chaining,
+      timing, discovery and persistence. Visual/balance playtesting is deferred.
+- [x] Confusion-driven missteps: Confused lasts four world-time units. Each
+      movement attempt chooses one random cardinal direction without safety
+      rerolls; walls, closed doors and actors block it but still cost movement
+      time. Rooted actors cannot attempt a stumble. Chasm entry causes the normal
+      fall unless levitating. Keyboard movement, auto-walk and enemy movement
+      (including fleeing) share the helper; deliberate attacks/aiming are not
+      scrambled, and landing items are not automatically picked up. Auto-walk and
+      buffered commands clear on a player stumble. Single-use confusion traps
+      join the existing hidden-trap pool and affect grounded players/monsters;
+      levitation bypasses them, and search only reveals them. Effect phases,
+      fractional movement costs, blockers, falls, keyboard/auto-walk and AI
+      behavior have terrain regression coverage. Visual/balance playtesting
+      remains deferred.
 - [x] Frozen water: applying Frozen freezes water under/cardinally adjacent to
       the target (including repeat applications). Frost potions thrown onto empty
       water can create ice and are consumed on a successful terrain splash.
@@ -642,6 +692,9 @@ coverage and small-screen readability before marking this phase complete.
   Region themes and additional bosses remain separate future work.
 - **Cursed items are locked on** until Remove Curse/well — do not allow
   unequipping via the normal toggle path.
+- **No freely available player shove ability.** Involuntary chasm falls should
+  come from confusion or displacement effects/traps, affecting either side.
+  Explicit voluntary jumping is separate.
 - **Ranged/melee and click-vs-keyboard controls stay as-is**; new systems
   (search, open/close, aim) get keyboard bindings + tap fallback.
 - **Inventory moves out of the sidebar into a modal window** opened by a

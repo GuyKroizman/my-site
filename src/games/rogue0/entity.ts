@@ -70,7 +70,7 @@ export abstract class Entity {
   }
 
   strengthDescription(strength: number): string {
-    if (!this.identified || !this.usesStrength) return "";
+    if (!this.usesStrength) return "";
     const deficit = Math.max(0, this.requiredStrength - strength);
     const warning = deficit > 0
       ? this.equipSlot === "weapon"
@@ -128,8 +128,17 @@ export abstract class Entity {
     return label[0].toUpperCase() + label.slice(1);
   }
 
-  // Keep the category visible without revealing the item's actual effect.
+  // Physical equipment is recognizable; identification reveals its curse state,
+  // not whether it is a sword, axe, or suit of armor.
+  get isPhysicalEquipment(): boolean {
+    return this.type === "item" && (this.equipSlot === "weapon" || this.equipSlot === "armor");
+  }
+
   get displayName(): string {
+    if (this.isPhysicalEquipment) {
+      const level = this.level > 0 ? ` +${this.level}` : "";
+      return `${this.name}${level} (Tier ${this.tier})`;
+    }
     if (this.identified) {
       return this.type === "item" && this.level > 0 ? `${this.name} +${this.level}` : this.name;
     }

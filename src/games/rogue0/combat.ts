@@ -8,6 +8,7 @@
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import { canSee } from "./fov";
+import * as tiles from "./tiles";
 import {
   hasEffect,
   createBleedingEffect
@@ -57,7 +58,8 @@ export function isSurpriseAttack(
   // A player defender is surprised when the attacker is outside the player's
   // current field of view.
   if (defender.type === "player") {
-    return !context.visibleTiles.has(`${attacker.x},${attacker.y}`);
+    return !context.visibleTiles.has(`${attacker.x},${attacker.y}`) ||
+      tiles.isGrassConcealed(attacker.x, attacker.y, defender.x, defender.y);
   }
 
   // A monster that just rounded cover has not had a chance to react yet.
@@ -87,6 +89,13 @@ export function resolveAttack(
   const damageType = opts.damageType ?? "physical";
   const appliedEffects: StatusEffect[] = [];
   const surprise = isSurpriseAttack(context, attacker, defender);
+
+  // Resolve the opening ambush before destroying cover, including on a miss.
+  if (attacker.x !== undefined && attacker.y !== undefined &&
+      tiles.getFeature(attacker.x, attacker.y) === "grass") {
+    tiles.clearFeature(attacker.x, attacker.y);
+    context.onCoverChanged?.();
+  }
 
   // An attack reveals the player's location even on a miss. Consume the
   // ambush before the next attack, including multiple fast player actions.

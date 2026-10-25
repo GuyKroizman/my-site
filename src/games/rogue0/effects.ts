@@ -278,6 +278,10 @@ export function createTerrifiedEffect(duration = 4): StatusEffect {
   };
 }
 
+export function createConfusedEffect(duration = 4): StatusEffect {
+  return { id: "confused", name: "Confused", iconTile: 19 * 49 + 43, duration };
+}
+
 // Vision effects are resolved dynamically by scene0; expiry restores normal sight.
 export function createTorchEffect(duration = 100): StatusEffect {
   return { id: "torch", name: "Torchlight", iconTile: 19 * 49 + 43, duration };

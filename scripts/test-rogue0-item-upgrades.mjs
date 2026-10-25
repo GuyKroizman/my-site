@@ -41,7 +41,7 @@ for (const file of ['inventoryWindow.ts', 'quickslotPane.ts']) {
   assert.match(source, /item\.spriteFrame/);
   assert.doesNotMatch(source, /item\.identified\s*&&\s*item\.tint/);
 }
-// Upgrading must not identify unknown gear through log text or reveal its level.
+// Upgrading reveals physical stats, but must not identify the curse status.
 const unknownGear = Object.assign(new Entity(), {
   context: { messages: [] }, type: 'item', equipSlot: 'weapon',
   name: 'Secret Sword', identified: false, level: 2, maxLevel: 3,
@@ -134,7 +134,7 @@ for (const [level, requirement] of [[0,14], [1,13], [2,13], [3,12], [5,12], [6,1
 heavy.level = 0;
 assert.match(heavy.strengthDescription(hero.strength), /Under-strength by 3/);
 heavy.identified = false;
-assert.equal(heavy.strengthDescription(hero.strength), '', 'no hidden requirement leaks');
+assert.match(heavy.strengthDescription(hero.strength), /Under-strength by 3/, 'physical requirements are visible before identification');
 heavy.identified = true;
 hero.strength = 14;
 assert.equal(actionCost(hero, 'attack', 0.75), 0.75);

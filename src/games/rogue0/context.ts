@@ -40,6 +40,7 @@ export type GameContext = {
   onGasContact?: (actor: Entity) => void;
   nextTerrainEvent?: () => number;
   onTerrainEvent?: () => void;
+  onCoverChanged?: () => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   heroModalOpen?: boolean;
@@ -50,6 +51,7 @@ export type GameContext = {
   // Terrain/tile description currently under the inspect cursor.
   inspectedTerrain?: string;
   visibleTiles: Set<string>;
+  terrainActionMode?: boolean;
   inspectMode: boolean;
   // Inspect/throw cursor position (the highlighted tile).
   cursorX?: number;

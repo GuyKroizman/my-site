@@ -25,8 +25,40 @@ Current Rogue0 action costs (normal action = 1 time unit):
 Search (`s`, the Search button, or a second press of the magnifying glass)
 reveals nearby hidden traps and secret doors. It never disarms traps, including
 on repeated searches. Inspecting a trap remains free. Item-based disarming is
-only a possible future mechanic. Current traps are single-use; support for both
-single-use and reusable traps is planned, with per-type behavior still to be decided.
+only a possible future mechanic. Generated frost, teleport and alarm traps are
+reusable; dart, fire, arrow, summon, geyser and confusion traps are single-use. Searching
+never changes their activation policy.
+
+**Jump:** press `v` or the HUD arrow, select a cardinally adjacent empty chasm
+with the cursor + Enter or a tap; Esc cancels. This drops into the next floor,
+not across the gap. It costs movement time and deals `ceil(max HP / 3)` damage
+on arrival, ignoring armor; final-floor falls are fatal. Invalid targets and
+cancellation are free. Rooted/levitating heroes cannot deliberately drop.
+Ordinary movement and auto-walk still avoid chasms.
+
+There is **no player shove ability**. `dungeon.knockback(context, target, dx, dy)`
+is an effect-level primitive for one cardinal tile of forced movement, with no
+extra victim action cost. Grounded actors pushed into chasms fall; levitating
+actors remain aloft. The existing floor-fall path handles player transitions
+outside the scheduler; monster falls use normal death removal.
+
+**Geyser traps** are the first push-producing effect. Grounded players and
+monsters activate them on entry; items and levitating actors do not. The blast
+pushes one tile in the direction of entry (horizontal for diagonal entry), can
+chain into another geyser, and preserves landing-terrain contacts. Blocked or
+rooted victims stay on the plate, but the trap is still spent. Geysers deal no
+direct damage and cost no extra action time; chasm landings use normal fall
+rules. Generated geysers are single-use and share the existing hidden-trap
+budget. Search only reveals them, and floor snapshots preserve spent state.
+**Confused** lasts four elapsed world-time units. Movement attempts choose a
+random cardinal neighbor without rerolling unsafe choices. Walls, closed doors
+and actors block a stumble but still cost movement time; roots prevent attempts.
+Chasms can cause accidental falls unless the actor is levitating. Keyboard,
+auto-walk and enemy movement/fleeing use the same rule. Deliberate attacks,
+skills and aiming stay unchanged. Stumbles do not automatically pick up loot,
+and player stumbles cancel auto-walk and buffered commands. Single-use confusion
+traps affect grounded players and monsters and share the existing trap budget;
+levitation bypasses them and search reveals without disarming.
 
 Normal actors move at speed 1. Ghouls move at speed 2 but attack at normal speed.
 Haste doubles movement speed only; cripple halves it. Rooting prevents movement

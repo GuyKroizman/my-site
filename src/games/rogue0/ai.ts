@@ -76,6 +76,7 @@ export function enemyTurn(entity: Entity): void {
 
   const canMove = !hasEffect(entity, "rooted");
   if (hasEffect(entity, "terrified")) {
+    if (canMove && hasEffect(entity, "confused") && dungeon.confusedMove(entity.context, entity)) return;
     const fled = canMove && fleeStep(entity, entity.context);
     entity.spendTime(fled ? "move" : "wait");
     return;
@@ -116,6 +117,7 @@ export function enemyTurn(entity: Entity): void {
 
   // 2) Move toward the player, their last known position, or wander.
   if (!acted && canMove) {
+    if (hasEffect(entity, "confused") && dungeon.confusedMove(entity.context, entity)) return;
     if (seesPlayer) {
       if (!isAdjacentToPlayer(entity, player)) {
         const step = nextStepToward(entity, player.x, player.y);

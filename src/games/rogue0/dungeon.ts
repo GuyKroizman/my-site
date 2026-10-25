@@ -12,6 +12,7 @@ import {
   createBurningEffect,
   createFrozenEffect,
   createCrippledEffect,
+  createConfusedEffect,
   createPoisonedEffect,
   hasEffect,
   removeEffect
@@ -315,7 +316,75 @@ let dungeon = {
     return path.length >= 2 ? path.length : 0;
   },
 
+  // Returns true when a movement attempt was consumed, even if the random
+  // step hits a blocker. Never retries until a safe direction is found.
+  confusedMove: function (context: GameContext, actor: Entity): boolean {
+    if (!hasEffect(actor, "confused") || hasEffect(actor, "rooted") || actor.moving ||
+        actor.healthPoints <= 0 || actor.x === undefined || actor.y === undefined) return false;
+    if (actor === context.player) {
+      context.player.walkPath = [];
+      context.player.inputBuffer = [];
+    }
+    const [dx, dy] = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(Math.random() * 4)];
+    const x = actor.x + dx;
+    const y = actor.y + dy;
+    actor.spendTime("move");
+    const chasm = tiles.getFeature(x, y) === "chasm";
+    if (this.currentLevel[y]?.[x] !== 0 || (!chasm && tiles.isBlocking(x, y)) ||
+        context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) {
+      this.log(context, `${actor.name} stumbles in confusion but cannot move.`);
+      return true;
+    }
+    this.log(context, `${actor.name} stumbles in confusion!`);
+    const falling = chasm && !hasEffect(actor, "levitating");
+    this.moveEntityTo(context, actor, x, y, falling);
+    if (falling) this.fallIntoChasm(context, actor);
+    return true;
+  },
+
+  // Effect-level forced movement, NOT a player ability. A trap or other effect
+  // supplies a cardinal unit vector; it owns its action cost. The victim gets
+  // no free action and loses no scheduled action. Shared path grids stay intact.
+  knockback: function (context: GameContext, target: Entity, dx: number, dy: number): boolean {
+    if (target.healthPoints <= 0 || (target.type !== "enemy" && target.type !== "player") ||
+        !context.entities.includes(target) || target.x === undefined || target.y === undefined ||
+        target.moving || hasEffect(target, "rooted")) return false;
+    if (!Number.isInteger(dx) || !Number.isInteger(dy) || Math.abs(dx) + Math.abs(dy) !== 1) return false;
+    const x = target.x + dx;
+    const y = target.y + dy;
+    const chasm = tiles.getFeature(x, y) === "chasm";
+    if (this.currentLevel[y]?.[x] !== 0 || (!chasm && tiles.isBlocking(x, y)) ||
+        context.entities.some(e => e !== target && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) return false;
+    // Wake monsters without granting magical knowledge of the player's position.
+    target.hearNoise(target.x, target.y);
+    this.log(context, `${target.name} is knocked back!`);
+    if (chasm && !hasEffect(target, "levitating")) {
+      this.moveEntityTo(context, target, x, y, true);
+      this.log(context, `${target.name} falls into the chasm!`);
+      this.fallIntoChasm(context, target);
+    } else {
+      this.moveEntityTo(context, target, x, y);
+    }
+    return true;
+  },
+
+  jumpIntoChasm: function (context: GameContext, actor: Entity, x: number, y: number): boolean {
+    if (actor.type !== "player" || actor.healthPoints <= 0 || actor.x === undefined || actor.y === undefined ||
+        hasEffect(actor, "rooted") || hasEffect(actor, "levitating") ||
+        Math.abs(actor.x - x) + Math.abs(actor.y - y) !== 1 ||
+        this.currentLevel[y]?.[x] !== 0 || tiles.getFeature(x, y) !== "chasm" ||
+        context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) return false;
+    this.moveEntityTo(context, actor, x, y, true);
+    this.log(context, "You jump into the chasm!");
+    this.fallIntoChasm(context, actor);
+    return true;
+  },
+
   expireLevitation: function (context: GameContext, entity: Entity): void {
+    this.fallIntoChasm(context, entity);
+  },
+
+  fallIntoChasm: function (context: GameContext, entity: Entity): void {
     if (entity.x === undefined || entity.y === undefined || entity.healthPoints <= 0 ||
         tiles.getFeature(entity.x, entity.y) !== "chasm") return;
     if (entity.type === "player") {
@@ -327,7 +396,7 @@ let dungeon = {
     }
   },
 
-  moveEntityTo: function (context: GameContext, entity: Entity, x: number, y: number): void {
+  moveEntityTo: function (context: GameContext, entity: Entity, x: number, y: number, instant = false): void {
     if (context.map == undefined || context.scene == undefined) {
       throw new Error("context.map is undefined");
     }
@@ -356,6 +425,35 @@ let dungeon = {
     let destY = y;
 
     const flying = hasEffect(entity, "levitating");
+    const entryTrap = tiles.getTileState(destX, destY);
+    if (entering && !flying && entity.type !== "item" && entity.healthPoints > 0 &&
+        oldX !== undefined && oldY !== undefined && entryTrap?.feature === "trap" &&
+        entryTrap.trapKind === "geyser" && entryTrap.trap !== "triggered") {
+      tiles.activateTrap(destX, destY);
+      this.onTerrainChanged?.();
+      // Reserve the pressure plate before applying forced movement. Resolve it
+      // synchronously, never from a tween callback or a second actor action.
+      entity.x = destX;
+      entity.y = destY;
+      context.onGasContact?.(entity);
+      closeDoorBehind();
+      entity.sprite?.setPosition(context.map.tileToWorldX(destX)!, context.map.tileToWorldY(destY)!);
+      if (entity.healthPoints <= 0) return;
+      if (entity.type === "player") sfx.step();
+      if (entity === context.player) {
+        context.player.walkPath = [];
+        context.player.inputBuffer = [];
+      }
+      this.log(context, `A geyser erupts beneath ${entity.name}!`);
+      // Diagonal entries choose the horizontal component, so every blast has
+      // a predictable cardinal direction and never cuts a wall corner.
+      const dx = Math.sign(destX - oldX);
+      const dy = dx === 0 ? Math.sign(destY - oldY) : 0;
+      if (!this.knockback(context, entity, dx, dy)) {
+        this.log(context, `${entity.name} cannot be displaced by the geyser.`);
+      }
+      return;
+    }
     // Flying actors do not contact water, ice, vegetation or pressure plates.
     if (entity.type !== "item" && !flying && entering && tiles.getFeature(destX, destY) === "ice") {
       if (hasEffect(entity, "burning")) {
@@ -371,17 +469,24 @@ let dungeon = {
       this.log(context, `${entity.name} steps into water and the flames go out.`);
     }
 
-    // Only grounded players trigger ordinary traps.
-    if (entity.type === "player" && !flying && entering) {
+    // Confusion plates affect either side; other ordinary traps remain player-only.
+    if ((entity.type === "player" || (entity.type === "enemy" && entryTrap?.trapKind === "confusion")) && !flying && entering) {
       const state = tiles.getTileState(destX, destY);
       if (state && state.feature === "trap" && state.trapKind !== "arrow" && state.trap !== "triggered") {
         tiles.activateTrap(destX, destY);
         this.onTerrainChanged?.();
 
         const kind = state.trapKind ?? "dart";
-        this.log(context, `You step on a ${kind} trap!`);
+        this.log(context, entity.type === "player" ? `You step on a ${kind} trap!` : `${entity.name} steps on a ${kind} trap!`);
 
         switch (kind) {
+          case "confusion":
+            applyEffect(entity, createConfusedEffect());
+            if (entity === context.player) {
+              context.player.walkPath = [];
+              context.player.inputBuffer = [];
+            }
+            break;
           case "summon":
             this.log(context, context.onSummonTrap?.(destX, destY)
               ? "The trap summons a Skeleton!"
@@ -429,9 +534,9 @@ let dungeon = {
     }
     // Unseen monsters should not make the player wait for invisible walk
     // animations. Keep animations when either endpoint is visible.
-    if (entity.type === "enemy" &&
+    if (instant || (entity.type === "enemy" &&
         !context.visibleTiles.has(`${entity.x},${entity.y}`) &&
-        !context.visibleTiles.has(`${destX},${destY}`)) {
+        !context.visibleTiles.has(`${destX},${destY}`))) {
       entity.x = destX;
       entity.y = destY;
       if (entering) context.onGasContact?.(entity);

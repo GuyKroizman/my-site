@@ -18,7 +18,7 @@ const removeEffect = (e, id) => { e.effects = e.effects.filter(effect => effect.
 const map = Array.from({ length: 20 }, () => Array(20).fill(0));
 const doors = new Map();
 const tiles = { getDoorState: (x, y) => doors.get(`${x},${y}`), getTileState: () => undefined };
-const sight = load('src/games/rogue0/fov.ts', tiles);
+const sight = load('src/games/rogue0/fov.ts', { ...tiles, isGrassConcealed: () => false });
 let attacks = 0;
 const dungeon = {
   getCurrentLevel: () => map,

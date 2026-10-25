@@ -31,8 +31,13 @@ for (let tier = 1; tier <= 5; tier++) {
     assert.equal(item.tier, tier);
     assert.equal(item.requiredStrength, 8 + tier * 2);
     assert.equal(item.identified, false);
-    assert.equal(item.strengthDescription(10), '');
-    assert.ok(!item.displayName.includes(item.name));
+    assert.match(item.strengthDescription(10), new RegExp(`Tier ${tier}`));
+    assert.equal(item.displayName, `${item.name} (Tier ${tier})`);
+    const visibleName = item.displayName;
+    item.cursed = true;
+    assert.equal(item.displayName, visibleName, 'unknown curse must not change the visible name');
+    assert.equal(item.identified, false);
+    item.cursed = false;
     for (let level = 0; level < 4; level++) {
       assert.equal(item.level, level);
       if (Cls === TieredWeapon) {

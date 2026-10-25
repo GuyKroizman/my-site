@@ -232,6 +232,7 @@ export class Scene0 extends Phaser.Scene {
 
     // Door opens / grass burns / trap reveals all need to re-sync the overlay.
     dungeon.onTerrainChanged = () => this.syncFeatures();
+    this.context.onCoverChanged = () => this.syncFeatures();
 
     const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
     const player = new HeroClass(this.context, spawn.x, spawn.y);
@@ -431,7 +432,7 @@ export class Scene0 extends Phaser.Scene {
     const ctx = this.context;
     if (!ctx.map) return;
 
-    const active = ctx.inspectMode || ctx.throwMode;
+    const active = ctx.inspectMode || ctx.throwMode || ctx.terrainActionMode;
     this.cursor.clear();
     if (!active) return;
 
@@ -449,7 +450,7 @@ export class Scene0 extends Phaser.Scene {
 
     const wx = ctx.map.tileToWorldX(x)!;
     const wy = ctx.map.tileToWorldY(y)!;
-    const color = ctx.throwMode ? 0xff6a6a : 0xf0b429;
+    const color = ctx.throwMode || ctx.terrainActionMode ? 0xff6a6a : 0xf0b429;
     this.cursor.lineStyle(2, color, 1);
     this.cursor.strokeRect(wx + 1, wy + 1, 14, 14);
     this.cursor.fillStyle(color, 0.18);
@@ -565,6 +566,7 @@ export class Scene0 extends Phaser.Scene {
   private resolveFall() {
     if (!this.context.pendingFall) return;
     this.context.pendingFall = false;
+    this.context.terrainActionMode = false;
     const player = this.context.player;
     if (!player || player.healthPoints <= 0 || this.ended) return;
     player.inputBuffer = [];
@@ -793,11 +795,12 @@ export class Scene0 extends Phaser.Scene {
 
       const key = `${entity.x},${entity.y}`;
       const seen = this.seen[entity.y]?.[entity.x] === true;
-      const visible = this.visible.has(key);
+      const concealed = tiles.isGrassConcealed(entity.x, entity.y, player?.x, player?.y);
+      const visible = this.visible.has(key) && !concealed;
 
       // Monsters are only shown while actually visible; items stay
       // remembered (dimmed by fog) once discovered.
-      entity.sprite?.setVisible(foreground.has(entity) && (entity.type === "enemy" ? visible : seen));
+      entity.sprite?.setVisible(foreground.has(entity) && (entity.type === "enemy" ? visible : seen && !concealed));
       // Mark minds, not terrain: never add these cells to visible/seen or
       // targeting LOS. Markers sit above opaque fog, unlike normal sprites.
       if (mindVision && entity.type === "enemy" && entity.healthPoints > 0 && !visible) {

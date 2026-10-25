@@ -49,7 +49,7 @@ assert.deepEqual(collector.backpack, [firstGem]);
 // Avoid sprite construction; exercise actual item and entity methods.
 const context = { entities: [], messages: [] };
 const gem = Object.assign(Object.create(Gem.prototype), { context, count: 2, type: 'item', consumable: true });
-const shield = Object.assign(Object.create(Shield.prototype), { context, level: 0, name: 'Shield', type: 'item', equipSlot: 'armor', identified: true });
+const shield = Object.assign(Object.create(Shield.prototype), { context, level: 0, tier: 1, name: 'Shield', type: 'item', equipSlot: 'armor', identified: true });
 let ready = true, turns = 0;
 const items = [gem];
 context.entities.push(gem);
@@ -69,7 +69,7 @@ assert.equal(gem.enchant(shield), false);
 ready = true;
 assert.equal(gem.enchant(shield), true);
 assert.equal(shield.protection(), 2);
-assert.equal(shield.displayName, 'Shield +1');
+assert.equal(shield.displayName, 'Shield +1 (Tier 1)');
 assert.equal(gem.count, 1);
 assert.ok(context.entities.includes(gem));
 context.player.weapon = Object.assign(Object.create(Entity.prototype), { context, level: 2, name: 'Sword', equipSlot: 'weapon' });

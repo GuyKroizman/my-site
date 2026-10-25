@@ -181,6 +181,13 @@ export class UI extends Phaser.Scene {
       g.strokeRect(-6, -3, 12, 9);
       g.strokeCircle(0, -4, 2);
     }, "Backpack"));
+
+    this.toolbar.push(this.makeButton(() => this.context.player?.beginJump(), (g) => {
+      g.lineStyle(2, iconColor, 1);
+      g.lineBetween(-8, 0, 8, 0);
+      g.lineBetween(2, -6, 8, 0);
+      g.lineBetween(2, 6, 8, 0);
+    }, "Jump (v): select a cardinally adjacent empty chasm. Drops a floor and hurts; fatal on floor 25."));
   }
 
   private makeButton(
@@ -350,7 +357,8 @@ export class UI extends Phaser.Scene {
       [edge, edge], // portrait
       [edge, y], [edge + size + gap, y], // wait, inspect/search
       [w - edge - size, y - size - gap], // special, directly above backpack
-      [w - edge - size, y] // backpack
+      [w - edge - size, y], // backpack
+      [w - edge - size, y - 2 * (size + gap)] // jump
     ];
     this.toolbar.forEach((b, i) => {
       const [x, top] = positions[i];

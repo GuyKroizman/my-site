@@ -76,4 +76,55 @@ for (const factory of [effects.createTorchEffect, effects.createMagicalSightEffe
   assert.ok(!effects.hasEffect(hero, effect.id), 'vision buffs expire on world time, including while waiting');
 }
 assert.equal(hero.accuracy, 100, 'blindness restores accuracy');
-console.log('Rogue0 vision geometry, terrain, doorway shadows, modifiers and effect expiry passed');
+// Grass hides occupants, not the terrain endpoint. All detection uses the
+// same distance rule; mind markers remain separate from optical targeting.
+tiles.clearAllFeatures();
+const clearing = Array.from({ length: 9 }, () => Array(9).fill(0));
+const sight = load('src/games/rogue0/fov.ts', tiles);
+tiles.setFeature(4, 4, 'grass');
+assert.ok(sight.computeFOV(clearing, 1, 4).has('4,4'));
+assert.ok(!sight.canSee(clearing, 1, 4, 4, 4, 8));
+assert.ok(sight.canSee(clearing, 3, 4, 4, 4, 8));
+assert.ok(tiles.isGrassConcealed(4, 4, 1, 4));
+assert.ok(!tiles.isGrassConcealed(4, 4, 3, 3), 'diagonal adjacency reveals');
+const ai = load('src/games/rogue0/ai.ts', {
+  ...sight, tiles, hasEffect: () => false, dungeon: { getCurrentLevel: () => clearing }
+});
+const ambusher = { type: 'player', x: 4, y: 4, attack: () => 4, effects: [], accuracy: 100 };
+const guard = { type: 'enemy', name: 'Guard', x: 1, y: 4, visionRadius: 8,
+  awareOfPlayer: true, protection: () => 0, evasion: 0, effects: [], resistance: {}, vulnerability: {} };
+let refreshes = 0;
+const coverContext = { player: ambusher, currentLevel: clearing, visibleTiles: new Set(['4,4']),
+  messages: [], onCoverChanged: () => refreshes++ };
+guard.context = ambusher.context = coverContext;
+assert.ok(!ai.enemyCanSeePlayer(guard), 'grass breaks current awareness');
+const combat = load('src/games/rogue0/combat.ts', { ...sight, tiles, ...effects });
+assert.ok(combat.isSurpriseAttack(coverContext, ambusher, guard));
+combat.resolveAttack(coverContext, ambusher, guard);
+assert.equal(tiles.getFeature(4, 4), undefined, 'attack flattens cover');
+assert.equal(refreshes, 1);
+assert.ok(ai.enemyCanSeePlayer(guard));
+assert.ok(!combat.isSurpriseAttack(coverContext, ambusher, guard), 'no repeated cover ambush');
+const Hero = load('src/games/rogue0/classes/basicHero.ts', {
+  Entity: class {}, ...tiles, dungeon: { inspectTile: () => 'Tall grass' }
+}).default;
+const hidden = { type: 'enemy', x: 4, y: 4, sprite: {} };
+const observer = Object.assign(Object.create(Hero.prototype), { x: 1, y: 4,
+  context: { visibleTiles: new Set(['4,4']), entities: [hidden] } });
+tiles.setFeature(4, 4, 'grass');
+assert.equal(observer.nearestVisibleEnemy(8), undefined);
+assert.deepEqual(observer.visibleEnemiesInRadius(8), []);
+observer.inspectTile(4, 4);
+assert.equal(observer.context.inspectedEntity, undefined);
+assert.equal(observer.context.inspectedTerrain, 'Tall grass');
+// Loot uses the same inspection guard as actors.
+hidden.type = 'item';
+observer.inspectTile(4, 4);
+assert.equal(observer.context.inspectedEntity, undefined);
+hidden.type = 'enemy';
+observer.x = 3;
+observer.inspectTile(4, 4);
+assert.equal(observer.context.inspectedEntity, hidden);
+assert.equal(observer.nearestVisibleEnemy(8), hidden);
+tiles.clearAllFeatures();
+console.log('Rogue0 vision geometry, terrain, grass concealment/ambush/targeting, modifiers and effect expiry passed');

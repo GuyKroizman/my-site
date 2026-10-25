@@ -5,7 +5,7 @@ import { isModalOpen, type GameContext } from "../context";
 import dungeon from "../dungeon";
 import Gem from "../items/gem";
 import Wand from "../items/wand";
-import { getTrapState } from "../tiles";
+import { getTrapState, isGrassConcealed } from "../tiles";
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
 import {
@@ -710,6 +710,12 @@ export default class BasicHero extends Entity {
     let y = context.map.worldToTileY(event.worldY);
 
     let entity = dungeon.entityAtTile(context, x!, y!);
+    if (entity && isGrassConcealed(entity.x, entity.y, this.x, this.y)) entity = undefined;
+
+    if (context.terrainActionMode) {
+      if (x !== null && y !== null) this.jumpAt(x, y);
+      return;
+    }
 
     // Throw targeting takes priority: any tap resolves the pending throw.
     if (context.throwMode) {
@@ -797,7 +803,7 @@ export default class BasicHero extends Entity {
   // --- Inspect cursor + throw targeting ---
 
   private cursorActive(): boolean {
-    return this.context.inspectMode || this.context.throwMode;
+    return this.context.inspectMode || this.context.throwMode || !!this.context.terrainActionMode;
   }
 
   private isCursorKey(key: string): boolean {
@@ -833,6 +839,7 @@ export default class BasicHero extends Entity {
   }
 
   inspectOrSearch(): void {
+    this.context.terrainActionMode = false;
     if (this.context.throwMode) this.cancelThrow();
     this.walkPath = [];
     if (this.context.inspectMode) {
@@ -846,6 +853,7 @@ export default class BasicHero extends Entity {
 
   toggleInspectMode(): void {
     const context = this.context;
+    context.terrainActionMode = false;
     context.inspectMode = !context.inspectMode;
     context.inspectedEntity = undefined;
     context.inspectedTerrain = undefined;
@@ -902,7 +910,8 @@ export default class BasicHero extends Entity {
     this.acknowledgedWalkEnemies = new Set(
       this.context.entities.filter((entity) =>
         entity.type === "enemy" && entity.healthPoints > 0 &&
-        this.context.visibleTiles.has(`${entity.x},${entity.y}`)
+        this.context.visibleTiles.has(`${entity.x},${entity.y}`) &&
+        !isGrassConcealed(entity.x, entity.y, this.x, this.y)
       )
     );
     const path = dungeon.findPath(this.x, this.y, tx, ty, true, true, this);
@@ -916,7 +925,8 @@ export default class BasicHero extends Entity {
     if (this.context.entities.some((entity) =>
       entity.type === "enemy" && entity.healthPoints > 0 &&
       !this.acknowledgedWalkEnemies.has(entity) &&
-      this.context.visibleTiles.has(`${entity.x},${entity.y}`)
+      this.context.visibleTiles.has(`${entity.x},${entity.y}`) &&
+      !isGrassConcealed(entity.x, entity.y, this.x, this.y)
     )) {
       this.walkPath = [];
       return;
@@ -957,6 +967,8 @@ export default class BasicHero extends Entity {
       return;
     }
 
+    if (hasEffect(this, "confused") && dungeon.confusedMove(this.context, this)) return;
+
     if (entity && entity.type === "item") {
       this.walkPath = [];
       if (this.addItem(entity)) {
@@ -980,8 +992,34 @@ export default class BasicHero extends Entity {
     }
   }
 
+  beginJump(): void {
+    if (isModalOpen(this.context)) return;
+    const wasActive = this.context.terrainActionMode;
+    this.exitCursorModes();
+    this.walkPath = [];
+    this.inputBuffer = [];
+    if (wasActive) return;
+    this.context.terrainActionMode = true;
+    this.context.cursorX = this.x;
+    this.context.cursorY = this.y;
+    dungeon.log(this.context, "Jump: select a cardinally adjacent empty chasm. Drops a floor for 1/3 max HP damage (fatal on the last floor). Esc cancels.");
+  }
+
+  jumpAt(x: number, y: number): void {
+    if (!this.context.terrainActionMode || !this.canAct() || isModalOpen(this.context)) return;
+    if (!dungeon.jumpIntoChasm(this.context, this, x, y)) {
+      dungeon.log(this.context, "Cannot jump there. Choose a cardinally adjacent empty chasm; you cannot jump while rooted or levitating.");
+      return;
+    }
+    this.context.terrainActionMode = false;
+    this.walkPath = [];
+    this.inputBuffer = [];
+    this.spendTurn("move");
+  }
+
   private exitCursorModes(): void {
     const context = this.context;
+    context.terrainActionMode = false;
     if (context.throwMode) {
       this.cancelThrow();
       return;
@@ -1032,7 +1070,8 @@ export default class BasicHero extends Entity {
     if (!context.visibleTiles.has(`${x},${y}`)) return;
 
     const entities = context.entities.filter((entity) =>
-      entity.sprite && entity.x === x && entity.y === y && entity.type !== "player"
+      entity.sprite && entity.x === x && entity.y === y && entity.type !== "player" &&
+      !isGrassConcealed(entity.x, entity.y, this.x, this.y)
     );
     if (entities.length > 1) {
       context.inspectChoices = entities;
@@ -1055,6 +1094,7 @@ export default class BasicHero extends Entity {
     }
 
     this.zapping = zap;
+    context.terrainActionMode = false;
     context.throwMode = true;
     context.throwItem = item;
     if (context.cursorX === undefined || context.cursorY === undefined) {
@@ -1443,6 +1483,7 @@ export default class BasicHero extends Entity {
         Math.abs(entity.x - this.x),
         Math.abs(entity.y - this.y)
       );
+      if (isGrassConcealed(entity.x, entity.y, this.x, this.y)) continue;
       if (distance <= maxRange && distance < bestDistance) {
         best = entity;
         bestDistance = distance;
@@ -1484,6 +1525,7 @@ export default class BasicHero extends Entity {
         Math.abs(entity.x - this.x),
         Math.abs(entity.y - this.y)
       );
+      if (isGrassConcealed(entity.x, entity.y, this.x, this.y)) continue;
       if (distance <= radius) enemies.push(entity);
     }
 
@@ -1497,13 +1539,15 @@ export default class BasicHero extends Entity {
     // --- Inspect / throw cursor modes ---
     // While a cursor is active, arrows/HJKL move the highlighted tile instead
     // of the player, x/Escape leave the mode, and Enter throws at the cursor.
-    if (context.inspectMode || context.throwMode) {
+    if (this.cursorActive()) {
       if (key === "Escape") {
         this.exitCursorModes();
         return;
       }
       if (key === "x" || key === "X") {
-        if (context.throwMode) {
+        if (context.terrainActionMode) {
+          this.exitCursorModes();
+        } else if (context.throwMode) {
           this.cancelThrow();
         } else {
           this.toggleInspectMode();
@@ -1511,7 +1555,9 @@ export default class BasicHero extends Entity {
         return;
       }
       if (key === "Enter") {
-        if (context.throwMode) {
+        if (context.terrainActionMode && context.cursorX !== undefined && context.cursorY !== undefined) {
+          this.jumpAt(context.cursorX, context.cursorY);
+        } else if (context.throwMode) {
           this.throwAtCursor();
         }
         return;
@@ -1539,6 +1585,11 @@ export default class BasicHero extends Entity {
     let newX = this.x!;
     let newY = this.y!;
 
+    if (key === "v" || key === "V") {
+      this.beginJump();
+      return;
+    }
+
     // Active class skill (f / F).
     if (key === "f" || key === "F") {
       this.tryUseSkill();
@@ -1560,6 +1611,9 @@ export default class BasicHero extends Entity {
     if (dir) {
       newX += dir.dx;
       newY += dir.dy;
+      if (hasEffect(this, "confused") &&
+          dungeon.entityAtTile(context, newX, newY)?.type !== "enemy" &&
+          dungeon.confusedMove(context, this)) return;
       moved = true;
     }
 

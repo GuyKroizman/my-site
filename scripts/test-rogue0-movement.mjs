@@ -127,7 +127,7 @@ const dungeon = {
 };
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, Gem: class Gem {}, Wand: class Wand {}, dungeon, isModalOpen: () => false, hasEffect, removeEffect,
-  getTrapState: () => undefined, sfx: { potion() {}, equip() {} },
+  isGrassConcealed: () => false, getTrapState: () => undefined, sfx: { potion() {}, equip() {} },
   spawnEntityFloatingText() {}
 }).default;
 // Combined magnifying glass: inspection is free; a second press searches.
@@ -477,9 +477,10 @@ const terrain = {
   getDoorState: (x, y) => doors.get(`${x},${y}`),
   getTileState: () => undefined
 };
-const sight = load('src/games/rogue0/fov.ts', terrain);
+const sight = load('src/games/rogue0/fov.ts', { ...terrain, isGrassConcealed: () => false });
 const arena = Array.from({ length: 7 }, () => Array(7).fill(0));
 const combat = load('src/games/rogue0/combat.ts', {
+  tiles: load('src/games/rogue0/tiles.ts'),
   canSee: sight.canSee, hasEffect, createBleedingEffect: () => ({ id: 'bleeding' })
 });
 const hunter = actor('enemy');
@@ -723,8 +724,8 @@ const cursedGear = Object.assign(new Entity(), {
 });
 const replacement = Object.assign(new Entity(), { type: 'item', equipSlot: 'weapon' });
 curseHero.backpack = [cursedGear, replacement];
-assert.match(cursedGear.displayName, /^Weapon “.+”$/);
-assert.doesNotMatch(cursedGear.displayName, /Secret|Blade|\+3/, 'unknown gear hides identity and upgrades');
+assert.equal(cursedGear.displayName, 'Secret Blade +3 (Tier 1)');
+assert.doesNotMatch(cursedGear.displayName, /cursed/i, 'unknown gear hides its curse, not its physical identity');
 const unknownActions = inventory.buildActions(curseHero, cursedGear);
 cursedGear.cursed = false;
 assert.deepEqual(inventory.buildActions(curseHero, cursedGear), unknownActions,
@@ -830,4 +831,49 @@ assert.equal(oldFloorEnemy.turns, 0);
 manager.update([fallingPlayer, oldFloorEnemy]);
 assert.equal(manager.time, 1, 'pending transition freezes the old-floor timeline');
 
-console.log('Rogue0 timeline, input, death, sight, pursuit, diagonal movement, surprise and curse regression tests passed');
+// Jump targeting is explicit, cancellable and never offers a shove action.
+{
+  let jumps = 0;
+  const actions = [];
+  const jumpDungeon = {
+    log() {}, entityAtTile: () => undefined,
+    getCurrentLevel: () => Array.from({ length: 5 }, () => Array(5).fill(0)),
+    jumpIntoChasm(_ctx, _hero, x, y) { jumps++; return x === 3 && y === 2; }
+  };
+  const JumpHero = load('src/games/rogue0/classes/basicHero.ts', {
+    Entity, dungeon: jumpDungeon, isModalOpen: () => false,
+    isGrassConcealed: () => false, hasEffect
+  }).default;
+  const jumper = Object.assign(Object.create(JumpHero.prototype), {
+    x: 2, y: 2, actionReady: true, moving: false, effects: [],
+    walkPath: [{ x: 3, y: 2 }], inputBuffer: ['ArrowRight'],
+    context: { entities: [], messages: [], inspectMode: false, throwMode: false,
+      map: { worldToTileX: x => x, worldToTileY: y => y } },
+    spendTurn(action) { actions.push(action); }
+  });
+  jumper.processInput('v');
+  assert.equal(jumper.context.terrainActionMode, true);
+  assert.deepEqual(jumper.walkPath, []);
+  assert.deepEqual(jumper.inputBuffer, []);
+  jumper.processInput('Enter');
+  assert.equal(jumps, 1);
+  assert.deepEqual(actions, [], 'invalid destination is free');
+  jumper.processInput('Escape');
+  assert.equal(jumper.context.terrainActionMode, false);
+  assert.deepEqual(actions, [], 'cancellation is free');
+  jumper.beginJump();
+  jumper.processInput('ArrowRight');
+  jumper.processInput('Enter');
+  assert.deepEqual(actions, ['move'], 'jump charges movement time once');
+  assert.equal(jumper.context.terrainActionMode, false);
+  jumper.beginJump();
+  jumper.actionReady = false;
+  jumper.jumpAt(3, 2);
+  assert.equal(actions.length, 1, 'cannot jump outside your action');
+  jumper.actionReady = true;
+  jumper.processTouchInput(jumper.context, { worldX: 3, worldY: 2 });
+  assert.deepEqual(actions, ['move', 'move'], 'tap uses the same jump action');
+  assert.equal(jumpDungeon.shove, undefined);
+}
+
+console.log('Rogue0 timeline, input, jump targeting, death, sight, pursuit, diagonal movement, surprise and curse regression tests passed');

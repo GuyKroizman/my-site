@@ -102,7 +102,7 @@ ctx = setup([actor('enemy', 3, 3, 4)]);
 dungeon.triggerArrowTrap(ctx, 3, 3);
 assert.equal(ctx.entities.length, 0, 'lethal trap removes victim');
 // Real throw landing and step entry integration, without renderer dependencies.
-const { Entity } = load('entity', {});
+const { Entity } = load('entity', { actionCost: load('timing').actionCost });
 const Hero = load('classes/basicHero', {
   Entity, dungeon, ...fov, Wand: class {}, hasEffect: () => false,
   removeEntity: (ctx, e) => { ctx.entities = ctx.entities.filter(v => v !== e); }
@@ -329,6 +329,7 @@ assert.ok(changes > 0);
 // Exercise real levitation effects and terrain together, including fractional
 // expiry timing. Rendering is synchronous; logical time advances only explicitly.
 const flightDungeon = load('dungeon', { PF, tiles, ...fov,
+  removeEntity: load('entity', { sfx: { death() {} } }).removeEntity,
   hasEffect: (e, id) => e.effects.some(effect => effect.id === id),
   removeEffect: (e, id) => flightEffects.removeEffect(e, id),
   applyEffect: (e, effect) => flightEffects.applyEffect(e, effect),
@@ -336,6 +337,7 @@ const flightDungeon = load('dungeon', { PF, tiles, ...fov,
   createBurningEffect: () => flightEffects.createBurningEffect(),
   createFrozenEffect: () => flightEffects.createFrozenEffect(),
   createCrippledEffect: duration => flightEffects.createCrippledEffect(duration),
+  createConfusedEffect: () => flightEffects.createConfusedEffect(),
   sfx: { step() {} }
 }).default;
 const flightEffects = load('effects', { dungeon: flightDungeon, spawnEntityFloatingText() {} });
@@ -420,6 +422,289 @@ for (const feature of ['water', 'grass', 'dart', 'arrow']) {
   assert.equal(flightEffects.hasEffect(flyer, 'levitating'), false, 'no emergency hovering');
   assert.equal(ctx.pendingFall, true);
   assert.equal(flyer.x, 3);
+}
+// Effect knockback and voluntary jumps share contacts and the existing fall path.
+{
+  const { ctx, flyer } = flightSetup();
+  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 4, 2), false, 'no long jumps');
+  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 2, 1), false, 'no walls');
+  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 1, 2), false, 'only chasms');
+  flyer.effects = [{ id: 'rooted' }];
+  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 3, 2), false);
+  flyer.effects = [{ id: 'levitating' }];
+  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 3, 2), false);
+  flyer.effects = [];
+  const occupant = actor('enemy', 3, 2);
+  ctx.entities.push(occupant);
+  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 3, 2), false, 'no occupied landing');
+  ctx.entities.pop();
+  tiles.setFeature(2, 2, 'door', { door: 'open' });
+  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 3, 2), true);
+  assert.deepEqual([flyer.x, flyer.y], [3, 2]);
+  assert.equal(ctx.pendingFall, true, 'fall deferred out of the scheduler');
+  assert.equal(flyer.healthPoints, 10, 'arrival resolves damage exactly once, not here');
+  assert.equal(tiles.getDoorState(2, 2), 'closed', 'jump closes the departure door');
+  assert.equal(flightDungeon.pathGrid.isWalkableAt(3, 2), false);
+}
+for (const flying of [false, true]) {
+  const { ctx, flyer } = flightSetup();
+  flyer.x = 1;
+  let deaths = 0;
+  const victim = Object.assign(new Entity(), { type: 'enemy', name: 'Victim', x: 2, y: 2,
+    context: ctx, healthPoints: 10, effects: flying ? [{ id: 'levitating' }] : [],
+    sprite: sprite(), takeDamage(n) { this.healthPoints -= n; }, onDestroy() { deaths++; } });
+  ctx.entities.push(victim);
+  assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), true);
+  assert.equal(ctx.entities.includes(victim), flying, 'only grounded victims die');
+  assert.equal(deaths, flying ? 0 : 1, 'normal removal invokes destruction once');
+  assert.deepEqual([victim.lastSeenX, victim.lastSeenY], [2, 2], 'knockback alerts without revealing player position');
+  if (flying) {
+    assert.deepEqual([victim.x, victim.y], [3, 2]);
+    victim.effects = [];
+    flightDungeon.expireLevitation(ctx, victim);
+    assert.equal(deaths, 1, 'pushed flyers still fall when flight expires');
+  }
+  assert.ok(!ctx.pendingFall, 'enemy falls never descend the hero');
+  assert.equal(flightDungeon.pathGrid.isWalkableAt(3, 2), false);
+}
+{
+  const { ctx, flyer } = flightSetup();
+  flyer.x = 1;
+  const victim = Object.assign(new Entity(), { type: 'enemy', x: 2, y: 2,
+    healthPoints: 10, context: ctx, sprite: sprite() });
+  ctx.entities.push(victim);
+  for (const feature of ['door', 'secretDoor']) {
+    tiles.setFeature(3, 2, feature);
+    assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), false, 'cannot force closed doors');
+  }
+  tiles.clearFeature(3, 2);
+  flightDungeon.currentLevel[2][3] = 1;
+  assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), false, 'wall blocks knockback');
+  flightDungeon.currentLevel[2][3] = 0;
+  victim.effects = [{ id: 'rooted' }];
+  assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), false, 'roots anchor the target');
+  victim.effects = [];
+  ctx.entities.push(actor('enemy', 3, 2));
+  assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), false, 'no actor stacking');
+  ctx.entities.pop();
+  assert.equal(flightDungeon.knockback(ctx, victim, 1, 1), false, 'cardinal vectors only');
+  assert.equal(flightDungeon.knockback(ctx, victim, 0.5, 0.5), false, 'no fractional tiles');
+  tiles.setFeature(3, 2, 'ice');
+  assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), true);
+  assert.deepEqual([victim.x, victim.y], [3, 2]);
+  assert.ok(flightEffects.hasEffect(victim, 'crippled'), 'forced moves retain terrain contacts');
+}
+for (const flying of [false, true]) {
+  const { ctx, flyer } = flightSetup();
+  flyer.effects = flying ? [{ id: 'levitating' }] : [];
+  flyer.nextActionTime = 3.75;
+  assert.equal(flightDungeon.knockback(ctx, flyer, 1, 0), true);
+  assert.deepEqual([flyer.x, flyer.y], [3, 2]);
+  assert.equal(!!ctx.pendingFall, !flying, 'effects can push the player into a fall too');
+  assert.equal(flyer.nextActionTime, 3.75, 'forced movement does not spend victim time');
+}
+// Geysers are an actual displacement source for both sides, not a hero skill.
+function geyserSetup(type = 'player') {
+  const { ctx, flyer } = flightSetup();
+  flyer.x = 1;
+  flyer.type = type;
+  ctx.player = type === 'player' ? flyer : undefined;
+  flyer.hearNoise = Entity.prototype.hearNoise;
+  flyer.onDestroy = () => {};
+  flyer.nextActionTime = 2.75;
+  flyer.walkPath = [{ x: 4, y: 2 }];
+  flyer.inputBuffer = ['ArrowRight'];
+  tiles.setFeature(2, 2, 'trap', { trapKind: 'geyser', trap: 'hidden' });
+  return { ctx, victim: flyer };
+}
+for (const type of ['player', 'enemy']) {
+  const { ctx, victim } = geyserSetup(type);
+  assert.ok(!tiles.describeTile(tiles.getTileState(2, 2), false).includes('geyser'), 'hidden trap stays secret');
+  flightDungeon.moveEntityTo(ctx, victim, 2, 2);
+  assert.equal(tiles.getTrapState(2, 2), 'triggered');
+  assert.equal(victim.nextActionTime, 2.75, 'blast charges no extra victim time');
+  if (type === 'player') {
+    assert.deepEqual(victim.walkPath, [], 'blast interrupts auto-walk');
+    assert.deepEqual(victim.inputBuffer, [], 'blast discards stale buffered movement');
+  }
+  assert.equal(!!ctx.pendingFall, type === 'player');
+  assert.equal(ctx.entities.includes(victim), type === 'player');
+  if (type === 'player') {
+    assert.deepEqual([victim.x, victim.y], [3, 2]);
+    assert.equal(victim.healthPoints, 10, 'existing floor transition owns fall damage');
+  } else assert.equal(victim.healthPoints, 0, 'monster falls die normally');
+  assert.equal(flightDungeon.pathGrid.isWalkableAt(3, 2), false);
+  const snapshot = [];
+  tiles.forEachFeature((x, y, state) => snapshot.push({ ...state, x, y }));
+  tiles.clearAllFeatures();
+  snapshot.forEach(f => tiles.setFeature(f.x, f.y, f.feature, f));
+  assert.equal(tiles.getTrapState(2, 2), 'triggered', 'spent geyser persists');
+}
+for (const type of ['player', 'enemy', 'item']) {
+  const { ctx, victim } = geyserSetup(type);
+  if (type !== 'item') victim.effects = [{ id: 'levitating' }];
+  flightDungeon.moveEntityTo(ctx, victim, 2, 2);
+  assert.equal(tiles.getTrapState(2, 2), 'hidden', 'flight and items bypass pressure plate');
+  assert.deepEqual([victim.x, victim.y], [2, 2]);
+  assert.ok(!ctx.pendingFall);
+}
+for (const obstruction of ['wall', 'door', 'actor', 'rooted']) {
+  const { ctx, victim } = geyserSetup();
+  tiles.clearFeature(3, 2);
+  if (obstruction === 'wall') flightDungeon.currentLevel[2][3] = 1;
+  if (obstruction === 'door') tiles.setFeature(3, 2, 'door');
+  if (obstruction === 'actor') ctx.entities.push(actor('enemy', 3, 2));
+  if (obstruction === 'rooted') victim.effects = [{ id: 'rooted' }];
+  flightDungeon.moveEntityTo(ctx, victim, 2, 2);
+  assert.deepEqual([victim.x, victim.y], [2, 2], 'blocked blast leaves actor on plate');
+  assert.equal(tiles.getTrapState(2, 2), 'triggered', 'blocked geyser is still spent');
+  assert.equal(victim.healthPoints, 10, 'no direct geyser damage');
+  assert.ok(!ctx.pendingFall);
+}
+{
+  const { ctx, victim } = geyserSetup();
+  victim.x = 2;
+  flightDungeon.moveEntityTo(ctx, victim, 2, 2);
+  assert.equal(tiles.getTrapState(2, 2), 'hidden', 'waiting never activates the geyser');
+  assert.ok(flightDungeon.searchAround(1, 2) > 0);
+  assert.equal(tiles.getTrapState(2, 2), 'visible', 'search reveals, not disarms');
+  assert.match(tiles.describeTile(tiles.getTileState(2, 2), false), /geyser/);
+  assert.match(tiles.describeTile(tiles.getTileState(2, 2), false), /Single-use/);
+  victim.x = 1;
+  flightDungeon.moveEntityTo(ctx, victim, 2, 2);
+  assert.equal(ctx.pendingFall, true, 'revealed geyser remains dangerous');
+}
+{
+  const { ctx, victim } = geyserSetup();
+  tiles.setFeature(3, 2, 'trap', { trapKind: 'geyser' });
+  tiles.setFeature(4, 2, 'ice');
+  flightDungeon.moveEntityTo(ctx, victim, 2, 2);
+  assert.deepEqual([victim.x, victim.y], [4, 2], 'chained geysers resolve in entry direction');
+  assert.equal(tiles.getTrapState(2, 2), 'triggered');
+  assert.equal(tiles.getTrapState(3, 2), 'triggered');
+  assert.ok(flightEffects.hasEffect(victim, 'crippled'), 'landing retains terrain contact');
+  assert.equal(victim.nextActionTime, 2.75);
+  // Spent geysers never push on re-entry.
+  victim.x = 1;
+  flightDungeon.moveEntityTo(ctx, victim, 2, 2);
+  assert.deepEqual([victim.x, victim.y], [2, 2]);
+}
+for (const [fromX, fromY, trapX, trapY, toX, toY] of [
+  [2, 1, 2, 2, 2, 3], [2, 3, 2, 2, 2, 1], [3, 2, 2, 2, 1, 2], [1, 1, 2, 2, 3, 2]
+]) {
+  const { ctx, victim } = geyserSetup();
+  tiles.clearFeature(3, 2);
+  flightDungeon.currentLevel = Array.from({ length: 5 }, () => Array(7).fill(0));
+  victim.x = fromX; victim.y = fromY;
+  flightDungeon.moveEntityTo(ctx, victim, trapX, trapY);
+  assert.deepEqual([victim.x, victim.y], [toX, toY], 'predictable cardinal/diagonal entry direction');
+}
+// Confusion randomizes movement on the existing timeline, not effect ticks.
+function withRoll(roll, fn) {
+  const original = Math.random;
+  Math.random = () => roll;
+  try { return fn(); } finally { Math.random = original; }
+}
+for (const type of ['player', 'enemy']) {
+  const { ctx, victim } = geyserSetup(type);
+  tiles.setFeature(2, 2, 'trap', { trapKind: 'confusion', trap: 'hidden' });
+  assert.equal(tiles.describeTile(tiles.getTileState(2, 2), false), 'Stone floor.');
+  flightDungeon.moveEntityTo(ctx, victim, 2, 2);
+  assert.ok(flightEffects.hasEffect(victim, 'confused'));
+  assert.equal(tiles.getTrapState(2, 2), 'triggered');
+  assert.equal(victim.effects.find(e => e.id === 'confused').duration, 4);
+  const before = victim.nextActionTime;
+  withRoll(0, () => assert.equal(flightDungeon.confusedMove(ctx, victim), true));
+  assert.equal(victim.nextActionTime, before + 1, 'exactly one movement action');
+  assert.equal(!!ctx.pendingFall, type === 'player', 'confused chasm misstep uses normal falls');
+  assert.equal(ctx.entities.includes(victim), type === 'player');
+}
+{
+  const { ctx, victim } = geyserSetup();
+  tiles.setFeature(2, 2, 'trap', { trapKind: 'confusion' });
+  victim.effects = [{ id: 'levitating' }];
+  flightDungeon.moveEntityTo(ctx, victim, 2, 2);
+  assert.equal(tiles.getTrapState(2, 2), 'hidden', 'flight bypasses confusion plate');
+  flightEffects.applyEffect(victim, flightEffects.createConfusedEffect());
+  withRoll(0, () => flightDungeon.confusedMove(ctx, victim));
+  assert.deepEqual([victim.x, victim.y], [3, 2]);
+  assert.ok(!ctx.pendingFall, 'confused flyers can stumble over chasms safely');
+}
+for (const [roll, x, y] of [[0, 3, 2], [0.25, 1, 2], [0.5, 2, 3], [0.75, 2, 1]]) {
+  const { ctx, flyer } = flightSetup();
+  tiles.clearAllFeatures();
+  flightDungeon.currentLevel = Array.from({ length: 5 }, () => Array(7).fill(0));
+  flightEffects.applyEffect(flyer, flightEffects.createConfusedEffect());
+  flyer.effects.push({ id: 'haste' });
+  flyer.nextActionTime = 0.5;
+  withRoll(roll, () => flightDungeon.confusedMove(ctx, flyer));
+  assert.deepEqual([flyer.x, flyer.y], [x, y]);
+  assert.equal(flyer.nextActionTime, 1, 'fractional movement costs preserved');
+  assert.equal(flyer.effects.find(e => e.id === 'confused').duration, 4, 'actions do not tick confusion');
+  ctx.simulationTime = 1.49;
+  flightEffects.tickEffects(flyer, ctx);
+  assert.equal(flyer.effects.find(e => e.id === 'confused').duration, 4);
+  for (const t of [1.5, 2.5, 3.5, 4.5]) { ctx.simulationTime = t; flightEffects.tickEffects(flyer, ctx); }
+  assert.ok(!flightEffects.hasEffect(flyer, 'confused'), 'fractional world-time expiry');
+}
+for (const obstruction of ['wall', 'door', 'actor', 'rooted']) {
+  const { ctx, flyer } = flightSetup();
+  tiles.clearFeature(3, 2);
+  flightEffects.applyEffect(flyer, flightEffects.createConfusedEffect());
+  if (obstruction === 'wall') flightDungeon.currentLevel[2][3] = 1;
+  if (obstruction === 'door') tiles.setFeature(3, 2, 'door');
+  if (obstruction === 'actor') ctx.entities.push(actor('enemy', 3, 2));
+  if (obstruction === 'rooted') flyer.effects.push({ id: 'rooted' });
+  flyer.nextActionTime = 0;
+  withRoll(0, () => assert.equal(flightDungeon.confusedMove(ctx, flyer), obstruction !== 'rooted'));
+  assert.deepEqual([flyer.x, flyer.y], [2, 2]);
+  assert.equal(flyer.nextActionTime, obstruction === 'rooted' ? 0 : 1, 'blocked attempts cost time, rooted actors cannot try');
+}
+// Real keyboard path must randomize before pickup, door/trap safety or ordinary
+// path validation; otherwise confusion would silently protect against chasms.
+{
+  const { ctx, flyer } = flightSetup();
+  const ConfusedHero = load('classes/basicHero', { Entity, dungeon: flightDungeon,
+    ...tiles, ...fov, ...flightEffects, isModalOpen: () => false });
+  Object.setPrototypeOf(flyer, ConfusedHero.default.prototype);
+  Object.assign(flyer, { backpack: [], walkPath: [], inputBuffer: [], actionReady: true });
+  ctx.inspectMode = ctx.throwMode = false;
+  flightEffects.applyEffect(flyer, flightEffects.createConfusedEffect());
+  withRoll(0, () => flyer.processInput('ArrowLeft'));
+  assert.equal(ctx.pendingFall, true, 'left command can stumble right into chasm');
+  assert.equal(flyer.nextActionTime, 1, 'keyboard charges only one action');
+}
+// Auto-walk uses the same stumble path and drops the remaining route.
+{
+  const { ctx, flyer } = flightSetup();
+  const ConfusedHero = load('classes/basicHero', { Entity, dungeon: flightDungeon,
+    ...tiles, ...fov, ...flightEffects, isModalOpen: () => false }).default;
+  Object.setPrototypeOf(flyer, ConfusedHero.prototype);
+  Object.assign(flyer, { backpack: [], walkPath: [{ x: 1, y: 2 }], inputBuffer: [],
+    acknowledgedWalkEnemies: new Set(), actionReady: true });
+  flightEffects.applyEffect(flyer, flightEffects.createConfusedEffect());
+  withRoll(0, () => flyer.stepAutoWalk());
+  assert.equal(ctx.pendingFall, true, 'auto-walk cannot bypass confusion');
+  assert.equal(flyer.nextActionTime, 1);
+  assert.deepEqual(flyer.walkPath, []);
+}
+for (const adjacent of [false, true]) {
+  const { ctx, victim } = geyserSetup('enemy');
+  tiles.clearFeature(2, 2);
+  victim.x = 2;
+  victim.range = () => 0;
+  victim.visionRadius = 8;
+  const hero = Object.assign(actor('player', adjacent ? 1 : 5, 2), { effects: [] });
+  ctx.player = hero;
+  ctx.entities.push(hero);
+  flightEffects.applyEffect(victim, flightEffects.createConfusedEffect());
+  let attacks = 0;
+  const aiDungeon = { ...flightDungeon, attackEntity() { attacks++; } };
+  const ai = load('ai', { dungeon: aiDungeon, tiles, ...fov, ...flightEffects });
+  withRoll(0, () => ai.enemyTurn(victim));
+  assert.equal(attacks, adjacent ? 1 : 0, 'deliberate adjacent attacks remain unchanged');
+  assert.equal(ctx.entities.includes(victim), adjacent, 'moving enemy can stumble into chasm');
+  assert.equal(victim.nextActionTime, 3.75, 'AI spends exactly one action');
 }
 // Teleport traps are always reusable; other kinds honor their configured policy.
 // Reactivation never depends on a world-time timer.
@@ -636,4 +921,4 @@ for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 
   assert.equal(tiles.getFeature(4, 4), 'ice');
   assert.equal(ctx.entities.includes(potion), false);
 }
-console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, reusable/summon/alarm traps, fire spread, frozen water, arrows, stacks, deaths and levitation passed');
+console.log('terrain-pressure: generation, secrets, FOV, paths, persistence, reusable/summon/alarm/geyser/confusion traps, knockback, confused movement/AI, fire spread, frozen water, arrows, stacks, deaths and levitation passed');

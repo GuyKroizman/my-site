@@ -9,7 +9,7 @@ export type TerrainFeature = "door" | "secretDoor" | "trap" | "grass" | "water" 
 
 export type DoorState = "open" | "closed";
 export type TrapState = "hidden" | "visible" | "triggered";
-export type TrapKind = "dart" | "arrow" | "fire" | "frost" | "teleport" | "summon" | "alarm";
+export type TrapKind = "dart" | "arrow" | "fire" | "frost" | "teleport" | "summon" | "alarm" | "geyser" | "confusion";
 
 export type TileState = {
   // Optical override for glass walls/crystal doors, independent of movement.
@@ -89,6 +89,14 @@ export function setFeature(
 
 export function getFeature(x: number, y: number): TerrainFeature | undefined {
   return features.get(key(x, y))?.feature;
+}
+
+// Terrain remains visible while its occupants are concealed. Adjacency reveals
+// them; this is cover, not invisibility (and also hides levitating occupants).
+export function isGrassConcealed(x: number | undefined, y: number | undefined,
+  observerX: number | undefined, observerY: number | undefined): boolean {
+  return x !== undefined && y !== undefined && observerX !== undefined && observerY !== undefined &&
+    getFeature(x, y) === "grass" && Math.max(Math.abs(x - observerX), Math.abs(y - observerY)) > 1;
 }
 
 export function getTileState(x: number, y: number): TileState | undefined {
@@ -172,7 +180,9 @@ const TRAP_LABELS: Record<TrapKind, string> = {
   frost: "frost trap (freezes)",
   teleport: "teleport trap",
   summon: "summoning trap (calls one Skeleton into an empty adjacent tile)",
-  alarm: "alarm trap (wakes enemies within 8 tiles, even through walls)"
+  alarm: "alarm trap (wakes enemies within 8 tiles, even through walls)",
+  geyser: "geyser trap (pushes grounded actors one tile in their entry direction; diagonal entry pushes horizontally; can cause a chasm fall)",
+  confusion: "confusion trap (confuses grounded actors for 4 time units; movement becomes random and can enter chasms)"
 };
 
 // Human-readable description of a tile for the Inspect command.
@@ -193,7 +203,7 @@ export function describeTile(
       case "ice":
         return "Ice. Grounded entry slows movement for 2 time units. Burning actors melt it back to water. Does not conduct shock.";
       case "grass":
-        return "Tall grass. Blocks sight. Fire burns connected grass and ignites grounded actors.";
+        return "Tall grass. Blocks sight and conceals occupants beyond adjacent tiles. Attacking flattens cover. Fire burns connected grass and ignites grounded actors.";
       case "chasm":
         return "A chasm. Only levitation allows safe passage.";
       case "trap": {
