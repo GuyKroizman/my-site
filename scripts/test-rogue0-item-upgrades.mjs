@@ -314,7 +314,9 @@ const drawn = [];
 const shape = { setOrigin() { return this; }, setStrokeStyle() { return this; }, setInteractive() { return this; }, on() { return this; } };
 const scene = { add: { rectangle: () => shape, sprite: (_x, _y, key, frame = 0) => { drawn.push([key, frame]); return shape; } } };
 const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Gem, Wand, attachTooltip() {} });
-const inventory = new InventoryWindow(scene, context);
+const inventory = new InventoryWindow(scene, {
+  ...context, player: { ...context.player, slotOf: () => undefined }
+});
 inventory.winRoot = { add() {} };
 chalice.identified = false; inventory.renderCell(0, 0, chalice, false);
 chalice.identified = true; inventory.renderCell(0, 0, chalice, true);

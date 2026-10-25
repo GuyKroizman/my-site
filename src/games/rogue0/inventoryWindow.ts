@@ -41,7 +41,10 @@ const C = {
   panel: 0x1f1926,
   panel2: 0x241d2b,
   cell: 0x16121c,
-  cellSelected: 0x2b2232,
+  cellSafe: 0x102846,
+  cellUnknown: 0x352c22,
+  cellCursed: 0x49151c,
+  curseGlow: 0xd93645,
   cellHover: 0x2a2130,
   border: 0x3a3342,
   borderStrong: 0x5a5060,
@@ -319,12 +322,35 @@ export class InventoryWindow {
     item: Entity | undefined,
     selected: boolean
   ): void {
+    // Match inspection's knowledge rules; never expose an unidentified curse.
+    const curseKnown = !!item && (item.identified || !!this.context.player?.slotOf(item));
+    const knownCursed = curseKnown && !!item?.cursed;
+    const background = !item ? C.cell : !curseKnown ? C.cellUnknown :
+      knownCursed ? C.cellCursed : C.cellSafe;
     const box = this.scene.add
-      .rectangle(x, y, CELL, CELL, selected ? C.cellSelected : C.cell, 1)
+      .rectangle(x, y, CELL, CELL, background, 1)
       .setOrigin(0)
       .setStrokeStyle(selected ? 2 : 1, selected ? C.gold : C.border, 1);
     // Add the cell background first so the item icon/count render on top.
     this.winRoot!.add(box);
+
+    if (knownCursed) {
+      // Pulse only the background, leaving icons, counts and selection crisp.
+      const glow = this.scene.add
+        .rectangle(x + 1, y + 1, CELL - 2, CELL - 2, C.curseGlow, 1)
+        .setOrigin(0)
+        .setAlpha(0.12);
+      this.winRoot!.add(glow);
+      const pulse = this.scene.tweens.add({
+        targets: glow,
+        alpha: 0.55,
+        duration: 1200,
+        ease: "Sine.easeInOut",
+        yoyo: true,
+        repeat: -1
+      });
+      glow.once("destroy", () => pulse.remove());
+    }
 
     if (item) {
       const disabled = (!!this.enchantingGem && !this.enchantingGem.canEnchant(item)) ||
