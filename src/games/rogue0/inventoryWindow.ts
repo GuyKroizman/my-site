@@ -112,6 +112,17 @@ export class InventoryWindow {
     this.render();
   }
 
+  // Dismiss only the topmost modal; item inspection never spends a turn.
+  dismiss(): void {
+    if (this.menuItem) {
+      this.menuItem = undefined;
+      this.markDirty();
+      this.refresh();
+    } else {
+      this.close();
+    }
+  }
+
   close(): void {
     if (!this.open) return;
     this.open = false;
@@ -170,7 +181,7 @@ export class InventoryWindow {
         .setDepth(0)
     );
     overlay.setInteractive({ useHandCursor: true });
-    overlay.on("pointerup", () => this.close());
+    overlay.on("pointerup", () => this.dismiss());
 
     this.winRoot = this.add(this.scene.add.container(0, 0).setDepth(100));
 
@@ -516,6 +527,10 @@ export class InventoryWindow {
   }
 
   private doAction(action: Action, item: Entity): void {
+    if (action === "close") {
+      this.dismiss();
+      return;
+    }
     const player = this.context.player;
     if (!player) return;
 
@@ -541,8 +556,6 @@ export class InventoryWindow {
         player.beginThrow(item);
         this.close();
         return;
-      case "close":
-        break;
     }
 
     // Let the world resolve the spent turn instead of leaving it paused

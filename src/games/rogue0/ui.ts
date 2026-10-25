@@ -89,7 +89,7 @@ export class UI extends Phaser.Scene {
     this.inventoryWindow = new InventoryWindow(this, this.context);
     this.logWindow = new LogWindow(this, this.context);
 
-    // i / b toggle the inventory window; Esc closes it.
+    // i / b toggle the inventory window; Esc dismisses its topmost dialog.
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
       if (this.context.helpOpen) return;
       const key = event.key;
@@ -101,7 +101,7 @@ export class UI extends Phaser.Scene {
         this.closeHeroModal();
         this.inventoryWindow?.toggle();
       } else if (key === "Escape") {
-        this.inventoryWindow?.close();
+        this.inventoryWindow?.dismiss();
         this.closeHeroModal();
         this.context.inspectChoices = undefined;
         this.context.inspectedEntity = undefined;

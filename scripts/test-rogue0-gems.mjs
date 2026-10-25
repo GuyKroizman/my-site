@@ -105,4 +105,31 @@ assert.equal(window.isOpen(), false);
 assert.equal(shield.level, 2);
 assert.equal(turns, 3);
 assert.ok(!items.includes(gem));
+// Closing item details must not close the backpack, even while not action-ready.
+context.scene = { input: { enabled: true } };
+for (const actionReady of [true, false]) {
+  ready = actionReady;
+  for (const dismiss of [() => window.doAction('close', shield), () => window.dismiss()]) {
+    window.openWindow();
+    window.openMenu(shield);
+    assert.equal(window.menuItem, shield);
+    dismiss();
+    assert.equal(window.menuItem, undefined);
+    assert.equal(window.isOpen(), true, 'only item details close');
+    assert.equal(context.inventoryOpen, true);
+    assert.equal(context.scene.input.enabled, false, 'world remains blocked');
+    assert.equal(turns, 3, 'dismissal spends no turn');
+    window.dismiss();
+    assert.equal(window.isOpen(), false);
+    assert.equal(context.scene.input.enabled, true);
+  }
+}
+// Turn-spending actions still close inventory so the world can advance.
+context.player.equipItem = () => { ready = false; };
+ready = true;
+window.openWindow();
+window.openMenu(shield);
+window.doAction('equip', shield);
+assert.equal(window.isOpen(), false);
+assert.equal(context.scene.input.enabled, true);
 console.log('Rogue0 gem target selection, cancellation, stacking and turn costs passed');
