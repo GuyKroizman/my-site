@@ -31,7 +31,7 @@ const target = Object.assign(new EventEmitter(), {
 let open = true;
 exports.attachTooltip(scene, { inventoryOpen: true }, target, () => 'Wand', () => open);
 target.emit('pointerover');
-assert.equal(timer.delay, 2000);
+assert.equal(timer.delay, 1000);
 assert.equal(text.visible, false);
 timer.callback();
 assert.equal(text.visible, true);

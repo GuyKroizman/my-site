@@ -34,7 +34,7 @@ export function attachTooltip(
   };
   target.on('pointerover', () => {
     hide();
-    if (enabled()) hoverTimer = scene.time.delayedCall(2000, show);
+    if (enabled()) hoverTimer = scene.time.delayedCall(1000, show);
   });
   target.on('pointerout', hide);
   target.on('pointerdown', hide);
