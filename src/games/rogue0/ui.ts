@@ -48,6 +48,9 @@ export class UI extends Phaser.Scene {
   private heroModalBg: Phaser.GameObjects.Rectangle | undefined;
   private heroModalText: Phaser.GameObjects.Text | undefined;
   private heroModalOpen = false;
+  private showingTalents = false;
+  private talentRows: Phaser.GameObjects.Text[] = [];
+  private talentTab?: Phaser.GameObjects.Text;
   private heroCloseBtn: Phaser.GameObjects.Text | undefined;
 
   private inspectModal: Phaser.GameObjects.Container | undefined;
@@ -239,7 +242,9 @@ export class UI extends Phaser.Scene {
 
   private buildHeroModal() {
     const w = 320;
-    const h = 200;
+    const h = 300;
+    this.showingTalents = false;
+    this.talentRows = [];
     const root = this.add.container(0, 0).setDepth(600).setVisible(false);
     this.heroModalBg = this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1);
     root.add(this.heroModalBg);
@@ -256,6 +261,29 @@ export class UI extends Phaser.Scene {
       wordWrap: { width: w - 20 }
     });
     root.add(this.heroModalText);
+    this.talentTab = this.add.text(70, 5, "Talents", {
+      fontFamily: `${FONT_MONO}, monospace`, fontSize: 17, color: COL.gold
+    }).setInteractive({ useHandCursor: true });
+    this.talentTab.on("pointerup", () => {
+      this.showingTalents = !this.showingTalents;
+      this.updateHeroModal();
+    });
+    root.add(this.talentTab);
+    for (let index = 0; index < 2; index++) {
+      const row = this.add.text(10, 85 + index * 100, "", {
+        fontFamily: `${FONT_MONO}, monospace`, fontSize: 17, color: COL.gold,
+        wordWrap: { width: w - 20 }
+      }).setInteractive({ useHandCursor: true }).setVisible(false);
+      row.on("pointerup", () => {
+        if (!this.heroModalOpen || !this.showingTalents) return;
+        const player = this.context.player;
+        const talent = player?.availableTalents[index];
+        if (talent) player?.learnTalent(talent.id);
+        this.updateHeroModal();
+      });
+      this.talentRows.push(row);
+      root.add(row);
+    }
     this.heroCloseBtn = this.add
       .text(w - 12, 8, "Close", {
         fontFamily: `${FONT_MONO}, monospace`,
@@ -353,13 +381,16 @@ export class UI extends Phaser.Scene {
 
     // Hero modal: clamp to the viewport and center it.
     const heroW = Math.min(320, w - 16);
-    const heroH = 200;
+    const heroH = 300;
     this.heroModalBg?.setSize(heroW, heroH);
     this.heroModalText?.setWordWrapWidth(heroW - 20);
+    this.talentRows.forEach(row => row.setWordWrapWidth(heroW - 20));
     this.heroCloseBtn?.setPosition(heroW - 12, 8);
+    const heroScale = Math.min(1, Math.max(0.1, (h - 16) / heroH));
+    this.heroModal?.setScale(heroScale);
     this.heroModal?.setPosition(
-      (w - heroW) / 2,
-      Phaser.Math.Clamp((h - heroH) / 2 - 40, 8, Math.max(8, h - heroH - 8))
+      (w - heroW * heroScale) / 2,
+      Phaser.Math.Clamp((h - heroH * heroScale) / 2 - 40, 8, Math.max(8, h - heroH * heroScale - 8))
     );
 
     // Inspect modal: clamp to the viewport and center it.
@@ -408,6 +439,20 @@ export class UI extends Phaser.Scene {
     const p = this.context.player;
     if (!p) return;
 
+    this.talentTab?.setText(this.showingTalents ? "Stats" : `Talents (${p.talentPoints})`);
+    this.talentRows.forEach((row, index) => {
+      const talent = p.availableTalents[index];
+      row.setVisible(this.showingTalents && !!talent);
+      if (!talent) return;
+      const rank = p.talentRank(talent.id);
+      const canLearn = p.talentPoints > 0 && rank < 2;
+      row.setColor(canLearn ? COL.gold : COL.muted);
+      row.setText(`${talent.name} ${rank}/2${canLearn ? "  [+]" : ""}\n${talent.description}`);
+    });
+    if (this.showingTalents) {
+      this.heroModalText.setText(`Points: ${p.talentPoints} (levels 2–4)\nTap a talent to rank up.\nPermanent choices; rank cap 2.`);
+      return;
+    }
     let text = p.statsText();
     if (p.effects.length) {
       text +=

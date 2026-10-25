@@ -9,6 +9,7 @@ export default class Elf extends BasicHero {
     super(context);
 
     this.name = "Elf";
+    this.talentClass = "Elf";
     this.description =
       "A swift swordsman. Passive (Elven Grace): +10 evasion. Active (Double Strike, f): strike the nearest visible adjacent enemy twice.";
     this.healthPoints = 20;
@@ -37,9 +38,9 @@ export default class Elf extends BasicHero {
     }
 
     dungeon.log(this.context, `${this.name} uses Double Strike on ${enemy.name}!`);
-    this.resolveSkillAttack(enemy, {});
+    this.resolveSkillAttack(enemy, { bonusDamage: this.talentRank("strike") });
     if (enemy.healthPoints > 0) {
-      this.resolveSkillAttack(enemy, {});
+      this.resolveSkillAttack(enemy, { bonusDamage: this.talentRank("strike") });
     }
     this.spendTurn("attack");
     this.skillCooldown = this.skillMaxCooldown;

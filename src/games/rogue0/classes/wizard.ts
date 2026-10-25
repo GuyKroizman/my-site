@@ -12,6 +12,7 @@ export default class Wizard extends BasicHero {
     super(context);
 
     this.name = "Wizard";
+    this.talentClass = "Wizard";
     this.description =
       "A volatile spellcaster. Passive (Elemental Mastery): +1 damage with fire/shock/magic attacks. Active (Nova, f): burn every visible enemy within 4 tiles.";
     this.healthPoints = 20;
@@ -55,9 +56,9 @@ export default class Wizard extends BasicHero {
 
     dungeon.log(this.context, `${this.name} unleashes a fiery Nova!`);
     for (const enemy of enemies) {
-      applyEffect(enemy, createBurningEffect(3));
+      applyEffect(enemy, createBurningEffect(3 + this.talentRank("nova")));
     }
     this.spendTurn();
-    this.skillCooldown = this.skillMaxCooldown;
+    this.skillCooldown = this.skillMaxCooldown - this.talentRank("focus");
   }
 }

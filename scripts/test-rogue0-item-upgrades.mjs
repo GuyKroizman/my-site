@@ -257,6 +257,7 @@ assert.deepEqual(drawn, [['chalice-of-blood', 0], ['chalice-of-blood', 0]]);
 
 const Sword = itemClass('sword');
 class BasicHeroStub {
+  talentRank() { return 0; }
   constructor(context) { this.context = context; this.items = []; this.turns = 0; this.hits = 0; }
   addItem(item) { this.items.push(item); }
   equipItem(item) { this.weapon = item; }

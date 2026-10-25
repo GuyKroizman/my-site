@@ -17,7 +17,8 @@ has been playtested. Checked boxes mean the described implementation exists.
 ### Implemented since the original roadmap
 
 - Five classes now have cooldown skills: Power Strike, Shield Bash, Heal,
-  Multishot, and Nova. Subclasses/talent choices remain future work.
+  Double Strike, and Nova. First-tier class talents are implemented; subclasses
+  and later talent tiers remain future work.
 - `effects.ts` and `combat.ts` provide timed statuses, accuracy/evasion,
   physical armour, elemental resistance/vulnerability, crits and surprise
   attacks (auto-hit, bonus damage, possible bleed).
@@ -385,11 +386,36 @@ Archer currently attacks in range rather than kiting. Door-aware pursuit exists.
 - [ ] Subclasses / specialisations (e.g. Warrior → Gladiator/Berserker,
       Dwarf → Vanguard/Siegebreaker, Cleric → Warden/Sun, Elf → Sniper/Ranger,
       Wizard → Pyro/Storm).
-- [ ] SPD-style talent points at defined hero levels, spent on class talents
-      (passive/active) with ranks and unlock bands; specify cadence and choices.
-- [ ] Define XP thresholds and level-based HP/combat scaling alongside Phase 6.
-      Strength comes from Strength potions, not XP levels. Drop the original
-      generic HP/ATK/DEF/speed/vision stat-picker proposal in favour of talents.
+- [x] First-tier class talent points: one point at levels 2, 3 and 4; two
+      class-specific talents with two ranks each. Three points cannot max both.
+      Hero panel → Talents shows descriptions, ranks and available points;
+      tap to spend permanently without consuming world time. Points can be saved.
+- [ ] Later talent unlock bands and subclasses.
+- [x] Define initial XP thresholds and level-based HP/combat scaling: retain
+      `8 × current level` XP per next level (excess carries over), +5 max HP
+      and +1 base ATK per level, without healing on level-up. Strength remains
+      potion-only. These existing curves are retained pending balance playtests,
+      not claimed balanced. No generic stat picker.
+
+#### First-tier talent specification
+
+Each bonus below is **per rank** (maximum 2):
+
+| Class | Talent A | Talent B |
+|---|---|---|
+| Warrior | Crushing Strike: +2 Power Strike damage | Deep Fury: +1 damage at/below half HP |
+| Dwarf | Hamstring: +1 world-time duration to Bash cripple | Iron Skin: +1 physical armor |
+| Cleric | Greater Heal: +3 HP restored by Heal | Quick Prayer: −1 world-time Heal cooldown |
+| Elf | Twin Blades: +1 damage per Double Strike hit | Light Footwork: +5 evasion before armor penalties |
+| Wizard | Lingering Flame: +1 world-time Nova burn duration | Focused Nova: −1 world-time Nova cooldown |
+
+Cooldown talents affect subsequent skill uses, not an already-running cooldown.
+Duration bonuses use the existing effect clock; no per-action ticking or extra
+skill actions. Other equipment, Strength and XP tracks are unchanged.
+`scripts/test-rogue0-talents.mjs` covers awards (including multi-level gains),
+rank/point/class guards, all ten bonuses, cooldown timing and Hero-panel actions.
+Visual verification and full-run/five-class balance playtesting remain deferred.
+
 - [x] Per-class active skill with a cooldown (elapsed-world-time timestamps).
 - **Acceptance:** two runs of the same class can diverge meaningfully by
   floor 5.
@@ -506,10 +532,11 @@ coverage and small-screen readability before marking this phase complete.
 
 ### Next implementation priorities
 
-1. **Phase 9 XP/talents:** the Phase 6 Strength/tier/supply core is implemented
-   across 25 floors. Next define class talent points and level unlocks, retaining
-   separate XP, Strength and equipment-upgrade tracks. Run regressions throughout;
-   visual and five-class balance playtesting remain deferred, not completed.
+1. **Phase 9 first-tier XP/talents landed:** levels 2–4 award three points for
+   two rank-2 class talents, selected in the Hero panel. Separate XP, Strength
+   and equipment-upgrade tracks are preserved. Later tiers/subclasses remain
+   open; proceed to terrain next. All 13 regression suites and the production
+   build pass; visual and five-class balance playtesting remain deferred.
 2. **Finish Phase 7's terrain interactions** before adding more consumables.
 3. **Finish Phase 8:** archer kiting and remaining signatures. The Bone Lord
    now lives on floor 25; boss balance/redesign is deferred at user request.

@@ -45,6 +45,29 @@ const UI_FONT_MONO = "VT323";
 
 type EquipSlotKey = "weapon" | "armor" | "ring1" | "ring2" | "artifact";
 
+export const CLASS_TALENTS = {
+  Warrior: [
+    { id: "power", name: "Crushing Strike", description: "+2 Power Strike damage per rank." },
+    { id: "fury", name: "Deep Fury", description: "+1 damage at/below half HP per rank." }
+  ],
+  Dwarf: [
+    { id: "bash", name: "Hamstring", description: "+1 time of Shield Bash cripple per rank." },
+    { id: "armor", name: "Iron Skin", description: "+1 physical armor per rank." }
+  ],
+  Cleric: [
+    { id: "heal", name: "Greater Heal", description: "+3 HP restored by Heal per rank." },
+    { id: "prayer", name: "Quick Prayer", description: "Heal cooldown reduced by 1 time per rank." }
+  ],
+  Elf: [
+    { id: "strike", name: "Twin Blades", description: "+1 damage to each Double Strike hit per rank." },
+    { id: "grace", name: "Light Footwork", description: "+5 evasion per rank (before armor penalties)." }
+  ],
+  Wizard: [
+    { id: "nova", name: "Lingering Flame", description: "+1 time of Nova burning per rank." },
+    { id: "focus", name: "Focused Nova", description: "Nova cooldown reduced by 1 time per rank." }
+  ]
+} as const;
+
 export default class BasicHero extends Entity {
   name: string = "The Hero";
   description: string = "A brave adventurer";
@@ -57,6 +80,31 @@ export default class BasicHero extends Entity {
   private hungerWarned: boolean = false;
   xp: number = 0;
   level: number = 1;
+  talentClass?: keyof typeof CLASS_TALENTS;
+  talentRanks: Record<string, number> = {};
+
+  get availableTalents() {
+    return this.talentClass ? CLASS_TALENTS[this.talentClass] : [];
+  }
+
+  talentRank(id: string): number {
+    return this.availableTalents.some(t => t.id === id) ? (this.talentRanks?.[id] ?? 0) : 0;
+  }
+
+  get talentPoints(): number {
+    const spent = this.availableTalents.reduce((sum, t) => sum + this.talentRank(t.id), 0);
+    return Math.max(0, Math.min(3, this.level - 1) - spent);
+  }
+
+  learnTalent(id: string): boolean {
+    if (this.healthPoints <= 0 || !this.availableTalents.some(t => t.id === id) ||
+        this.talentPoints <= 0 || this.talentRank(id) >= 2) return false;
+    this.talentRanks[id] = this.talentRank(id) + 1;
+    const talent = this.availableTalents.find(t => t.id === id)!;
+    dungeon.log(this.context, `Learned ${talent.name} (${this.talentRank(id)}/2).`);
+    this.refreshUI();
+    return true;
+  }
   baseAttack: number = 0;
   strength: number = 10;
   tile: number = 26;
@@ -558,7 +606,7 @@ export default class BasicHero extends Entity {
   }
 
   get effectiveEvasion(): number {
-    return this.evasion / Math.pow(1.2, this.strengthDeficit(this.armor));
+    return (this.evasion + 5 * this.talentRank("grace")) / Math.pow(1.2, this.strengthDeficit(this.armor));
   }
 
   movementCostMultiplier(): number {
@@ -646,6 +694,9 @@ export default class BasicHero extends Entity {
       this.baseAttack += 1;
       sfx.levelUp();
       dungeon.log(this.context, `You leveled up! You are now level ${this.level} (+5 HP, +1 ATK).`);
+      if (this.level <= 4 && this.availableTalents.length) {
+        dungeon.log(this.context, "Talent point earned! Open the Hero panel to choose a talent.");
+      }
     }
   }
 

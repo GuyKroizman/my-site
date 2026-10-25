@@ -11,6 +11,7 @@ export default class Dwarf extends BasicHero {
     super(context);
 
     this.name = "Dwarf";
+    this.talentClass = "Dwarf";
     this.description =
       "A stout defender. Passive (Dwarven Armor): +1 armor and physical resistance. Active (Shield Bash, f): bash an adjacent enemy and cripple it.";
     this.healthPoints = 35;
@@ -35,7 +36,7 @@ export default class Dwarf extends BasicHero {
 
   // Passive: Dwarven Armor — +1 armor (stacks with the equipped shield).
   protection() {
-    return super.protection() + 1;
+    return super.protection() + 1 + this.talentRank("armor");
   }
 
   // Active: Shield Bash — attack an adjacent enemy and cripple it.
@@ -49,7 +50,7 @@ export default class Dwarf extends BasicHero {
     dungeon.log(this.context, `${this.name} slams ${enemy.name} with a Shield Bash!`);
     this.resolveSkillAttack(enemy, {
       bonusDamage: 1,
-      onHitEffects: [createCrippledEffect(3)]
+      onHitEffects: [createCrippledEffect(3 + this.talentRank("bash"))]
     });
     this.spendTurn("attack");
     this.skillCooldown = this.skillMaxCooldown;

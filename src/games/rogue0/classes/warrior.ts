@@ -10,6 +10,7 @@ export default class Warrior extends BasicHero {
     super(context)
 
     this.name = "Warrior"
+    this.talentClass = "Warrior"
     this.description =
       "A battle-hardened fighter. Passive (Blood Fury): +2 damage while below half health. Active (Power Strike, f): strike an adjacent enemy for +3 damage."
     this.maxHealthPoints = 30
@@ -31,7 +32,7 @@ export default class Warrior extends BasicHero {
   attack() {
     let total = super.attack()
     if (this.healthPoints <= this.maxHealthPoints / 2) {
-      total += 2
+      total += 2 + this.talentRank("fury")
     }
     return total
   }
@@ -45,7 +46,7 @@ export default class Warrior extends BasicHero {
     }
 
     dungeon.log(this.context, `${this.name} unleashes Power Strike!`)
-    this.resolveSkillAttack(enemy, { bonusDamage: 3 })
+    this.resolveSkillAttack(enemy, { bonusDamage: 3 + 2 * this.talentRank("power") })
     this.spendTurn("attack")
     this.skillCooldown = this.skillMaxCooldown
   }
