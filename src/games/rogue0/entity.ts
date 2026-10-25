@@ -170,7 +170,7 @@ export abstract class Entity {
     // x, y are not provided if the entity is an item carried (equipped) by the player
     // (not on the map)
     if (this.x !== undefined && this.y !== undefined) {
-      this.sprite = createSprite(context, this.x, this.y, this.tile, this.tint, this.textureKey);
+      this.sprite = createSprite(context, this.x, this.y, this.spriteFrame, this.tint, this.spriteTextureKey);
       // Actors render above floor loot regardless of spawn/drop order, but
       // enemies remain below the fog layer (100).
       this.sprite.setDepth(this.type === "item" ? 1 : this.type === "enemy" ? 2 : 200);
@@ -321,7 +321,7 @@ function createSprite(context: GameContext, x: number, y: number, tile: number, 
     xx || 0,
     yy || 0,
     textureKey ?? "foreground-tiles",
-    textureKey ? 0 : tile
+    tile
   );
   sprite.setOrigin(0);
   if (tint) {

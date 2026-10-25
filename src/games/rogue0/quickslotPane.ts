@@ -61,10 +61,9 @@ export class QuickslotPane {
       const item = this.context.player?.quickslotItem(i);
       icon.setVisible(!!item);
       if (!item) { label.setText('+'); return; }
-      icon.setTexture(item.identified ? item.spriteTextureKey : item.unidentifiedTextureKey,
-        item.identified ? item.spriteFrame : undefined);
+      icon.setTexture(item.spriteTextureKey, item.spriteFrame);
       icon.clearTint();
-      if (item.identified && item.tint) icon.setTint(item.tint);
+      if (item.tint) icon.setTint(item.tint);
       label.setText(item instanceof Wand ? `${item.charges}` : item.count > 1 ? `${item.count}` : '');
     });
   }

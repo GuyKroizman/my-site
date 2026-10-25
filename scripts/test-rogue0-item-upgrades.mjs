@@ -14,6 +14,33 @@ function load(path, bindings = {}) {
   return exports;
 }
 const { Entity, upgrade, identify, removeEntity } = load('src/games/rogue0/entity.ts');
+// Every category keeps its floor texture/frame/tint before and after identification.
+for (const equipSlot of ['weapon', 'armor', 'ring', 'artifact', 'consumable', 'junk']) {
+  for (const textureKey of [undefined, 'custom-item']) {
+    for (const identified of [false, true]) {
+      const item = Object.assign(new Entity(), {
+        type: 'item', equipSlot, textureKey, identified, tile: 123, tint: 0xabc123,
+      });
+      let rendered;
+      const sprite = { setOrigin() {}, setDepth() {} };
+      item.init({
+        map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
+        scene: { add: { sprite(...args) { rendered = args; return sprite; } }, tweens: { add() {} } },
+      }, 2, 3);
+      assert.deepEqual(rendered, [32, 48, item.spriteTextureKey, item.spriteFrame]);
+      assert.equal(sprite.tint, item.tint);
+      assert.equal(item.identified, identified, 'drawing must not identify an item');
+    }
+  }
+}
+// All inventory surfaces must use those same getters, not generic unknown icons.
+for (const file of ['inventoryWindow.ts', 'quickslotPane.ts']) {
+  const source = fs.readFileSync(`src/games/rogue0/${file}`, 'utf8');
+  assert.doesNotMatch(source, /unidentifiedTextureKey/, `${file} must preserve floor artwork`);
+  assert.match(source, /item\.spriteTextureKey/);
+  assert.match(source, /item\.spriteFrame/);
+  assert.doesNotMatch(source, /item\.identified\s*&&\s*item\.tint/);
+}
 // Upgrading must not identify unknown gear through log text or reveal its level.
 const unknownGear = Object.assign(new Entity(), {
   context: { messages: [] }, type: 'item', equipSlot: 'weapon',

@@ -318,21 +318,12 @@ export class InventoryWindow {
     if (item) {
       const disabled = (!!this.enchantingGem && !this.enchantingGem.canEnchant(item)) ||
         (this.quickslot !== undefined && !this.context.player!.canQuickslot(item));
-      if (item.identified) {
-        const icon = this.scene.add
-          .sprite(x + CELL / 2, y + CELL / 2, item.spriteTextureKey, item.spriteFrame)
-          .setOrigin(0.5);
-        if (item.tint) {
-          icon.tint = item.tint;
-        }
-        this.winRoot!.add(icon);
-      } else {
-        this.winRoot!.add(
-          this.scene.add
-            .sprite(x + CELL / 2, y + CELL / 2, item.unidentifiedTextureKey)
-            .setOrigin(0.5)
-        );
-      }
+      // Identification hides properties, not the artwork already visible on the floor.
+      const icon = this.scene.add
+        .sprite(x + CELL / 2, y + CELL / 2, item.spriteTextureKey, item.spriteFrame)
+        .setOrigin(0.5);
+      if (item.tint) icon.tint = item.tint;
+      this.winRoot!.add(icon);
 
       // Stack count in the bottom-right corner.
       if (item.count > 1) {
@@ -396,23 +387,15 @@ export class InventoryWindow {
       .setStrokeStyle(2, C.borderStrong, 1);
     this.menuRoot.add(panel);
 
-    // Icon (or a "?" while unidentified).
-    if (item.identified) {
-      const icon = this.scene.add.sprite(
-        iconX + iconSize / 2,
-        ay + iconSize / 2,
-        item.spriteTextureKey,
-        item.spriteFrame
-      );
-      if (item.tint) icon.tint = item.tint;
-      this.menuRoot.add(icon);
-    } else {
-      this.menuRoot.add(
-        this.scene.add
-          .sprite(iconX + iconSize / 2, ay + iconSize / 2, item.unidentifiedTextureKey)
-          .setOrigin(0.5)
-      );
-    }
+    // Use the same artwork as the floor and inventory, even before identification.
+    const icon = this.scene.add.sprite(
+      iconX + iconSize / 2,
+      ay + iconSize / 2,
+      item.spriteTextureKey,
+      item.spriteFrame
+    );
+    if (item.tint) icon.tint = item.tint;
+    this.menuRoot.add(icon);
 
     const name = this.scene.add.text(iconX + iconSize + 12, ay, item.displayName, {
       fontFamily: `${FONT_MONO}, monospace`, fontSize: 18,
