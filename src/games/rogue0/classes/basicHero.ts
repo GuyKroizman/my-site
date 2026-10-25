@@ -336,8 +336,15 @@ export default class BasicHero extends Entity {
   }
 
   private onEquip(item: Entity): void {
+    const revealsCurse = item.isPhysicalEquipment && !item.identified;
+    if (item.isPhysicalEquipment) item.identified = true;
     const detail = item.identified ? `: ${item.displayDescription}` : "";
     dungeon.log(this.context, `${this.name} equips ${item.displayName}${detail}.`);
+    if (revealsCurse) {
+      dungeon.log(this.context, item.cursed
+        ? `${item.displayName} is cursed and cannot be removed until its curse is lifted.`
+        : `${item.displayName} is not cursed.`);
+    }
     sfx.equip();
     item.equip();
   }

@@ -729,7 +729,7 @@ Object.assign(curseHero, {
 });
 const cursedGear = Object.assign(new Entity(), {
   type: 'item', name: 'Secret Blade', equipSlot: 'weapon',
-  identified: false, cursed: true, level: 3
+  identified: false, cursed: true, level: 3, equip() {}
 });
 const replacement = Object.assign(new Entity(), { type: 'item', equipSlot: 'weapon' });
 curseHero.backpack = [cursedGear, replacement];
@@ -744,8 +744,9 @@ curseHero.beginThrow(cursedGear);
 assert.equal(curseHero.context.throwItem, cursedGear, 'unequipped cursed gear can be thrown');
 curseHero.cancelThrow();
 assert.equal(curseHero.nextActionTime, 0, 'throw targeting and cancellation are free');
-curseHero.backpack = [replacement];
-curseHero.weapon = cursedGear;
+curseHero.equipItem(cursedGear);
+assert.equal(cursedGear.identified, true, 'equipping a weapon reveals its curse status');
+assert.equal(curseHero.weapon, cursedGear);
 for (const reject of [
   () => curseHero.unequipItem(cursedGear),
   () => curseHero.equipItem(replacement),
@@ -769,6 +770,28 @@ assert.equal(curseHero.weapon, undefined);
 assert.ok(curseHero.backpack.includes(cursedGear));
 assert.equal(cursedGear.level, 3, 'uncursing and unequipping preserve upgrades');
 assert.equal(curseHero.nextActionTime, 1);
+
+// Both safe and cursed weapons/armor reveal their status on actual equip.
+for (const equipSlot of ['weapon', 'armor']) {
+  for (const cursed of [false, true]) {
+    const tester = Object.assign(new Entity(), {
+      context: { messages: [], entities: [], simulationTime: 0 },
+      type: 'player', healthPoints: 10, actionReady: true,
+      capacity: 20, refreshUI() {}
+    });
+    Object.setPrototypeOf(tester, Hero.prototype);
+    const gear = Object.assign(new Entity(), {
+      type: 'item', name: 'Test Gear', equipSlot, identified: false, cursed, equip() {}
+    });
+    tester.backpack = [gear];
+    tester.equipItem(gear);
+    assert.equal(gear.identified, true);
+    assert.equal(tester[equipSlot], gear);
+    tester.unequipItem(gear);
+    assert.equal(tester[equipSlot], cursed ? gear : undefined,
+      'only cursed equipment is locked after revealing its status');
+  }
+}
 
 // Capacity blocks unequipping, but swapping uses the incoming item's slot.
 const fullHero = Object.assign(new Entity(), {
@@ -803,7 +826,7 @@ assert.equal(equipmentTurns, 1);
 assert.equal(oldGear.level, 2);
 assert.equal(newGear.level, 4);
 assert.equal(oldGear.identified, false);
-assert.equal(newGear.identified, false);
+assert.equal(newGear.identified, true, 'swapping in equipment reveals its curse status');
 
 // Recheck ownership/curse at confirmation, not only when targeting opens.
 for (const invalidate of ['removed', 'equipped-curse']) {
