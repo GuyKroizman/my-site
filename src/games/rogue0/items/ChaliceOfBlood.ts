@@ -80,7 +80,7 @@ export default class ChaliceOfBlood extends Entity {
       iconTile: 13 * 49 + 44,
       duration: Number.POSITIVE_INFINITY,
       manualExpiry: true,
-      tick(entity, context) {
+      tick(entity) {
         // Do not bank healing at full health or accelerate it by re-equipping.
         if (entity.healthPoints >= entity.maxHealthPoints) {
           artifact.healingTurns = 0;

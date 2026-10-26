@@ -15,6 +15,10 @@ function load(path, bindings = {}) {
 }
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const rendering = load('src/games/rogue0/rendering.ts');
+assert.equal(rendering.doorPassage([[1, 1, 1], [0, 0, 0], [1, 1, 1]], 1, 1), 'horizontal', 'east-west passage uses a side-on door');
+assert.equal(rendering.doorPassage([[1, 0, 1], [1, 0, 1], [1, 0, 1]], 1, 1), 'vertical', 'north-south passage uses the broad door face');
+assert.equal(rendering.doorPassage([[0, 0, 0], [0, 0, 0], [0, 0, 0]], 1, 1), 'vertical', 'ambiguous junction has a stable default');
+assert.equal(rendering.doorPassage([[0, 0]], 0, 0), 'horizontal', 'map boundaries count as walls');
 for (const y of [0, 16, 160, 1600]) {
   assert.ok(rendering.worldDepth(y + 16, 'terrain') > rendering.worldDepth(y, 'actor'), 'near grass/doors overlap actors behind');
   assert.ok(rendering.worldDepth(y, 'actor') > rendering.worldDepth(y, 'terrain'), 'actors stand in front of their own terrain');

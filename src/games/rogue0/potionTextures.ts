@@ -94,6 +94,29 @@ export function generateUnknownItemTextures(scene: Phaser.Scene): void {
 
 // An open door is just a brown dotted line on the floor (a doorstep).
 export function generateDoorThresholdTexture(scene: Phaser.Scene): void {
+  // Side-on panel for an east–west passage. Keep it narrow rather than
+  // rotating the front sprite (which would put its handle/planks sideways).
+  if (!scene.textures.exists('door-side')) {
+    const side = scene.make.graphics(undefined, false);
+    side.fillStyle(0x292525, 1);
+    side.fillRect(5, 0, 6, 16);
+    side.fillStyle(0x67401f, 1);
+    side.fillRect(6, 1, 4, 14);
+    side.fillStyle(0xa17435, 1);
+    side.fillRect(6, 2, 1, 12);
+    side.fillStyle(0x402c1e, 1);
+    side.fillRect(7, 4, 3, 1);
+    side.fillRect(7, 11, 3, 1);
+    side.generateTexture('door-side', 16, 16);
+    side.destroy();
+  }
+  if (!scene.textures.exists('door-threshold-side')) {
+    const side = scene.make.graphics(undefined, false);
+    side.fillStyle(0x8a5a2b, 1);
+    for (let y = 1; y <= 13; y += 3) side.fillRect(7, y, 2, 2);
+    side.generateTexture('door-threshold-side', 16, 16);
+    side.destroy();
+  }
   if (scene.textures.exists("door-threshold")) return;
   const g = scene.make.graphics(undefined, false);
   g.fillStyle(0x8a5a2b, 1);

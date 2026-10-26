@@ -5,6 +5,13 @@ export function worldDepth(worldY: number, kind: 'item' | 'terrain' | 'actor'): 
   return 1 + 80 * foot / (foot + 32);
 }
 
+/** Passage direction, not the direction the door panel faces. Out-of-map
+ * neighbors count as walls; ambiguous junctions retain the front-facing door. */
+export function doorPassage(level: number[][], x: number, y: number): 'horizontal' | 'vertical' {
+  const floor = (dx: number, dy: number) => level[y + dy]?.[x + dx] === 0 ? 1 : 0;
+  return floor(-1, 0) + floor(1, 0) > floor(0, -1) + floor(0, 1) ? 'horizontal' : 'vertical';
+}
+
 // Lift artwork without changing grid positions, tween destinations or hitboxes.
 export const UPRIGHT_LIFT = 5;
 

@@ -14,7 +14,7 @@ type SavedFloor = {
   up: { x: number; y: number };
   down: { x: number; y: number };
 };
-import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth } from './rendering';
+import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage } from './rendering';
 import dungeon from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
 import turnManager from "./turnManager";
@@ -922,7 +922,10 @@ export class Scene0 extends Phaser.Scene {
       seen.add(key);
 
       let sprite = this.featureSprites.get(key);
-      const visual = this.featureVisual(state);
+      const sideDoor = state.feature === 'door' && doorPassage(dungeon.getCurrentLevel(), x, y) === 'horizontal';
+      const visual = sideDoor
+        ? { textureKey: state.door === 'open' ? 'door-threshold-side' : 'door-side' }
+        : this.featureVisual(state);
       const visible = state.feature !== "secretDoor" && (state.feature !== "trap" || state.trap !== "hidden");
       const upright = state.feature === 'grass' || (state.feature === 'door' && state.door !== 'open');
       const texKey = visual.textureKey ?? (upright ? 'foreground-tiles' : 'tiles');
