@@ -14,7 +14,7 @@ type SavedFloor = {
   up: { x: number; y: number };
   down: { x: number; y: number };
 };
-import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang } from './rendering';
+import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY } from './rendering';
 import dungeon, { Sprites } from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
 import turnManager from "./turnManager";
@@ -181,6 +181,7 @@ export class Scene0 extends Phaser.Scene {
 
   preload() {
     this.load.image('hero-color', '/rogue0/hero-color.png');
+    for (let i = 0; i < 3; i++) this.load.image(`tall-grass-${i}`, `/rogue0/tall-grass-${i}.png`);
     this.load.image('stone-tiles', '/rogue0/stone-tiles.png');
     this.load.image("ration", "/rogue0/items/ration.png");
     this.load.image("chalice-of-blood", "/rogue0/items/chalice-of-blood.png");
@@ -903,7 +904,7 @@ export class Scene0 extends Phaser.Scene {
           ? { textureKey: "door-threshold" }
           : { tile: tiles.FeatureTiles.doorClosed };
       case "grass":
-        return { tile: tiles.FeatureTiles.grass, tint: 0x55aa55 };
+        return { textureKey: 'tall-grass-0' };
       case "water":
         return { tile: tiles.FeatureTiles.water, tint: 0x4488cc };
       case "ice":
@@ -960,7 +961,9 @@ export class Scene0 extends Phaser.Scene {
         : this.featureVisual(state);
       const visible = state.feature !== "secretDoor" && (state.feature !== "trap" || state.trap !== "hidden");
       const upright = state.feature === 'grass' || (state.feature === 'door' && state.door !== 'open');
-      const texKey = visual.textureKey ?? (upright ? 'foreground-tiles' : 'tiles');
+      // Stable visual variation without consuming gameplay randomness.
+      const texKey = state.feature === 'grass' ? `tall-grass-${(x * 7 + y * 11) % 3}`
+        : visual.textureKey ?? (upright ? 'foreground-tiles' : 'tiles');
       const frame = visual.textureKey ? 0 : (visual.tile ?? 0);
 
       if (!sprite) {
@@ -975,7 +978,7 @@ export class Scene0 extends Phaser.Scene {
 
       // Water, ice, traps and open thresholds remain flat. Grass and closed
       // doors have transparent silhouettes that overlap the preceding row.
-      sprite.setOrigin(0, upright ? UPRIGHT_LIFT / 16 : 0);
+      sprite.setOrigin(0, state.feature === 'grass' ? actorOriginY(sprite.height) : upright ? UPRIGHT_LIFT / 16 : 0);
       sprite.setDepth(upright ? worldDepth(sprite.y, 'terrain') : 0);
       if (visual.tint !== undefined) {
         sprite.setTint(visual.tint);

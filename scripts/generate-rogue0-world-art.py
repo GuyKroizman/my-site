@@ -4,16 +4,28 @@ from PIL import Image, ImageDraw
 
 out = Path('public/rogue0')
 out.mkdir(exist_ok=True)
-# Seamless staggered paving. Quiet cool grays keep actors and loot prominent.
-floor = Image.new('RGBA', (16, 16), '#343b3d')
+# Broken, partly buried dungeon flagstones. Earth fills irregular joints;
+# low-contrast mottling, no bevels or directional shadows suggesting height.
+floor = Image.new('RGBA', (16, 16), '#30312c')
 d = ImageDraw.Draw(floor)
-for x, y, w, h, color in [(0, 0, 9, 7, '#42494b'), (10, 0, 6, 7, '#3c4447'),
-                          (-4, 8, 9, 8, '#394246'), (6, 8, 10, 8, '#454c4d')]:
-    d.rectangle((x, y, x+w-1, y+h-1), fill=color)
-    # No bevel highlights or side shadows: all stones lie in one plane.
-for x, y in [(2, 3), (7, 5), (12, 2), (1, 11), (9, 10), (13, 13)]:
-    d.point((x, y), fill='#454d4e')
-d.line((11, 9, 12, 10, 12, 12), fill='#343c40')
+for points, color in [
+    ([(0, 0), (5, 0), (6, 2), (5, 5), (2, 6), (0, 4)], '#3d403b'),
+    ([(8, 0), (14, 0), (15, 2), (13, 5), (9, 6), (7, 3)], '#393d39'),
+    ([(2, 8), (5, 7), (9, 8), (10, 11), (7, 14), (3, 13), (1, 10)], '#41433c'),
+    ([(12, 8), (15, 7), (15, 14), (11, 15), (10, 13)], '#383c36'),
+    ([(0, 13), (1, 14), (5, 15), (0, 15)], '#3b3d36'),
+]:
+    d.polygon(points, fill=color)
+# Embedded grit, damp discoloration and worn chips, kept quiet behind actors.
+for x, y, color in [(3, 2, '#46473f'), (4, 4, '#383c35'),
+                     (10, 2, '#3e423a'), (11, 3, '#343a32'),
+                     (5, 10, '#47483e'), (6, 11, '#3b3f35'),
+                     (3, 12, '#373a31'), (13, 10, '#414337'),
+                     (0, 7, '#3a382e'), (6, 6, '#403c30'),
+                     (8, 15, '#39382d'), (14, 6, '#373c2e')]:
+    d.point((x, y), fill=color)
+d.line([(9, 0), (9, 1), (10, 2)], fill='#30352f')
+d.line([(8, 9), (7, 10), (7, 12)], fill='#33372e')
 floor.save(out / 'stone-floor.png')
 atlas = Image.open('public/colored.png').convert('RGBA')
 atlas.paste(floor, (0, 0))
@@ -55,6 +67,20 @@ for y, row in enumerate(rows):
     for x, c in enumerate(row):
         p.point((x, y), fill=palette[c])
 hero.save(out / 'hero-color.png')
+# Tall, sparse blades: 24px artwork anchored by its roots to a 16px cell.
+# Transparent gaps let the wall/floor behind the leaves remain visible.
+for variant in range(3):
+    grass = Image.new('RGBA', (16, 24))
+    g = ImageDraw.Draw(grass)
+    for i, (root, tip, height) in enumerate([(2, 0, 19), (5, 3, 24), (8, 10, 17), (11, 13, 22), (14, 15, 15)]):
+        tip = max(0, min(15, tip + (variant - 1) * (1 if i % 2 else -1)))
+        top = 24 - height + (variant if i % 2 else 0)
+        bend = (root + tip) // 2
+        g.line([(root, 23), (root, 16), (bend, 9), (tip, top)], fill='#29472e', width=2)
+        g.line([(root, 22), (root, 16), (bend, 9), (tip, top)], fill=['#54843b', '#6a9946', '#416b35'][i % 3], width=1)
+        leaf = max(0, min(15, root + (3 if i % 2 else -3)))
+        g.line([(root, 18), (leaf, 13), (leaf, 10 + variant)], fill='#608a3e', width=1)
+    grass.save(out / f'tall-grass-{variant}.png')
 # Preview uses the actual exported assets, not a separate illustration.
 preview = Image.new('RGBA', (80, 48))
 for y in range(0, 48, 16):
@@ -62,3 +88,11 @@ for y in range(0, 48, 16):
         preview.paste(floor, (x, y))
 preview.alpha_composite(hero, (32, 32 - hero.height))
 preview.resize((640, 384), Image.Resampling.NEAREST).save('/tmp/rogue0-world-art-preview.png')
+# Show the actual leaf overlap against an atlas wall, with roots on floor.
+wall = atlas.crop((0, 13 * 17, 16, 13 * 17 + 16))
+for x in range(0, 80, 16):
+    preview.paste(wall, (x, 0))
+    if x != 32:
+        preview.alpha_composite(Image.open(out / f'tall-grass-{(x // 16) % 3}.png'), (x, 8))
+preview.alpha_composite(hero, (32, 32 - hero.height))
+preview.resize((640, 384), Image.Resampling.NEAREST).save('/tmp/rogue0-grass-preview.png')
