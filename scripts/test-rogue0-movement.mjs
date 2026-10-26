@@ -688,8 +688,15 @@ assert.equal(path.slice(1).filter((p, i) => p[0] !== path[i][0] && p[1] !== path
 assert.deepEqual(realDungeon.findPath(1, 1, 3, 3), [[1, 1], [2, 2], [3, 3]]);
 assert.deepEqual(realDungeon.findPath(1, 1, -1, 3), [], 'off-map taps are safe');
 realDungeon.pathGrid.setWalkableAt(2, 1, false);
-assert.equal(realDungeon.canStepBetween(1, 1, 2, 2), false, 'no diagonal wall cutting');
+assert.equal(realDungeon.canStepBetween(1, 1, 2, 2), true, 'diagonal can round a single wall corner');
+assert.deepEqual(realDungeon.findPath(1, 1, 2, 2), [[1, 1], [2, 2]]);
+features.set('1,2', { feature: 'trap', trap: 'visible' });
+assert.deepEqual(realDungeon.findPath(1, 1, 2, 2, true, true), [[1, 1], [2, 2]], 'wall plus trap beside the hero allows one safe diagonal step');
+features.clear();
+realDungeon.pathGrid.setWalkableAt(1, 2, false);
+assert.equal(realDungeon.canStepBetween(1, 1, 2, 2), false, 'two solid corners still block diagonal squeezing');
 assert.notDeepEqual(realDungeon.findPath(1, 1, 3, 3)[1], [2, 2]);
+realDungeon.pathGrid.setWalkableAt(1, 2, true);
 realDungeon.pathGrid.setWalkableAt(2, 1, true);
 features.set('2,2', { feature: 'trap', trap: 'visible' });
 assert.ok(!realDungeon.findPath(1, 1, 3, 3, true, true).some(([x, y]) => x === 2 && y === 2));

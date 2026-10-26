@@ -41,7 +41,7 @@ let dungeon = {
     this.pathGrid = new PF.Grid(levelArray);
     tiles.applyToPathGrid(this.pathGrid);
     this.diagonalFinder = new PF.AStarFinder({
-      diagonalMovement: PF.DiagonalMovement.OnlyWhenNoObstacles
+      diagonalMovement: PF.DiagonalMovement.Always
     });
 
     const level0 = levelArray.map((r) =>
@@ -91,7 +91,8 @@ let dungeon = {
     return this.pathGrid!;
   },
 
-  // Diagonal steps and melee cannot cut across walls or closed doors.
+  // A diagonal may round one blocked corner, but cannot squeeze between
+  // two walls/closed doors. Destination walkability is checked separately.
   canStepBetween: function (sx: number, sy: number, tx: number, ty: number, actor?: Entity): boolean {
     const dx = Math.abs(tx - sx);
     const dy = Math.abs(ty - sy);
@@ -99,7 +100,7 @@ let dungeon = {
     if (!dx || !dy) return true;
     const passable = (x: number, y: number) => this.pathGrid!.isWalkableAt(x, y) ||
       (!!actor && hasEffect(actor, "levitating") && tiles.getFeature(x, y) === "chasm" && this.currentLevel[y]?.[x] === 0);
-    return passable(sx, ty) && passable(tx, sy);
+    return passable(sx, ty) || passable(tx, sy);
   },
 
   // Pathfinding mutates node state (opened/closed), so always search on a
@@ -131,9 +132,11 @@ let dungeon = {
       });
     }
     if (!grid.isInside(sx, sy) || !grid.isInside(tx, ty)) return [];
-    // Planning may enter a closed door, but not cut diagonally past it.
+    // The search grid excludes unsafe destinations (traps), not physical
+    // corner space. Enumerate diagonals, then apply the same physical corner
+    // rule as manual movement. A wall + adjacent trap must not force a detour.
     const getNeighbors = grid.getNeighbors.bind(grid);
-    grid.getNeighbors = (node, diagonalMovement) => getNeighbors(node, diagonalMovement)
+    grid.getNeighbors = (node) => getNeighbors(node, PF.DiagonalMovement.Always)
       .filter(next => this.canStepBetween(node.x, node.y, next.x, next.y, actor));
     return this.diagonalFinder!.findPath(sx, sy, tx, ty, grid);
   },

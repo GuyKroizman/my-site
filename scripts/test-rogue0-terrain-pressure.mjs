@@ -368,7 +368,7 @@ function flightSetup() {
   assert.equal(flightDungeon.isWalkableTile(ctx, 3, 1), false, 'flight never crosses walls');
   assert.equal(flightDungeon.findPath(2, 2, 4, 2, true, true, flyer).length, 3);
   assert.equal(flightDungeon.pathGrid.isWalkableAt(3, 2), false, 'flight never changes shared grid');
-  assert.equal(flightDungeon.canStepBetween(2, 2, 3, 1, flyer), false, 'no wall corner cutting');
+  assert.equal(flightDungeon.canStepBetween(2, 2, 3, 1, flyer), true, 'flight clears the chasm-side corner; destination wall is still rejected by isWalkableTile');
   flightDungeon.moveEntityTo(ctx, flyer, 3, 2);
   ctx.simulationTime = 1.49;
   flightEffects.tickEffects(flyer, ctx);
