@@ -14,32 +14,19 @@ export const POTION_COLORS = {
 } as const;
 
 export function generatePotionTextures(scene: Phaser.Scene): void {
-  const keys = [
-    "potion-red",
-    "potion-green",
-    "potion-blue",
-    "potion-gold",
-    "potion-purple"
-  ];
+  // Enough distinct colors for every potion name, including legacy potions.
+  // Entity assigns these randomly without replacement for each run.
   const colors = [
-    POTION_COLORS.red,
-    POTION_COLORS.green,
-    POTION_COLORS.blue,
-    POTION_COLORS.gold,
-    POTION_COLORS.purple
+    POTION_COLORS.red, POTION_COLORS.green, POTION_COLORS.blue,
+    POTION_COLORS.gold, POTION_COLORS.purple, 0x28d9da,
+    0xff8c32, 0xf276bb, 0xb7e342, 0xf0eee0, 0x82502e, 0x686878
   ];
 
-  // Shuffle so each run maps potion types to colors differently (SPD-style:
-  // the color no longer reveals what a potion is).
-  for (let i = colors.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [colors[i], colors[j]] = [colors[j], colors[i]];
-  }
-
-  keys.forEach((key, i) => {
+  colors.forEach((color, i) => {
+    const key = `potion-${i}`;
     if (scene.textures.exists(key)) scene.textures.remove(key);
     const g = scene.make.graphics(undefined, false);
-    drawFlask(g, colors[i]);
+    drawFlask(g, color);
     g.generateTexture(key, 16, 16);
     g.destroy();
   });

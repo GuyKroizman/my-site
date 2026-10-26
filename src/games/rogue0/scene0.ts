@@ -73,6 +73,7 @@ import { computeFOV, resolveVision } from "./fov";
 import { hasEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
+import { resetConsumableAppearances } from "./entity";
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
 
@@ -196,6 +197,7 @@ export class Scene0 extends Phaser.Scene {
     createForegroundAtlas(this);
     this.events.once("shutdown", () => clearMonsterSleepVisuals(this));
     this.context.scene = this;
+    resetConsumableAppearances(this.context);
     this.context.floor = 1;
     this.context.kills = 0;
     this.ended = false;

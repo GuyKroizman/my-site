@@ -475,6 +475,7 @@ export default class BasicHero extends Entity {
       if (item.tint) {
         sprite.tint = item.tint;
       }
+      if (item.textureKey?.startsWith("potion-")) sprite.setScale(0.5);
       item.sprite = sprite;
 
       if (item.type === "item") {
@@ -1386,6 +1387,7 @@ export default class BasicHero extends Entity {
     if (item.tint) {
       sprite.tint = item.tint;
     }
+    if (item.textureKey?.startsWith("potion-")) sprite.setScale(0.5);
     item.sprite = sprite;
 
     if (item.type === "item") {

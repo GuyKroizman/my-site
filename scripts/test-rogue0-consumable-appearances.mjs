@@ -1,0 +1,46 @@
+import { recordTestRun } from './rogue0-test-history.mjs';
+recordTestRun('consumable-appearances');
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+const source = fs.readFileSync('src/games/rogue0/entity.ts', 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
+const exports = {};
+new Function('exports', ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports);
+const { Entity, resetConsumableAppearances } = exports;
+const context = {
+  map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
+  scene: { add: { sprite: () => ({ scale: 1, setOrigin() {}, setScale(n) { this.scale = n; }, setDepth() {} }) }, tweens: { add() {} } },
+};
+const make = (name, category, floor = false) => {
+  const item = Object.assign(new Entity(), { name, type: 'item', textureKey: `${category}-red`, identified: false });
+  item.init(context, floor ? 1 : undefined, floor ? 2 : undefined);
+  return item;
+};
+const random = Math.random;
+try {
+  Math.random = () => 0;
+  for (const [category, count] of [['potion', 12], ['scroll', 9]]) {
+    const keys = new Set();
+    for (let i = 0; i < count; i++) {
+      const item = make(`${category} ${i}`, category, true);
+      const key = item.spriteTextureKey;
+      keys.add(key);
+      assert.equal(item.sprite.scale, category === 'potion' ? 0.5 : 1);
+      assert.equal(item.unidentifiedTextureKey, key);
+      item.identified = true;
+      assert.equal(item.spriteTextureKey, key);
+      const carried = make(item.name, category);
+      assert.equal(carried.sprite, undefined);
+      assert.equal(carried.spriteTextureKey, key);
+      assert.equal(carried.spriteFrame, 0);
+    }
+    assert.equal(keys.size, count);
+  }
+  const old = make('potion 0', 'potion').spriteTextureKey;
+  resetConsumableAppearances(context);
+  Math.random = () => 0.999;
+  assert.notEqual(make('potion 0', 'potion').spriteTextureKey, old);
+} finally {
+  Math.random = random;
+}
+console.log('Rogue0 unique per-run consumable appearances, identification stability and floor-only potion scale passed');

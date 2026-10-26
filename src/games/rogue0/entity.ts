@@ -16,6 +16,33 @@ export type EquipSlot =
   | "consumable"
   | "junk";
 
+// One shuffled, one-to-one appearance assignment per run, shared by all copies.
+const consumableAppearances = new WeakMap<GameContext, Map<string, string>>();
+export function resetConsumableAppearances(context: GameContext): void {
+  consumableAppearances.delete(context);
+}
+const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror', 'recharging'];
+function consumableAppearance(item: Entity): string | undefined {
+  const category = item.textureKey?.startsWith('potion-') ? 'potion'
+    : item.textureKey?.startsWith('scroll-') ? 'scroll' : undefined;
+  if (!category || !item.context) return item.textureKey;
+  let assignments = consumableAppearances.get(item.context);
+  if (!assignments) {
+    assignments = new Map();
+    consumableAppearances.set(item.context, assignments);
+  }
+  const kind = `${category}:${item.name}`;
+  if (!assignments.has(kind)) {
+    const keys = category === 'potion'
+      ? Array.from({ length: 12 }, (_, i) => `potion-${i}`)
+      : scrollAppearances.map(glyph => `scroll-${glyph}`);
+    const available = keys.filter(key => ![...assignments.values()].includes(key));
+    if (!available.length) throw new Error(`No unused ${category} appearances`);
+    assignments.set(kind, available[Math.floor(Math.random() * available.length)]);
+  }
+  return assignments.get(kind);
+}
+
 export abstract class Entity {
   healthPoints: number = 0;
   maxHealthPoints: number = 0;
@@ -162,7 +189,7 @@ export abstract class Entity {
     // Preserve visible scroll glyphs and potion colours before identification,
     // while still hiding the item's name/effect.
     if (this.textureKey?.startsWith("scroll-") || this.textureKey?.startsWith("potion-")) {
-      return this.textureKey;
+      return this.spriteTextureKey;
     }
     switch (this.equipSlot) {
       case "consumable":
@@ -180,7 +207,7 @@ export abstract class Entity {
 
   // Texture + frame to use when rendering this entity's sprite.
   get spriteTextureKey(): string {
-    return this.textureKey ?? "foreground-tiles";
+    return consumableAppearance(this) ?? "foreground-tiles";
   }
 
   get spriteFrame(): number {
@@ -197,6 +224,9 @@ export abstract class Entity {
     // (not on the map)
     if (this.x !== undefined && this.y !== undefined) {
       this.sprite = createSprite(context, this.x, this.y, this.spriteFrame, this.tint, this.spriteTextureKey);
+      if (this.type === "item" && this.textureKey?.startsWith("potion-")) {
+        this.sprite.setScale(0.5);
+      }
       // Actors render above floor loot regardless of spawn/drop order, but
       // enemies remain below the fog layer (100).
       this.sprite.setDepth(this.type === "item" ? 1 : this.type === "enemy" ? 2 : 200);

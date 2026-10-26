@@ -154,6 +154,7 @@ assert.equal(ctx.entities[0].healthPoints, 10);
 
 function sprite() {
   return { setOrigin() { return this; }, setDepth() { return this; },
+    setScale(scale) { this.scale = scale; return this; },
     setRotation() { return this; }, setPosition() { return this; }, destroy() {} };
 }
 function renderContext(ctx) {
