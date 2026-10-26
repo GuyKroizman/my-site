@@ -15,7 +15,7 @@ type SavedFloor = {
   down: { x: number; y: number };
 };
 import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY } from './rendering';
-import dungeon, { Sprites } from "./dungeon";
+import dungeon from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
 import turnManager from "./turnManager";
 import Skeleton from "./monsters/skelaton";
@@ -183,6 +183,7 @@ export class Scene0 extends Phaser.Scene {
     this.load.image('hero-color', '/rogue0/hero-color.png');
     for (let i = 0; i < 3; i++) this.load.image(`tall-grass-${i}`, `/rogue0/tall-grass-${i}.png`);
     this.load.image('stone-tiles', '/rogue0/stone-tiles.png');
+    this.load.image('stone-wall', '/rogue0/stone-wall.png');
     this.load.image("ration", "/rogue0/items/ration.png");
     this.load.image("chalice-of-blood", "/rogue0/items/chalice-of-blood.png");
     this.load.image("fang-of-the-beast", "/rogue0/items/fang-of-the-beast.png");
@@ -936,7 +937,7 @@ export class Scene0 extends Phaser.Scene {
         const key = `${x},${y}`;
         wallKeys.add(key);
         if (!this.wallSprites.has(key)) {
-          const sprite = this.add.sprite(x * 16, y * 16, 'tiles', Sprites.wall)
+          const sprite = this.add.sprite(x * 16, y * 16, 'stone-wall')
             .setOrigin(0, UPRIGHT_LIFT / 16)
             .setDepth(worldDepth(y * 16, 'terrain'));
           this.wallSprites.set(key, sprite);

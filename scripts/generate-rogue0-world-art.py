@@ -29,6 +29,29 @@ d.line([(8, 9), (7, 10), (7, 12)], fill='#33372e')
 floor.save(out / 'stone-floor.png')
 atlas = Image.open('public/colored.png').convert('RGBA')
 atlas.paste(floor, (0, 0))
+# Original worn masonry: broad horizontal blocks, recessed mortar, restrained
+# green-gray damp staining. Unlike floor stones, wall faces have edge lighting.
+wall = Image.new('RGBA', (16, 16), '#303637')
+w = ImageDraw.Draw(wall)
+for x, y, width, color in [
+    (-3, 0, 10, '#727b78'), (8, 0, 9, '#808784'),
+    (0, 6, 10, '#626d69'), (11, 6, 8, '#707975'),
+    (-5, 12, 10, '#58635e'), (6, 12, 10, '#64706a'),
+]:
+    w.rectangle((x, y, x + width - 1, y + 4), fill=color)
+    w.line((x + 1, y, x + width - 2, y), fill='#929b94' if y == 0 else '#7e8981')
+    w.line((x + width - 1, y + 1, x + width - 1, y + 4), fill='#46524c')
+    w.line((x, y + 4, x + width - 1, y + 4), fill='#434e49')
+# Chips interrupt straight edges; mineral marks and moss stay subtle.
+for x, y, color in [(2, 0, '#515e57'), (13, 6, '#444f48'),
+                     (7, 12, '#3f4c43'), (4, 2, '#89918a'),
+                     (12, 2, '#939a93'), (3, 8, '#748177'),
+                     (8, 9, '#56694e'), (14, 14, '#52644c'),
+                     (1, 14, '#4b5e46')]:
+    w.point((x, y), fill=color)
+w.line([(12, 1), (11, 2), (11, 3)], fill='#65716a')
+wall.save(out / 'stone-wall.png')
+atlas.paste(wall, (0, 13 * 17))
 atlas.save(out / 'stone-tiles.png')
 
 # Adult explorer: compact head, broad armored shoulders, long torso/legs,
