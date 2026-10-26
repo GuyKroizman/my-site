@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { updateHeroAnimation } from './heroAnimation';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
 import type { PoisonCloud } from "./context";
 import { removeEntity, type Entity } from './entity';
@@ -399,6 +400,7 @@ export class Scene0 extends Phaser.Scene {
 
   update() {
     if (this.ended) return;
+    updateHeroAnimation(this.context.player, this.time.now);
     if (isModalOpen(this.context)) {
       if (this.context.player) {
         this.context.player.inputBuffer = [];

@@ -1,0 +1,50 @@
+import { recordTestRun } from './rogue0-test-history.mjs';
+recordTestRun('hero-animation');
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+const source = fs.readFileSync('src/games/rogue0/heroAnimation.ts', 'utf8').replace(/^import .*;$/gm, '');
+const exports = {};
+new Function('exports', ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports);
+const { updateHeroAnimation: update } = exports;
+function sprite() {
+  return { x: 32, y: 48, flipX: false, displayOriginX: 0, displayOriginY: 0,
+    setFlipX(v) { this.flipX = v; },
+    setDisplayOrigin(x, y) { this.displayOriginX = x; this.displayOriginY = y; } };
+}
+const hero = { sprite: sprite(), healthPoints: 10, moving: false, tweens: 0 };
+update(hero, 0);
+update(hero, 2700);
+assert.equal(hero.sprite.flipX, true);
+update(hero, 4000);
+assert.equal(hero.sprite.flipX, false);
+assert.deepEqual([hero.sprite.x, hero.sprite.y], [32, 48]);
+hero.moving = true;
+hero.sprite.x -= 8;
+update(hero, 4016);
+assert.equal(hero.sprite.flipX, true);
+assert.equal(hero.sprite.displayOriginY, 2);
+hero.sprite.x -= 8;
+update(hero, 4032);
+assert.equal(hero.sprite.displayOriginY, 0);
+hero.moving = false;
+update(hero, 4048);
+assert.equal(hero.sprite.flipX, true);
+update(hero, 6800);
+assert.equal(hero.sprite.flipX, false);
+hero.tweens = 1;
+update(hero, 6816);
+assert.equal(hero.sprite.flipX, true);
+assert.equal(hero.sprite.displayOriginY, 0);
+hero.tweens = 0;
+hero.sprite.x = 200;
+update(hero, 6832);
+assert.equal(hero.sprite.displayOriginY, 0);
+hero.sprite = sprite();
+update(hero, 7000);
+assert.equal(hero.sprite.flipX, false);
+update(undefined, 7100);
+hero.healthPoints = 0;
+update(hero, 9800);
+assert.equal(hero.sprite.flipX, false);
+console.log('Hero idle glances, walking bounce, facing, neutral attacks/teleports and sprite lifecycle passed');

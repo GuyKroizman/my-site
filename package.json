@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:rogue0": "node scripts/test-rogue0-movement.mjs && node scripts/test-rogue0-vision.mjs && node scripts/test-rogue0-log.mjs && node scripts/test-rogue0-gems.mjs && node scripts/test-rogue0-gold.mjs && node scripts/test-rogue0-quickslots.mjs && node scripts/test-rogue0-stairs.mjs && node scripts/test-rogue0-tooltips.mjs && node scripts/test-rogue0-inventory-colors.mjs && node scripts/test-rogue0-item-upgrades.mjs && node scripts/test-rogue0-monster-behavior.mjs && node scripts/test-rogue0-terrain-pressure.mjs && node scripts/test-rogue0-progression.mjs && node scripts/test-rogue0-talents.mjs && node scripts/test-rogue0-shock-water.mjs && node scripts/test-rogue0-gas.mjs",
+    "test:rogue0": "node scripts/test-rogue0-movement.mjs && node scripts/test-rogue0-vision.mjs && node scripts/test-rogue0-log.mjs && node scripts/test-rogue0-gems.mjs && node scripts/test-rogue0-gold.mjs && node scripts/test-rogue0-quickslots.mjs && node scripts/test-rogue0-stairs.mjs && node scripts/test-rogue0-tooltips.mjs && node scripts/test-rogue0-inventory-colors.mjs && node scripts/test-rogue0-item-upgrades.mjs && node scripts/test-rogue0-monster-behavior.mjs && node scripts/test-rogue0-terrain-pressure.mjs && node scripts/test-rogue0-progression.mjs && node scripts/test-rogue0-talents.mjs && node scripts/test-rogue0-shock-water.mjs && node scripts/test-rogue0-gas.mjs && node scripts/test-rogue0-hero-animation.mjs",
     "test:rogue0:items": "node scripts/test-rogue0-item-upgrades.mjs",
     "test:rogue0:monsters": "node scripts/test-rogue0-monster-behavior.mjs",
     "test:rogue0:terrain": "node scripts/test-rogue0-terrain-pressure.mjs",
