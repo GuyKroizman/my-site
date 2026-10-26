@@ -94,20 +94,39 @@ export function generateUnknownItemTextures(scene: Phaser.Scene): void {
 
 // An open door is just a brown dotted line on the floor (a doorstep).
 export function generateDoorThresholdTexture(scene: Phaser.Scene): void {
+  // 21px panels reach the floor at local y=16 with a 5px wall-height rise.
+  if (!scene.textures.exists('door-front')) {
+    const front = scene.make.graphics(undefined, false);
+    front.fillStyle(0x292b28, 1);
+    front.fillRect(1, 0, 14, 21);
+    front.fillStyle(0x73502d, 1);
+    front.fillRect(2, 1, 12, 19);
+    front.fillStyle(0x936b38, 1);
+    for (const x of [3, 7, 11]) front.fillRect(x, 2, 2, 17);
+    front.fillStyle(0x4a3525, 1);
+    for (const x of [6, 10]) front.fillRect(x, 1, 1, 19);
+    front.fillStyle(0x424640, 1);
+    front.fillRect(2, 5, 12, 2);
+    front.fillRect(2, 15, 12, 2);
+    front.fillStyle(0xb69c60, 1);
+    front.fillRect(11, 10, 2, 2);
+    front.generateTexture('door-front', 16, 21);
+    front.destroy();
+  }
   // Side-on panel for an east–west passage. Keep it narrow rather than
   // rotating the front sprite (which would put its handle/planks sideways).
   if (!scene.textures.exists('door-side')) {
     const side = scene.make.graphics(undefined, false);
     side.fillStyle(0x292525, 1);
-    side.fillRect(5, 0, 6, 16);
+    side.fillRect(5, 0, 6, 21);
     side.fillStyle(0x67401f, 1);
-    side.fillRect(6, 1, 4, 14);
+    side.fillRect(6, 1, 4, 19);
     side.fillStyle(0xa17435, 1);
-    side.fillRect(6, 2, 1, 12);
+    side.fillRect(6, 2, 1, 17);
     side.fillStyle(0x402c1e, 1);
     side.fillRect(7, 4, 3, 1);
-    side.fillRect(7, 11, 3, 1);
-    side.generateTexture('door-side', 16, 16);
+    side.fillRect(7, 16, 3, 1);
+    side.generateTexture('door-side', 16, 21);
     side.destroy();
   }
   if (!scene.textures.exists('door-threshold-side')) {

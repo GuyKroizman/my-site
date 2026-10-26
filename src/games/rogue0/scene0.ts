@@ -1,4 +1,11 @@
 import Phaser from "phaser";
+// Vite emits content-hashed URLs, so deployed art cannot reuse an older atlas.
+import stoneTilesUrl from '../../../public/rogue0/stone-tiles.png';
+import stoneWallUrl from '../../../public/rogue0/stone-wall.png';
+import heroArtUrl from '../../../public/rogue0/hero-color.png';
+import grass0Url from '../../../public/rogue0/tall-grass-0.png';
+import grass1Url from '../../../public/rogue0/tall-grass-1.png';
+import grass2Url from '../../../public/rogue0/tall-grass-2.png';
 import { updateHeroAnimation } from './heroAnimation';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
 import type { PoisonCloud } from "./context";
@@ -180,10 +187,10 @@ export class Scene0 extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('hero-color', '/rogue0/hero-color.png');
-    for (let i = 0; i < 3; i++) this.load.image(`tall-grass-${i}`, `/rogue0/tall-grass-${i}.png`);
-    this.load.image('stone-tiles', '/rogue0/stone-tiles.png');
-    this.load.image('stone-wall', '/rogue0/stone-wall.png');
+    this.load.image('hero-color', heroArtUrl);
+    [grass0Url, grass1Url, grass2Url].forEach((url, i) => this.load.image(`tall-grass-${i}`, url));
+    this.load.image('stone-tiles', stoneTilesUrl);
+    this.load.image('stone-wall', stoneWallUrl);
     this.load.image("ration", "/rogue0/items/ration.png");
     this.load.image("chalice-of-blood", "/rogue0/items/chalice-of-blood.png");
     this.load.image("fang-of-the-beast", "/rogue0/items/fang-of-the-beast.png");
@@ -903,7 +910,7 @@ export class Scene0 extends Phaser.Scene {
       case "door":
         return state.door === "open"
           ? { textureKey: "door-threshold" }
-          : { tile: tiles.FeatureTiles.doorClosed };
+          : { textureKey: 'door-front' };
       case "grass":
         return { textureKey: 'tall-grass-0' };
       case "water":
@@ -979,7 +986,9 @@ export class Scene0 extends Phaser.Scene {
 
       // Water, ice, traps and open thresholds remain flat. Grass and closed
       // doors have transparent silhouettes that overlap the preceding row.
-      sprite.setOrigin(0, state.feature === 'grass' ? actorOriginY(sprite.height) : upright ? UPRIGHT_LIFT / 16 : 0);
+      // All upright artwork is feet/root anchored, including doors. Moving
+      // a 16px panel up by 5px left its bottom floating above the threshold.
+      sprite.setOrigin(0, upright ? actorOriginY(sprite.height) : 0);
       sprite.setDepth(upright ? worldDepth(sprite.y, 'terrain') : 0);
       if (visual.tint !== undefined) {
         sprite.setTint(visual.tint);

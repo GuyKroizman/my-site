@@ -15,7 +15,18 @@ function load(path, bindings = {}) {
 }
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const rendering = load('src/games/rogue0/rendering.ts');
-for (const height of [16, 22, 24, 32]) {
+const doorTextures = new Map();
+load('src/games/rogue0/potionTextures.ts').generateDoorThresholdTexture({
+  textures: { exists: key => doorTextures.has(key) },
+  make: { graphics: () => ({
+    fillStyle() {}, fillRect() {}, destroy() {},
+    generateTexture(key, width, height) { doorTextures.set(key, { width, height }); },
+  }) },
+});
+for (const key of ['door-front', 'door-side']) {
+  assert.deepEqual(doorTextures.get(key), { width: 16, height: 21 }, 'both door orientations have real height rather than floating 16px art');
+}
+for (const height of [16, 21, 22, 24, 32]) {
   const top = -rendering.actorOriginY(height) * height;
   assert.ok(Math.abs(top + height - 16) < 1e-9, 'all actor sizes keep their feet at the cell bottom');
   if (height > 16) assert.ok(top < 0, 'tall actors extend over the wall in the row above');
