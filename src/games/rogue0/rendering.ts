@@ -27,12 +27,16 @@ export function wallOverhang(level: number[][], x: number, y: number): boolean {
 
 /** Feather inward onto explored terrain only. Unknown cells stay opaque;
  * this is presentation, never an expansion of FOV or targeting range. */
-export function fogFeatherRects(seen: boolean[][]): Array<{ x: number; y: number; width: number; height: number; alpha: number }> {
+export function fogFeatherRects(seen: Array<boolean[] | null | undefined>): Array<{ x: number; y: number; width: number; height: number; alpha: number }> {
   const rects: Array<{ x: number; y: number; width: number; height: number; alpha: number }> = [];
   const fade = [0.88, 0.66, 0.43, 0.23, 0.09];
   for (let y = 0; y < seen.length; y++) {
-    for (let x = 0; x < seen[y].length; x++) {
-      if (!seen[y][x]) continue;
+    // Exploration is sparse: untouched rows don't exist (or deserialize as
+    // null). Treat them as unknown without mutating the exploration map.
+    const row = seen[y];
+    if (!row) continue;
+    for (let x = 0; x < row.length; x++) {
+      if (!row[x]) continue;
       for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
         if (seen[y + dy]?.[x + dx]) continue;
         fade.forEach((alpha, i) => {

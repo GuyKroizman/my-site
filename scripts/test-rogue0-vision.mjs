@@ -103,6 +103,19 @@ assert.ok(!sight.hasLineOfSight(clearing, 4, 4, 5, 5), 'hard wall corners still 
 clearing[4][5] = 0;
 
 const { fogFeatherRects } = load('src/games/rogue0/rendering.ts');
+// Scene0 creates exploration rows lazily; new floors have holes before and
+// between discovered rows. Saved/restored arrays can contain nulls instead.
+const sparseSeen = [];
+sparseSeen[3] = [];
+sparseSeen[3][2] = true;
+sparseSeen[6] = [];
+sparseSeen[6][4] = true;
+const denseSeen = Array.from({ length: 7 }, () => Array(5).fill(false));
+denseSeen[3][2] = denseSeen[6][4] = true;
+assert.deepEqual(fogFeatherRects(sparseSeen), fogFeatherRects(denseSeen), 'sparse exploration matches a dense map');
+assert.deepEqual(fogFeatherRects(JSON.parse(JSON.stringify(sparseSeen))), fogFeatherRects(denseSeen), 'restored null rows remain unexplored');
+assert.deepEqual(fogFeatherRects([]), [], 'fresh empty exploration is safe');
+assert.equal(0 in sparseSeen, false, 'rendering does not fill undiscovered rows');
 const explored = [[false, false, false], [false, true, false], [false, false, false]];
 const edges = fogFeatherRects(explored);
 assert.equal(edges.length, 20, 'five fade bands on each exposed edge');
