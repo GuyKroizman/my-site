@@ -51,6 +51,7 @@ assert.equal(saved.seen[0][0], true);
 trap.trapReusable = false;
 assert.equal(saved.features[1].trapReusable, true, 'snapshot copies reuse policy');
 scene.featureSprites = new Map();
+scene.wallSprites = new Map();
 scene.applyFeatures(saved.features);
 assert.equal(applied[1].trapReusable, true, 'floor restoration forwards reuse policy');
 assert.equal(applied[1].trap, 'visible', 'reusable trap remains armed on revisit');

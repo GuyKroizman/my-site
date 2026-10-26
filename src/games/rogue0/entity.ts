@@ -1,6 +1,6 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import Phaser from "phaser";
-import { UPRIGHT_LIFT, worldDepth } from './rendering';
+import { worldDepth } from './rendering';
 import type { GameContext } from "./context";
 import { sfx } from "./audio";
 import type { DamageType, StatusEffect } from "./effects";
@@ -228,8 +228,8 @@ export abstract class Entity {
       if (this.type === "item" && this.textureKey?.startsWith("potion-")) {
         this.sprite.setScale(0.5);
       }
-      // Keep the ground anchor unchanged; the head extends into the row behind.
-      if (this.type !== "item") this.sprite.setOrigin(0, UPRIGHT_LIFT / 16);
+      // Feet stay at the bottom of the cell. Raised foreground walls, rather
+      // than a permanently lifted actor, provide corridor occlusion.
       this.sprite.setDepth(worldDepth(this.sprite.y, this.type === "item" ? "item" : "actor"));
 
       // Floor items pulse gently so they stand out.

@@ -15,6 +15,10 @@ function load(path, bindings = {}) {
 }
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const rendering = load('src/games/rogue0/rendering.ts');
+assert.equal(rendering.wallOverhang([[0], [1]], 0, 1), true, 'south wall overlaps corridor occupants');
+assert.equal(rendering.wallOverhang([[1], [0]], 0, 0), false, 'north wall does not project into the corridor below');
+assert.equal(rendering.wallOverhang([[1], [1]], 0, 1), false, 'solid wall interiors need no overhang');
+assert.equal(rendering.wallOverhang([[0], [0]], 0, 1), false, 'revealed passages remove wall overlap');
 assert.equal(rendering.doorPassage([[1, 1, 1], [0, 0, 0], [1, 1, 1]], 1, 1), 'horizontal', 'east-west passage uses a side-on door');
 assert.equal(rendering.doorPassage([[1, 0, 1], [1, 0, 1], [1, 0, 1]], 1, 1), 'vertical', 'north-south passage uses the broad door face');
 assert.equal(rendering.doorPassage([[0, 0, 0], [0, 0, 0], [0, 0, 0]], 1, 1), 'vertical', 'ambiguous junction has a stable default');
@@ -586,13 +590,14 @@ const walkContext = {
   entities: [], visibleTiles: new Set(['1,1', '3,1']),
   map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
   scene: {
-    add: { sprite: (x, y) => ({ x, y, setOrigin() {}, setDepth(depth) { this.depth = depth; } }) },
+    add: { sprite: (x, y) => ({ x, y, setOrigin(x, y = x) { this.originY = y; }, setDepth(depth) { this.depth = depth; } }) },
     tweens: { add(tween) { walkTweens.push(tween); } }
   }
 };
 const walkerA = actor('enemy');
 const walkerB = actor('enemy');
 walkerA.init(walkContext, 1, 1);
+assert.equal(walkerA.sprite.originY, 0, 'actors are grounded rather than lifted above corridor center');
 walkerB.init(walkContext, 3, 1);
 const floorLoot = actor('item');
 floorLoot.init(walkContext, 2, 1);

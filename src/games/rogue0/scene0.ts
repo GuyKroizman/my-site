@@ -14,8 +14,8 @@ type SavedFloor = {
   up: { x: number; y: number };
   down: { x: number; y: number };
 };
-import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage } from './rendering';
-import dungeon from "./dungeon";
+import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang } from './rendering';
+import dungeon, { Sprites } from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
 import turnManager from "./turnManager";
 import Skeleton from "./monsters/skelaton";
@@ -161,6 +161,7 @@ export class Scene0 extends Phaser.Scene {
     });
   }
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  private wallSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private cursor!: Phaser.GameObjects.Graphics;
   private zoom = 2;
   private MIN_ZOOM = 0.2;
@@ -786,6 +787,10 @@ export class Scene0 extends Phaser.Scene {
     const player = this.context.player;
     const mindVision = this.getVision().mindVision;
     this.mindMarkers.clear();
+    for (const [key, sprite] of this.wallSprites) {
+      const [x, y] = key.split(',').map(Number);
+      sprite.setVisible(this.seen[y]?.[x] === true);
+    }
     this.gasOverlay?.clear();
     for (const cloud of this.context.poisonClouds ?? []) {
       if (cloud.expiresAt <= (this.context.simulationTime ?? 0) + 1e-9 || !this.visible.has(`${cloud.x},${cloud.y}`)) continue;
@@ -879,6 +884,8 @@ export class Scene0 extends Phaser.Scene {
       sprite.destroy();
     }
     this.featureSprites.clear();
+    for (const sprite of this.wallSprites.values()) sprite.destroy();
+    this.wallSprites.clear();
   }
 
   private featureVisual(state: tiles.TileState): {
@@ -914,6 +921,29 @@ export class Scene0 extends Phaser.Scene {
   private syncFeatures() {
     const map = this.context.map;
     if (!map) return;
+
+    // Keep the opaque wall base in the tilemap. A raised copy extends its
+    // north edge into the corridor and sorts in front of actors behind it.
+    // Reconcile on terrain changes too (e.g. a secret wall becoming a door).
+    const level = dungeon.getCurrentLevel();
+    const wallKeys = new Set<string>();
+    for (let y = 0; y < level.length; y++) {
+      for (let x = 0; x < level[y].length; x++) {
+        if (!wallOverhang(level, x, y)) continue;
+        const key = `${x},${y}`;
+        wallKeys.add(key);
+        if (!this.wallSprites.has(key)) {
+          const sprite = this.add.sprite(x * 16, y * 16, 'tiles', Sprites.wall)
+            .setOrigin(0, UPRIGHT_LIFT / 16)
+            .setDepth(worldDepth(y * 16, 'terrain'));
+          this.wallSprites.set(key, sprite);
+        }
+        this.wallSprites.get(key)!.setVisible(this.seen[y]?.[x] === true);
+      }
+    }
+    for (const [key, sprite] of this.wallSprites) {
+      if (!wallKeys.has(key)) { sprite.destroy(); this.wallSprites.delete(key); }
+    }
 
     const seen = new Set<string>();
 
