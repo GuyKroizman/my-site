@@ -36,7 +36,7 @@ export default class Cleric extends BasicHero {
     // Passive: Divine Mending — heal 1 HP each turn.
     if (this.healthPoints < this.maxHealthPoints) {
       this.healthPoints += 1
-      dungeon.log(this.context, "Cleric heals 1 HP")
+      // Passive healing updates the health display without log chatter.
     }
   }
 
@@ -49,7 +49,7 @@ export default class Cleric extends BasicHero {
 
     const healed = Math.min(5 + 3 * this.talentRank("heal"), this.maxHealthPoints - this.healthPoints)
     this.healthPoints += healed
-    dungeon.log(this.context, `${this.name} heals ${healed} HP.`)
+    dungeon.log(this.context, `You heal ${healed} HP.`)
     this.spendTurn()
     this.skillCooldown = this.skillMaxCooldown - this.talentRank("prayer")
   }

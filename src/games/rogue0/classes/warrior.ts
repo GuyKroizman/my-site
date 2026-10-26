@@ -45,7 +45,7 @@ export default class Warrior extends BasicHero {
       return
     }
 
-    dungeon.log(this.context, `${this.name} unleashes Power Strike!`)
+    dungeon.log(this.context, `You unleash Power Strike!`)
     this.resolveSkillAttack(enemy, { bonusDamage: 3 + 2 * this.talentRank("power") })
     this.spendTurn("attack")
     this.skillCooldown = this.skillMaxCooldown

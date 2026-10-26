@@ -339,7 +339,7 @@ export default class BasicHero extends Entity {
     const revealsCurse = item.isPhysicalEquipment && !item.identified;
     if (item.isPhysicalEquipment) item.identified = true;
     const detail = item.identified ? `: ${item.displayDescription}` : "";
-    dungeon.log(this.context, `${this.name} equips ${item.displayName}${detail}.`);
+    dungeon.log(this.context, `You equip ${item.displayName}${detail}.`);
     if (revealsCurse) {
       dungeon.log(this.context, item.cursed
         ? `${item.displayName} is cursed and cannot be removed until its curse is lifted.`
@@ -350,7 +350,7 @@ export default class BasicHero extends Entity {
   }
 
   private onUnequip(item: Entity): void {
-    dungeon.log(this.context, `${this.name} unequips ${item.displayName}.`);
+    dungeon.log(this.context, `You unequip ${item.displayName}.`);
     item.unequip?.();
   }
 
@@ -489,7 +489,7 @@ export default class BasicHero extends Entity {
       }
     }
 
-    dungeon.log(this.context, `${this.name} drops ${item.displayName}.`);
+    dungeon.log(this.context, `You drop ${item.displayName}.`);
     this.spendTurn("drop");
     this.refreshUI();
   }
@@ -514,8 +514,11 @@ export default class BasicHero extends Entity {
     if (!item.identified) {
       identify(item);
     }
-    dungeon.log(this.context, `${this.name} uses ${item.name}.`);
+    const previousMessages = this.context.messages.join("\n");
     item.equip();
+    if (this.context.messages.join("\n") === previousMessages) {
+      dungeon.log(this.context, `You use ${item.name}.`);
+    }
     sfx.potion();
     this.spendTurn("use");
     return true;
@@ -987,7 +990,7 @@ export default class BasicHero extends Entity {
       this.walkPath = [];
       if (this.addItem(entity)) {
         dungeon.itemPicked(entity);
-        dungeon.log(this.context, `${this.name} picked ${entity.displayName}.`);
+        dungeon.log(this.context, `You pick up ${entity.displayName}.`);
         // Pickup is included in the cost of stepping onto this tile.
         this.spendTurn("move");
         dungeon.moveEntityTo(this.context, this, step.x, step.y);
@@ -1016,7 +1019,7 @@ export default class BasicHero extends Entity {
     this.context.terrainActionMode = true;
     this.context.cursorX = this.x;
     this.context.cursorY = this.y;
-    dungeon.log(this.context, "Jump: select a cardinally adjacent empty chasm. Drops a floor for 1/3 max HP damage (fatal on the last floor). Esc cancels.");
+    // Targeting instructions are shown temporarily by the HUD.
   }
 
   jumpAt(x: number, y: number): void {
@@ -1115,10 +1118,7 @@ export default class BasicHero extends Entity {
       context.cursorX = this.x;
       context.cursorY = this.y;
     }
-    dungeon.log(
-      context,
-      `${zap ? "Zapping" : "Throwing"} ${item.displayName} — tap a tile in range and line of sight, or move the cursor and press Enter. Esc cancels.`
-    );
+    // Targeting instructions are shown temporarily by the HUD.
   }
 
   cancelThrow(): void {
@@ -1127,7 +1127,7 @@ export default class BasicHero extends Entity {
     context.throwMode = false;
     context.throwItem = undefined;
     this.zapping = false;
-    dungeon.log(context, "Targeting cancelled.");
+
   }
 
   throwAtCursor(): void {
@@ -1205,7 +1205,7 @@ export default class BasicHero extends Entity {
             dungeon.applyHitEffects(context, enemy);
             if (enemy.healthPoints <= 0) removeEntity(context, enemy);
           }
-          dungeon.log(context, `${item.displayName}: ${result.hit ? `${result.damage} damage` : "miss"}.`);
+          dungeon.log(context, `${item.displayName}: ${result.surprise ? "surprise, " : ""}${result.crit ? "critical, " : ""}${result.hit ? `${result.damage} damage` : "miss"}.`);
         } finally {
           this.attack = attack;
         }
@@ -1315,13 +1315,13 @@ export default class BasicHero extends Entity {
         if (result.damageType === "shock") context.onShockWater?.(enemy, result.damage);
         dungeon.log(
           context,
-          `${this.name} throws ${item.displayName} at ${enemy.name} for ${result.damage} ${result.damageType} damage.`
+          `You throw ${item.displayName} at ${enemy.name} for ${result.damage} ${result.damageType} damage.`
         );
         dungeon.applyHitEffects(context, enemy);
       } else {
         dungeon.log(
           context,
-          `${this.name} throws ${item.displayName} at ${enemy.name} but deals no damage.`
+          `You throw ${item.displayName} at ${enemy.name} but deals no damage.`
         );
       }
 
@@ -1345,7 +1345,7 @@ export default class BasicHero extends Entity {
     const context = this.context;
     dungeon.log(
       context,
-      `${this.name} throws ${item.displayName} at ${enemy.name}.`
+      `You throw ${item.displayName} at ${enemy.name}.`
     );
 
     const name = item.name.toLowerCase();
@@ -1401,7 +1401,7 @@ export default class BasicHero extends Entity {
 
     dungeon.log(
       context,
-      `${this.name} throws ${item.displayName} — it lands on the floor.`
+      `You throw ${item.displayName} — it lands on the floor.`
     );
   }
 
@@ -1460,13 +1460,13 @@ export default class BasicHero extends Entity {
       if (result.damageType === "shock") this.context.onShockWater?.(victim, result.damage);
       dungeon.log(
         this.context,
-        `${this.name} hits ${victim.name} for ${result.damage} ${result.damageType} damage.`
+        `You hit ${victim.name} for ${result.damage} ${result.damageType} damage.`
       );
       dungeon.applyHitEffects(this.context, victim);
     } else {
       dungeon.log(
         this.context,
-        `${this.name} hits ${victim.name} but deals no damage.`
+        `You hit ${victim.name} but deals no damage.`
       );
     }
 
@@ -1668,7 +1668,7 @@ export default class BasicHero extends Entity {
           if (this.addItem(entity)) {
             dungeon.itemPicked(entity);
             const detail = entity.identified ? `: ${entity.displayDescription}` : "";
-            dungeon.log(this.context, `${this.name} picked ${entity.displayName}${detail}`);
+            dungeon.log(this.context, `You pick up ${entity.displayName}${detail}`);
             // Pickup shares the movement turn below.
           } else {
             newX = oldX;

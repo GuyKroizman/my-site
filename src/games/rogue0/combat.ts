@@ -25,6 +25,7 @@ export type CombatResult = {
   hit: boolean;
   damage: number;
   crit: boolean;
+  surprise?: boolean;
   damageType: DamageType;
   appliedEffects: StatusEffect[];
 };
@@ -112,9 +113,9 @@ export function resolveAttack(
     const evasion = defender.effectiveEvasion ?? defender.evasion;
     if (roll >= accuracy - evasion) {
       if (evasion > 0) {
-        log(context, `${defender.name} dodges ${attacker.name}'s attack.`);
+        log(context, `${defender.type === "player" ? "You dodge" : `${defender.name} dodges`} ${attacker.type === "player" ? "your" : `${attacker.name}'s`} attack.`);
       } else {
-        log(context, `${attacker.name} misses ${defender.name}.`);
+        log(context, `${attacker.type === "player" ? "You miss" : `${attacker.name} misses`} ${defender.type === "player" ? "you" : defender.name}.`);
       }
       return {
         hit: false,
@@ -124,11 +125,6 @@ export function resolveAttack(
         appliedEffects
       };
     }
-  } else {
-    log(
-      context,
-      `Surprise! ${attacker.name} catches ${defender.name} off guard.`
-    );
   }
 
   // Base damage (already aggregates equipped gear for heroes).
@@ -144,7 +140,6 @@ export function resolveAttack(
   const crit = Math.random() < CRIT_CHANCE;
   if (crit) {
     damage = Math.round(damage * CRIT_MULTIPLIER);
-    log(context, `${attacker.name} lands a critical hit!`);
   }
 
   // Surprise bonus: extra damage and (physical only) a chance to bleed.
@@ -169,7 +164,7 @@ export function resolveAttack(
   if (reduction > 0) {
     const absorbed = Math.min(damage, reduction);
     damage -= absorbed;
-    log(context, `${defender.name} absorbs ${absorbed} damage.`);
+    // The attack summary reports final damage; don't add a separate armor log.
   } else if (reduction < 0) {
     damage += -reduction;
   }
@@ -180,6 +175,7 @@ export function resolveAttack(
     hit: true,
     damage,
     crit,
+    surprise,
     damageType,
     appliedEffects
   };

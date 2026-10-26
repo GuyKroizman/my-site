@@ -47,7 +47,7 @@ export default class Dwarf extends BasicHero {
       return;
     }
 
-    dungeon.log(this.context, `${this.name} slams ${enemy.name} with a Shield Bash!`);
+    dungeon.log(this.context, `You slam ${enemy.name} with a Shield Bash!`);
     this.resolveSkillAttack(enemy, {
       bonusDamage: 1,
       onHitEffects: [createCrippledEffect(3 + this.talentRank("bash"))]

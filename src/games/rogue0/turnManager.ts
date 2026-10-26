@@ -79,7 +79,7 @@ const turnManager = {
       actor.nextActionTime = targetTime;
       actor.actionReady = true;
       if (hasEffect(actor, "frozen")) {
-        dungeon.log(actor.context, `${actor.name} is frozen and misses an action.`);
+        dungeon.log(actor.context, `${actor.type === "player" ? "You are frozen and miss" : `${actor.name} is frozen and misses`} an action.`);
         removeEffect(actor, "frozen");
         actor.spendTime("wait");
         actor.freezeRecovery = true;

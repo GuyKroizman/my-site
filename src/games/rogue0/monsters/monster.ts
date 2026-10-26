@@ -164,7 +164,6 @@ export default class Monster extends Entity {
     this.context.kills = (this.context.kills ?? 0) + 1;
     this.context.player?.gainXp(this.xpValue);
     this.context.player?.artifact?.onMonsterKilled?.();
-    dungeon.log(this.context, `${this.name} was killed.`);
 
     const x = this.x;
     const y = this.y;
@@ -174,7 +173,7 @@ export default class Monster extends Entity {
       if (item) {
         const instance = new item(this.context, x, y);
         this.context.entities.push(instance);
-        dungeon.log(this.context, `${this.name} drops ${instance.name}.`);
+        dungeon.log(this.context, `${this.name} was killed, dropping ${instance.name}.`);
         return; // An item or gold, never both.
       }
     }
@@ -184,7 +183,9 @@ export default class Monster extends Entity {
     if (this.gold > 0 && Phaser.Math.Between(1, 4) === 1) {
       const pile = new Gold(this.context, x, y, this.gold);
       this.context.entities.push(pile);
-      dungeon.log(this.context, `${this.name} drops ${pile.name}.`);
+      dungeon.log(this.context, `${this.name} was killed, dropping ${pile.name}.`);
+    } else {
+      dungeon.log(this.context, `${this.name} was killed.`);
     }
   }
 }

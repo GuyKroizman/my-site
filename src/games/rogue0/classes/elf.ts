@@ -37,7 +37,7 @@ export default class Elf extends BasicHero {
       return;
     }
 
-    dungeon.log(this.context, `${this.name} uses Double Strike on ${enemy.name}!`);
+    dungeon.log(this.context, `You use Double Strike on ${enemy.name}!`);
     this.resolveSkillAttack(enemy, { bonusDamage: this.talentRank("strike") });
     if (enemy.healthPoints > 0) {
       this.resolveSkillAttack(enemy, { bonusDamage: this.talentRank("strike") });

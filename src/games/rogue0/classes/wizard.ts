@@ -54,7 +54,7 @@ export default class Wizard extends BasicHero {
       return;
     }
 
-    dungeon.log(this.context, `${this.name} unleashes a fiery Nova!`);
+    dungeon.log(this.context, `You unleash a fiery Nova!`);
     for (const enemy of enemies) {
       applyEffect(enemy, createBurningEffect(3 + this.talentRank("nova")));
     }

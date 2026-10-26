@@ -428,7 +428,12 @@ export class UI extends Phaser.Scene {
   update() {
     if (!this.log) return;
 
-    this.log.setText(this.context.messages.join("\n"));
+    const hint = this.context.terrainActionMode
+      ? "Jump: choose an adjacent chasm (no diagonals). Costs 1/3 max HP; fatal on last floor. Esc cancels."
+      : this.context.throwMode
+        ? `Target ${this.context.throwItem?.displayName ?? "item"}: tap a tile in range and sight, or move cursor + Enter. Esc cancels.`
+        : undefined;
+    this.log.setText(hint ?? this.context.messages.join("\n"));
     const player = this.context.player;
     if (player) {
       const fraction = Phaser.Math.Clamp(player.healthPoints / Math.max(1, player.maxHealthPoints), 0, 1);

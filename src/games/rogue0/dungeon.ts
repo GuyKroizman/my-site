@@ -182,7 +182,7 @@ let dungeon = {
     this.onTerrainChanged?.();
 
     if (this.context) {
-      this.log(this.context, "The door opens.");
+      // Opening an ordinary door is visible on the map.
     }
     return true;
   },
@@ -270,7 +270,7 @@ let dungeon = {
     if (victim) {
       const damage = Math.max(1, 5 - victim.protection());
       victim.takeDamage(damage);
-      this.log(context, `The arrow hits ${victim.name} for ${damage} damage.`);
+      this.log(context, `The arrow hits ${victim.type === "player" ? "you" : victim.name} for ${damage} damage.`);
       if (victim.healthPoints <= 0) removeEntity(context, victim);
     }
     return true;
@@ -332,10 +332,10 @@ let dungeon = {
     const chasm = tiles.getFeature(x, y) === "chasm";
     if (this.currentLevel[y]?.[x] !== 0 || (!chasm && tiles.isBlocking(x, y)) ||
         context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) {
-      this.log(context, `${actor.name} stumbles in confusion but cannot move.`);
+      this.log(context, `${actor.type === "player" ? "You stumble" : `${actor.name} stumbles`} in confusion but cannot move.`);
       return true;
     }
-    this.log(context, `${actor.name} stumbles in confusion!`);
+    this.log(context, `${actor.type === "player" ? "You stumble" : `${actor.name} stumbles`} in confusion!`);
     const falling = chasm && !hasEffect(actor, "levitating");
     this.moveEntityTo(context, actor, x, y, falling);
     if (falling) this.fallIntoChasm(context, actor);
@@ -357,10 +357,10 @@ let dungeon = {
         context.entities.some(e => e !== target && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) return false;
     // Wake monsters without granting magical knowledge of the player's position.
     target.hearNoise(target.x, target.y);
-    this.log(context, `${target.name} is knocked back!`);
+    this.log(context, `${target.type === "player" ? "You are" : `${target.name} is`} knocked back!`);
     if (chasm && !hasEffect(target, "levitating")) {
       this.moveEntityTo(context, target, x, y, true);
-      this.log(context, `${target.name} falls into the chasm!`);
+      this.log(context, `${target.type === "player" ? "You fall" : `${target.name} falls`} into the chasm!`);
       this.fallIntoChasm(context, target);
     } else {
       this.moveEntityTo(context, target, x, y);
@@ -444,13 +444,13 @@ let dungeon = {
         context.player.walkPath = [];
         context.player.inputBuffer = [];
       }
-      this.log(context, `A geyser erupts beneath ${entity.name}!`);
+      this.log(context, `A geyser erupts beneath ${entity.type === "player" ? "you" : entity.name}!`);
       // Diagonal entries choose the horizontal component, so every blast has
       // a predictable cardinal direction and never cuts a wall corner.
       const dx = Math.sign(destX - oldX);
       const dy = dx === 0 ? Math.sign(destY - oldY) : 0;
       if (!this.knockback(context, entity, dx, dy)) {
-        this.log(context, `${entity.name} cannot be displaced by the geyser.`);
+        this.log(context, `${entity.type === "player" ? "You" : entity.name} cannot be displaced by the geyser.`);
       }
       return;
     }
@@ -466,7 +466,7 @@ let dungeon = {
     }
     if (!flying && tiles.getFeature(destX, destY) === "water" && hasEffect(entity, "burning")) {
       removeEffect(entity, "burning");
-      this.log(context, `${entity.name} steps into water and the flames go out.`);
+      this.log(context, `${entity.type === "player" ? "You step" : `${entity.name} steps`} into water and the flames go out.`);
     }
 
     // Confusion plates affect either side; other ordinary traps remain player-only.
@@ -628,7 +628,7 @@ let dungeon = {
       const damage = Math.max(0, baseDamage - (victim.resistance.shock ?? 0) + (victim.vulnerability.shock ?? 0));
       if (damage > 0) victim.takeDamage(damage);
       if (victim.type === "player" || context.visibleTiles.has(`${victim.x},${victim.y}`)) {
-        this.log(context, `Water conducts lightning into ${victim.name} for ${damage} shock damage.`);
+        this.log(context, `Water conducts lightning into ${victim.type === "player" ? "you" : victim.name} for ${damage} shock damage.`);
       }
       if (victim.healthPoints <= 0) removeEntity(context, victim);
     }
@@ -813,19 +813,21 @@ let dungeon = {
       return;
     }
 
+    const attackNote = [result.surprise ? "Surprise" : "", result.crit ? "Critical" : ""].filter(Boolean).join(", ");
+    const prefix = attackNote ? `${attackNote}! ` : "";
     if (result.damage > 0) {
       victim.takeDamage(result.damage);
       if (result.damageType === "shock") context.onShockWater?.(victim, result.damage);
       spawnEntityFloatingText(victim, `-${result.damage}`);
       this.log(
         context,
-        `${attacker.name} hits ${victim.name} for ${result.damage} ${result.damageType} damage.`
+        `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for ${result.damage} ${result.damageType} damage.`
       );
       this.applyHitEffects(context, victim);
     } else {
       this.log(
         context,
-        `${attacker.name} hits ${victim.name} but deals no damage.`
+        `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for no damage.`
       );
     }
 

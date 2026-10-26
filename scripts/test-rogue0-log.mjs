@@ -66,8 +66,21 @@ const effects = load('src/games/rogue0/effects.ts', { spawnEntityFloatingText() 
 const hero = { name: 'Hero', type: 'player', effects: [], context: { messages: [], visibleTiles: new Set() } };
 for (let i = 0; i < 25; i++) effects.applyEffect(hero, { id: `buff-${i}`, name: `Buff ${i}`, duration: 1 });
 assert.equal(hero.context.messages.length, 20);
-assert.equal(hero.context.messages[0], 'Hero is Buff 24.');
-assert.equal(hero.context.messages[19], 'Hero is Buff 5.');
+assert.equal(hero.context.messages[0], 'You are Buff 24.');
+assert.equal(hero.context.messages[19], 'You are Buff 5.');
+// Player effects use second-person grammar for every hero class.
+for (const name of ['Warrior', 'Dwarf', 'Cleric', 'Elf', 'Wizard']) {
+  const player = { name, type: 'player', effects: [], healthPoints: 2, maxHealthPoints: 10,
+    context: { messages: [], visibleTiles: new Set(), simulationTime: 0 } };
+  effects.applyEffect(player, effects.createRegenerationEffect(1));
+  effects.applyEffect(player, effects.createRegenerationEffect(1));
+  player.context.simulationTime = 1;
+  effects.tickEffects(player, player.context);
+  assert.equal(player.healthPoints, 3, 'silent regeneration still heals');
+  assert.deepEqual(player.context.messages, ['Your Regeneration wears off.', 'You are Regeneration.']);
+  effects.applyEffect(player, effects.createBurningEffect(1));
+  assert.equal(player.context.messages[0], 'You are Burning.');
+}
 // Unseen monsters still heal and expire/refresh buffs without filling the log.
 const ctx = { messages: [], visibleTiles: new Set(), simulationTime: 0 };
 const ghoul = { name: 'Ghoul', type: 'enemy', x: 3, y: 4, effects: [],
@@ -86,16 +99,32 @@ effects.applyEffect(ghoul, effects.createRegenerationEffect(2));
 effects.applyEffect(ghoul, effects.createRegenerationEffect(2));
 ctx.simulationTime = 2;
 effects.tickEffects(ghoul, ctx);
-assert.deepEqual(ctx.messages, ['Ghoul regenerates 1 health.',
-  'Ghoul is already Regeneration.', 'Ghoul is Regeneration.']);
+assert.deepEqual(ctx.messages, ['Ghoul is Regeneration.']);
 ctx.visibleTiles.clear();
 ctx.simulationTime = 3;
 effects.tickEffects(ghoul, ctx);
-assert.equal(ctx.messages.length, 3, 'expiry outside sight is silent');
+assert.equal(ctx.messages.length, 1, 'expiry outside sight is silent');
 effects.applyEffect(ghoul, effects.createRegenerationEffect(1));
 ctx.visibleTiles.add('3,4');
 ctx.simulationTime = 4;
 effects.tickEffects(ghoul, ctx);
 assert.equal(ctx.messages[0], "Ghoul's Regeneration wears off.");
 assert.equal(ghoul.healthPoints, 6);
-console.log('Rogue0 log pagination, modal lifecycle, retention and effect visibility passed');
+// Armor reduction is silent: the caller logs the final attack outcome once.
+const { resolveAttack } = load('src/games/rogue0/combat.ts', { hasEffect: () => false });
+const originalRandom = Math.random;
+try {
+  Math.random = () => 0.5; // Hit, no critical; no coordinates means no surprise.
+  for (const protection of [0, 1, 3]) {
+    const combatContext = { messages: [] };
+    const result = resolveAttack(combatContext,
+      { type: 'enemy', name: 'Skeleton', accuracy: 100, attack: () => 2 },
+      { type: 'player', evasion: 0, protection: () => protection, resistance: {}, vulnerability: {} });
+    assert.equal(result.hit, true);
+    assert.equal(result.damage, Math.max(0, 2 - protection));
+    assert.deepEqual(combatContext.messages, [], 'no redundant absorption message');
+  }
+} finally {
+  Math.random = originalRandom;
+}
+console.log('Rogue0 log pagination, modal lifecycle, retention, effect visibility and silent armor reduction passed');

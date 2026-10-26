@@ -320,7 +320,7 @@ upgrade(chalice);
 assert.equal(chalice.level, 10, 'generic upgrades must respect the artifact cap');
 healingTick(1);
 assert.equal(context.player.healthPoints, 100);
-assert.equal(context.messages.at(-1), 'Elf regenerates 1 health.');
+assert.ok(!context.messages.some(message => message.includes('regenerates')), 'passive chalice healing is silent');
 chalice.unequip(); assert.equal(effect, undefined);
 
 // Actual inventory cell renderer: backpack/unidentified and equipped/identified

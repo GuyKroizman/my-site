@@ -92,7 +92,7 @@ export default class ChaliceOfBlood extends Entity {
 
         const amount = Math.min(1, entity.maxHealthPoints - entity.healthPoints);
         entity.healthPoints += amount;
-        dungeon.log(context, `${entity.name} regenerates ${amount} health.`);
+        // Routine healing is reflected in the health display.
 
       }
     };

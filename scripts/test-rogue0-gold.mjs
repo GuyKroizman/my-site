@@ -27,7 +27,7 @@ const monster = Object.assign(Object.create(Monster.prototype), {
 });
 monster.onDestroy();
 assert.equal(player.gold, 0);
-assert.equal(messages.at(-1), 'Rat drops 3 gold.');
+assert.equal(messages.at(-1), 'Rat was killed, dropping 3 gold.');
 const pile = context.entities[0];
 assert.ok(pile instanceof Gold);
 assert.equal(pile.x, 4);
@@ -40,7 +40,7 @@ roll = 0;
 monster.loot = [class { name = 'Potion'; }];
 monster.onDestroy();
 assert.equal(context.entities.length, 2);
-assert.equal(messages.at(-1), 'Rat drops Potion.');
+assert.equal(messages.at(-1), 'Rat was killed, dropping Potion.');
 monster.loot = [];
 monster.gold = 0;
 roll = 1;

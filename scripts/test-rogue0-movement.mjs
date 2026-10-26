@@ -199,6 +199,7 @@ hero.processInput('ArrowRight');
 assert.equal(hero.canAct(), true, 'bumping a wall is free');
 assert.equal(hero.nextActionTime, 2.5);
 
+hero.context.messages = [];
 const potion = { consumable: true, identified: true, equip() {} };
 hero.getAllItems = () => [potion];
 assert.equal(hero.useItem(potion), true);
