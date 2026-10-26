@@ -14,7 +14,7 @@ type SavedFloor = {
   up: { x: number; y: number };
   down: { x: number; y: number };
 };
-import { createForegroundAtlas, foregroundEntities } from './rendering';
+import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth } from './rendering';
 import dungeon from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
 import turnManager from "./turnManager";
@@ -239,7 +239,7 @@ export class Scene0 extends Phaser.Scene {
 
     const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
     const player = new HeroClass(this.context, spawn.x, spawn.y);
-    player.sprite!.setDepth(200);
+    player.sprite!.setDepth(worldDepth(player.sprite!.y, 'actor'));
     this.context.player = player;
 
     this.setupFloor(1, levelArray, spawn, stairs);
@@ -402,6 +402,11 @@ export class Scene0 extends Phaser.Scene {
 
   update() {
     if (this.ended) return;
+    // Use interpolated sprite positions so walking/lunging actors swap order
+    // smoothly, including monsters and items spawned after floor creation.
+    for (const entity of this.context.entities) {
+      if (entity.sprite) entity.sprite.setDepth(worldDepth(entity.sprite.y, entity.type === 'item' ? 'item' : 'actor'));
+    }
     updateHeroAnimation(this.context.player, this.time.now);
     if (isModalOpen(this.context)) {
       if (this.context.player) {
@@ -919,7 +924,8 @@ export class Scene0 extends Phaser.Scene {
       let sprite = this.featureSprites.get(key);
       const visual = this.featureVisual(state);
       const visible = state.feature !== "secretDoor" && (state.feature !== "trap" || state.trap !== "hidden");
-      const texKey = visual.textureKey ?? "tiles";
+      const upright = state.feature === 'grass' || (state.feature === 'door' && state.door !== 'open');
+      const texKey = visual.textureKey ?? (upright ? 'foreground-tiles' : 'tiles');
       const frame = visual.textureKey ? 0 : (visual.tile ?? 0);
 
       if (!sprite) {
@@ -932,6 +938,10 @@ export class Scene0 extends Phaser.Scene {
         sprite.setTexture(texKey, frame);
       }
 
+      // Water, ice, traps and open thresholds remain flat. Grass and closed
+      // doors have transparent silhouettes that overlap the preceding row.
+      sprite.setOrigin(0, upright ? UPRIGHT_LIFT / 16 : 0);
+      sprite.setDepth(upright ? worldDepth(sprite.y, 'terrain') : 0);
       if (visual.tint !== undefined) {
         sprite.setTint(visual.tint);
       } else {

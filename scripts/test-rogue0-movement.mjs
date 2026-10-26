@@ -14,7 +14,14 @@ function load(path, bindings = {}) {
   return exports;
 }
 const { actionCost } = load('src/games/rogue0/timing.ts');
-const { Entity } = load('src/games/rogue0/entity.ts', { actionCost });
+const rendering = load('src/games/rogue0/rendering.ts');
+for (const y of [0, 16, 160, 1600]) {
+  assert.ok(rendering.worldDepth(y + 16, 'terrain') > rendering.worldDepth(y, 'actor'), 'near grass/doors overlap actors behind');
+  assert.ok(rendering.worldDepth(y, 'actor') > rendering.worldDepth(y, 'terrain'), 'actors stand in front of their own terrain');
+  assert.ok(rendering.worldDepth(y, 'actor') < 99, 'world stays below gas and fog');
+}
+assert.ok(rendering.UPRIGHT_LIFT > 0 && rendering.UPRIGHT_LIFT < 16, 'upright silhouettes overlap without shifting a full cell');
+const { Entity } = load('src/games/rogue0/entity.ts', { actionCost, ...rendering });
 const hasEffect = (e, id) => e.effects.some(effect => effect.id === id);
 const removeEffect = (e, id) => { e.effects = e.effects.filter(effect => effect.id !== id); };
 const manager = load('src/games/rogue0/turnManager.ts', {
@@ -575,7 +582,7 @@ const walkContext = {
   entities: [], visibleTiles: new Set(['1,1', '3,1']),
   map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
   scene: {
-    add: { sprite: () => ({ setOrigin() {}, setDepth(depth) { this.depth = depth; } }) },
+    add: { sprite: (x, y) => ({ x, y, setOrigin() {}, setDepth(depth) { this.depth = depth; } }) },
     tweens: { add(tween) { walkTweens.push(tween); } }
   }
 };

@@ -13,7 +13,7 @@ function load(path, bindings = {}) {
   }))(exports, ...Object.values(bindings));
   return exports;
 }
-const { Entity, upgrade, identify, removeEntity } = load('src/games/rogue0/entity.ts');
+const { Entity, upgrade, identify, removeEntity } = load('src/games/rogue0/entity.ts', load('src/games/rogue0/rendering.ts'));
 // Every category keeps its floor texture/frame/tint before and after identification.
 for (const equipSlot of ['weapon', 'armor', 'ring', 'artifact', 'consumable', 'junk']) {
   for (const textureKey of [undefined, 'custom-item']) {
@@ -22,7 +22,7 @@ for (const equipSlot of ['weapon', 'armor', 'ring', 'artifact', 'consumable', 'j
         type: 'item', equipSlot, textureKey, identified, tile: 123, tint: 0xabc123,
       });
       let rendered;
-      const sprite = { setOrigin() {}, setDepth() {} };
+      const sprite = { x: 32, y: 48, setOrigin() {}, setDepth() {} };
       item.init({
         map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
         scene: { add: { sprite(...args) { rendered = args; return sprite; } }, tweens: { add() {} } },

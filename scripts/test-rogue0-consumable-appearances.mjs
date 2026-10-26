@@ -5,11 +5,13 @@ import fs from 'node:fs';
 import ts from 'typescript';
 const source = fs.readFileSync('src/games/rogue0/entity.ts', 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
 const exports = {};
-new Function('exports', ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports);
+const rendering = {};
+new Function('exports', ts.transpile(fs.readFileSync('src/games/rogue0/rendering.ts', 'utf8'), { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(rendering);
+new Function('exports', ...Object.keys(rendering), ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports, ...Object.values(rendering));
 const { Entity, resetConsumableAppearances } = exports;
 const context = {
   map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
-  scene: { add: { sprite: () => ({ scale: 1, setOrigin() {}, setScale(n) { this.scale = n; }, setDepth() {} }) }, tweens: { add() {} } },
+  scene: { add: { sprite: (x, y) => ({ x, y, scale: 1, setOrigin() {}, setScale(n) { this.scale = n; }, setDepth() {} }) }, tweens: { add() {} } },
 };
 const make = (name, category, floor = false) => {
   const item = Object.assign(new Entity(), { name, type: 'item', textureKey: `${category}-red`, identified: false });

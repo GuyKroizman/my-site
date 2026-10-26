@@ -1,5 +1,6 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import Phaser from "phaser";
+import { UPRIGHT_LIFT, worldDepth } from './rendering';
 import type { GameContext } from "./context";
 import { sfx } from "./audio";
 import type { DamageType, StatusEffect } from "./effects";
@@ -227,9 +228,9 @@ export abstract class Entity {
       if (this.type === "item" && this.textureKey?.startsWith("potion-")) {
         this.sprite.setScale(0.5);
       }
-      // Actors render above floor loot regardless of spawn/drop order, but
-      // enemies remain below the fog layer (100).
-      this.sprite.setDepth(this.type === "item" ? 1 : this.type === "enemy" ? 2 : 200);
+      // Keep the ground anchor unchanged; the head extends into the row behind.
+      if (this.type !== "item") this.sprite.setOrigin(0, UPRIGHT_LIFT / 16);
+      this.sprite.setDepth(worldDepth(this.sprite.y, this.type === "item" ? "item" : "actor"));
 
       // Floor items pulse gently so they stand out.
       if (this.type === "item" && this.sprite) {

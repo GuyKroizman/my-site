@@ -1,4 +1,14 @@
-// Terrain is a separate layer. Only one foreground entity is drawn per cell.
+/** Sort by ground contact, not the lifted artwork. Keep the whole world below
+ * fog (100), including on large maps. Tie offsets are fractions of a pixel. */
+export function worldDepth(worldY: number, kind: 'item' | 'terrain' | 'actor'): number {
+  const foot = Math.max(0, worldY + 16) + (kind === 'actor' ? 0.2 : kind === 'terrain' ? 0.1 : 0);
+  return 1 + 80 * foot / (foot + 32);
+}
+
+// Lift artwork without changing grid positions, tween destinations or hitboxes.
+export const UPRIGHT_LIFT = 5;
+
+// Only one foreground entity is drawn per cell.
 export function foregroundEntities<T extends { x?: number; y?: number; type: string }>(entities: T[], player?: T): Set<T> {
   const cells = new Map<string, T>();
   const priority = (entity: T) => entity === player ? 3 : entity.type === 'item' ? 1 : 2;
