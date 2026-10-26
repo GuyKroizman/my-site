@@ -157,10 +157,46 @@ const dungeon = {
   isWalkableTile: () => false, attackEntity() {}
 };
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
-  Entity, Gem: class Gem {}, Wand: class Wand {}, dungeon, isModalOpen: () => false, hasEffect, removeEffect,
+  Entity, ...load('src/games/rogue0/timing.ts'), Gem: class Gem {}, Wand: class Wand {}, dungeon, isModalOpen: () => false, hasEffect, removeEffect,
   isGrassConcealed: () => false, getTrapState: () => undefined, sfx: { potion() {}, equip() {} },
   spawnEntityFloatingText() {}
 }).default;
+// Auto-walk never commits an action whose upkeep would starve the hero to death.
+{
+  const original = { ...dungeon };
+  let actions = 0, messages = 0, doors = 0;
+  Object.assign(dungeon, { entityAtTile: () => undefined, isWalkableTile: () => true,
+    moveEntityTo() {}, openDoor() { doors++; }, log() { messages++; } });
+  const walker = Object.assign(Object.create(Hero.prototype), {
+    context: { entities: [], visibleTiles: new Set(), simulationTime: 0 },
+    acknowledgedWalkEnemies: new Set(), effects: [], hunger: 0, healthPoints: 1,
+    movementSpeed: 1, attackDelay: 1, actionReady: true, moving: false,
+    currentWeapon: () => undefined, movementCostMultiplier: () => 1,
+    nextStepToward: () => ({ x: 2, y: 1 }), spendTurn() { actions++; },
+  });
+  const attempt = () => { walker.walkPath = [{ x: 2, y: 1 }]; walker.stepAutoWalk(); };
+  attempt();
+  assert.equal(actions, 0); assert.equal(doors, 0); assert.equal(messages, 1);
+  assert.deepEqual(walker.walkPath, []);
+  attempt();
+  assert.equal(actions, 0, 'retapping cannot bypass starvation protection');
+  walker.healthPoints = 2;
+  attempt();
+  assert.equal(actions, 1, 'safe starving steps remain allowed');
+  walker.healthPoints = 1; walker.hunger = 20;
+  attempt();
+  assert.equal(actions, 2, 'fed low-health movement remains allowed');
+  walker.hunger = 0; walker.movementSpeed = 2;
+  attempt();
+  assert.equal(actions, 3, 'half-step before the next upkeep is safe');
+  walker.context.simulationTime = 0.5;
+  attempt();
+  assert.equal(actions, 3, 'half-step crossing the lethal upkeep is blocked');
+  walker.context.simulationTime = 0; walker.movementSpeed = 0.5; walker.healthPoints = 2;
+  attempt();
+  assert.equal(actions, 3, 'slow movement may incur multiple lethal starvation ticks');
+  Object.assign(dungeon, original);
+}
 // Combined magnifying glass: inspection is free; a second press searches.
 const lookHero = new Entity();
 Object.setPrototypeOf(lookHero, Hero.prototype);

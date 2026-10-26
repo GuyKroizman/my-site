@@ -29,6 +29,8 @@ import Skeleton from "./monsters/skelaton";
 import { TieredWeapon, TieredArmor } from "./items/tieredEquipment";
 import { floorProgression, lootTier } from "./progression";
 import CursedGem from "./items/cursedGem";
+import Gem from './items/gem';
+import type { Room } from './mapgen';
 import HolyPotion from "./items/holyPotion";
 import FullHealPotion from "./items/fullHealPotion";
 import MinorHealPotion from "./items/minorHealPotion";
@@ -169,6 +171,7 @@ export class Scene0 extends Phaser.Scene {
   }
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private wallSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  private secretRoom?: Room;
   private cursor!: Phaser.GameObjects.Graphics;
   private zoom = 2;
   private MIN_ZOOM = 0.2;
@@ -566,6 +569,7 @@ export class Scene0 extends Phaser.Scene {
     stairs: { x: number; y: number };
   } {
     const generated = generateMap(floor);
+    this.secretRoom = generated.secretRoom;
     const levelArray = generated.map;
 
     this.applyFeatures(generated.features);
@@ -1075,6 +1079,22 @@ export class Scene0 extends Phaser.Scene {
       `${spawn.x},${spawn.y}`,
       `${this.context.stairsX},${this.context.stairsY}`
     ]);
+
+    // The hidden room has exactly four ordinary upgrade gems. Reserve the
+    // whole room and its two-tile access corridor from random content, so
+    // supplies/bosses cannot be stranded behind the secret or overlap gems.
+    // This method runs only on first generation; revisits restore entities.
+    if (this.secretRoom) {
+      const room = this.secretRoom;
+      for (let y = room.y; y < room.y + room.h + 2; y++) {
+        for (let x = 0; x < levelArray[y].length; x++) exclude.add(`${x},${y}`);
+      }
+      for (const x of [room.x, room.x + room.w - 1]) {
+        for (const y of [room.y, room.y + room.h - 1]) {
+          context.entities.push(new Gem(context, x, y));
+        }
+      }
+    }
 
     // Preserve the existing maximum encounter density rather than inflating
     // floor 25 to dozens of extra enemies just because the test run was shorter.

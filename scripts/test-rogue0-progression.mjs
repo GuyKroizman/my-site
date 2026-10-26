@@ -63,7 +63,7 @@ for (let floor = 1; floor <= 25; floor++) {
 // Exercise real spawnFloorContent with real maps and item classes. Monsters and
 // unrelated items only need identity/position here; their own suites cover AI.
 const sceneSource = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
-const bindings = { Phaser, TieredWeapon, TieredArmor, ...progression };
+const bindings = { Phaser, Gem, TieredWeapon, TieredArmor, ...progression };
 for (const match of sceneSource.matchAll(/import (\w+) from "\.\/(?:items|monsters)\/[^";]+";/g)) {
   const name = match[1];
   bindings[name] = class { constructor(context, x, y) { Object.assign(this, { context, x, y, kind: name }); } };
@@ -82,7 +82,8 @@ for (let run = 0; run < 5; run++) {
   const totals = { strength: 0, upgrades: 0, bosses: 0 };
   for (let floor = 1; floor <= 25; floor++) {
     const scene = Object.create(Scene0.prototype);
-    const { map, rooms } = mapgen.generateMap(floor);
+    const { map, rooms, secretRoom } = mapgen.generateMap(floor);
+    scene.secretRoom = secretRoom;
     currentMap = map;
     const spawn = { x: rooms[0].cx, y: rooms[0].cy };
     scene.context = { ...createGameContext(), floor, currentLevel: map,
@@ -90,6 +91,13 @@ for (let run = 0; run < 5; run++) {
       stairsX: rooms.at(-1).cx, stairsY: rooms.at(-1).cy };
     scene.spawnFloorContent(floor, map, spawn);
     const items = scene.context.entities;
+    const treasure = items.filter(item => item instanceof Gem);
+    assert.equal(treasure.length, 4, 'exactly four ordinary gems reward each secret room');
+    for (const gem of treasure) {
+      assert.ok([secretRoom.x, secretRoom.x + 2].includes(gem.x));
+      assert.ok([secretRoom.y, secretRoom.y + 2].includes(gem.y));
+    }
+    assert.ok(items.filter(item => !(item instanceof Gem)).every(item => item.y >= secretRoom.y + 5), 'random content stays outside the hidden room and corridor');
     const count = kind => items.filter(item => item.kind === kind).length;
     const spec = progression.floorProgression(floor);
     assert.equal(count('PotionOfStrength'), spec.strengthPotions);
@@ -110,11 +118,13 @@ for (let run = 0; run < 5; run++) {
     // supply before saving to represent picking it up, then descend to snapshot.
     const supply = items.find(item => item.kind === 'PotionOfStrength' || item.kind === 'ScrollOfUpgrade');
     if (supply) items.splice(items.indexOf(supply), 1);
+    items.splice(items.indexOf(treasure[0]), 1); // Pick up one reward before leaving.
     scene.floors = new Map();
     scene.seen = map.map(row => row.map(() => false));
     scene.saveFloor();
     const snapshot = scene.floors.get(floor);
     assert.ok(!supply || !snapshot.entities.includes(supply));
+    assert.equal(snapshot.entities.filter(item => item instanceof Gem).length, 3, 'collected gems stay collected across floor revisits');
     scene.context.floor = floor - 1;
     let restored = false;
     scene.restoreFloor = (number, saved) => {

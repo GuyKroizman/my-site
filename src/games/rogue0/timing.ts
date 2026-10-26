@@ -1,4 +1,10 @@
 // Simulation time is measured in normal actions, never milliseconds/frames.
+
+/** Starvation deals one HP on each integer upkeep tick. The current tick
+ * has already been processed when the hero is ready to choose an action. */
+export function starvationDamageDuring(now: number, duration: number): number {
+  return Math.max(0, Math.floor(now + duration + 1e-9) - Math.floor(now + 1e-9));
+}
 export type ActionKind = "move" | "attack" | "use" | "equip" | "drop" | "throw" | "skill" | "search" | "wait";
 
 export interface TimedActor {

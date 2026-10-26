@@ -22,7 +22,16 @@ let changes = 0;
 dungeon.onTerrainChanged = () => changes++;
 for (let i = 0; i < 200; i++) {
   tiles.clearAllFeatures();
-  const { map, rooms, features } = generateMap(i % 2 + 1);
+  const { map, rooms, features, secretRoom } = generateMap(i % 25 + 1);
+  assert.ok(secretRoom, 'every generated secret corridor leads to a treasure room');
+  assert.equal(secretRoom.w, 3); assert.equal(secretRoom.h, 3);
+  for (let ry = secretRoom.y; ry < secretRoom.y + 3; ry++) {
+    for (let rx = secretRoom.x; rx < secretRoom.x + 3; rx++) {
+      assert.equal(map[ry][rx], 0, 'treasure room is fully carved');
+      assert.ok(!features.some(f => f.x === rx && f.y === ry), 'treasure room has no traps or obstructing terrain');
+    }
+  }
+  assert.ok(map[0].every(cell => cell === 1), 'northern boundary stays sealed');
   assert.ok(rooms.length > 1);
   for (const f of features) tiles.setFeature(f.x, f.y, f.feature, f);
   const secret = features.find(f => f.feature === 'secretDoor');
@@ -47,6 +56,7 @@ for (let i = 0; i < 200; i++) {
   let redraw;
   dungeon.layer = { putTileAt: (...args) => { redraw = args; } };
   assert.equal(dungeon.findPath(x, y + 1, x, y - 1, true).length, 0);
+  assert.deepEqual(dungeon.findPath(x, y + 1, secretRoom.cx, secretRoom.cy, true), [], 'no alternate entrance bypasses the secret');
   assert.equal(dungeon.inspectTile(x, y), 'A wall.', 'inspect does not leak secret doors');
   assert.equal(tiles.isBlocking(x, y), true);
   assert.equal(fov.blocksSight(map, x, y), true);
@@ -68,6 +78,7 @@ for (let i = 0; i < 200; i++) {
   dungeon.openDoor(x, y);
   assert.equal(fov.blocksSight(map, x, y), false);
   assert.equal(dungeon.pathGrid.isWalkableAt(x, y), true);
+  assert.ok(dungeon.findPath(x, y + 1, secretRoom.cx, secretRoom.cy).length > 0, 'searching and opening the door reaches the treasure room');
   const saved = [];
   tiles.forEachFeature((x, y, state) => saved.push({ ...state, x, y }));
   tiles.clearAllFeatures();

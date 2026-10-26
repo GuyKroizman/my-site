@@ -16,6 +16,7 @@ export type GeneratedMap = {
   map: number[][];
   rooms: Room[];
   features: FeaturePlacement[];
+  secretRoom?: Room;
 };
 
 function carve(map: number[][], room: Room): void {
@@ -173,8 +174,8 @@ export function generateMap(floor = 1): GeneratedMap {
     const w = 4 + Math.floor(Math.random() * 8);
     const h = 4 + Math.floor(Math.random() * 6);
     const x = 1 + Math.floor(Math.random() * (width - w - 2));
-    // Reserve a northern wall band for a guaranteed secret dead-end branch.
-    const y = 7 + Math.floor(Math.random() * (height - h - 8));
+    // Reserve space for the hidden corridor and a walled 3x3 treasure room.
+    const y = 10 + Math.floor(Math.random() * (height - h - 11));
 
     const room: Room = {
       x,
@@ -305,15 +306,21 @@ export function generateMap(floor = 1): GeneratedMap {
 
   // The northernmost floor belongs to the connected dungeon. Above it the
   // reserved band is solid wall, so the branch cannot accidentally reconnect
-  // around the secret. Two approach tiles, an end wall, two floors behind it.
+  // around the secret. Keep two approach tiles, the searchable end wall,
+  // and two hidden corridor tiles, then open into a small treasure room.
   const northY = map.findIndex(row => row.includes(0));
-  if (northY >= 6) {
+  let secretRoom: Room | undefined;
+  if (northY >= 10) {
     const x = map[northY].indexOf(0);
     for (const offset of [1, 2, 4, 5]) map[northY - offset][x] = 0;
     features.push({ x, y: northY - 3, feature: "secretDoor" });
+    const left = Math.max(1, Math.min(width - 4, x - 1));
+    secretRoom = { x: left, y: northY - 8, w: 3, h: 3, cx: left + 1, cy: northY - 7 };
+    carve(map, secretRoom);
+    // Not in rooms: spawn/stairs and ordinary room terrain must stay outside.
   }
 
-  return { map, rooms, features };
+  return { map, rooms, features, secretRoom };
 }
 
 // BFS to find the farthest walkable tile reachable from a start point.

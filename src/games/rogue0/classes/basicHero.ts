@@ -19,7 +19,7 @@ import {
 import type { DamageType, StatusEffect } from "../effects";
 import { resolveAttack } from "../combat";
 import { spawnEntityFloatingText } from "../floatingText";
-import type { ActionKind } from "../timing";
+import { actionCost, starvationDamageDuring, type ActionKind } from "../timing";
 
 // UI palette — kept in sync with the --r0-* variables in src/index.css and
 // the constants in src/games/rogue0/ui.ts. Hex strings are CSS colors, 0x
@@ -960,6 +960,18 @@ export default class BasicHero extends Entity {
     }
 
     const entity = dungeon.entityAtTile(this.context, step.x, step.y);
+
+    // Recheck every automated action: damage and movement speed may change
+    // during travel. Stop without spending time, opening doors or picking up loot.
+    if (this.hunger <= 0) {
+      const action = entity?.type === 'enemy' ? 'attack' : 'move';
+      const duration = actionCost(this, action, this.currentWeapon()?.attackDelay ?? this.attackDelay);
+      if (starvationDamageDuring(this.context.simulationTime ?? 0, duration) >= this.healthPoints) {
+        this.walkPath = [];
+        dungeon.log(this.context, 'Auto-walk stopped: starvation would kill you. Eat or heal before continuing.');
+        return;
+      }
+    }
 
     if (entity && entity.type === "enemy") {
       this.walkPath = [];
