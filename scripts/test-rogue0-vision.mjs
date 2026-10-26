@@ -81,6 +81,40 @@ assert.equal(hero.accuracy, 100, 'blindness restores accuracy');
 tiles.clearAllFeatures();
 const clearing = Array.from({ length: 9 }, () => Array(9).fill(0));
 const sight = load('src/games/rogue0/fov.ts', tiles);
+for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+  tiles.setFeature(4 + dx, 4 + dy, 'grass');
+  const fov = sight.computeFOV(clearing, 4, 4);
+  assert.ok(fov.has(`${4 + dx},${4 + dy}`), 'adjacent grass remains visible');
+  for (const side of [-1, 1]) {
+    const x = 4 + dx - dy * side, y = 4 + dy + dx * side;
+    assert.ok(fov.has(`${x},${y}`), 'see one tile to either side of the adjacent grass');
+    assert.ok(sight.canSee(clearing, 4, 4, x, y, 8), 'targeting agrees with grass-side visibility');
+    assert.ok(sight.hasLineOfSight(clearing, x, y, 4, 4), 'grass-side sight stays reciprocal');
+  }
+  assert.ok(!fov.has(`${4 + 2 * dx},${4 + 2 * dy}`), 'grass still hides tiles directly behind it');
+  tiles.clearAllFeatures();
+}
+tiles.setFeature(5, 4, 'grass');
+tiles.setFeature(4, 5, 'grass');
+assert.ok(!sight.hasLineOfSight(clearing, 4, 4, 5, 5), 'two touching grass blockers do not open a diagonal sight leak');
+tiles.clearAllFeatures();
+clearing[4][5] = 1;
+assert.ok(!sight.hasLineOfSight(clearing, 4, 4, 5, 5), 'hard wall corners still block peeking');
+clearing[4][5] = 0;
+
+const { fogFeatherRects } = load('src/games/rogue0/rendering.ts');
+const explored = [[false, false, false], [false, true, false], [false, false, false]];
+const edges = fogFeatherRects(explored);
+assert.equal(edges.length, 20, 'five fade bands on each exposed edge');
+for (const edge of edges) {
+  assert.ok(edge.x >= 16 && edge.y >= 16 && edge.x + edge.width <= 32 && edge.y + edge.height <= 32,
+    'fog feather never exposes any part of unknown cells');
+  assert.ok(edge.alpha > 0 && edge.alpha < 1);
+}
+assert.ok(edges[0].alpha > edges[4].alpha, 'fade gets lighter toward the explored interior');
+assert.deepEqual(fogFeatherRects([[false]]), [], 'unexplored map has no transparent fringes');
+assert.deepEqual(explored, [[false, false, false], [false, true, false], [false, false, false]], 'visual feather never changes exploration');
+
 tiles.setFeature(4, 4, 'grass');
 assert.ok(sight.computeFOV(clearing, 1, 4).has('4,4'));
 assert.ok(!sight.canSee(clearing, 1, 4, 4, 4, 8));

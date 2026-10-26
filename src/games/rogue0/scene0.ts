@@ -21,7 +21,7 @@ type SavedFloor = {
   up: { x: number; y: number };
   down: { x: number; y: number };
 };
-import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY } from './rendering';
+import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects } from './rendering';
 import dungeon from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
 import turnManager from "./turnManager";
@@ -791,6 +791,11 @@ export class Scene0 extends Phaser.Scene {
     this.fog.fillStyle(0x000000, this.context.floor <= 5 ? 0.3 : 0.55);
     for (const [x, y] of remembered) {
       this.fog.fillRect(x * t, y * t, t, t);
+    }
+
+    for (const edge of fogFeatherRects(this.seen)) {
+      this.fog.fillStyle(0x000000, edge.alpha);
+      this.fog.fillRect(edge.x, edge.y, edge.width, edge.height);
     }
   }
 

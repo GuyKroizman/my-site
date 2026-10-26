@@ -2,9 +2,11 @@
 
 Player sight uses a Euclidean radius of 8 cells and reciprocal center-to-center
 Bresenham LOS. Opaque endpoints are visible, but intermediate opaque cells block
-sight. Diagonal steps cannot peek past either opaque corner, so pillars and door
-jambs cast shadows. Monster LOS uses the same terrain rules (with each monster's
-own radius).
+sight. Diagonal steps cannot peek past hard opaque corners, so pillars and door
+jambs cast shadows. Grass permits sight around its sides when the other corner
+cell is clear; two opaque corner cells still block the diagonal. This reveals
+the cells to either side of an adjacent tuft without seeing straight through it.
+Monster LOS uses the same terrain rules (with each monster's own radius).
 
 - Base-map walls (`1`) block sight, including solid pillars/barricades represented
   as wall cells. Closed doors and tall grass also block sight.
@@ -14,6 +16,13 @@ own radius).
   represents a transparent crystal door. An optical override of `false` on a
   base-wall cell supports glass walls without making them walkable. This adds
   optical support, not new glass/crystal artwork or generated terrain variants.
+
+## Fog presentation
+
+Unexplored cells remain fully black. Five one-pixel opacity bands feather the
+boundary inward onto explored cells, softening the edge without exposing hidden
+terrain or changing exploration, LOS, concealment, or targeting. Remembered cells
+retain their ordinary dimming under this presentation-only edge shading.
 
 ## Dynamic modifiers
 

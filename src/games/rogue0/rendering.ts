@@ -25,6 +25,31 @@ export function wallOverhang(level: number[][], x: number, y: number): boolean {
   return level[y]?.[x] === 1 && level[y - 1]?.[x] === 0;
 }
 
+/** Feather inward onto explored terrain only. Unknown cells stay opaque;
+ * this is presentation, never an expansion of FOV or targeting range. */
+export function fogFeatherRects(seen: boolean[][]): Array<{ x: number; y: number; width: number; height: number; alpha: number }> {
+  const rects: Array<{ x: number; y: number; width: number; height: number; alpha: number }> = [];
+  const fade = [0.88, 0.66, 0.43, 0.23, 0.09];
+  for (let y = 0; y < seen.length; y++) {
+    for (let x = 0; x < seen[y].length; x++) {
+      if (!seen[y][x]) continue;
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        if (seen[y + dy]?.[x + dx]) continue;
+        fade.forEach((alpha, i) => {
+          rects.push({
+            x: x * 16 + (dx < 0 ? i : dx > 0 ? 15 - i : 0),
+            y: y * 16 + (dy < 0 ? i : dy > 0 ? 15 - i : 0),
+            width: dx === 0 ? 16 : 1,
+            height: dy === 0 ? 16 : 1,
+            alpha
+          });
+        });
+      }
+    }
+  }
+  return rects;
+}
+
 // Only one foreground entity is drawn per cell.
 export function foregroundEntities<T extends { x?: number; y?: number; type: string }>(entities: T[], player?: T): Set<T> {
   const cells = new Map<string, T>();

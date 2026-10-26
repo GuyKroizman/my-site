@@ -76,13 +76,19 @@ export function hasLineOfSight(
 
   const opaque = (x: number, y: number) => blocksSight(map, x, y);
 
-  // Do not peek diagonally across the edge of a pillar or closed doorway.
-  // Otherwise circling a single-tile pillar never reliably breaks sight.
+  // Hard corners (pillars/doors) still block diagonal peeking. A grass
+  // tuft is narrower: light can pass beside it when the other side is clear,
+  // but never through two touching opaque cells or through a grass cell.
   for (let i = 1; i < points.length; i++) {
     const [x, y] = points[i];
     const [prevX, prevY] = points[i - 1];
-    if (x !== prevX && y !== prevY &&
-        (opaque(x, prevY) || opaque(prevX, y))) return false;
+    if (x !== prevX && y !== prevY) {
+      const a = opaque(x, prevY);
+      const b = opaque(prevX, y);
+      const hardA = a && (map[prevY]?.[x] !== 0 || getTileState(x, prevY)?.feature !== 'grass');
+      const hardB = b && (map[y]?.[prevX] !== 0 || getTileState(prevX, y)?.feature !== 'grass');
+      if (hardA || hardB || (a && b)) return false;
+    }
     // Endpoints themselves stay visible, including walls and closed doors.
     if (i < points.length - 1 && opaque(x, y)) return false;
   }
