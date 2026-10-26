@@ -15,6 +15,11 @@ function load(path, bindings = {}) {
 }
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const rendering = load('src/games/rogue0/rendering.ts');
+for (const height of [16, 22, 24, 32]) {
+  const top = -rendering.actorOriginY(height) * height;
+  assert.ok(Math.abs(top + height - 16) < 1e-9, 'all actor sizes keep their feet at the cell bottom');
+  if (height > 16) assert.ok(top < 0, 'tall actors extend over the wall in the row above');
+}
 assert.equal(rendering.wallOverhang([[0], [1]], 0, 1), true, 'south wall overlaps corridor occupants');
 assert.equal(rendering.wallOverhang([[1], [0]], 0, 0), false, 'north wall does not project into the corridor below');
 assert.equal(rendering.wallOverhang([[1], [1]], 0, 1), false, 'solid wall interiors need no overhang');

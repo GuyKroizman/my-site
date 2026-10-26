@@ -15,6 +15,11 @@ export function doorPassage(level: number[][], x: number, y: number): 'horizonta
 // Lift artwork without changing grid positions, tween destinations or hitboxes.
 export const UPRIGHT_LIFT = 5;
 
+/** Taller art grows upward; feet remain at local y=16 for every actor. */
+export function actorOriginY(frameHeight: number): number {
+  return 1 - 16 / frameHeight;
+}
+
 /** Only the north edge of a solid wall projects into walkable space. */
 export function wallOverhang(level: number[][], x: number, y: number): boolean {
   return level[y]?.[x] === 1 && level[y - 1]?.[x] === 0;

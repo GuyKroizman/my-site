@@ -109,6 +109,7 @@ export default class BasicHero extends Entity {
   baseAttack: number = 0;
   strength: number = 10;
   tile: number = 26;
+  textureKey = 'hero-color';
   moving: boolean = false;
   type: EntityType = "player";
 
@@ -1739,7 +1740,7 @@ export default class BasicHero extends Entity {
     let yy = y;
 
     // Hero icon + name (tap to open the hero stats modal).
-    this.UISprite = scene.add.sprite(x, yy, "tiles", this.tile).setOrigin(0);
+    this.UISprite = scene.add.sprite(x, yy, this.spriteTextureKey, this.spriteFrame).setOrigin(0);
     this.UIHeader = scene.add.text(x + 20, yy + 4, this.name, {
       fontFamily: `"${UI_FONT_PIXEL}", monospace`,
       fontSize: 10,

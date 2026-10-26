@@ -68,7 +68,7 @@ let dungeon = {
 
     const tileset = context.map.addTilesetImage(
       "tiles",
-      "tiles",
+      "stone-tiles",
       tileSize,
       tileSize,
       0,

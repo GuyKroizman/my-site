@@ -180,6 +180,8 @@ export class Scene0 extends Phaser.Scene {
   }
 
   preload() {
+    this.load.image('hero-color', '/rogue0/hero-color.png');
+    this.load.image('stone-tiles', '/rogue0/stone-tiles.png');
     this.load.image("ration", "/rogue0/items/ration.png");
     this.load.image("chalice-of-blood", "/rogue0/items/chalice-of-blood.png");
     this.load.image("fang-of-the-beast", "/rogue0/items/fang-of-the-beast.png");

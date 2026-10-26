@@ -1,6 +1,6 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import Phaser from "phaser";
-import { worldDepth } from './rendering';
+import { actorOriginY, worldDepth } from './rendering';
 import type { GameContext } from "./context";
 import { sfx } from "./audio";
 import type { DamageType, StatusEffect } from "./effects";
@@ -228,8 +228,9 @@ export abstract class Entity {
       if (this.type === "item" && this.textureKey?.startsWith("potion-")) {
         this.sprite.setScale(0.5);
       }
-      // Feet stay at the bottom of the cell. Raised foreground walls, rather
-      // than a permanently lifted actor, provide corridor occlusion.
+      // Anchor feet, not the top of the artwork. Tall actors overlap the
+      // preceding row without floating above the floor or moving their grid.
+      if (this.type !== 'item') this.sprite.setOrigin(0, actorOriginY(this.sprite.height ?? 16));
       this.sprite.setDepth(worldDepth(this.sprite.y, this.type === "item" ? "item" : "actor"));
 
       // Floor items pulse gently so they stand out.
