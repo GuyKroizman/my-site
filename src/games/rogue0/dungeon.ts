@@ -1,5 +1,6 @@
 import type { GameContext } from "./context";
 import PF from "pathfinding";
+import { dungeonTheme } from "./dungeonTheme";
 import { bresenhamLine } from "./fov";
 import type { Entity } from "./entity";
 import { removeEntity } from "./entity";
@@ -68,7 +69,7 @@ let dungeon = {
 
     const tileset = context.map.addTilesetImage(
       "tiles",
-      "stone-tiles",
+      dungeonTheme(context.floor).tiles,
       tileSize,
       tileSize,
       0,

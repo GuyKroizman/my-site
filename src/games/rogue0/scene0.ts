@@ -3,6 +3,9 @@ import { showSurpriseVisual, updateSurpriseVisuals, clearSurpriseVisuals } from 
 // Vite emits content-hashed URLs, so deployed art cannot reuse an older atlas.
 import stoneTilesUrl from '../../../public/rogue0/stone-tiles.png';
 import stoneWallUrl from '../../../public/rogue0/stone-wall.png';
+import cryptTilesUrl from '../../../public/rogue0/crypt-tiles.png';
+import cryptWallUrl from '../../../public/rogue0/crypt-wall.png';
+import { dungeonTheme } from './dungeonTheme';
 import heroArtUrl from '../../../public/rogue0/hero-color.png';
 import grass0Url from '../../../public/rogue0/tall-grass-0.png';
 import grass1Url from '../../../public/rogue0/tall-grass-1.png';
@@ -195,6 +198,8 @@ export class Scene0 extends Phaser.Scene {
     [grass0Url, grass1Url, grass2Url].forEach((url, i) => this.load.image(`tall-grass-${i}`, url));
     this.load.image('stone-tiles', stoneTilesUrl);
     this.load.image('stone-wall', stoneWallUrl);
+    this.load.image('crypt-tiles', cryptTilesUrl);
+    this.load.image('crypt-wall', cryptWallUrl);
     this.load.image("ration", "/rogue0/items/ration.png");
     this.load.image("chalice-of-blood", "/rogue0/items/chalice-of-blood.png");
     this.load.image("fang-of-the-beast", "/rogue0/items/fang-of-the-beast.png");
@@ -960,7 +965,7 @@ export class Scene0 extends Phaser.Scene {
         const key = `${x},${y}`;
         wallKeys.add(key);
         if (!this.wallSprites.has(key)) {
-          const sprite = this.add.sprite(x * 16, y * 16, 'stone-wall')
+          const sprite = this.add.sprite(x * 16, y * 16, dungeonTheme(this.context.floor).wall)
             .setOrigin(0, UPRIGHT_LIFT / 16)
             .setDepth(worldDepth(y * 16, 'terrain'));
           this.wallSprites.set(key, sprite);
