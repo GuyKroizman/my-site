@@ -91,17 +91,12 @@ let dungeon = {
     return this.pathGrid!;
   },
 
-  // A diagonal may round one blocked corner, but cannot squeeze between
-  // two walls/closed doors. Chasms are empty corner space even for grounded
-  // actors; destination walkability still prevents walking into the hole.
+  // Unrestricted eight-way adjacency: side tiles never block a diagonal.
+  // Callers separately check the destination (walls, doors, chasms, actors).
   canStepBetween: function (sx: number, sy: number, tx: number, ty: number, _actor?: Entity): boolean {
     const dx = Math.abs(tx - sx);
     const dy = Math.abs(ty - sy);
-    if (Math.max(dx, dy) !== 1) return false;
-    if (!dx || !dy) return true;
-    const passable = (x: number, y: number) => this.pathGrid!.isWalkableAt(x, y) ||
-      (tiles.getFeature(x, y) === "chasm" && this.currentLevel[y]?.[x] === 0);
-    return passable(sx, ty) || passable(tx, sy);
+    return Math.max(dx, dy) === 1;
   },
 
   // Pathfinding mutates node state (opened/closed), so always search on a
@@ -133,9 +128,8 @@ let dungeon = {
       });
     }
     if (!grid.isInside(sx, sy) || !grid.isInside(tx, ty)) return [];
-    // The search grid excludes unsafe destinations (traps), not physical
-    // corner space. Enumerate diagonals, then apply the same physical corner
-    // rule as manual movement. A wall + adjacent trap must not force a detour.
+    // Only destination walkability matters, including trap avoidance. Always
+    // enumerate all eight neighbors, matching manual movement and monster AI.
     const getNeighbors = grid.getNeighbors.bind(grid);
     grid.getNeighbors = (node) => getNeighbors(node, PF.DiagonalMovement.Always)
       .filter(next => this.canStepBetween(node.x, node.y, next.x, next.y, actor));

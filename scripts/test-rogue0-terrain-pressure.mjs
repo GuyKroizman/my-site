@@ -371,7 +371,16 @@ for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
   tiles.clearAllFeatures();
   map[2][2 + dx] = 1;
   dungeon.pathGrid = new PF.Grid(map);
-  assert.equal(dungeon.canStepBetween(2, 2, 2 + dx, 2 + dy), false, 'two solid corners still block movement');
+  assert.equal(dungeon.canStepBetween(2, 2, 2 + dx, 2 + dy), true, 'two solid side tiles do not block diagonal movement');
+  assert.deepEqual(dungeon.findPath(2, 2, 2 + dx, 2 + dy), [[2, 2], [2 + dx, 2 + dy]], 'all four diagonals route directly between wall corners');
+  assert.deepEqual(dungeon.findPath(2, 2, 2 + dx, 2), [], 'wall destinations remain blocked');
+  for (const [x, y] of [[2 + dx, 2], [2, 2 + dy]]) {
+    map[y][x] = 0;
+    tiles.setFeature(x, y, 'door', { door: 'closed' });
+  }
+  dungeon.pathGrid = new PF.Grid(map);
+  tiles.applyToPathGrid(dungeon.pathGrid);
+  assert.deepEqual(dungeon.findPath(2, 2, 2 + dx, 2 + dy), [[2, 2], [2 + dx, 2 + dy]], 'closed doors beside a diagonal do not block it');
 }
 function flightSetup() {
   tiles.clearAllFeatures();
