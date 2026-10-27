@@ -550,9 +550,10 @@ assert.equal(deathContext.entities.length, 0, 'killed skeleton does not reanimat
 
 // Cover, awareness, and pursuit use real sight/combat/AI logic.
 const doors = new Map();
+const grassCover = new Set();
 const terrain = {
   getDoorState: (x, y) => doors.get(`${x},${y}`),
-  getTileState: () => undefined
+  getTileState: (x, y) => grassCover.has(`${x},${y}`) ? { feature: 'grass' } : undefined
 };
 const sight = load('src/games/rogue0/fov.ts', { ...terrain, isGrassConcealed: () => false });
 const arena = Array.from({ length: 7 }, () => Array(7).fill(0));
@@ -605,7 +606,12 @@ assert.equal(hunter.x, 3, 'hunter opens and enters the door while pursuing');
 assert.equal(doors.get('3,3'), 'open');
 assert.equal(hunter.awareOfPlayer, false, 'emerging from cover leaves a reaction window');
 assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), true);
+let surpriseCues = 0;
+huntContext.onSurpriseAttack = victim => { assert.equal(victim, hunter); surpriseCues++; };
 assert.equal(combat.resolveAttack(huntContext, target, hunter).hit, true, 'surprise bypasses evasion');
+assert.equal(surpriseCues, 1, 'actual surprise hit emits one visual cue');
+combat.resolveAttack(huntContext, target, hunter);
+assert.equal(surpriseCues, 1, 'ordinary follow-up does not emit a surprise cue');
 assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), false, 'ambush is consumed by the attack');
 
 // Walking around a one-tile pillar breaks sight without erasing pursuit.
@@ -624,6 +630,17 @@ assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), true, 'roundi
 arena[3][3] = 0;
 huntAI.enemyTurn(hunter);
 assert.equal(hunter.awareOfPlayer, true, 'a further turn in sight removes the ambush window');
+hunter.x = 3; hunter.y = 4; target.x = 4; target.y = 2;
+hunter.lastSeenX = 4; hunter.lastSeenY = 2;
+grassCover.add('4,3');
+nextPath = [[3, 4], [3, 3], [4, 2]];
+assert.equal(huntAI.enemyCanSeePlayer(hunter), false, 'tall grass interrupts pursuit sight');
+huntAI.enemyTurn(hunter);
+assert.equal(huntAI.enemyCanSeePlayer(hunter), true, 'hunter regains sight after rounding grass');
+assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), true, 'grass kiting grants a reaction-window ambush');
+combat.resolveAttack(huntContext, target, hunter);
+assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), false, 'grass opening is consumed by one attack');
+grassCover.clear();
 target.effects = [{ id: 'invisible' }];
 assert.equal(huntAI.enemyCanSeePlayer(hunter), false);
 

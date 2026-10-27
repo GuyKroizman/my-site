@@ -170,6 +170,7 @@ export function resolveAttack(
   }
 
   damage = Math.max(0, damage);
+  if (surprise) context.onSurpriseAttack?.(defender);
 
   return {
     hit: true,

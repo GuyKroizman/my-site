@@ -41,6 +41,7 @@ export type GameContext = {
   nextTerrainEvent?: () => number;
   onTerrainEvent?: () => void;
   onCoverChanged?: () => void;
+  onSurpriseAttack?: (target: Entity) => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   heroModalOpen?: boolean;

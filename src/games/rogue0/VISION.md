@@ -17,6 +17,20 @@ Monster LOS uses the same terrain rules (with each monster's own radius).
   base-wall cell supports glass walls without making them walkable. This adds
   optical support, not new glass/crystal artwork or generated terrain variants.
 
+## Surprise attacks
+
+Monsters track awareness on their own action, before moving. Breaking their
+sight with a wall or tall grass lets a pursuer round that cover without having
+reacted yet: the player's next hit can surprise it even though sight is restored.
+Opening and entering a closed door explicitly creates the same opening.
+The opening is consumed by the player's first attack, or expires when the
+monster takes another turn and sees the player. Merely circling cover while
+remaining visible does not grant repeated surprise hits.
+
+Surprise retains its existing guaranteed-hit, bonus-damage and physical bleed
+rules. Each resolved surprise hit emits a small golden `!` which rises and fades
+for 650ms. Cues use cosmetic time only, respect fog, and clear on floor changes.
+
 ## Fog presentation
 
 Unexplored cells remain fully black. Five one-pixel opacity bands feather the

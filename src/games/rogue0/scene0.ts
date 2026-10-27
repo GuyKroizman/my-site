@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { showSurpriseVisual, updateSurpriseVisuals, clearSurpriseVisuals } from './surpriseVisuals';
 // Vite emits content-hashed URLs, so deployed art cannot reuse an older atlas.
 import stoneTilesUrl from '../../../public/rogue0/stone-tiles.png';
 import stoneWallUrl from '../../../public/rogue0/stone-wall.png';
@@ -210,7 +211,10 @@ export class Scene0 extends Phaser.Scene {
 
   create() {
     createForegroundAtlas(this);
-    this.events.once("shutdown", () => clearMonsterSleepVisuals(this));
+    this.events.once("shutdown", () => {
+      clearMonsterSleepVisuals(this);
+      clearSurpriseVisuals(this);
+    });
     this.context.scene = this;
     resetConsumableAppearances(this.context);
     this.context.floor = 1;
@@ -251,6 +255,7 @@ export class Scene0 extends Phaser.Scene {
     // Door opens / grass burns / trap reveals all need to re-sync the overlay.
     dungeon.onTerrainChanged = () => this.syncFeatures();
     this.context.onCoverChanged = () => this.syncFeatures();
+    this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
 
     const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
     const player = new HeroClass(this.context, spawn.x, spawn.y);
@@ -444,6 +449,7 @@ export class Scene0 extends Phaser.Scene {
     this.checkStairs();
     this.refreshFovIfNeeded();
     updateMonsterSleepVisuals(this, this.context.entities, this.time.now);
+    updateSurpriseVisuals(this, this.context, this.time.now);
 
     // Fast-forward animations while the player is waiting on buffered input.
     const p = this.context.player;
@@ -489,6 +495,7 @@ export class Scene0 extends Phaser.Scene {
     restored?: SavedFloor
   ) {
     clearMonsterSleepVisuals(this);
+    clearSurpriseVisuals(this);
     this.context.floor = floor;
     this.context.poisonClouds = restoreGas(restored?.poisonClouds,
       restored ? (this.context.simulationTime ?? 0) - restored.savedAt : 0);

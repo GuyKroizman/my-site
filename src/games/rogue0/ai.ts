@@ -193,6 +193,9 @@ function followStep(entity: Entity, step: { x: number; y: number }): boolean {
   )) return false;
   if (tiles.getDoorState(step.x, step.y) === "closed") {
     if (!dungeon.openDoor(step.x, step.y)) return false;
+    // Opening/entering a doorway occupies this action. Even a monster that
+    // saw us before opening it is exposed until its next turn or our first hit.
+    entity.awareOfPlayer = false;
   }
   dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
   return true;
