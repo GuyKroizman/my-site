@@ -69,31 +69,7 @@ export function hasLineOfSight(
   y1: number
 ): boolean {
   if (map[y0]?.[x0] === undefined || map[y1]?.[x1] === undefined) return false;
-  // Canonical direction removes Bresenham tie-breaking asymmetry.
-  const reverse = x0 > x1 || (x0 === x1 && y0 > y1);
-  const points = reverse ? bresenhamLine(x1, y1, x0, y0).reverse()
-    : bresenhamLine(x0, y0, x1, y1);
-
-  const opaque = (x: number, y: number) => blocksSight(map, x, y);
-
-  // Hard corners (pillars/doors) still block diagonal peeking. A grass
-  // tuft is narrower: light can pass beside it when the other side is clear,
-  // but never through two touching opaque cells or through a grass cell.
-  for (let i = 1; i < points.length; i++) {
-    const [x, y] = points[i];
-    const [prevX, prevY] = points[i - 1];
-    if (x !== prevX && y !== prevY) {
-      const a = opaque(x, prevY);
-      const b = opaque(prevX, y);
-      const hardA = a && (map[prevY]?.[x] !== 0 || getTileState(x, prevY)?.feature !== 'grass');
-      const hardB = b && (map[y]?.[prevX] !== 0 || getTileState(prevX, y)?.feature !== 'grass');
-      if (hardA || hardB || (a && b)) return false;
-    }
-    // Endpoints themselves stay visible, including walls and closed doors.
-    if (i < points.length - 1 && opaque(x, y)) return false;
-  }
-
-  return true;
+  return computeFOV(map, x0, y0, Math.ceil(Math.hypot(x1 - x0, y1 - y0))).has(`${x1},${y1}`);
 }
 
 export function canSee(
@@ -121,19 +97,48 @@ export function computeFOV(
   const visible = new Set<string>();
   const r = Number.isFinite(radius) ? Math.max(0, Math.floor(radius)) : 0;
 
-  for (let y = py - r; y <= py + r; y++) {
-    for (let x = px - r; x <= px + r; x++) {
-      if (x < 0 || y < 0 || y >= map.length || x >= map[y].length) continue;
-
-      const dx = x - px;
-      const dy = y - py;
-      if (dx * dx + dy * dy > r * r) continue;
-
-      if (ignoreObstacles || hasLineOfSight(map, px, py, x, y)) {
-        visible.add(`${x},${y}`);
+  if (map[py]?.[px] === undefined) return visible;
+  visible.add(`${px},${py}`);
+  if (ignoreObstacles) {
+    for (let y = Math.max(0, py - r); y <= Math.min(map.length - 1, py + r); y++) {
+      for (let x = Math.max(0, px - r); x <= Math.min(map[y].length - 1, px + r); x++) {
+        if ((x - px) ** 2 + (y - py) ** 2 <= r * r) visible.add(`${x},${y}`);
       }
     }
+    return visible;
   }
 
+  // Symmetric shadowcasting: scan four 90-degree quadrants, splitting the
+  // visible angular interval at opaque tiles. Walls expose their faces while
+  // floor centers must lie within the interval. No special corner veto: an
+  // adjacent doorway remains visible beside its jamb. Floor sight is reciprocal.
+  for (let quadrant = 0; quadrant < 4; quadrant++) {
+    const transform = (depth: number, column: number): [number, number] => {
+      if (quadrant === 0) return [px + column, py - depth];
+      if (quadrant === 1) return [px + depth, py + column];
+      if (quadrant === 2) return [px + column, py + depth];
+      return [px - depth, py + column];
+    };
+    const scan = (depth: number, start: number, end: number): void => {
+      if (depth > r || start > end) return;
+      let previousWall: boolean | undefined;
+      const first = Math.floor(depth * start + 0.5);
+      const last = Math.ceil(depth * end - 0.5);
+      for (let column = first; column <= last; column++) {
+        const [x, y] = transform(depth, column);
+        const wall = blocksSight(map, x, y);
+        if (map[y]?.[x] !== undefined && depth * depth + column * column <= r * r &&
+            (wall || (column >= depth * start && column <= depth * end))) {
+          visible.add(`${x},${y}`);
+        }
+        const slope = (column - 0.5) / depth;
+        if (previousWall === true && !wall) start = slope;
+        if (previousWall === false && wall) scan(depth + 1, start, slope);
+        previousWall = wall;
+      }
+      if (previousWall === false) scan(depth + 1, start, end);
+    };
+    scan(1, -1, 1);
+  }
   return visible;
 }

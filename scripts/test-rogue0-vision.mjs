@@ -48,9 +48,30 @@ assert.ok(sees(20, 15), 'see straight through doorway');
 assert.ok(!sees(18, 13), 'doorway jamb hides adjacent room corner');
 for (let x = 12; x <= 20; x++) {
   for (let y = 12; y <= 20; y++) {
-    assert.equal(hasLineOfSight(map, 15, 15, x, y), hasLineOfSight(map, x, y, 15, 15), 'LOS is reciprocal');
+    // Expansive wall faces are visible endpoints, not valid observer cells.
+    if (map[y][x] === 0) assert.equal(hasLineOfSight(map, 15, 15, x, y), hasLineOfSight(map, x, y, 15, 15), 'floor LOS is reciprocal');
   }
 }
+// Shadow geometry must not depend on which compass direction faces a door.
+{
+let rotated = Array.from({ length: 7 }, () => Array(7).fill(0));
+rotated[2] = [1, 1, 1, 0, 1, 1, 1];
+rotated[4][1] = 1;
+let observer = [2, 3];
+let expected = computeFOV(rotated, ...observer, 6);
+for (let turn = 0; turn < 4; turn++) {
+  for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) {
+    if (rotated[y][x] === 0) {
+      assert.equal(hasLineOfSight(rotated, ...observer, x, y), hasLineOfSight(rotated, x, y, ...observer), 'shadowcasting is reciprocal between floor observers');
+    }
+  }
+  rotated = rotated[0].map((_, y) => rotated.map(row => row[y]).reverse());
+  observer = [6 - observer[1], observer[0]];
+  expected = new Set([...expected].map(key => { const [x, y] = key.split(',').map(Number); return `${6 - y},${x}`; }));
+  assert.deepEqual(computeFOV(rotated, ...observer, 6), expected, 'shadowcasting rotates consistently through every quadrant');
+}
+}
+assert.deepEqual(computeFOV(map, -1, 0, 8), new Set(), 'invalid observer returns no visible tiles');
 const vision = resolveVision({ magicalSight: true, dark: true });
 assert.equal(vision.radius, 12);
 assert.ok(computeFOV(map, 15, 15, vision.radius, vision.ignoreObstacles).has('20,13'), 'magical sight ignores walls');
@@ -96,10 +117,10 @@ for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
 }
 tiles.setFeature(5, 4, 'grass');
 tiles.setFeature(4, 5, 'grass');
-assert.ok(!sight.hasLineOfSight(clearing, 4, 4, 5, 5), 'two touching grass blockers do not open a diagonal sight leak');
+assert.ok(sight.hasLineOfSight(clearing, 4, 4, 5, 5), 'adjacent diagonal cells remain visible between grass corners');
 tiles.clearAllFeatures();
 clearing[4][5] = 1;
-assert.ok(!sight.hasLineOfSight(clearing, 4, 4, 5, 5), 'hard wall corners still block peeking');
+assert.ok(sight.hasLineOfSight(clearing, 4, 4, 5, 5), 'shadowcasting sees adjacent diagonal floor beside a wall');
 clearing[4][5] = 0;
 
 const { fogFeatherRects } = load('src/games/rogue0/rendering.ts');

@@ -1,12 +1,17 @@
 # Vision
 
-Player sight uses a Euclidean radius of 8 cells and reciprocal center-to-center
-Bresenham LOS. Opaque endpoints are visible, but intermediate opaque cells block
-sight. Diagonal steps cannot peek past hard opaque corners, so pillars and door
-jambs cast shadows. Grass permits sight around its sides when the other corner
-cell is clear; two opaque corner cells still block the diagonal. This reveals
-the cells to either side of an adjacent tuft without seeing straight through it.
-Monster LOS uses the same terrain rules (with each monster's own radius).
+Player sight uses a Euclidean radius of 8 cells and symmetric shadowcasting.
+Four 90-degree quadrants are scanned in rows, splitting angular visibility at
+opaque tiles. Walls expose their faces; floor sight is reciprocal. Adjacent
+diagonal floor and doorways remain visible beside wall corners, while terrain
+directly behind a wall, closed door, or tall grass stays hidden.
+
+Monster sight and combat awareness use the same shadowcasting geometry (with
+each monster's own radius). Seeing the player enter a doorway updates ordinary
+last-seen pursuit memory, so no special door-investigation AI is needed. If the
+player then leaves sight, monsters pursue that remembered doorway, not the
+player's hidden current position. Bresenham paths remain available separately
+for physical projectiles; this change does not make projectiles pass walls.
 
 - Base-map walls (`1`) block sight, including solid pillars/barricades represented
   as wall cells. Closed doors and tall grass also block sight.

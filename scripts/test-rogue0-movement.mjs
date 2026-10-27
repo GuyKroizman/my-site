@@ -614,13 +614,37 @@ combat.resolveAttack(huntContext, target, hunter);
 assert.equal(surpriseCues, 1, 'ordinary follow-up does not emit a surprise cue');
 assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), false, 'ambush is consumed by the attack');
 
+// Seeing an adjacent player enter a doorway updates ordinary pursuit memory.
+{
+  doors.clear();
+  for (let x = 0; x < 7; x++) arena[2][x] = x === 4 ? 0 : 1;
+  doors.set('4,2', 'open');
+  const pursuer = actor('enemy'), escapee = actor('player');
+  const ctx = { player: escapee, entities: [pursuer, escapee] };
+  Object.assign(pursuer, { context: ctx, x: 3, y: 3, visionRadius: 8, range: () => 0 });
+  Object.assign(escapee, { context: ctx, x: 4, y: 2 });
+  assert.equal(huntAI.enemyCanSeePlayer(pursuer), true, 'door jamb does not hide adjacent player');
+  huntAI.enemyTurn(pursuer);
+  assert.deepEqual([pursuer.lastSeenX, pursuer.lastSeenY], [4, 2], 'normal awareness remembers the doorway');
+  escapee.y = 1;
+  doors.set('4,2', 'closed');
+  nextPath = [[3, 3], [4, 2]];
+  assert.equal(huntAI.enemyCanSeePlayer(pursuer), false, 'closed door hides player beyond it');
+  huntAI.enemyTurn(pursuer);
+  assert.deepEqual([pursuer.x, pursuer.y], [4, 2], 'normal pursuit opens and enters remembered doorway');
+  assert.equal(pursuer.awareOfPlayer, false, 'door entry preserves surprise opening');
+  const before = huntAttacks;
+  huntAI.enemyTurn(pursuer);
+  assert.equal(huntAttacks, before + 1, 'reacquires player without door-search AI');
+  for (let x = 0; x < 7; x++) arena[2][x] = 0;
+}
 // Walking around a one-tile pillar breaks sight without erasing pursuit.
 doors.clear();
 arena[3][3] = 1;
 hunter.x = 2; hunter.y = 3;
-target.x = 3; target.y = 2;
-assert.equal(sight.canSee(arena, 2, 3, 3, 2, 8), false, 'pillar edge blocks diagonal peeking');
-nextPath = [[2, 3], [2, 2], [3, 2], [4, 2], [4, 3]];
+target.x = 4; target.y = 3;
+assert.equal(sight.canSee(arena, 2, 3, 4, 3, 8), false, 'pillar blocks player directly behind it');
+nextPath = [[2, 3], [3, 2], [4, 3]];
 huntAI.enemyTurn(hunter);
 assert.equal(hunter.awareOfPlayer, false);
 assert.deepEqual(plannedTarget, [4, 3], 'hunter follows the last seen position around a pillar');
@@ -630,10 +654,10 @@ assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), true, 'roundi
 arena[3][3] = 0;
 huntAI.enemyTurn(hunter);
 assert.equal(hunter.awareOfPlayer, true, 'a further turn in sight removes the ambush window');
-hunter.x = 3; hunter.y = 4; target.x = 4; target.y = 2;
-hunter.lastSeenX = 4; hunter.lastSeenY = 2;
-grassCover.add('4,3');
-nextPath = [[3, 4], [3, 3], [4, 2]];
+hunter.x = 3; hunter.y = 4; target.x = 3; target.y = 2;
+hunter.lastSeenX = 3; hunter.lastSeenY = 2;
+grassCover.add('3,3');
+nextPath = [[3, 4], [4, 3], [3, 2]];
 assert.equal(huntAI.enemyCanSeePlayer(hunter), false, 'tall grass interrupts pursuit sight');
 huntAI.enemyTurn(hunter);
 assert.equal(huntAI.enemyCanSeePlayer(hunter), true, 'hunter regains sight after rounding grass');
