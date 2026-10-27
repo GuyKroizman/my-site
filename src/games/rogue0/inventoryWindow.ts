@@ -475,12 +475,12 @@ export class InventoryWindow {
     // Recognizable equipment reveals its identity, but not its curse status.
     const description = item.identified || item.isRecognizableEquipment
       ? [item.displayDescription, item.strengthDescription(player.strength),
-          !item.identified && item.isRecognizableEquipment
+          !item.identified && item.isRecognizableEquipment && !(item.curseLifted && !item.cursed)
             ? "Curse status unknown. Cursed equipment cannot be removed once equipped and may have other harmful effects."
             : ""].filter(Boolean).join("\n")
-      : item instanceof Wand
-        ? "An unidentified wand. Its kind of magic is unknown."
-        : "You have not identified this item.";
+      : [item instanceof Wand
+          ? "An unidentified wand. Its kind of magic is unknown."
+          : "You have not identified this item.", item.curseDescription].filter(Boolean).join('\n\n');
     const desc = this.scene.add.text(iconX, ay, description, {
       fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
       color: item.identified ? COL.text : COL.muted,

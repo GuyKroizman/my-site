@@ -90,6 +90,9 @@ export function resolveAttack(
   const damageType = opts.damageType ?? "physical";
   const appliedEffects: StatusEffect[] = [];
   const surprise = isSurpriseAttack(context, attacker, defender);
+  // An attempted attack can provoke a dormant creature even if it misses
+  // or armor absorbs all damage. Capture surprise before revealing it.
+  defender.onAttacked?.(attacker);
 
   // Resolve the opening ambush before destroying cover, including on a miss.
   if (attacker.x !== undefined && attacker.y !== undefined &&

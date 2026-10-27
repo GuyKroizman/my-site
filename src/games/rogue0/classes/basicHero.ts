@@ -594,6 +594,7 @@ export default class BasicHero extends Entity {
     for (const item of target ? carried.filter(item => item === target) : carried) {
       if (item.cursed) {
         item.cursed = false;
+        item.curseLifted = true;
         item.onUncursed?.();
         lifted = true;
       }

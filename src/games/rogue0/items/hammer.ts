@@ -21,7 +21,7 @@ export default class Hammer extends Entity {
     equip() {
     }
 
-    get displayDescription(): string {
+    get baseDescription(): string {
       return `A basic war hammer. Causes between ${3 + this.level} and ${8 + this.level} damage. Slow attack (${this.attackDelay} time).`;
     }
 

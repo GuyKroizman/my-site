@@ -21,7 +21,7 @@ export default class Shield extends Entity {
   }
 
 
-  get displayDescription(): string {
+  get baseDescription(): string {
     return `A basic shield. Gives +${this.protection()} protection.`;
   }
 

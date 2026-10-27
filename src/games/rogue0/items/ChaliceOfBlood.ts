@@ -45,7 +45,7 @@ export default class ChaliceOfBlood extends Entity {
     }
   }
 
-  get displayDescription(): string {
+  get baseDescription(): string {
     const progress = this.level >= this.maxLevel
       ? "Maximum level reached."
       : `${this.bloodProgress}/${this.killsToNextLevel} monster kills while equipped toward the next level.`;

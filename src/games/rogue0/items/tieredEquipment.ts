@@ -21,7 +21,7 @@ export class TieredWeapon extends Entity {
 
   get minDamage(): number { return this.tier + this.level; }
   get maxDamage(): number { return 5 * this.tier + (this.tier + 1) * this.level; }
-  get displayDescription(): string {
+  get baseDescription(): string {
     return `Causes between ${this.minDamage} and ${this.maxDamage} damage. Attack delay: ${this.attackDelay}. Upgrades add +1 minimum and +${this.tier + 1} maximum damage.`;
   }
   damage(): number { return Phaser.Math.Between(this.minDamage, this.maxDamage); }
@@ -49,7 +49,7 @@ export class TieredArmor extends Entity {
     this.init(context, x, y);
   }
 
-  get displayDescription(): string {
+  get baseDescription(): string {
     return `Absorbs ${this.protection()} physical damage. Each upgrade adds ${this.tier} protection. Occupies the armor slot (replaces a shield).`;
   }
   protection(): number { return 2 * this.tier + this.tier * this.level; }

@@ -226,6 +226,61 @@ assert.equal(offspring.sleeping, false);
 offspring.init(context, 6, 6);
 assert.equal(offspring.sprite.scale, 0.7, 'small swarm scale survives floor recreation');
 
+// Mimic chest dormancy is indefinite and distinct from timed monster sleep.
+{
+  const Mimic = load('src/games/rogue0/monsters/mimic.ts', { Monster, Gem: class {} }).default;
+  const combat = load('src/games/rogue0/combat.ts', {
+    ...sight, hasEffect, createBleedingEffect: () => ({ id: 'bleeding' }),
+    tiles: { ...tiles, getFeature: () => undefined, isGrassConcealed: () => false },
+  });
+  const makeMimic = () => {
+    const { context: ctx, player: hero } = setup();
+    hero.x = 2; hero.y = 3;
+    ctx.currentLevel = map;
+    const chest = new Mimic(ctx, 2, 2);
+    ctx.entities = [hero, chest];
+    return { ctx, hero, chest };
+  };
+  let { ctx, hero, chest } = makeMimic();
+  const initialAttacks = attacks;
+  for (let i = 0; i < 40; i++) { chest.refresh(); chest.turn(); }
+  chest.hearNoise(hero.x, hero.y);
+  chest.wakeUp();
+  chest.takeDamage(0);
+  chest.turn();
+  assert.deepEqual([chest.x, chest.y], [2, 2]);
+  assert.equal(attacks, initialAttacks, 'waiting, proximity, noise and zero damage never provoke a mimic');
+  assert.equal(chest.sleeping, false, 'dormant chest does not display sleeping Zs');
+  chest.init(ctx, 2, 2);
+  chest.turn();
+  assert.equal(attacks, initialAttacks, 'floor revisit preserves dormancy');
+  chest.takeDamage(1);
+  chest.turn();
+  assert.equal(attacks, initialAttacks + 1, 'positive effect damage activates normal combat');
+  chest.init(ctx, 2, 2);
+  chest.turn();
+  assert.equal(attacks, initialAttacks + 2, 'floor revisit preserves provocation');
+  const random = Math.random;
+  try {
+    Math.random = () => 0.5;
+    for (const hit of [false, true]) {
+      ({ ctx, hero, chest } = makeMimic());
+      chest.awareOfPlayer = true; // Exercise a non-surprise miss/zero-damage hit.
+      hero.accuracy = hit ? 100 : 0;
+      hero.attack = () => 0;
+      const result = combat.resolveAttack(ctx, hero, chest);
+      assert.equal(result.hit, hit);
+      assert.equal(result.damage, 0);
+      const before = attacks;
+      chest.turn();
+      assert.equal(attacks, before + 1, 'attack attempt activates chest even with no damage');
+    }
+    ({ ctx, hero, chest } = makeMimic());
+    hero.attack = () => 1;
+    assert.equal(combat.resolveAttack(ctx, hero, chest).surprise, true, 'initial attack still gets surprise before activation');
+  } finally { Math.random = random; }
+}
+
 // Cosmetic Zs rise/fade, but never reveal hidden monsters or advance sleep.
 const { updateMonsterSleepVisuals, clearMonsterSleepVisuals } = load('src/games/rogue0/monsters/monsterSleepVisuals.ts');
 const texts = [];

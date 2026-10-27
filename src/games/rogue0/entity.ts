@@ -76,6 +76,7 @@ export abstract class Entity {
   canTargetItem(_target: Entity): boolean { return false; }
   useOnItem(_target: Entity): boolean { return false; }
   onUncursed(): void {}
+  onAttacked(_attacker: Entity): void {}
   // Sight at the start of the last decision, not after moving into view.
   // Pursuit memory is separate: a hunting enemy can still be ambushed.
   awareOfPlayer: boolean = false;
@@ -119,6 +120,7 @@ export abstract class Entity {
   attackCostMultiplier(): number { return 1; }
   identified: boolean = true;
   cursed: boolean = false;
+  curseLifted = false;
   blessed: boolean = false;
   level: number = 0;
   maxLevel: number = Number.POSITIVE_INFINITY;
@@ -139,9 +141,18 @@ export abstract class Entity {
   vulnerability: Partial<Record<DamageType, number>> = {};
   damageType: DamageType = "physical";
 
-  // Override for descriptions whose stats change with upgrades.
-  get displayDescription(): string {
+  // Items override only their content; curse status is shared by every kind.
+  get baseDescription(): string {
     return this.description;
+  }
+
+  get curseDescription(): string {
+    if (this.cursed) return this.identified ? 'Cursed: cannot be removed while equipped until the curse is lifted.' : '';
+    return this.curseLifted ? 'Curse lifted: this item is no longer cursed and can be freely unequipped or dropped.' : '';
+  }
+
+  get displayDescription(): string {
+    return [this.baseDescription, this.curseDescription].filter(Boolean).join('\n\n');
   }
 
   // Derive a pronounceable nonsense label from the true item kind, never from

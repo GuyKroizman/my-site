@@ -22,7 +22,7 @@ export default class ScrollOfFireball extends Entity {
   equip() {
   }
 
-  get displayDescription(): string {
+  get baseDescription(): string {
     return `A scroll of fireball. Causes between ${1 + this.level} and ${4 + this.level} damage. Range is ${this.range()} tiles.`;
   }
 

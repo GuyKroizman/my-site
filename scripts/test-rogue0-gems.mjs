@@ -194,5 +194,30 @@ assert.equal(context.scene.input.enabled, true);
   first.cursed = true; second.cursed = true;
   hero.removeCurse();
   assert.ok(!first.cursed && !second.cursed, 'scroll-style global removal still cleanses all items');
+  const gear = [new Axe(ctx), new Shield(ctx), ...['weapon', 'armor', 'ring', 'artifact', 'consumable', 'junk'].map(equipSlot =>
+    Object.assign(new Entity(), { context: ctx, type: 'item', equipSlot, description: 'Original item properties.' }))];
+  hero.backpack = gear;
+  for (const item of gear) {
+    item.cursed = true; item.identified = true;
+    assert.match(item.displayDescription, /Cursed: cannot be removed/);
+  }
+  hero.removeCurse();
+  for (const item of gear) {
+    assert.equal(item.cursed, false);
+    assert.ok(item.displayDescription.startsWith(item.baseDescription), 'cleansing preserves base stats and properties');
+    assert.match(item.displayDescription, /Curse lifted: this item is no longer cursed/);
+    assert.ok(!item.displayDescription.includes('Cursed: cannot be removed'));
+    const once = item.displayDescription;
+    hero.removeCurse(item);
+    assert.equal(item.displayDescription, once, 'repeated cleansing does not duplicate description text');
+    item.identified = false;
+    assert.match(item.curseDescription, /Curse lifted/, 'known cleansing remains visible without identifying other properties');
+    item.cursed = true; item.identified = true;
+    assert.ok(!item.displayDescription.includes('Curse lifted'), 'a new curse takes precedence over old cleansing history');
+  }
+  for (const file of fs.readdirSync('src/games/rogue0/items').filter(file => file.endsWith('.ts'))) {
+    assert.ok(!/get displayDescription\s*\(/.test(fs.readFileSync(`src/games/rogue0/items/${file}`, 'utf8')),
+      `${file} must not bypass shared curse-description handling`);
+  }
 }
 console.log('Rogue0 gem and Holy Potion target selection, cancellation, stacking, cleansing descriptions and turn costs passed');

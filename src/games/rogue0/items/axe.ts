@@ -18,7 +18,7 @@ export default class Axe extends Entity {
     this.init(context, x, y);
   }
 
-  get displayDescription(): string {
+  get baseDescription(): string {
     return `A basic axe. Causes between ${2 + this.level} and ${7 + this.level} damage. Slow attack (1.25 time).`;
   }
 

@@ -23,7 +23,7 @@ export default class ScrollOfLightning extends Entity {
   equip() {
   }
 
-  get displayDescription(): string {
+  get baseDescription(): string {
     return `A scroll of lightning. Causes between ${1 + this.level} and ${2 + this.level} damage. Range is ${this.range()} tiles.`;
   }
 

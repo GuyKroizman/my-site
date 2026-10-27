@@ -6,7 +6,7 @@ import type { EntityType } from "../entity";
 export default class Sword extends Entity{
 
   name: string = "A Sword";
-  get displayDescription(): string {
+  get baseDescription(): string {
     return `A basic sword. Causes between ${1 + this.level} and ${5 + this.level} damage.`;
   }
   type:EntityType =  "item";
