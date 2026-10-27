@@ -353,6 +353,26 @@ const flightDungeon = load('dungeon', { PF, tiles, ...fov,
   sfx: { step() {} }
 }).default;
 const flightEffects = load('effects', { dungeon: flightDungeon, spawnEntityFloatingText() {} });
+// A chasm beside a diagonal is empty space, not a solid corner. Reproduce
+// the wall + chasm pinch in all four orientations without stepping into it.
+for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+  tiles.clearAllFeatures();
+  const map = Array.from({ length: 5 }, () => Array(5).fill(0));
+  map[2 + dy][2] = 1;
+  tiles.setFeature(2 + dx, 2, 'chasm');
+  dungeon.currentLevel = map;
+  dungeon.pathGrid = new PF.Grid(map);
+  tiles.applyToPathGrid(dungeon.pathGrid);
+  dungeon.diagonalFinder = new PF.AStarFinder({ diagonalMovement: PF.DiagonalMovement.Always });
+  assert.equal(dungeon.canStepBetween(2, 2, 2 + dx, 2 + dy), true, 'grounded actor can step beside a chasm');
+  assert.deepEqual(dungeon.findPath(2, 2, 2 + dx, 2 + dy, true, true), [[2, 2], [2 + dx, 2 + dy]], 'tap route is exactly one diagonal step');
+  assert.deepEqual(dungeon.findPath(2, 2, 2 + dx, 2), [], 'ordinary routes never enter the chasm');
+  assert.equal(dungeon.pathGrid.isWalkableAt(2 + dx, 2), false, 'corner handling does not make the chasm walkable');
+  tiles.clearAllFeatures();
+  map[2][2 + dx] = 1;
+  dungeon.pathGrid = new PF.Grid(map);
+  assert.equal(dungeon.canStepBetween(2, 2, 2 + dx, 2 + dy), false, 'two solid corners still block movement');
+}
 function flightSetup() {
   tiles.clearAllFeatures();
   const map = Array.from({ length: 5 }, (_, y) =>

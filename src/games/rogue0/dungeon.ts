@@ -92,14 +92,15 @@ let dungeon = {
   },
 
   // A diagonal may round one blocked corner, but cannot squeeze between
-  // two walls/closed doors. Destination walkability is checked separately.
-  canStepBetween: function (sx: number, sy: number, tx: number, ty: number, actor?: Entity): boolean {
+  // two walls/closed doors. Chasms are empty corner space even for grounded
+  // actors; destination walkability still prevents walking into the hole.
+  canStepBetween: function (sx: number, sy: number, tx: number, ty: number, _actor?: Entity): boolean {
     const dx = Math.abs(tx - sx);
     const dy = Math.abs(ty - sy);
     if (Math.max(dx, dy) !== 1) return false;
     if (!dx || !dy) return true;
     const passable = (x: number, y: number) => this.pathGrid!.isWalkableAt(x, y) ||
-      (!!actor && hasEffect(actor, "levitating") && tiles.getFeature(x, y) === "chasm" && this.currentLevel[y]?.[x] === 0);
+      (tiles.getFeature(x, y) === "chasm" && this.currentLevel[y]?.[x] === 0);
     return passable(sx, ty) || passable(tx, sy);
   },
 
