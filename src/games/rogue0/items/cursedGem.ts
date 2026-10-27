@@ -12,6 +12,7 @@ export default class CursedGem extends Entity {
   type: EntityType = "item";
   tile = 4 * 49 + 22;
   cursed = true;
+  curseEffectId = 'cursed';
   tier = 1;
   equipSlot: "ring" = "ring";
 
@@ -23,7 +24,7 @@ export default class CursedGem extends Entity {
   // While equipped, apply the ongoing curse penalty (per-round damage).
   equip() {
     const player = this.context.player;
-    if (player) {
+    if (player && this.cursed) {
       applyEffect(player, createCursedEffect());
     }
   }
@@ -31,9 +32,14 @@ export default class CursedGem extends Entity {
   // Once uncursed, unequipping it clears the penalty.
   unequip() {
     const player = this.context.player;
-    if (player) {
+    if (player && !player.equippedItems().some(item => item !== this && item.cursed && item.curseEffectId === 'cursed')) {
       removeEffect(player, "cursed");
     }
+  }
+
+  onUncursed(): void {
+    this.name = 'Cleansed Gem';
+    this.description = 'A gem whose curse has been lifted. It no longer drains health and can be freely unequipped or dropped.';
   }
 
   damage() {

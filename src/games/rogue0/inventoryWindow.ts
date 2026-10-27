@@ -62,6 +62,7 @@ export class InventoryWindow {
   private dirty = false;
   private menuItem: Entity | undefined;
   private enchantingGem: Gem | undefined;
+  private targetedItem: Entity | undefined;
   private quickslot: number | undefined;
 
   chooseQuickslot(index: number): void {
@@ -84,6 +85,11 @@ export class InventoryWindow {
       this.enchantingGem = item;
       this.render();
     };
+    context.onChooseItemTarget = (item) => {
+      this.openWindow();
+      this.targetedItem = item;
+      this.render();
+    };
   }
 
   isOpen(): boolean {
@@ -103,6 +109,7 @@ export class InventoryWindow {
     this.open = true;
     this.quickslot = undefined;
     this.enchantingGem = undefined;
+    this.targetedItem = undefined;
     this.context.inventoryOpen = true;
     this.menuItem = undefined;
     this.dirty = false;
@@ -131,6 +138,7 @@ export class InventoryWindow {
     this.open = false;
     this.quickslot = undefined;
     this.enchantingGem = undefined;
+    this.targetedItem = undefined;
     this.context.inventoryOpen = false;
     this.menuItem = undefined;
 
@@ -217,7 +225,7 @@ export class InventoryWindow {
         .setStrokeStyle(1, C.border, 1)
     );
     this.winRoot.add(
-      this.scene.add.text(PAD, 11, this.quickslot !== undefined ? "QUICKSLOT: CHOOSE" : this.enchantingGem ? "ENCHANT: CHOOSE GEAR" : "INVENTORY", {
+      this.scene.add.text(PAD, 11, this.quickslot !== undefined ? "QUICKSLOT: CHOOSE" : this.enchantingGem ? "ENCHANT: CHOOSE GEAR" : this.targetedItem ? "CLEANSE: CHOOSE ITEM" : "INVENTORY", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 9,
         color: COL.gold
       })
@@ -353,7 +361,8 @@ export class InventoryWindow {
     }
 
     if (item) {
-      const disabled = (!!this.enchantingGem && !this.enchantingGem.canEnchant(item)) ||
+      const disabled = (!!this.targetedItem && !this.targetedItem.canTargetItem(item)) ||
+        (!!this.enchantingGem && !this.enchantingGem.canEnchant(item)) ||
         (this.quickslot !== undefined && !this.context.player!.canQuickslot(item));
       // Identification hides properties, not the artwork already visible on the floor.
       const icon = this.scene.add
@@ -401,6 +410,10 @@ export class InventoryWindow {
     }
     if (this.enchantingGem) {
       if (this.enchantingGem.enchant(item)) this.close();
+      return;
+    }
+    if (this.targetedItem) {
+      if (this.targetedItem.useOnItem(item)) this.close();
       return;
     }
     this.menuItem = this.menuItem === item ? undefined : item;

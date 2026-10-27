@@ -513,6 +513,14 @@ export default class BasicHero extends Entity {
       this.context.onChooseEnchantment?.(item);
       return false; // Opening/cancelling target selection is not a spent action.
     }
+    if (item.requiresItemTarget) {
+      if (!this.getAllItems().some(target => item.canTargetItem(target))) {
+        dungeon.log(this.context, 'You have no cursed items to cleanse.');
+        return false;
+      }
+      this.context.onChooseItemTarget?.(item);
+      return false; // Selecting/cancelling is free; confirmation consumes it.
+    }
     if (!item.identified) {
       identify(item);
     }
@@ -579,17 +587,21 @@ export default class BasicHero extends Entity {
     this.refreshUI();
   }
 
-  // Uncurse every cursed item (so they can be unequipped) and clear the
-  // active curse penalty. Used by Holy Potion and Scroll of Remove Curse.
-  removeCurse(): void {
+  // Holy Potion targets one item; the scroll retains its inventory-wide effect.
+  removeCurse(target?: Entity): void {
     let lifted = false;
-    for (const item of this.getAllItems()) {
+    const carried = this.getAllItems();
+    for (const item of target ? carried.filter(item => item === target) : carried) {
       if (item.cursed) {
         item.cursed = false;
+        item.onUncursed?.();
         lifted = true;
       }
     }
-    removeEffect(this, "cursed");
+    // Cleansing one item must not suppress another equipped gem's curse.
+    if (!this.equippedItems().some(item => item.cursed && item.curseEffectId === 'cursed')) {
+      removeEffect(this, "cursed");
+    }
     if (lifted) {
       dungeon.log(this.context, "The curse is lifted from your equipment.");
     } else {

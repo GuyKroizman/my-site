@@ -71,6 +71,11 @@ export abstract class Entity {
   // Optional texture key (e.g. generated potion flasks). Falls back to "tiles".
   textureKey?: string;
   consumable: boolean = false;
+  requiresItemTarget = false;
+  curseEffectId?: string;
+  canTargetItem(_target: Entity): boolean { return false; }
+  useOnItem(_target: Entity): boolean { return false; }
+  onUncursed(): void {}
   // Sight at the start of the last decision, not after moving into view.
   // Pursuit memory is separate: a hunting enemy can still be ambushed.
   awareOfPlayer: boolean = false;

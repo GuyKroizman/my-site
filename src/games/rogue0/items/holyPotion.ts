@@ -1,5 +1,5 @@
 // TypeScript errors after site migration - ignoring for game functionality
-import { Entity } from "../entity";
+import { Entity, identify } from "../entity";
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import dungeon from "../dungeon";
@@ -7,7 +7,8 @@ import { removeEntity } from "../entity";
 
 export default class HolyPotion extends Entity {
   name: string = "Holy Potion";
-  description: string = "A potion that removes cursed items when equipped.";
+  description: string = "Choose one cursed item in your inventory to cleanse. The item is kept, and its curse is lifted.";
+  requiresItemTarget = true;
   moving: boolean = false;
   type: EntityType = "item";
   tile = 13 * 49 + 32;
@@ -22,13 +23,26 @@ export default class HolyPotion extends Entity {
   }
 
   equip() {
-    if (!this.context.player) {
-      return;
-    }
-    dungeon.log(this.context, `A blessing passes through your body and lifts every curse.`);
-    this.context.player.removeCurse();
-    this.context.player.removeItem(this);
-    removeEntity(this.context, this);
+    this.context.onChooseItemTarget?.(this);
+  }
+
+  canTargetItem(target: Entity): boolean {
+    return target !== this && target.cursed && !!this.context.player?.getAllItems().includes(target);
+  }
+
+  useOnItem(target: Entity): boolean {
+    const player = this.context.player;
+    if (!player?.canAct() || !player.getAllItems().includes(this) || !this.canTargetItem(target)) return false;
+    identify(this);
+    player.removeCurse(target);
+    identify(target);
+    const lastPotion = this.count === 1;
+    player.removeItem(this);
+    if (lastPotion) removeEntity(this.context, this);
+    dungeon.log(this.context, `You cleanse ${target.displayName} with the Holy Potion.`);
+    player.spendTurn('use');
+    player.refreshUI();
+    return true;
   }
 
   damage() {

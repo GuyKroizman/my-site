@@ -44,6 +44,7 @@ export type GameContext = {
   onSurpriseAttack?: (target: Entity) => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
+  onChooseItemTarget?: (item: Entity) => void;
   heroModalOpen?: boolean;
   logModalOpen?: boolean;
   helpOpen?: boolean;

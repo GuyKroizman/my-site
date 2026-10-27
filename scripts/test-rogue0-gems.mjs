@@ -132,4 +132,67 @@ window.openMenu(shield);
 window.doAction('equip', shield);
 assert.equal(window.isOpen(), false);
 assert.equal(context.scene.input.enabled, true);
-console.log('Rogue0 gem target selection, cancellation, stacking and turn costs passed');
+// Holy Potion uses the same inventory modal lifecycle, but targets one curse.
+{
+  const { identify } = load('src/games/rogue0/entity.ts');
+  const dungeon = { log(ctx, message) { ctx.messages.unshift(message); } };
+  const removeEffect = (hero, id) => { hero.effects = hero.effects.filter(e => e.id !== id); };
+  const applyEffect = (hero, effect) => { removeEffect(hero, effect.id); hero.effects.push(effect); };
+  const HolyPotion = load('src/games/rogue0/items/holyPotion.ts', { Entity, identify, removeEntity, dungeon }).default;
+  const CursedGem = load('src/games/rogue0/items/cursedGem.ts', {
+    Entity, removeEffect, applyEffect, createCursedEffect: () => ({ id: 'cursed' }),
+  }).default;
+  const TargetHero = load('src/games/rogue0/classes/basicHero.ts', {
+    Entity, Gem, Wand: class {}, dungeon, removeEffect, identify,
+  }).default;
+  const ctx = { entities: [], messages: [], scene: { input: { enabled: true } } };
+  let uses = 0;
+  const hero = Object.assign(Object.create(TargetHero.prototype), {
+    context: ctx, backpack: [], effects: [], canAct: () => true,
+    refreshUI() {}, clearItemUI() {}, spendTurn() { uses++; },
+  });
+  ctx.player = hero;
+  const potion = new HolyPotion(ctx);
+  potion.count = 2;
+  const first = new CursedGem(ctx), second = new CursedGem(ctx);
+  hero.ring1 = first; hero.ring2 = second; hero.backpack = [potion];
+  ctx.entities = [potion, first, second];
+  first.equip(); second.equip();
+  const picker = new InventoryWindow({}, ctx);
+  picker.render = () => {}; picker.clearObjects = () => {};
+  assert.equal(hero.useItem(potion), false);
+  assert.equal(picker.isOpen(), true);
+  assert.equal(picker.targetedItem, potion);
+  assert.equal(uses, 0); assert.equal(potion.count, 2);
+  picker.dismiss();
+  assert.equal(picker.targetedItem, undefined);
+  assert.equal(uses, 0, 'cancelling Holy Potion is free');
+  assert.equal(potion.count, 2);
+  hero.useItem(potion);
+  picker.openMenu(potion);
+  assert.equal(picker.isOpen(), true, 'invalid target does not consume or close');
+  picker.openMenu(first);
+  assert.equal(picker.isOpen(), false);
+  assert.equal(first.cursed, false); assert.equal(second.cursed, true);
+  assert.equal(first.name, 'Cleansed Gem');
+  assert.match(first.displayDescription, /no longer drains health/);
+  assert.equal(first.identified, true);
+  assert.equal(potion.count, 1); assert.ok(ctx.entities.includes(potion));
+  assert.equal(uses, 1, 'confirmation spends exactly one use action');
+  assert.ok(hero.effects.some(e => e.id === 'cursed'), 'other equipped cursed gem retains its drain');
+  hero.useItem(potion); picker.openMenu(second);
+  assert.equal(uses, 2);
+  assert.ok(!hero.effects.some(e => e.id === 'cursed'));
+  assert.ok(!hero.getAllItems().includes(potion));
+  assert.ok(!ctx.entities.includes(potion));
+  first.equip(); second.equip();
+  assert.deepEqual(hero.effects, [], 're-equipping cleansed gems never reapplies a curse');
+  const spare = new HolyPotion(ctx); hero.backpack.push(spare);
+  hero.useItem(spare);
+  assert.equal(picker.isOpen(), false, 'no eligible target leaves potion unspent');
+  assert.equal(uses, 2);
+  first.cursed = true; second.cursed = true;
+  hero.removeCurse();
+  assert.ok(!first.cursed && !second.cursed, 'scroll-style global removal still cleanses all items');
+}
+console.log('Rogue0 gem and Holy Potion target selection, cancellation, stacking, cleansing descriptions and turn costs passed');
