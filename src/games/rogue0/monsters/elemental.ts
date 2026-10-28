@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { FIRE_ELEMENTAL_TEXTURE, generateFireElementalTexture } from "./fireElementalTexture";
 import type { GameContext } from "../context";
 import {
   createBurningEffect,
@@ -8,10 +9,12 @@ import {
 
 export class FireElemental extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
+    if (context.scene) generateFireElementalTexture(context.scene);
     super(context, {
       name: "Fire Elemental",
       description: "A living flame that burns whatever it touches.",
-      tile: 6 * 49 + 8,
+      tile: 0,
+      textureKey: FIRE_ELEMENTAL_TEXTURE,
       healthPoints: 8,
       movementSpeed: 1,
       attackDelay: 1,
