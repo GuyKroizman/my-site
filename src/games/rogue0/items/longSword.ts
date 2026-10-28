@@ -6,7 +6,7 @@ import type { GameContext } from "../context";
 export default class LongSword extends Entity {
   name: string = "A Long Sword";
   get baseDescription(): string {
-    return `A long sword. Causes between ${4 + this.level} and ${8 + this.level} damage.`;
+    return `A long sword. Causes between ${4 + this.level} and ${8 + (this.tier + 1) * this.level} damage. Upgrades add +1 minimum and +${this.tier + 1} maximum damage.`;
   }
   tile = 329;
   tier = 1;
@@ -26,7 +26,7 @@ export default class LongSword extends Entity {
   }
 
   damage() {
-    return Phaser.Math.Between(4, 8) + this.level;
+    return Phaser.Math.Between(4 + this.level, 8 + (this.tier + 1) * this.level);
   }
 
   turn() {

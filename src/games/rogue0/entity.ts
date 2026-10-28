@@ -396,9 +396,9 @@ export function identify(item: Entity): void {
   logMessage(item.context, `Identified: ${item.name}`);
 }
 
-// Upgrade rule: +1 `level`. Weapons and armour convert each level into a
-// +1 damage / +1 protection bonus inside their own damage()/protection()
-// methods (see the weapon and armour item files).
+// Upgrade rule: +1 `level`, never +1 tier. Physical weapons gain +1 minimum
+// and +(tier + 1) maximum damage; armor gains +tier protection per level.
+// Other item families keep their own upgrade curves.
 export function upgrade(item: Entity): void {
   if (item.level >= item.maxLevel) {
     logMessage(item.context, item.identified

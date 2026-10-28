@@ -18,11 +18,11 @@ const Axe = load('src/games/rogue0/items/axe.ts', {
 const axe = new Axe({ messages: [] });
 for (let level = 0; level <= 3; level++) {
   assert.equal(axe.level, level);
-  assert.ok(axe.displayDescription.includes(`between ${2 + level} and ${7 + level} damage`));
+  assert.ok(axe.displayDescription.includes(`between ${2 + level} and ${7 + 2 * level} damage`));
   rollMaximum = false;
   assert.equal(axe.damage(), 2 + level);
   rollMaximum = true;
-  assert.equal(axe.damage(), 7 + level);
+  assert.equal(axe.damage(), 7 + 2 * level);
   if (level < 3) upgrade(axe);
 }
 const Shield = load('src/games/rogue0/items/shield.ts', { Entity }).default;

@@ -194,9 +194,10 @@ for (const [name, min, max] of equipment) {
   const items = contextFor(item);
   for (let level = 0; level <= 3; level++) {
     assert.equal(item.level, level, name);
-    assert.ok(item.displayDescription.includes(`between ${min + level} and ${max + level} damage`), name);
+    const maxGain = equipment.slice(0, 4).some(([weapon]) => weapon === name) ? item.tier + 1 : 1;
+    assert.ok(item.displayDescription.includes(`between ${min + level} and ${max + maxGain * level} damage`), name);
     maximum = false; assert.equal(item.damage(), min + level, name);
-    maximum = true; assert.equal(item.damage(), max + level, name);
+    maximum = true; assert.equal(item.damage(), max + maxGain * level, name);
     if (item.range()) assert.ok(item.displayDescription.includes(`Range is ${item.range()} tiles`));
     if (level === 0) {
       const gem = new Gem(item.context); items.push(gem);
@@ -207,6 +208,30 @@ for (const [name, min, max] of equipment) {
   }
   identify(item);
   assert.equal(item.context.messages[0], `Identified: ${item.name}`);
+}
+// Every physical weapon and armor uses tier-sensitive upgrade gains, including
+// legacy starting gear. Scroll spell damage must keep its separate flat curve.
+for (let tier = 1; tier <= 5; tier++) {
+  for (const [name, min, max] of equipment.slice(0, 4)) {
+    const item = new (itemClass(name))({ messages: [] });
+    item.tier = tier;
+    for (let level = 0; level <= 5; level++) {
+      assert.equal(item.level, level);
+      maximum = false; assert.equal(item.damage(), min + level);
+      maximum = true; assert.equal(item.damage(), max + (tier + 1) * level);
+      assert.ok(item.baseDescription.includes(`+${tier + 1} maximum damage`));
+      upgrade(item);
+      assert.equal(item.tier, tier);
+    }
+  }
+  const armor = new Shield({ messages: [] });
+  armor.tier = tier;
+  for (let level = 0; level <= 5; level++) {
+    assert.equal(armor.protection(), 1 + tier * level);
+    assert.ok(armor.baseDescription.includes(`Each upgrade adds ${tier} protection`));
+    upgrade(armor);
+    assert.equal(armor.tier, tier);
+  }
 }
 const shield = new Shield({ messages: [] });
 const shieldItems = contextFor(shield);

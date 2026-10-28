@@ -7,7 +7,7 @@ export default class Sword extends Entity{
 
   name: string = "A Sword";
   get baseDescription(): string {
-    return `A basic sword. Causes between ${1 + this.level} and ${5 + this.level} damage.`;
+    return `A basic sword. Causes between ${1 + this.level} and ${5 + (this.tier + 1) * this.level} damage. Upgrades add +1 minimum and +${this.tier + 1} maximum damage.`;
   }
   type:EntityType =  "item";
   healthPoints: number = 0;
@@ -24,7 +24,7 @@ export default class Sword extends Entity{
   }
 
   damage() {
-    return Phaser.Math.Between(1, 5) + this.level;
+    return Phaser.Math.Between(1 + this.level, 5 + (this.tier + 1) * this.level);
   }
 
   turn() {

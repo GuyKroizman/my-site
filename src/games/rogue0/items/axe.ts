@@ -19,14 +19,14 @@ export default class Axe extends Entity {
   }
 
   get baseDescription(): string {
-    return `A basic axe. Causes between ${2 + this.level} and ${7 + this.level} damage. Slow attack (1.25 time).`;
+    return `A basic axe. Causes between ${2 + this.level} and ${7 + (this.tier + 1) * this.level} damage. Upgrades add +1 minimum and +${this.tier + 1} maximum damage. Slow attack (1.25 time).`;
   }
 
   equip() {
   }
 
   damage() {
-    return Phaser.Math.Between(2, 7) + this.level;
+    return Phaser.Math.Between(2 + this.level, 7 + (this.tier + 1) * this.level);
   }
 
   turn() {
