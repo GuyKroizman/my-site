@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { LIGHTNING_ELEMENTAL_TEXTURE, generateLightningElementalTexture } from "./lightningElementalTexture";
 import { FIRE_ELEMENTAL_TEXTURE, generateFireElementalTexture } from "./fireElementalTexture";
 import type { GameContext } from "../context";
 import {
@@ -63,10 +64,12 @@ export class IceElemental extends Monster {
 
 export class ShockElemental extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
+    if (context.scene) generateLightningElementalTexture(context.scene);
     super(context, {
-      name: "Shock Elemental",
-      description: "A crackling storm that leaves its victims weakened.",
-      tile: 6 * 49 + 11,
+      name: "Lightning Elemental",
+      description: "A living bolt of electricity whose crackling touch leaves victims weakened.",
+      tile: 0,
+      textureKey: LIGHTNING_ELEMENTAL_TEXTURE,
       healthPoints: 8,
       movementSpeed: 1,
       attackDelay: 1,

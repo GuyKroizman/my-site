@@ -223,7 +223,24 @@ fireTexture.generateFireElementalTexture(flyScene);
 fireTexture.generateFireElementalTexture(flyScene);
 assert.equal(generated, 2, 'fire texture is generated once independently of flies');
 assert.ok(draws.every(([x, y]) => x >= 0 && x < 16 && y >= 0 && y < 16));
-const { FireElemental } = load('src/games/rogue0/monsters/elemental.ts', { Monster, ...fireTexture });
+const lightningTexture = load('src/games/rogue0/monsters/lightningElementalTexture.ts');
+assert.equal(lightningTexture.LIGHTNING_ELEMENTAL_PIXELS.length, 16);
+assert.ok(lightningTexture.LIGHTNING_ELEMENTAL_PIXELS.every(row => row.length === 16));
+for (const pixel of lightningTexture.LIGHTNING_ELEMENTAL_PIXELS.join('')) {
+  assert.ok(pixel === '.' || pixel in lightningTexture.LIGHTNING_ELEMENTAL_PALETTE);
+}
+lightningTexture.generateLightningElementalTexture(flyScene);
+lightningTexture.generateLightningElementalTexture(flyScene);
+assert.equal(generated, 3, 'lightning texture is generated once independently of other monsters');
+const { FireElemental, ShockElemental } = load('src/games/rogue0/monsters/elemental.ts', {
+  Monster, ...fireTexture, ...lightningTexture
+});
+const lightning = new ShockElemental(context, 5, 5);
+assert.equal(lightning.name, 'Lightning Elemental');
+assert.equal(lightning.spriteTextureKey, lightningTexture.LIGHTNING_ELEMENTAL_TEXTURE, 'lightning uses electrical art, not the chest atlas frame');
+assert.equal(lightning.spriteFrame, 0);
+assert.equal(lightning.damageType, 'shock', 'electrical damage mechanics remain unchanged');
+assert.equal(lightning.resistance.shock, 2);
 const flame = new FireElemental(context, 5, 5);
 assert.equal(flame.spriteTextureKey, fireTexture.FIRE_ELEMENTAL_TEXTURE, 'fire uses flame art, not the chest atlas frame');
 assert.equal(flame.spriteFrame, 0);
