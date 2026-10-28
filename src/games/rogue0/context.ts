@@ -47,6 +47,8 @@ export type GameContext = {
   onChooseItemTarget?: (item: Entity) => void;
   heroModalOpen?: boolean;
   logModalOpen?: boolean;
+  confirmationOpen?: boolean;
+  onConfirmChasm?: (warning: string, onConfirm: () => void) => void;
   helpOpen?: boolean;
   inspectChoices?: Entity[];
   inspectedEntity?: Entity;
@@ -77,7 +79,7 @@ export type GameContext = {
 };
 
 export function isModalOpen(context: GameContext): boolean {
-  return !!(context.inventoryOpen || context.heroModalOpen || context.logModalOpen || context.helpOpen ||
+  return !!(context.inventoryOpen || context.heroModalOpen || context.logModalOpen || context.confirmationOpen || context.helpOpen ||
     context.inspectChoices?.length || context.inspectedEntity || context.inspectedTerrain);
 }
 

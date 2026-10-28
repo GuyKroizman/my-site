@@ -1,6 +1,7 @@
 import { isModalOpen, type GameContext } from "./context";
 import { InventoryWindow } from "./inventoryWindow";
 import { LogWindow } from "./logWindow";
+import { ConfirmationWindow } from "./confirmationWindow";
 import { QuickslotPane } from "./quickslotPane";
 import { attachTooltip } from "./tooltip";
 
@@ -65,6 +66,7 @@ export class UI extends Phaser.Scene {
   private logTitle: Phaser.GameObjects.Text | undefined;
   private logClip: Phaser.GameObjects.Graphics | undefined;
   private logWindow: LogWindow | undefined;
+  private confirmationWindow: ConfirmationWindow | undefined;
   private toolbar: ToolbarButton[] = [];
   private quickslotPane: QuickslotPane | undefined;
   private healthTrack: Phaser.GameObjects.Rectangle | undefined;
@@ -88,11 +90,16 @@ export class UI extends Phaser.Scene {
   create() {
     this.inventoryWindow = new InventoryWindow(this, this.context);
     this.logWindow = new LogWindow(this, this.context);
+    this.confirmationWindow = new ConfirmationWindow(this, this.context);
 
     // i / b toggle the inventory window; Esc dismisses its topmost dialog.
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
       if (this.context.helpOpen) return;
       const key = event.key;
+      if (this.context.confirmationOpen) {
+        if (key === "Escape") this.confirmationWindow?.close();
+        return;
+      }
       if (this.context.logModalOpen) {
         if (key === "Escape") this.logWindow?.close();
         return;
@@ -379,6 +386,7 @@ export class UI extends Phaser.Scene {
     this.log?.setWordWrapWidth(logW - 8);
     this.logClip?.clear().fillStyle(0xffffff).fillRect(logX + 4, logY + 4, logW - 8, logH - 8);
     this.logWindow?.layout();
+    this.confirmationWindow?.layout();
 
     // Hero modal: clamp to the viewport and center it.
     const heroW = Math.min(320, w - 16);

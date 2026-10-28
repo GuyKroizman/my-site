@@ -1040,10 +1040,15 @@ export default class BasicHero extends Entity {
     const warning = this.context.floor === 25
       ? "You will fall to your death."
       : "You will fall to the level below and take damage (1/3 of your maximum HP).";
-    if (window.confirm(`Are you sure? ${warning}`) &&
-        dungeon.stepIntoChasm(this.context, this, x, y)) {
-      this.spendTurn("move");
-    }
+    const floor = this.context.floor;
+    const originX = this.x;
+    const originY = this.y;
+    this.context.onConfirmChasm?.(warning, () => {
+      // The UI is asynchronous: reject stale confirmations after travel or death.
+      if (this.context.floor !== floor || this.x !== originX || this.y !== originY ||
+          this.healthPoints <= 0 || !this.canAct() || isModalOpen(this.context)) return;
+      if (dungeon.stepIntoChasm(this.context, this, x, y)) this.spendTurn("move");
+    });
     return true;
   }
 

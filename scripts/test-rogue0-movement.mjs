@@ -1001,12 +1001,12 @@ assert.equal(manager.time, 1, 'pending transition freezes the old-floor timeline
   const JumpHero = load('src/games/rogue0/classes/basicHero.ts', {
     Entity, dungeon: jumpDungeon, isModalOpen: () => false,
     isGrassConcealed: () => false, hasEffect, getTrapState: () => undefined,
-    window: { confirm(message) { prompts.push(message); return accepted; } }
   }).default;
   const jumper = Object.assign(Object.create(JumpHero.prototype), {
     x: 2, y: 2, actionReady: true, moving: false, effects: [],
     walkPath: [{ x: 3, y: 2 }], inputBuffer: ['ArrowRight'],
     context: { entities: [], messages: [], inspectMode: false, throwMode: false,
+      onConfirmChasm(message, confirm) { prompts.push(message); if (accepted) confirm(); },
       map: { worldToTileX: x => x, worldToTileY: y => y } },
     spendTurn(action) { actions.push(action); }
   });
@@ -1014,7 +1014,7 @@ assert.equal(manager.time, 1, 'pending transition freezes the old-floor timeline
   assert.equal(jumper.context.terrainActionMode, undefined);
   assert.equal(prompts.length, 0);
   jumper.processInput('ArrowRight');
-  assert.match(prompts[0], /Are you sure/);
+  assert.match(prompts[0], /You will fall/);
   assert.equal(jumps, 0);
   assert.deepEqual(actions, [], 'cancellation is free');
   assert.deepEqual(jumper.walkPath, []);

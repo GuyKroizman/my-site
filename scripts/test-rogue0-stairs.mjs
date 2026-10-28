@@ -6,6 +6,35 @@ import ts from 'typescript';
 const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8').replace(/^import[\s\S]*?;\s*/gm, '')
   .replace(/const LOOT_TABLE:[\s\S]*?\n\];/, 'const LOOT_TABLE = [];');
 const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
+// Chasm prompts must defer movement until the game UI explicitly confirms.
+{
+  const heroSource = fs.readFileSync('src/games/rogue0/classes/basicHero.ts', 'utf8');
+  const method = heroSource.slice(heroSource.indexOf('  private tryStepIntoChasm('), heroSource.indexOf('  private exitCursorModes('));
+  const compiled = ts.transpile(`class TestHero { ${method} }; exports.Hero = TestHero;`, { target: ts.ScriptTarget.ES2022 });
+  const out = {};
+  let falls = 0;
+  new Function('exports', 'dungeon', 'isModalOpen', compiled)(out, {
+    canEnterChasm: () => true, stepIntoChasm: () => { falls++; return true; },
+  }, c => !!c.confirmationOpen);
+  const hero = new out.Hero();
+  let confirm;
+  let turns = 0;
+  Object.assign(hero, { x: 1, y: 1, healthPoints: 30, canAct: () => true,
+    spendTurn: () => turns++, context: { floor: 1, onConfirmChasm(warning, action) {
+      assert.match(warning, /maximum HP/); confirm = action;
+    } } });
+  hero.tryStepIntoChasm(2, 1);
+  assert.equal(falls, 0, 'opening prompt does not move or damage hero');
+  assert.equal(turns, 0);
+  confirm();
+  assert.equal(falls, 1);
+  assert.equal(turns, 1);
+  hero.tryStepIntoChasm(2, 1);
+  hero.context.floor = 2;
+  confirm();
+  assert.equal(falls, 1, 'stale floor confirmation is ignored');
+  assert.ok(!heroSource.includes('window.confirm('));
+}
 const exports = {};
 const map = [[0, 1], [0, 0]];
 const door = { feature: 'door', door: 'open' };
