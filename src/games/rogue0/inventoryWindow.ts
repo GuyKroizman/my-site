@@ -225,7 +225,7 @@ export class InventoryWindow {
         .setStrokeStyle(1, C.border, 1)
     );
     this.winRoot.add(
-      this.scene.add.text(PAD, 11, this.quickslot !== undefined ? "QUICKSLOT: CHOOSE" : this.enchantingGem ? "ENCHANT: CHOOSE GEAR" : this.targetedItem ? "CLEANSE: CHOOSE ITEM" : "INVENTORY", {
+      this.scene.add.text(PAD, 11, this.quickslot !== undefined ? "QUICKSLOT: CHOOSE" : this.enchantingGem ? "ENCHANT: CHOOSE GEAR" : this.targetedItem ? this.targetedItem.itemTargetTitle : "INVENTORY", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 9,
         color: COL.gold
       })

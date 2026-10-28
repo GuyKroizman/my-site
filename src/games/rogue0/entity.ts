@@ -72,6 +72,8 @@ export abstract class Entity {
   textureKey?: string;
   consumable: boolean = false;
   requiresItemTarget = false;
+  itemTargetTitle = "CLEANSE: CHOOSE ITEM";
+  noItemTargetsMessage = "You have no cursed items to cleanse.";
   curseEffectId?: string;
   canTargetItem(_target: Entity): boolean { return false; }
   useOnItem(_target: Entity): boolean { return false; }
@@ -370,7 +372,7 @@ function logMessage(context: GameContext, text: string): void {
 // Reveals an item's real name and description (the G3 identify loop).
 export function identify(item: Entity): void {
   item.identified = true;
-  logMessage(item.context, `Identified: ${item.name} — ${item.displayDescription}`);
+  logMessage(item.context, `Identified: ${item.name}`);
 }
 
 // Upgrade rule: +1 `level`. Weapons and armour convert each level into a

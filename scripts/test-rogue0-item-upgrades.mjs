@@ -206,7 +206,7 @@ for (const [name, min, max] of equipment) {
     } else if (level === 2) upgrade(item);
   }
   identify(item);
-  assert.ok(item.context.messages[0].includes(item.displayDescription));
+  assert.equal(item.context.messages[0], `Identified: ${item.name}`);
 }
 const shield = new Shield({ messages: [] });
 const shieldItems = contextFor(shield);

@@ -2,11 +2,13 @@
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
-import dungeon from "../dungeon";
 
 export default class ScrollOfIdentify extends Entity {
   name: string = "Scroll of Identify";
-  description: string = "Reveals the identity of one of your items.";
+  description: string = "Choose one unidentified item in your inventory to reveal its identity.";
+  requiresItemTarget = true;
+  itemTargetTitle = "IDENTIFY: CHOOSE ITEM";
+  noItemTargetsMessage = "You have no other unidentified items.";
   moving: boolean = false;
   type: EntityType = "item";
   tile = 15 * 49 + 35;
@@ -21,28 +23,26 @@ export default class ScrollOfIdentify extends Entity {
     this.init(context, x, y);
   }
 
-  // Identifies itself (normally already done by useItem), then the first
-  // unidentified item in the player's possession.
   equip() {
+    this.context.onChooseItemTarget?.(this);
+  }
+
+  canTargetItem(target: Entity): boolean {
+    return target !== this && !target.identified && !!this.context.player?.getAllItems().includes(target);
+  }
+
+  useOnItem(target: Entity): boolean {
     const player = this.context.player;
-    if (!player) return;
+    if (!player?.canAct() || !player.getAllItems().includes(this) || !this.canTargetItem(target)) return false;
 
-    if (!this.identified) {
-      identify(this);
-    }
-
-    const target = player
-      .getAllItems()
-      .find((item) => !item.identified && item !== this);
-
-    if (target) {
-      identify(target);
-    } else {
-      dungeon.log(this.context, "You have no other unidentified items.");
-    }
-
+    if (!this.identified) identify(this);
+    identify(target);
+    const lastScroll = this.count === 1;
     player.removeItem(this);
-    removeEntity(this.context, this);
+    if (lastScroll) removeEntity(this.context, this);
+    player.spendTurn("use");
+    player.refreshUI();
+    return true;
   }
 
   damage() {

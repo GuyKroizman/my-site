@@ -515,7 +515,7 @@ export default class BasicHero extends Entity {
     }
     if (item.requiresItemTarget) {
       if (!this.getAllItems().some(target => item.canTargetItem(target))) {
-        dungeon.log(this.context, 'You have no cursed items to cleanse.');
+        dungeon.log(this.context, item.noItemTargetsMessage);
         return false;
       }
       this.context.onChooseItemTarget?.(item);

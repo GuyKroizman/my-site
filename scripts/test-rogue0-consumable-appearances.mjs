@@ -8,8 +8,9 @@ const exports = {};
 const rendering = {};
 new Function('exports', ts.transpile(fs.readFileSync('src/games/rogue0/rendering.ts', 'utf8'), { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(rendering);
 new Function('exports', ...Object.keys(rendering), ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports, ...Object.values(rendering));
-const { Entity, resetConsumableAppearances } = exports;
+const { Entity, identify, resetConsumableAppearances } = exports;
 const context = {
+  messages: [],
   map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
   scene: { add: { sprite: (x, y) => ({ x, y, scale: 1, setOrigin() {}, setScale(n) { this.scale = n; }, setDepth() {} }) }, tweens: { add() {} } },
 };
@@ -45,4 +46,14 @@ try {
 } finally {
   Math.random = random;
 }
-console.log('Rogue0 unique per-run consumable appearances, identification stability and floor-only potion scale passed');
+// Identification logs name only; descriptions remain available on the item.
+for (const name of ['Scroll of Identify', 'Cloth Armor']) {
+  const item = Object.assign(new Entity(), {
+    context, name, identified: false, description: 'Detailed item information.',
+  });
+  identify(item);
+  assert.equal(item.identified, true);
+  assert.equal(context.messages[0], `Identified: ${name}`);
+  assert.equal(item.description, 'Detailed item information.');
+}
+console.log('Rogue0 unique per-run consumable appearances, identification stability, concise identification logs and floor-only potion scale passed');
