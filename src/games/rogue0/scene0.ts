@@ -13,6 +13,7 @@ import volcanicTilesUrl from '../../../public/rogue0/volcanic-tiles.png';
 import volcanicWallUrl from '../../../public/rogue0/volcanic-wall.png';
 import { dungeonTheme } from './dungeonTheme';
 import heroArtUrl from '../../../public/rogue0/hero-color.png';
+import cultistArtUrl from '../../../public/rogue0/monsters/cultist.png';
 import grass0Url from '../../../public/rogue0/tall-grass-0.png';
 import grass1Url from '../../../public/rogue0/tall-grass-1.png';
 import grass2Url from '../../../public/rogue0/tall-grass-2.png';
@@ -201,6 +202,7 @@ export class Scene0 extends Phaser.Scene {
 
   preload() {
     this.load.image('hero-color', heroArtUrl);
+    this.load.image('cultist', cultistArtUrl);
     [grass0Url, grass1Url, grass2Url].forEach((url, i) => this.load.image(`tall-grass-${i}`, url));
     this.load.image('stone-tiles', stoneTilesUrl);
     this.load.image('stone-wall', stoneWallUrl);
