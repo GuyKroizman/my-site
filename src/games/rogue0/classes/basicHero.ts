@@ -744,11 +744,6 @@ export default class BasicHero extends Entity {
     let entity = dungeon.entityAtTile(context, x!, y!);
     if (entity && isGrassConcealed(entity.x, entity.y, this.x, this.y)) entity = undefined;
 
-    if (context.terrainActionMode) {
-      if (x !== null && y !== null) this.jumpAt(x, y);
-      return;
-    }
-
     // Throw targeting takes priority: any tap resolves the pending throw.
     if (context.throwMode) {
       this.throwAt(x!, y!);
@@ -936,6 +931,7 @@ export default class BasicHero extends Entity {
 
   private setWalkTarget(tx: number, ty: number): void {
     if (this.x === undefined || this.y === undefined) return;
+    if (this.tryStepIntoChasm(tx, ty)) return;
     this.context.onResumeFollow?.();
     // A fresh command acknowledges current threats, but not other monsters
     // encountered later along the route. Use identity rather than position.
@@ -1036,29 +1032,19 @@ export default class BasicHero extends Entity {
     }
   }
 
-  beginJump(): void {
-    if (isModalOpen(this.context)) return;
-    const wasActive = this.context.terrainActionMode;
-    this.exitCursorModes();
+  private tryStepIntoChasm(x: number, y: number): boolean {
+    if (!dungeon.canEnterChasm(this.context, this, x, y)) return false;
     this.walkPath = [];
     this.inputBuffer = [];
-    if (wasActive) return;
-    this.context.terrainActionMode = true;
-    this.context.cursorX = this.x;
-    this.context.cursorY = this.y;
-    // Targeting instructions are shown temporarily by the HUD.
-  }
-
-  jumpAt(x: number, y: number): void {
-    if (!this.context.terrainActionMode || !this.canAct() || isModalOpen(this.context)) return;
-    if (!dungeon.jumpIntoChasm(this.context, this, x, y)) {
-      dungeon.log(this.context, "Cannot jump there. Choose a cardinally adjacent empty chasm; you cannot jump while rooted or levitating.");
-      return;
+    if (!this.canAct() || isModalOpen(this.context)) return true;
+    const warning = this.context.floor === 25
+      ? "You will fall to your death."
+      : "You will fall to the level below and take damage (1/3 of your maximum HP).";
+    if (window.confirm(`Are you sure? ${warning}`) &&
+        dungeon.stepIntoChasm(this.context, this, x, y)) {
+      this.spendTurn("move");
     }
-    this.context.terrainActionMode = false;
-    this.walkPath = [];
-    this.inputBuffer = [];
-    this.spendTurn("move");
+    return true;
   }
 
   private exitCursorModes(): void {
@@ -1597,9 +1583,7 @@ export default class BasicHero extends Entity {
         return;
       }
       if (key === "Enter") {
-        if (context.terrainActionMode && context.cursorX !== undefined && context.cursorY !== undefined) {
-          this.jumpAt(context.cursorX, context.cursorY);
-        } else if (context.throwMode) {
+        if (context.throwMode) {
           this.throwAtCursor();
         }
         return;
@@ -1626,11 +1610,6 @@ export default class BasicHero extends Entity {
     let moved = false;
     let newX = this.x!;
     let newY = this.y!;
-
-    if (key === "v" || key === "V") {
-      this.beginJump();
-      return;
-    }
 
     // Active class skill (f / F).
     if (key === "f" || key === "F") {
@@ -1668,6 +1647,7 @@ export default class BasicHero extends Entity {
       if (getTrapState(newX, newY) === "visible") return;
       if (hasEffect(this, "rooted") &&
           dungeon.entityAtTile(this.context, newX, newY)?.type !== "enemy") return;
+      if (this.tryStepIntoChasm(newX, newY)) return;
       dungeon.openDoor(newX, newY);
 
       if (!dungeon.isWalkableTile(this.context, newX, newY)) {

@@ -367,14 +367,20 @@ let dungeon = {
     return true;
   },
 
-  jumpIntoChasm: function (context: GameContext, actor: Entity, x: number, y: number): boolean {
+  canEnterChasm: function (context: GameContext, actor: Entity, x: number, y: number): boolean {
     if (actor.type !== "player" || actor.healthPoints <= 0 || actor.x === undefined || actor.y === undefined ||
         hasEffect(actor, "rooted") || hasEffect(actor, "levitating") ||
-        Math.abs(actor.x - x) + Math.abs(actor.y - y) !== 1 ||
+        Math.max(Math.abs(actor.x - x), Math.abs(actor.y - y)) !== 1 ||
+        !this.canStepBetween(actor.x, actor.y, x, y, actor) ||
         this.currentLevel[y]?.[x] !== 0 || tiles.getFeature(x, y) !== "chasm" ||
         context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) return false;
+    return true;
+  },
+
+  stepIntoChasm: function (context: GameContext, actor: Entity, x: number, y: number): boolean {
+    if (!this.canEnterChasm(context, actor, x, y)) return false;
     this.moveEntityTo(context, actor, x, y, true);
-    this.log(context, "You jump into the chasm!");
+    this.log(context, "You step into the chasm!");
     this.fallIntoChasm(context, actor);
     return true;
   },

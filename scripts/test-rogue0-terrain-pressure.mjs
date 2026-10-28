@@ -464,27 +464,27 @@ for (const feature of ['water', 'grass', 'dart', 'arrow']) {
   assert.equal(ctx.pendingFall, true);
   assert.equal(flyer.x, 3);
 }
-// Effect knockback and voluntary jumps share contacts and the existing fall path.
+// Confirmed chasm steps share contacts and the existing fall path.
 {
   const { ctx, flyer } = flightSetup();
-  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 4, 2), false, 'no long jumps');
-  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 2, 1), false, 'no walls');
-  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 1, 2), false, 'only chasms');
+  assert.equal(flightDungeon.stepIntoChasm(ctx, flyer, 4, 2), false, 'no distant steps');
+  assert.equal(flightDungeon.stepIntoChasm(ctx, flyer, 2, 1), false, 'no walls');
+  assert.equal(flightDungeon.stepIntoChasm(ctx, flyer, 1, 2), false, 'only chasms');
   flyer.effects = [{ id: 'rooted' }];
-  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 3, 2), false);
+  assert.equal(flightDungeon.stepIntoChasm(ctx, flyer, 3, 2), false);
   flyer.effects = [{ id: 'levitating' }];
-  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 3, 2), false);
+  assert.equal(flightDungeon.stepIntoChasm(ctx, flyer, 3, 2), false);
   flyer.effects = [];
   const occupant = actor('enemy', 3, 2);
   ctx.entities.push(occupant);
-  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 3, 2), false, 'no occupied landing');
+  assert.equal(flightDungeon.stepIntoChasm(ctx, flyer, 3, 2), false, 'no occupied landing');
   ctx.entities.pop();
   tiles.setFeature(2, 2, 'door', { door: 'open' });
-  assert.equal(flightDungeon.jumpIntoChasm(ctx, flyer, 3, 2), true);
+  assert.equal(flightDungeon.stepIntoChasm(ctx, flyer, 3, 2), true);
   assert.deepEqual([flyer.x, flyer.y], [3, 2]);
   assert.equal(ctx.pendingFall, true, 'fall deferred out of the scheduler');
   assert.equal(flyer.healthPoints, 10, 'arrival resolves damage exactly once, not here');
-  assert.equal(tiles.getDoorState(2, 2), 'closed', 'jump closes the departure door');
+  assert.equal(tiles.getDoorState(2, 2), 'closed', 'stepping out closes the departure door');
   assert.equal(flightDungeon.pathGrid.isWalkableAt(3, 2), false);
 }
 for (const flying of [false, true]) {

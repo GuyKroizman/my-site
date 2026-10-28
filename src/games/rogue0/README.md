@@ -29,12 +29,13 @@ only a possible future mechanic. Generated frost, teleport and alarm traps are
 reusable; dart, fire, arrow, summon, geyser and confusion traps are single-use. Searching
 never changes their activation policy.
 
-**Jump:** press `v` or the HUD arrow, select a cardinally adjacent empty chasm
-with the cursor + Enter or a tap; Esc cancels. This drops into the next floor,
-not across the gap. It costs movement time and deals `ceil(max HP / 3)` damage
-on arrival, ignoring armor; final-floor falls are fatal. Invalid targets and
-cancellation are free. Rooted/levitating heroes cannot deliberately drop.
-Ordinary movement and auto-walk still avoid chasms.
+**Chasms:** move into an adjacent chasm with a direction key or tap its tile.
+An “Are you sure?” confirmation warns about the fall before committing.
+Accepting drops you into the next floor, costs movement time, and deals
+`ceil(max HP / 3)` damage on arrival, ignoring armor; final-floor falls are
+fatal. Cancelling is free. Rooted heroes cannot step into chasms; levitating
+heroes cross safely. Auto-walk routes still avoid chasms. There is no Jump
+button or `v` shortcut.
 
 There is **no player shove ability**. `dungeon.knockback(context, target, dx, dy)`
 is an effect-level primitive for one cardinal tile of forced movement, with no

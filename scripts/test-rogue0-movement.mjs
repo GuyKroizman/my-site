@@ -7,6 +7,9 @@ import PF from 'pathfinding';
 
 // Load real TS logic with rendering/audio imports replaced by small fakes.
 function load(path, bindings = {}) {
+  if (bindings.dungeon && !bindings.dungeon.canEnterChasm) {
+    bindings.dungeon.canEnterChasm = () => false;
+  }
   const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
   const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
   const exports = {};
@@ -982,18 +985,23 @@ assert.equal(oldFloorEnemy.turns, 0);
 manager.update([fallingPlayer, oldFloorEnemy]);
 assert.equal(manager.time, 1, 'pending transition freezes the old-floor timeline');
 
-// Jump targeting is explicit, cancellable and never offers a shove action.
+// Chasm movement requires confirmation; the old jump shortcut does nothing.
 {
   let jumps = 0;
+  let accepted = false;
+  const prompts = [];
   const actions = [];
   const jumpDungeon = {
     log() {}, entityAtTile: () => undefined,
     getCurrentLevel: () => Array.from({ length: 5 }, () => Array(5).fill(0)),
-    jumpIntoChasm(_ctx, _hero, x, y) { jumps++; return x === 3 && y === 2; }
+    canStepBetween: () => true,
+    canEnterChasm: (_ctx, _hero, x, y) => x === 3 && y === 2,
+    stepIntoChasm() { jumps++; return true; }
   };
   const JumpHero = load('src/games/rogue0/classes/basicHero.ts', {
     Entity, dungeon: jumpDungeon, isModalOpen: () => false,
-    isGrassConcealed: () => false, hasEffect
+    isGrassConcealed: () => false, hasEffect, getTrapState: () => undefined,
+    window: { confirm(message) { prompts.push(message); return accepted; } }
   }).default;
   const jumper = Object.assign(Object.create(JumpHero.prototype), {
     x: 2, y: 2, actionReady: true, moving: false, effects: [],
@@ -1003,28 +1011,24 @@ assert.equal(manager.time, 1, 'pending transition freezes the old-floor timeline
     spendTurn(action) { actions.push(action); }
   });
   jumper.processInput('v');
-  assert.equal(jumper.context.terrainActionMode, true);
+  assert.equal(jumper.context.terrainActionMode, undefined);
+  assert.equal(prompts.length, 0);
+  jumper.processInput('ArrowRight');
+  assert.match(prompts[0], /Are you sure/);
+  assert.equal(jumps, 0);
+  assert.deepEqual(actions, [], 'cancellation is free');
   assert.deepEqual(jumper.walkPath, []);
   assert.deepEqual(jumper.inputBuffer, []);
-  jumper.processInput('Enter');
-  assert.equal(jumps, 1);
-  assert.deepEqual(actions, [], 'invalid destination is free');
-  jumper.processInput('Escape');
-  assert.equal(jumper.context.terrainActionMode, false);
-  assert.deepEqual(actions, [], 'cancellation is free');
-  jumper.beginJump();
+  accepted = true;
   jumper.processInput('ArrowRight');
-  jumper.processInput('Enter');
-  assert.deepEqual(actions, ['move'], 'jump charges movement time once');
-  assert.equal(jumper.context.terrainActionMode, false);
-  jumper.beginJump();
+  assert.equal(jumps, 1);
+  assert.deepEqual(actions, ['move'], 'confirmed fall charges movement time once');
   jumper.actionReady = false;
-  jumper.jumpAt(3, 2);
-  assert.equal(actions.length, 1, 'cannot jump outside your action');
+  jumper.processInput('ArrowRight');
+  assert.equal(prompts.length, 2, 'cannot enter outside your action');
   jumper.actionReady = true;
   jumper.processTouchInput(jumper.context, { worldX: 3, worldY: 2 });
-  assert.deepEqual(actions, ['move', 'move'], 'tap uses the same jump action');
-  assert.equal(jumpDungeon.shove, undefined);
+  assert.deepEqual(actions, ['move', 'move'], 'tap also requires confirmation');
 }
 
-console.log('Rogue0 timeline, input, jump targeting, death, sight, pursuit, diagonal movement, surprise and curse regression tests passed');
+console.log('Rogue0 timeline, input, chasm confirmation, death, sight, pursuit, diagonal movement, surprise and curse regression tests passed');

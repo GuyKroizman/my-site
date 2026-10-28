@@ -182,12 +182,6 @@ export class UI extends Phaser.Scene {
       g.strokeCircle(0, -4, 2);
     }, "Backpack"));
 
-    this.toolbar.push(this.makeButton(() => this.context.player?.beginJump(), (g) => {
-      g.lineStyle(2, iconColor, 1);
-      g.lineBetween(-8, 0, 8, 0);
-      g.lineBetween(2, -6, 8, 0);
-      g.lineBetween(2, 6, 8, 0);
-    }, "Jump (v): select a cardinally adjacent empty chasm. Drops a floor and hurts; fatal on floor 25."));
   }
 
   private makeButton(
@@ -357,8 +351,7 @@ export class UI extends Phaser.Scene {
       [edge, edge], // portrait
       [edge, y], [edge + size + gap, y], // wait, inspect/search
       [w - edge - size, y - size - gap], // special, directly above backpack
-      [w - edge - size, y], // backpack
-      [w - edge - size, y - 2 * (size + gap)] // jump
+      [w - edge - size, y] // backpack
     ];
     this.toolbar.forEach((b, i) => {
       const [x, top] = positions[i];
@@ -428,9 +421,7 @@ export class UI extends Phaser.Scene {
   update() {
     if (!this.log) return;
 
-    const hint = this.context.terrainActionMode
-      ? "Jump: choose an adjacent chasm (no diagonals). Costs 1/3 max HP; fatal on last floor. Esc cancels."
-      : this.context.throwMode
+    const hint = this.context.throwMode
         ? `Target ${this.context.throwItem?.displayName ?? "item"}: tap a tile in range and sight, or move cursor + Enter. Esc cancels.`
         : undefined;
     this.log.setText(hint ?? this.context.messages.join("\n"));
