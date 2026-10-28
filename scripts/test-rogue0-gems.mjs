@@ -109,7 +109,7 @@ assert.ok(!items.includes(gem));
 context.scene = { input: { enabled: true } };
 for (const actionReady of [true, false]) {
   ready = actionReady;
-  for (const dismiss of [() => window.doAction('close', shield), () => window.dismiss()]) {
+  for (const dismiss of [() => window.dismiss()]) {
     window.openWindow();
     window.openMenu(shield);
     assert.equal(window.menuItem, shield);
@@ -123,6 +123,41 @@ for (const actionReady of [true, false]) {
     assert.equal(window.isOpen(), false);
     assert.equal(context.scene.input.enabled, true);
   }
+}
+// Item actions omit Close. A backdrop above the backpack catches outside
+// taps, while the panel itself consumes interior taps without dismissing.
+{
+  const nodes = [];
+  const make = () => {
+    const node = { height: 16, handlers: {}, children: [],
+      setOrigin() { return this; }, setStrokeStyle() { return this; },
+      setSize() { return this; }, setScale() { return this; }, setPosition() { return this; },
+      setInteractive() { this.interactive = true; return this; },
+      setDepth(depth) { this.depth = depth; return this; },
+      on(event, handler) { this.handlers[event] = handler; return this; },
+      add(child) { this.children.push(child); return this; }, destroy() {},
+    };
+    nodes.push(node); return node;
+  };
+  const scene = { scale: { width: 400, height: 800 },
+    add: { rectangle: make, container: make, text: make, sprite: make } };
+  const details = new InventoryWindow(scene, context);
+  details.render = () => {};
+  details.openWindow();
+  details.menuItem = shield;
+  assert.ok(details.buildActions(context.player, shield).every(a => a.action !== 'close' && a.label !== 'Close'));
+  details.renderMenu(context.player, shield);
+  const [backdrop, menu, panel] = nodes;
+  assert.equal(backdrop.depth, 199, 'outside taps intercepted above backpack depth 100');
+  assert.equal(menu.depth, 200);
+  assert.equal(panel.interactive, true, 'panel blocks click-through to backdrop');
+  assert.equal(panel.handlers.pointerup, undefined, 'tapping description does not dismiss');
+  backdrop.handlers.pointerup();
+  assert.equal(details.menuItem, undefined);
+  assert.equal(details.isOpen(), true);
+  assert.equal(context.inventoryOpen, true);
+  assert.equal(turns, 3, 'outside dismissal is free');
+  details.close();
 }
 // Turn-spending actions still close inventory so the world can advance.
 context.player.equipItem = () => { ready = false; };

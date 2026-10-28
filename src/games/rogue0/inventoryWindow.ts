@@ -15,7 +15,7 @@ import Gem from "./items/gem";
 import Wand from "./items/wand";
 import { attachTooltip } from "./tooltip";
 
-type Action = "use" | "equip" | "unequip" | "drop" | "throw" | "close";
+type Action = "use" | "equip" | "unequip" | "drop" | "throw";
 
 const PAD = 16;
 const CELL = 38;
@@ -422,6 +422,12 @@ export class InventoryWindow {
   }
 
   private renderMenu(player: BasicHero, item: Entity): void {
+    // Capture outside taps above the backpack so they dismiss only this menu,
+    // rather than selecting another item or closing the inventory beneath it.
+    const backdrop = this.add(this.scene.add
+      .rectangle(0, 0, this.scene.scale.width, this.scene.scale.height, C.overlay, 0.35)
+      .setOrigin(0).setDepth(199).setInteractive());
+    backdrop.on("pointerup", () => this.dismiss());
     this.menuRoot = this.add(this.scene.add.container(0, 0).setDepth(200));
 
     const mw = MENU_W;
@@ -434,7 +440,8 @@ export class InventoryWindow {
     const panel = this.scene.add
       .rectangle(0, 0, mw, 100, C.panel, 0.98)
       .setOrigin(0)
-      .setStrokeStyle(2, C.borderStrong, 1);
+      .setStrokeStyle(2, C.borderStrong, 1)
+      .setInteractive();
     this.menuRoot.add(panel);
 
     // Use the same artwork as the floor and inventory, even before identification.
@@ -560,16 +567,11 @@ export class InventoryWindow {
       label: "Drop",
       enabled: !item.cursed || !player.slotOf(item)
     });
-    actions.push({ action: "close", label: "Close", enabled: true });
 
     return actions;
   }
 
   private doAction(action: Action, item: Entity): void {
-    if (action === "close") {
-      this.dismiss();
-      return;
-    }
     const player = this.context.player;
     if (!player) return;
 
