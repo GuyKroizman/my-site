@@ -496,4 +496,61 @@ for (const name of ['ration', 'chalice-of-blood']) {
 }
 const Ration = itemClass('ration');
 assert.equal(new Ration({ messages: [] }).spriteTextureKey, 'ration');
+// Passive wand recharge follows world upkeep, not frames or actor speed.
+{
+  const manager = load('src/games/rogue0/turnManager.ts', {
+    dungeon, hasEffect: () => false, removeEffect() {},
+  }).default;
+  const Frost = itemClass('WandOfFrost', { Wand });
+  const ctx = { messages: [], simulationTime: 0 };
+  const first = new Frost(ctx), second = new Frost(ctx), ground = new Frost(ctx);
+  first.charges = second.charges = ground.charges = 0;
+  let carried = [first, second, first]; // Shared quickslot references cannot double-tick.
+  const player = { type: 'player', healthPoints: 30, context: ctx, nextActionTime: 0,
+    effects: [], moving: false, actionReady: true,
+    refresh() {}, tickEffects() {}, turn() {}, getAllItems: () => carried };
+  ctx.player = player;
+  ctx.entities = [player, first, second, ground];
+  manager.reset(ctx.entities);
+  const advance = cost => { player.nextActionTime += cost; player.actionReady = false; manager.update(ctx.entities); };
+  for (let i = 0; i < 100; i++) manager.update(ctx.entities);
+  assert.equal(first.charges, 0, 'idle frames never recharge');
+  for (let i = 0; i < 38; i++) advance(0.5);
+  assert.equal(first.charges, 0, '19 world-time units are not enough');
+  advance(1);
+  assert.equal(first.charges, 1);
+  assert.equal(second.charges, 1, 'all carried wands recharge independently');
+  assert.equal(ground.charges, 0, 'floor wands do not recharge');
+  carried = [second];
+  for (let i = 0; i < 10; i++) advance(2);
+  assert.equal(first.charges, 1, 'dropped wand stops recharging');
+  assert.equal(second.charges, 2, 'slow actions recharge by elapsed time');
+  for (let i = 0; i < 200; i++) advance(1);
+  assert.equal(second.charges, second.maxCharges, 'charges never exceed maximum');
+  second.charges--;
+  for (let i = 0; i < 19; i++) advance(1);
+  assert.equal(second.charges, second.maxCharges - 1, 'full wands do not bank extra recharge');
+  advance(1);
+  assert.equal(second.charges, second.maxCharges);
+  second.charges = 0;
+  for (let i = 0; i < 7; i++) advance(1);
+  const { encodeGraph, decodeGraph } = load('src/games/rogue0/saveCodec.ts');
+  const restored = decodeGraph(JSON.parse(JSON.stringify(encodeGraph(second, { Frost }))), { Frost });
+  restored.context = ctx;
+  carried = [restored]; ctx.entities = [player, restored];
+  manager.known = new Set(ctx.entities);
+  for (let i = 0; i < 12; i++) advance(1);
+  assert.equal(restored.charges, 0);
+  advance(1);
+  assert.equal(restored.charges, 1, 'partial recharge survives a browser save');
+  for (let i = 0; i < 10; i++) advance(1);
+  restored.refill(); restored.charges--;
+  for (let i = 0; i < 19; i++) advance(1);
+  assert.equal(restored.charges, restored.maxCharges - 1, 'Recharging scroll resets partial progress');
+  advance(1); assert.equal(restored.charges, restored.maxCharges);
+  delete restored.rechargeProgress; delete restored.rechargeInterval;
+  restored.charges = 0;
+  for (let i = 0; i < 20; i++) advance(1);
+  assert.equal(restored.charges, 1, 'old saves without recharge fields work');
+}
 console.log('Rogue0 item upgrades: live weapon/armor/scroll/wand/artifact stats, gem and scroll upgrades, chalice pacing/cap/icons, opaque food, and Elf Double Strike passed');

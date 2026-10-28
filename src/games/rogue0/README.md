@@ -32,6 +32,16 @@ Optional real-browser suite: with a Vite dev server running, use
 `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH` and `ROGUE0_URL` override their defaults.
 The browser suite uses an isolated profile, never your existing saved run.
 
+## Passive wand recharge
+
+Every carried wand recovers one charge per 20 elapsed world-time units, up to
+its maximum. Wands recharge independently in the backpack; quickslot assignment
+is not required. Waiting advances recharge, but idle frames, open menus and time
+away from the game do not. Floor items do not recharge. Partial progress survives
+floor travel, dropping/picking up and browser saves; time spent on the ground is
+not counted. Full wands cannot bank progress. Scroll of Recharging still refills
+immediately and clears partial recharge progress.
+
 ## Action-time scheduling
 
 Heroes and monsters share a discrete-event timeline, inspired by Shattered Pixel

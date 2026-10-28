@@ -66,7 +66,16 @@ const turnManager = {
         // Deaths may mutate entities and drop loot while this loop runs.
         for (const entity of actors) {
           if (!entities.includes(entity)) continue;
-          if (upkeep) entity.refresh();
+          if (upkeep) {
+            entity.refresh();
+            // Items do not get actor turns. Carried equipment receives exactly
+            // one upkeep tick per world-time unit, independent of action speed.
+            if (entity.type === 'player' && entity.healthPoints > 0) {
+              for (const item of new Set(entity.context.player?.getAllItems?.() ?? [])) {
+                item.refresh?.();
+              }
+            }
+          }
           if (entities.includes(entity)) entity.tickEffects();
           if (entity.context.pendingFall) return;
         }

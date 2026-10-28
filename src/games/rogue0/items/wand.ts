@@ -25,6 +25,9 @@ export default abstract class Wand extends Entity {
   protected locallyIdentified = false;
   charges: number = 0;
   maxCharges: number = 0;
+  // Stored with the item so partial recharge survives saves and floor travel.
+  private rechargeProgress = 0;
+  readonly rechargeInterval = 20;
   wandRange: number = 5;
 
   // Category is intrinsic, not derived from the equipment slot: wands are
@@ -63,7 +66,7 @@ export default abstract class Wand extends Entity {
 
   get baseDescription(): string {
     const [min, max] = this.damageBounds;
-    return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. Range is ${this.range()} tiles. Charges: ${this.charges}/${this.maxCharges}.`;
+    return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. Range is ${this.range()} tiles. Charges: ${this.charges}/${this.maxCharges}. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.`;
   }
 
   equip() {}
@@ -73,6 +76,7 @@ export default abstract class Wand extends Entity {
   // Restore this wand to full charges (used by Scroll of Recharging).
   refill(): void {
     this.charges = this.maxCharges;
+    this.rechargeProgress = 0;
   }
 
   damage() {
@@ -87,6 +91,7 @@ export default abstract class Wand extends Entity {
       return 0;
     }
 
+    if (this.charges >= this.maxCharges) this.rechargeProgress = 0;
     this.charges -= 1;
     if (this.charges === 0) {
       dungeon.log(this.context, "The wand is spent.");
@@ -111,6 +116,16 @@ export default abstract class Wand extends Entity {
   }
 
   refresh() {
+    if (this.charges >= this.maxCharges) {
+      this.rechargeProgress = 0;
+      return;
+    }
+    // Older browser saves have no progress field: start charging from zero.
+    this.rechargeProgress = (this.rechargeProgress ?? 0) + 1;
+    if (this.rechargeProgress >= (this.rechargeInterval ?? 20)) {
+      this.charges = Math.min(this.maxCharges, this.charges + 1);
+      this.rechargeProgress = 0;
+    }
   }
 
   isOver() {
