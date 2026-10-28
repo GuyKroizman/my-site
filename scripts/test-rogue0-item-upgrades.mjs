@@ -169,9 +169,79 @@ try {
 
 const Shield = itemClass('shield');
 const Gem = itemClass('gem', { Shield });
-const ScrollOfUpgrade = itemClass('ScrollOfUpgrade');
 const Wand = itemClass('wand');
+const ScrollOfUpgrade = itemClass('ScrollOfUpgrade', { Wand });
 const Ring = itemClass('ring');
+// Scrolls always request a target, even with one eligible item. Cancelling is
+// free; confirmation upgrades only that item and consumes one stacked scroll.
+{
+  const TargetHero = load('src/games/rogue0/classes/basicHero.ts', { Entity, dungeon, Wand, Gem }).default;
+  const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand, Gem });
+  const ctx = { messages: [], entities: [], scene: { input: { enabled: true } } };
+  let ready = true, spent = 0;
+  const sword = new (itemClass('sword'))(ctx);
+  const scroll = new ScrollOfUpgrade(ctx);
+  scroll.count = 2;
+  const owned = [sword, scroll];
+  ctx.entities = [...owned];
+  const player = Object.assign(Object.create(TargetHero.prototype), {
+    context: ctx, weapon: sword, canAct: () => ready, getAllItems: () => owned,
+    spendTurn(action) { assert.equal(action, 'use'); spent++; ready = false; },
+    refreshUI() {}, removeItem(item) {
+      if (item.count > 1) item.count--;
+      else owned.splice(owned.indexOf(item), 1);
+    },
+  });
+  ctx.player = player;
+  const picker = new InventoryWindow({}, ctx);
+  picker.render = () => {};
+  picker.clearObjects = () => {};
+  assert.equal(player.useItem(scroll), false);
+  assert.equal(picker.targetedItem, scroll, 'single eligible item still opens selection');
+  assert.equal(picker.isOpen(), true);
+  assert.equal(sword.level, 0);
+  picker.dismiss();
+  assert.equal(scroll.count, 2);
+  assert.equal(scroll.identified, false, 'cancel does not identify or consume');
+  assert.equal(spent, 0);
+  const backpackSword = new (itemClass('longSword'))(ctx);
+  owned.push(backpackSword);
+  player.useItem(scroll);
+  picker.openMenu(backpackSword);
+  assert.equal(backpackSword.level, 1, 'selected backpack item is upgraded');
+  assert.equal(sword.level, 0, 'equipped weapon is not chosen automatically');
+  assert.equal(scroll.count, 1);
+  assert.ok(ctx.entities.includes(scroll), 'remaining stacked scroll stays live');
+  assert.equal(scroll.identified, true);
+  assert.equal(spent, 1);
+  assert.equal(picker.isOpen(), false);
+  assert.equal(scroll.useOnItem(sword), false, 'cannot confirm outside your turn');
+  ready = true;
+  assert.equal(scroll.canTargetItem(new (itemClass('sword'))(ctx)), false, 'unowned items rejected');
+  assert.equal(scroll.canTargetItem(scroll), false);
+  backpackSword.maxLevel = backpackSword.level;
+  assert.equal(scroll.useOnItem(backpackSword), false, 'capped items do not waste scrolls');
+  sword.maxLevel = sword.level;
+  assert.equal(player.useItem(scroll), false);
+  assert.equal(picker.isOpen(), false, 'no eligible targets keeps picker closed');
+  assert.equal(scroll.count, 1);
+  assert.equal(spent, 1);
+  sword.maxLevel = Infinity;
+  player.useItem(scroll);
+  picker.openMenu(sword);
+  assert.equal(sword.level, 1);
+  assert.equal(spent, 2);
+  assert.ok(!owned.includes(scroll) && !ctx.entities.includes(scroll), 'last scroll is removed');
+  ready = true;
+  assert.equal(scroll.useOnItem(sword), false, 'spent scroll cannot be reused');
+  const wand = new (itemClass('WandOfFrost', { Wand }))(ctx);
+  const ring = new (itemClass('RingOfMight', { Ring }))(ctx);
+  const artifact = Object.assign(new Entity(), { equipSlot: 'artifact' });
+  owned.push(wand, ring, artifact);
+  assert.equal(scroll.canTargetItem(wand), true, 'backpack wands are eligible');
+  assert.equal(scroll.canTargetItem(ring), true, 'rings are eligible');
+  assert.equal(scroll.canTargetItem(artifact), false, 'artifacts retain their own progression');
+}
 const equipment = [
   ['sword', 1, 5], ['axe', 2, 7], ['longSword', 4, 8], ['hammer', 3, 8],
   ['scrolloffireball', 1, 4], ['scrolloflightning', 1, 2],
@@ -203,7 +273,8 @@ for (const [name, min, max] of equipment) {
       const gem = new Gem(item.context); items.push(gem);
       assert.equal(gem.enchant(item), true);
     } else if (level === 1) {
-      const scroll = new ScrollOfUpgrade(item.context); items.push(scroll); scroll.equip();
+      const scroll = new ScrollOfUpgrade(item.context); items.push(scroll);
+      assert.equal(scroll.useOnItem(item), true);
     } else if (level === 2) upgrade(item);
   }
   identify(item);
@@ -241,7 +312,8 @@ for (let level = 0; level <= 2; level++) {
   if (level === 0) {
     const gem = new Gem(shield.context); shieldItems.push(gem); assert.equal(gem.enchant(shield), true);
   } else if (level === 1) {
-    const scroll = new ScrollOfUpgrade(shield.context); shieldItems.push(scroll); scroll.equip();
+    const scroll = new ScrollOfUpgrade(shield.context); shieldItems.push(scroll);
+    assert.equal(scroll.useOnItem(shield), true);
   }
 }
 for (const [name, min, max] of [['WandOfFirebolt', 3, 6], ['WandOfFrost', 2, 5], ['WandOfLightning', 2, 6]]) {

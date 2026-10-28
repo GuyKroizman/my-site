@@ -540,6 +540,17 @@ export class Scene0 extends Phaser.Scene {
     const save = this.context.savedRun!;
     const run = decodeGraph(save.graph, saveRegistry, entity => {
       entity.context = this.context;
+      // Older saves stored the scroll's former auto-use flags and description.
+      // Refresh behavior metadata without changing its count or identification.
+      if (entity instanceof ScrollOfUpgrade) {
+        const defaults = new ScrollOfUpgrade(this.context);
+        Object.assign(entity, {
+          requiresItemTarget: defaults.requiresItemTarget,
+          itemTargetTitle: defaults.itemTargetTitle,
+          noItemTargetsMessage: defaults.noItemTargetsMessage,
+          description: defaults.description,
+        });
+      }
       entity.effects = restoreEffects(entity.effects ?? [], entity.artifact);
       entity.moving = false;
       entity.tweens = 0;

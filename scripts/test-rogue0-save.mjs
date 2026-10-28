@@ -84,6 +84,38 @@ assert.throws(() => decodeGraph({ root: { ref: 0 }, nodes: [{ kind: 'entity', ty
 assert.throws(() => decodeGraph({ root: { ref: 0 }, nodes: [{ kind: 'object', data: [['__proto__', {}]] }] }, registry));
 assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
 
+// Upgrade scrolls already in a browser save must acquire the new picker flags.
+{
+  class SavedHero extends Entity {}
+  const ScrollOfUpgrade = load('src/games/rogue0/items/ScrollOfUpgrade.ts', { Entity, Wand: class {} }).default;
+  const savedContext = { messages: [] };
+  const hero = new SavedHero();
+  Object.assign(hero, { type: 'player', healthPoints: 30, x: 0, y: 0 });
+  const scroll = new ScrollOfUpgrade(savedContext);
+  Object.assign(scroll, { requiresItemTarget: false, itemTargetTitle: 'CLEANSE: CHOOSE ITEM',
+    description: 'Upgrades your equipped weapon.', count: 3, locallyIdentified: true });
+  hero.backpack = [scroll];
+  const registry = { hero: SavedHero, scroll: ScrollOfUpgrade };
+  const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
+    knowledge: { appearances: [], known: [] }, floors: new Map([[1, {
+      map: [[0]], seen: [[true]], features: [], entities: [], savedAt: 0,
+      up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
+    }]]) }, registry);
+  const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
+  const method = source.slice(source.indexOf('  private decodeRun()'), source.indexOf('  private installAutosave()'));
+  const js = ts.transpile(`class TestScene { ${method} }; exports.Scene = TestScene;`, { target: ts.ScriptTarget.ES2022 });
+  const out = {};
+  new Function('exports', 'decodeGraph', 'saveRegistry', 'restoreEffects', 'ScrollOfUpgrade', 'classes', js)(
+    out, decodeGraph, registry, restoreEffects, ScrollOfUpgrade, { Warrior: SavedHero });
+  const scene = new out.Scene();
+  scene.context = { savedRun: { heroClass: 'Warrior', floor: 1, graph } };
+  const restored = scene.decodeRun().player.backpack[0];
+  assert.equal(restored.requiresItemTarget, true);
+  assert.equal(restored.itemTargetTitle, 'UPGRADE: CHOOSE ITEM');
+  assert.match(restored.description, /Choose/);
+  assert.equal(restored.count, 3);
+  assert.equal(restored.identified, true);
+}
 const memory = new Map();
 let blocked = false;
 const localStorage = {

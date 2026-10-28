@@ -1,13 +1,16 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
-import { Entity, removeEntity, upgrade } from "../entity";
-import dungeon from "../dungeon";
+import { Entity, removeEntity, upgrade, identify } from "../entity";
+import Wand from "./wand";
 
 export default class ScrollOfUpgrade extends Entity {
   name: string = "Scroll of Upgrade";
   description: string =
-    "Upgrades your equipped weapon, or your armor if you have no weapon.";
+    "Choose a weapon, armor, ring, or wand from your equipment or backpack to upgrade. Consumes one scroll and one turn only after you choose.";
+  requiresItemTarget = true;
+  itemTargetTitle = "UPGRADE: CHOOSE ITEM";
+  noItemTargetsMessage = "You have no items that can be upgraded.";
   moving: boolean = false;
   type: EntityType = "item";
   tile = 15 * 49 + 36;
@@ -23,19 +26,27 @@ export default class ScrollOfUpgrade extends Entity {
   }
 
   equip() {
+    this.context.onChooseItemTarget?.(this);
+  }
+
+  canTargetItem(target: Entity): boolean {
+    return target !== this && target.level < target.maxLevel &&
+      !!this.context.player?.getAllItems().includes(target) &&
+      (target.equipSlot === "weapon" || target.equipSlot === "armor" ||
+        target.equipSlot === "ring" || target instanceof Wand);
+  }
+
+  useOnItem(target: Entity): boolean {
     const player = this.context.player;
-    if (!player) return;
-
-    if (player.weapon) {
-      upgrade(player.weapon);
-    } else if (player.armor) {
-      upgrade(player.armor);
-    } else {
-      dungeon.log(this.context, "Nothing to upgrade.");
-    }
-
+    if (!player?.canAct() || !player.getAllItems().includes(this) || !this.canTargetItem(target)) return false;
+    identify(this);
+    upgrade(target);
+    const lastScroll = this.count === 1;
     player.removeItem(this);
-    removeEntity(this.context, this);
+    if (lastScroll) removeEntity(this.context, this);
+    player.spendTurn("use");
+    player.refreshUI();
+    return true;
   }
 
   damage() {
