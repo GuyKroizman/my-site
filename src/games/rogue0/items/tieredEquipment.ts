@@ -8,7 +8,7 @@ export class TieredWeapon extends Entity {
   type: EntityType = "item";
   equipSlot: EquipSlot = "weapon";
   usesStrength = true;
-  identified = false;
+  protected locallyIdentified = false;
 
   constructor(context: GameContext, x?: number, y?: number, tier = 1) {
     super();
@@ -39,7 +39,7 @@ export class TieredArmor extends Entity {
   type: EntityType = "item";
   equipSlot: EquipSlot = "armor";
   usesStrength = true;
-  identified = false;
+  protected locallyIdentified = false;
 
   constructor(context: GameContext, x?: number, y?: number, tier = 1) {
     super();

@@ -11,7 +11,7 @@ export default class ScrollOfRemoveCurse extends Entity {
   tile = 15 * 49 + 37;
   textureKey = "scroll-remove-curse";
   consumable = true;
-  identified = false;
+  protected locallyIdentified = false;
   tier = 1;
   equipSlot: "consumable" = "consumable";
 

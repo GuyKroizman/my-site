@@ -14,6 +14,7 @@ import volcanicWallUrl from '../../../public/rogue0/volcanic-wall.png';
 import { dungeonTheme } from './dungeonTheme';
 import heroArtUrl from '../../../public/rogue0/hero-color.png';
 import cultistArtUrl from '../../../public/rogue0/monsters/cultist.png';
+import goblinArtUrl from '../../../public/rogue0/monsters/goblin.png';
 import grass0Url from '../../../public/rogue0/tall-grass-0.png';
 import grass1Url from '../../../public/rogue0/tall-grass-1.png';
 import grass2Url from '../../../public/rogue0/tall-grass-2.png';
@@ -73,7 +74,7 @@ import ChaliceOfBlood from "./items/ChaliceOfBlood";
 import FangOfTheBeast from "./items/FangOfTheBeast";
 import Ration from "./items/ration";
 import Quloptsh from "./monsters/quloptsh";
-import Archer from "./monsters/archer";
+import Goblin from "./monsters/goblin";
 import Ghoul from "./monsters/ghoul";
 import Brute from "./monsters/brute";
 import Boss from "./monsters/boss";
@@ -203,6 +204,7 @@ export class Scene0 extends Phaser.Scene {
   preload() {
     this.load.image('hero-color', heroArtUrl);
     this.load.image('cultist', cultistArtUrl);
+    this.load.image('goblin', goblinArtUrl);
     [grass0Url, grass1Url, grass2Url].forEach((url, i) => this.load.image(`tall-grass-${i}`, url));
     this.load.image('stone-tiles', stoneTilesUrl);
     this.load.image('stone-wall', stoneWallUrl);
@@ -1129,7 +1131,7 @@ export class Scene0 extends Phaser.Scene {
     const progressionCount = progression.strengthPotions + progression.upgradeScrolls
       + Number(progression.weapon) + Number(progression.armor);
     const skeletonCount = 2 + density;
-    const archerCount = Math.max(0, density - 1);
+    const goblinCount = Math.max(0, density - 1);
     const ghoulCount = floor >= 3 ? 1 : 0;
     const bruteCount = floor >= 3 ? 1 : 0;
     const bossCount = floor === this.context.maxFloor ? 1 : 0;
@@ -1145,7 +1147,7 @@ export class Scene0 extends Phaser.Scene {
 
     const tiles = randomWalkableTiles(
       levelArray,
-      skeletonCount + archerCount + ghoulCount + bruteCount + bossCount + quloptshCount +
+      skeletonCount + goblinCount + ghoulCount + bruteCount + bossCount + quloptshCount +
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
         cursedGemCount + foodCount + itemCount + progressionCount,
       exclude,
@@ -1175,7 +1177,7 @@ export class Scene0 extends Phaser.Scene {
 
     spawnGroup(Skeleton, skeletonCount);
     spawnGroup(Quloptsh, quloptshCount);
-    spawnGroup(Archer, archerCount);
+    spawnGroup(Goblin, goblinCount);
     spawnGroup(Ghoul, ghoulCount);
     spawnGroup(Brute, bruteCount);
     spawnGroup(SwarmOfFlies, swarmCount);

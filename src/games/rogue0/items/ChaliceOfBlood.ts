@@ -18,7 +18,7 @@ export default class ChaliceOfBlood extends Entity {
   maxLevel = CHALICE_MAX_LEVEL;
   tier = 1;
   equipSlot: "artifact" = "artifact";
-  identified = false;
+  protected locallyIdentified = false;
 
   private bloodProgress = 0;
   private healingTurns = 0;

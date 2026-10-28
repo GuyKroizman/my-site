@@ -13,7 +13,7 @@ export default class FangOfTheBeast extends Entity {
   textureKey = "fang-of-the-beast";
   tier = 1;
   equipSlot: "artifact" = "artifact";
-  identified = false;
+  protected locallyIdentified = false;
 
   private strikes = 0;
 

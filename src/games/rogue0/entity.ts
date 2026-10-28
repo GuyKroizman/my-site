@@ -19,8 +19,15 @@ export type EquipSlot =
 
 // One shuffled, one-to-one appearance assignment per run, shared by all copies.
 const consumableAppearances = new WeakMap<GameContext, Map<string, string>>();
+const knownConsumables = new WeakMap<GameContext, Set<string>>();
+function consumableKind(item: Entity): string | undefined {
+  const category = item.textureKey?.startsWith('potion-') ? 'potion'
+    : item.textureKey?.startsWith('scroll-') ? 'scroll' : undefined;
+  return category ? `${category}:${item.name}` : undefined;
+}
 export function resetConsumableAppearances(context: GameContext): void {
   consumableAppearances.delete(context);
+  knownConsumables.delete(context);
 }
 const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror', 'recharging'];
 function consumableAppearance(item: Entity): string | undefined {
@@ -120,7 +127,12 @@ export abstract class Entity {
   get effectiveEvasion(): number { return this.evasion; }
   movementCostMultiplier(): number { return 1; }
   attackCostMultiplier(): number { return 1; }
-  identified: boolean = true;
+  protected locallyIdentified: boolean = true;
+  get identified(): boolean {
+    const kind = consumableKind(this);
+    return this.locallyIdentified || !!(kind && this.context && knownConsumables.get(this.context)?.has(kind));
+  }
+  set identified(value: boolean) { this.locallyIdentified = value; }
   cursed: boolean = false;
   curseLifted = false;
   blessed: boolean = false;
@@ -157,11 +169,14 @@ export abstract class Entity {
     return [this.baseDescription, this.curseDescription].filter(Boolean).join('\n\n');
   }
 
-  // Derive a pronounceable nonsense label from the true item kind, never from
-  // instance state or RNG. Copies, floor changes and stack splits keep the name.
+  // Consumable labels follow their shuffled appearance, not their true identity.
+  // Copies, floor changes and stack splits retain the same label within a run.
   get unidentifiedName(): string {
     let hash = 2166136261;
-    for (const char of `${this.equipSlot}:${this.name}`) {
+    const identity = consumableKind(this) && this.context
+      ? consumableAppearance(this)!
+      : `${this.equipSlot}:${this.name}`;
+    for (const char of identity) {
       hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
     }
     const syllables = ['ba', 'zu', 'kir', 'vo', 'nel', 'sha', 'dor', 'mi',
@@ -371,6 +386,12 @@ function logMessage(context: GameContext, text: string): void {
 
 // Reveals an item's real name and description (the G3 identify loop).
 export function identify(item: Entity): void {
+  const kind = consumableKind(item);
+  if (kind && item.context) {
+    let known = knownConsumables.get(item.context);
+    if (!known) knownConsumables.set(item.context, known = new Set());
+    known.add(kind);
+  }
   item.identified = true;
   logMessage(item.context, `Identified: ${item.name}`);
 }

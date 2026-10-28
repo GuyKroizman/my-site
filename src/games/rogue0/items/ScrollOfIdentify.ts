@@ -14,7 +14,7 @@ export default class ScrollOfIdentify extends Entity {
   tile = 15 * 49 + 35;
   textureKey = "scroll-identify";
   consumable = true;
-  identified = false;
+  protected locallyIdentified = false;
   tier = 1;
   equipSlot: "consumable" = "consumable";
 

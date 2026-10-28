@@ -62,6 +62,27 @@ function setup() {
   manager.reset(context.entities);
   return { context, player, monster };
 }
+// The folklore goblin replaces Archer without changing its ranged combat role.
+{
+  const Goblin = load('src/games/rogue0/monsters/goblin.ts', {
+    Monster, Gem: class {}, HolyPotion: class {},
+    createBleedingEffect: turns => ({ id: 'bleeding', turns }),
+  }).default;
+  const { context } = setup();
+  const goblin = new Goblin(context, 3, 3);
+  assert.equal(goblin.name, 'Goblin');
+  assert.equal(goblin.textureKey, 'goblin');
+  assert.equal(goblin.healthPoints, 6);
+  assert.equal(goblin.range(), 5);
+  assert.equal(goblin.attackDamage, 2);
+  assert.deepEqual(goblin.onHitEffects(), [{ id: 'bleeding', turns: 3 }]);
+  const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
+  assert.ok(scene.includes("this.load.image('goblin', goblinArtUrl)"));
+  assert.ok(scene.includes('spawnGroup(Goblin, goblinCount)'));
+  const png = fs.readFileSync('public/rogue0/monsters/goblin.png');
+  assert.equal(png.readUInt32BE(16), 16);
+  assert.equal(png.readUInt32BE(20), 22);
+}
 // Alarm-style noise wakes sleepers but only supplies a fixed investigation target.
 {
   const { player, monster } = setup();

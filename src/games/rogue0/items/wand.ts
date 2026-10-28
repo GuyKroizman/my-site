@@ -22,7 +22,7 @@ export default abstract class Wand extends Entity {
   type: EntityType = "item";
   tier = 1;
 
-  identified = false;
+  protected locallyIdentified = false;
   charges: number = 0;
   maxCharges: number = 0;
   wandRange: number = 5;

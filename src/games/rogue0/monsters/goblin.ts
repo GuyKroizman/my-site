@@ -4,12 +4,13 @@ import Gem from "../items/gem";
 import HolyPotion from "../items/holyPotion";
 import { createBleedingEffect } from "../effects";
 
-export default class Archer extends Monster {
+export default class Goblin extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
     super(context, {
-      name: "Archer",
-      description: "A skeleton archer. Shoots bolts from a distance.",
-      tile: 6 * 49 + 24,
+      name: "Goblin",
+      description: "A spiteful, sharp-eared goblin. Fires barbed arrows from a distance that cause bleeding.",
+      tile: 0,
+      textureKey: "goblin",
       healthPoints: 6,
       movementSpeed: 1,
       attackDelay: 1,

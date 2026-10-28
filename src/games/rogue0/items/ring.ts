@@ -16,7 +16,7 @@ export default abstract class Ring extends Entity {
   type: EntityType = "item";
   tier = 1;
   equipSlot: "ring" = "ring";
-  identified = false;
+  protected locallyIdentified = false;
   // Use the same ring artwork on the floor and after identification as in
   // the unidentified inventory slot; the configured tiles are character art.
   textureKey = "unknown-ring";

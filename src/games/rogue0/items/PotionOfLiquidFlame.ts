@@ -7,7 +7,7 @@ export default class PotionOfLiquidFlame extends Entity {
   type: EntityType = "item";
   tier = 1;
   equipSlot: "consumable" = "consumable";
-  identified = false;
+  protected locallyIdentified = false;
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();

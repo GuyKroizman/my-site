@@ -13,7 +13,7 @@ export default class ScrollOfUpgrade extends Entity {
   tile = 15 * 49 + 36;
   textureKey = "scroll-upgrade";
   consumable = true;
-  identified = false;
+  protected locallyIdentified = false;
   tier = 1;
   equipSlot: "consumable" = "consumable";
 
