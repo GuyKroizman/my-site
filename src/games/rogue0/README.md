@@ -3,6 +3,35 @@ Implementation of the game from the book [Roguelike Development with JavaScript]
 
 Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
 
+## Browser saves
+
+One run is autosaved in this browser's local storage (`rogue0.run.v1`). The title
+screen offers **Continue** when a save exists, or **New Game** and hero selection.
+Choosing a new hero replaces the old run; cancelling the selection keeps it.
+The game menu also offers **Save & title**. Death and victory clear the run.
+
+Saves retain the hero, inventory/equipment/quickslot references, upgrades, talents,
+identified consumables and shuffled appearances, active status effects, scheduler
+clock/deadlines, and every visited floor (map, terrain, explored cells, enemies,
+loot and gas). No time elapses while the game is closed. UI dialogs, targeting
+and buffered movement are deliberately not resumed.
+
+The scene checkpoints completed actions, checks free inventory/UI changes every
+250ms, and flushes on page hide, backgrounding and navigation. If a browser is
+closed mid-animation, the last complete checkpoint is used rather than a partial
+attack or item drop. Save data uses versioned, stable file/export class IDs, not
+minified class names or executable code. Effects restore their local callbacks
+without reapplying stat bonuses. Storage failures display a warning and retain
+the previous save; invalid/incompatible saves offer a new-game recovery path.
+Clearing site data removes the save. Saves are local, not account/cloud synced;
+play a run in one tab at a time.
+
+Regression tests: `npm run test:rogue0:save` (also in `npm run test:rogue0`).
+Optional real-browser suite: with a Vite dev server running, use
+`node scripts/test-rogue0-save-browser.mjs`. It requires Playwright and Chromium;
+`PLAYWRIGHT_MODULE`, `CHROMIUM_PATH` and `ROGUE0_URL` override their defaults.
+The browser suite uses an isolated profile, never your existing saved run.
+
 ## Action-time scheduling
 
 Heroes and monsters share a discrete-event timeline, inspired by Shattered Pixel

@@ -529,6 +529,23 @@ body {
   overflow: hidden;
 }
 
+.rogue0-save-warning {
+  position: absolute;
+  top: 72px;
+  left: 12px;
+  right: 12px;
+  z-index: 20;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--r0-gold);
+  background: var(--r0-panel);
+  color: var(--r0-gold);
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
 .rogue0-game-stage #phaser {
   width: 100%;
   height: 100%;

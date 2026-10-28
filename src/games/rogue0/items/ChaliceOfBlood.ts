@@ -72,7 +72,8 @@ export default class ChaliceOfBlood extends Entity {
     }
   }
 
-  private regenEffect(): StatusEffect {
+  // Rebuilt on browser resume so the tick callback targets the restored artifact.
+  regenEffect(): StatusEffect {
     const artifact = this;
     return {
       id: "chalice-regeneration",

@@ -94,7 +94,14 @@ import { computeFOV, resolveVision } from "./fov";
 import { hasEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
-import { resetConsumableAppearances } from "./entity";
+import { resetConsumableAppearances, saveConsumableKnowledge, restoreConsumableKnowledge } from "./entity";
+import { encodeGraph, decodeGraph } from './saveCodec';
+import { saveRegistry } from './saveRegistry';
+import { restoreEffects } from './saveEffects';
+import { writeRunSave, clearRunSave } from './saveStorage';
+import { generateFireElementalTexture } from './monsters/fireElementalTexture';
+import { generateLightningElementalTexture } from './monsters/lightningElementalTexture';
+import { generateFlySwarmTexture } from './monsters/flySwarmTexture';
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
 
@@ -157,6 +164,9 @@ function weightedPick(table: Array<[LootClass, number]>): LootClass {
 export class Scene0 extends Phaser.Scene {
   context: GameContext;
   private ended: boolean = false;
+  private lastSaveCheck = 0;
+  private lastSaveTime = -1;
+  private lastSaveGraph = '';
   private stairsLabel?: Phaser.GameObjects.Graphics;
   private upstairsLabel?: Phaser.GameObjects.Graphics;
   private floors = new Map<number, SavedFloor>();
@@ -259,8 +269,26 @@ export class Scene0 extends Phaser.Scene {
     generateDoorThresholdTexture(this);
     generateUnknownItemTextures(this);
 
-    // Generate the first floor (all floors are now procedurally generated).
-    const { levelArray, spawn, stairs } = this.generateLevel();
+    // Restoring must not generate a floor or construct a hero: both reroll loot.
+    let resumed: any;
+    if (this.context.savedRun) {
+      try {
+        resumed = this.decodeRun();
+      } catch (error) {
+        console.error('Cannot restore Rogue0 run', error);
+        this.context.onSaveStatus?.('This saved run could not be loaded. Start a new game to replace it.');
+        this.context.onLoadError?.();
+        return;
+      }
+    }
+    const active: SavedFloor | undefined = resumed?.floors.get(resumed.floor);
+    const { levelArray, spawn, stairs } = active
+      ? { levelArray: active.map, spawn: { x: resumed.player.x, y: resumed.player.y }, stairs: active.down }
+      : this.generateLevel();
+    if (active) {
+      this.context.floor = resumed.floor;
+      this.applyFeatures(active.features);
+    }
 
     // Build the first map before creating the hero (its sprite needs the map).
     dungeon.initialize(this.context, levelArray);
@@ -279,11 +307,38 @@ export class Scene0 extends Phaser.Scene {
     this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
 
     const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
-    const player = new HeroClass(this.context, spawn.x, spawn.y);
-    player.sprite!.setDepth(worldDepth(player.sprite!.y, 'actor'));
+    const player = resumed?.player ?? new HeroClass(this.context, spawn.x, spawn.y);
     this.context.player = player;
-
-    this.setupFloor(1, levelArray, spawn, stairs);
+    if (resumed) {
+      this.floors = resumed.floors;
+      this.context.floor = resumed.floor;
+      this.context.kills = resumed.kills;
+      this.context.messages = resumed.messages;
+      this.context.simulationTime = resumed.time;
+      restoreConsumableKnowledge(this.context, resumed.knowledge);
+      generateFireElementalTexture(this);
+      generateLightningElementalTexture(this);
+      generateFlySwarmTexture(this);
+      player.bindInput();
+      player.init(this.context, spawn.x, spawn.y);
+      turnManager.time = resumed.time;
+      turnManager.nextTick = resumed.nextTick;
+    }
+    player.sprite!.setDepth(worldDepth(player.sprite!.y, 'actor'));
+    // setupFloor resets scheduler readiness for stair travel; a browser resume
+    // restores exact deadlines instead, including fractional-speed actions.
+    const deadlines = resumed ? [player, ...active!.entities].map(entity =>
+      [entity, entity.nextActionTime, entity.actionReady] as const) : [];
+    this.setupFloor(resumed?.floor ?? 1, levelArray, spawn, stairs, active);
+    for (const [entity, time, ready] of deadlines) {
+      entity.nextActionTime = time;
+      entity.actionReady = ready;
+    }
+    for (const entity of this.context.entities) {
+      if (hasEffect(entity, 'invisible')) entity.sprite?.setAlpha(0.4);
+    }
+    this.context.savedRun = undefined;
+    this.installAutosave();
     this.events.emit("entities-created");
 
     this.events.on("player-died", () => this.endGame(false));
@@ -450,6 +505,7 @@ export class Scene0 extends Phaser.Scene {
     }
     updateHeroAnimation(this.context.player, this.time.now);
     if (isModalOpen(this.context)) {
+      this.autosave();
       if (this.context.player) {
         this.context.player.inputBuffer = [];
         this.context.player.walkPath = [];
@@ -477,6 +533,83 @@ export class Scene0 extends Phaser.Scene {
     this.tweens.timeScale = p && p.inputBuffer && p.inputBuffer.length > 0 ? 2 : 1;
 
     this.updateCursor();
+    this.autosave();
+  }
+
+  private decodeRun() {
+    const save = this.context.savedRun!;
+    const run = decodeGraph(save.graph, saveRegistry, entity => {
+      entity.context = this.context;
+      entity.effects = restoreEffects(entity.effects ?? [], entity.artifact);
+      entity.moving = false;
+      entity.tweens = 0;
+      if (entity.type === 'player') {
+        entity.inputBuffer = [];
+        entity.walkPath = [];
+        entity.acknowledgedWalkEnemies = new Set();
+        entity.zapping = false;
+      }
+    });
+    const Hero = (classes as any)[save.heroClass];
+    if (!run || !(run.player instanceof Hero) || run.player.healthPoints <= 0 ||
+        !(run.floors instanceof Map) || !run.floors.has(save.floor) || run.floor !== save.floor ||
+        !Number.isFinite(run.time) || run.time < 0 || !Number.isFinite(run.nextTick) ||
+        !Array.isArray(run.messages) || !Array.isArray(run.knowledge?.appearances) ||
+        !Array.isArray(run.knowledge?.known)) throw new Error('Invalid saved run');
+    for (const [floor, data] of run.floors) {
+      if (!Number.isInteger(floor) || floor < 1 || floor > 25 ||
+          !Array.isArray(data.map) || !data.map.length || data.map.length > 256 ||
+          !data.map.every((row: unknown) => Array.isArray(row) && row.length === data.map[0].length && row.length <= 256 && row.every(Number.isFinite)) ||
+          !Array.isArray(data.features) || !Array.isArray(data.entities) || !Array.isArray(data.seen) ||
+          !Number.isFinite(data.savedAt) || !data.up || !data.down) throw new Error('Invalid saved floor');
+    }
+    const active = run.floors.get(run.floor);
+    if (!Number.isInteger(run.player.x) || !Number.isInteger(run.player.y) ||
+        active.map[run.player.y]?.[run.player.x] === undefined) throw new Error('Invalid saved position');
+    return run;
+  }
+
+  private installAutosave() {
+    const flush = () => this.autosave(true);
+    const hidden = () => { if (document.visibilityState === 'hidden') flush(); };
+    this.context.saveNow = flush;
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', hidden);
+    this.events.once('shutdown', () => {
+      flush();
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', hidden);
+      this.context.saveNow = undefined;
+    });
+    flush();
+  }
+
+  private autosave(force = false) {
+    const context = this.context;
+    // Animation callbacks may still land attacks or drops. Keep the previous
+    // complete checkpoint rather than persisting a half-applied action.
+    if (this.ended || !context.player || context.player.healthPoints <= 0 || context.pendingFall ||
+        context.entities.some(entity => entity.moving)) return;
+    const now = performance.now();
+    if (!force && this.lastSaveTime === context.simulationTime && now - this.lastSaveCheck < 250) return;
+    this.lastSaveCheck = now;
+    this.lastSaveTime = context.simulationTime ?? 0;
+    try {
+      this.saveFloor();
+      const graph = encodeGraph({ player: context.player, floors: this.floors,
+        floor: context.floor, kills: context.kills, messages: context.messages,
+        time: turnManager.time, nextTick: turnManager.nextTick,
+        knowledge: saveConsumableKnowledge(context) }, saveRegistry);
+      const serialized = JSON.stringify(graph);
+      if (serialized === this.lastSaveGraph) return;
+      if (!writeRunSave({ version: 1, heroClass: context.heroClass, floor: context.floor,
+          savedAt: new Date().toISOString(), graph })) throw new Error('Browser storage unavailable');
+      this.lastSaveGraph = serialized;
+      context.onSaveStatus?.('Progress saved automatically on this browser.');
+    } catch (error) {
+      console.warn('Rogue0 autosave failed', error);
+      context.onSaveStatus?.('Progress could not be saved. Browser storage may be full or blocked.');
+    }
   }
 
   private updateCursor(): void {
@@ -693,7 +826,7 @@ export class Scene0 extends Phaser.Scene {
       savedAt: this.context.simulationTime ?? 0,
       poisonClouds: (this.context.poisonClouds ?? []).map(cloud => ({ ...cloud })),
       map: dungeon.getCurrentLevel().map(row => [...row]),
-      seen: this.seen.map(row => [...row]), features,
+      seen: this.seen.map(row => [...(row ?? [])]), features,
       entities: this.context.entities.filter(entity => !carried.has(entity)),
       up: { x: this.context.upstairsX!, y: this.context.upstairsY! },
       down: { x: this.context.stairsX!, y: this.context.stairsY! }
@@ -1208,6 +1341,7 @@ export class Scene0 extends Phaser.Scene {
   private endGame(victory: boolean) {
     if (this.ended) return;
     this.ended = true;
+    if (!clearRunSave()) this.context.onSaveStatus?.('Unable to clear the completed save. Browser storage is blocked.');
 
     if (victory) {
       sfx.victory();

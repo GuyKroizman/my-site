@@ -29,6 +29,14 @@ export function resetConsumableAppearances(context: GameContext): void {
   consumableAppearances.delete(context);
   knownConsumables.delete(context);
 }
+export function saveConsumableKnowledge(context: GameContext) {
+  return { appearances: [...(consumableAppearances.get(context) ?? new Map())],
+    known: [...(knownConsumables.get(context) ?? new Set<string>())] };
+}
+export function restoreConsumableKnowledge(context: GameContext, data: ReturnType<typeof saveConsumableKnowledge>) {
+  consumableAppearances.set(context, new Map(data.appearances));
+  knownConsumables.set(context, new Set(data.known));
+}
 const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror', 'recharging'];
 function consumableAppearance(item: Entity): string | undefined {
   const category = item.textureKey?.startsWith('potion-') ? 'potion'

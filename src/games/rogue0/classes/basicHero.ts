@@ -177,6 +177,12 @@ export default class BasicHero extends Entity {
     // starting gear in their constructors.
     this.context = context;
 
+    this.bindInput();
+  }
+
+  /** Also used after restoring the hero without rerolling its starting gear. */
+  bindInput(): void {
+    const context = this.context;
     if (context.scene?.input?.keyboard == undefined) {
       throw new Error("Error in PlayerCharacter context is undefined");
     }

@@ -76,6 +76,10 @@ export type GameContext = {
   // Re-centers the camera on the player after a free pan.
   onResumeFollow?: () => void;
   onEnd?: (result: EndResult) => void;
+  savedRun?: import('./saveStorage').RunSave;
+  saveNow?: () => void;
+  onSaveStatus?: (message: string) => void;
+  onLoadError?: () => void;
 };
 
 export function isModalOpen(context: GameContext): boolean {

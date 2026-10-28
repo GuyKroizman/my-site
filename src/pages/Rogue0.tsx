@@ -10,6 +10,7 @@ import {
   type GameContext,
 } from '../games/rogue0/context'
 import { toggleMuted, unlockAudio } from '../games/rogue0/audio'
+import { readRunSave, clearRunSave, type RunSave } from '../games/rogue0/saveStorage'
 
 const HERO_CLASSES = [
   { name: 'Warrior', desc: 'sword & steel' },
@@ -105,6 +106,10 @@ export default function Rogue0() {
   const phaserRef = useRef<Game | null>(null)
   const contextRef = useRef<GameContext | null>(null)
   const [heroClass, setHeroClass] = useState<string | null>(null)
+  const [saveInfo, setSaveInfo] = useState(readRunSave)
+  const [choosingNew, setChoosingNew] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('Progress is saved automatically on this browser.')
+  const pendingSave = useRef<RunSave | undefined>(undefined)
   const [result, setResult] = useState<EndResult | null>(null)
   const [inspectMode, setInspectMode] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -143,12 +148,20 @@ export default function Rogue0() {
 
     const context = createGameContext()
     context.heroClass = heroClass
+    context.savedRun = pendingSave.current
+    context.onSaveStatus = setSaveStatus
+    context.onLoadError = () => {
+      pendingSave.current = undefined
+      setSaveInfo({ error: 'This saved run could not be loaded. Start a new game to replace it.' })
+      setHeroClass(null)
+    }
     context.inspectMode = inspectMode
     context.onEnd = (r) => {
       phaserRef.current?.destroy(true)
       phaserRef.current = null
       setHelpOpen(false)
       setMenuOpen(false)
+      setSaveInfo(readRunSave())
       setResult(r)
     }
     context.onInspectModeChange = (mode) => setInspectMode(mode)
@@ -177,6 +190,7 @@ export default function Rogue0() {
 
     return () => {
       cancelled = true
+      context.saveNow?.()
       phaserRef.current?.destroy(true)
       phaserRef.current = null
       contextRef.current = null
@@ -185,8 +199,36 @@ export default function Rogue0() {
 
   const startGame = (name: string) => {
     unlockAudio()
+    pendingSave.current = undefined
+    if (!clearRunSave()) setSaveStatus('Browser storage is blocked; this run may not be saved.')
+    setSaveInfo({})
+    setChoosingNew(false)
     setInspectMode(false)
     setHeroClass(name)
+  }
+
+  const continueGame = () => {
+    const current = readRunSave()
+    setSaveInfo(current)
+    if (!current.save) return
+    unlockAudio()
+    pendingSave.current = current.save
+    setInspectMode(false)
+    setHeroClass(current.save.heroClass)
+  }
+
+  const returnToTitle = () => {
+    const context = contextRef.current
+    if (context?.pendingFall || context?.entities.some(entity => entity.moving)) {
+      setSaveStatus('Wait for the current action to finish, then choose Save & title again.')
+      return
+    }
+    context?.saveNow?.()
+    setSaveInfo(readRunSave())
+    setChoosingNew(false)
+    setMenuOpen(false)
+    setHelpOpen(false)
+    setHeroClass(null)
   }
 
   const toggleMute = () => {
@@ -274,10 +316,25 @@ export default function Rogue0() {
       <div className="rogue0-shell">
         <div className="rogue0-panel">
           <h1 className="rogue0-title">Rogue0</h1>
-          <p className="rogue0-subtitle">Choose your hero</p>
+          <p className="rogue0-subtitle">{saveInfo.save && !choosingNew ? 'Your adventure awaits' : 'New Game — choose your hero'}</p>
+          {saveInfo.error && <p className="rogue0-foot" role="alert">{saveInfo.error}</p>}
+          {saveInfo.save && !choosingNew && (
+            <div className="rogue0-actions">
+              <button className="rogue0-btn" onClick={continueGame}>
+                <span className="rogue0-btn-name">Continue</span>
+                <span className="rogue0-btn-desc">{saveInfo.save.heroClass} · Floor {saveInfo.save.floor}</span>
+              </button>
+              <button className="rogue0-btn" onClick={() => setChoosingNew(true)}>New Game</button>
+            </div>
+          )}
+          {saveInfo.save && choosingNew && (
+            <p className="rogue0-foot">Choosing a hero replaces your saved run.{' '}
+              <button className="rogue0-link-btn" onClick={() => setChoosingNew(false)}>Cancel</button>
+            </p>
+          )}
           <button className="rogue0-link-btn" onClick={openHelp}>Help</button>
 
-          <div className="rogue0-classes">
+          {(!saveInfo.save || choosingNew) && <div className="rogue0-classes">
             {HERO_CLASSES.map((c) => (
               <button
                 key={c.name}
@@ -288,7 +345,8 @@ export default function Rogue0() {
                 <span className="rogue0-btn-desc">{c.desc}</span>
               </button>
             ))}
-          </div>
+          </div>}
+          <p className="rogue0-foot">Autosaved on this browser after completed actions. Death or victory ends the saved run. Clearing browser data removes your save.</p>
 
           <div className="rogue0-instructions">
             <h2>How to play</h2>
@@ -315,6 +373,9 @@ export default function Rogue0() {
     <div className="rogue0-game">
       <div className="rogue0-game-stage">
         <div id="phaser"></div>
+        {/could not be saved|storage.*blocked/i.test(saveStatus) && (
+          <p className="rogue0-save-warning" role="alert">{saveStatus}</p>
+        )}
         <div
           className="rogue0-game-menu"
           ref={menuRef}
@@ -356,6 +417,8 @@ export default function Rogue0() {
               >
                 {muted ? 'Sound: OFF' : 'Sound: ON'}
               </button>
+              <button className="rogue0-game-btn" onClick={returnToTitle}>Save & title</button>
+              <p className="rogue0-foot" role="status">{saveStatus}</p>
               <Link to="/" className="rogue0-game-btn">← back</Link>
             </div>
           )}

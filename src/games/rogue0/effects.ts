@@ -30,6 +30,8 @@ export type StatusEffect = {
   // When true, `tickEffects` does not auto-decrement `duration`; the effect
   // is expected to remove itself (see `frozen`).
   manualExpiry?: boolean;
+  // Serializable state used to undo blindness without a closure-only value.
+  originalAccuracy?: number;
   apply?(entity: Entity, context: GameContext): void;
   tick?(entity: Entity, context: GameContext): void;
   remove?(entity: Entity, context: GameContext): void;
@@ -297,21 +299,19 @@ export function createMindVisionEffect(duration = 20): StatusEffect {
 
 // Reduces sight to the current cell and lowers accuracy until expiry.
 export function createBlindedEffect(duration = 4): StatusEffect {
-  let originalAccuracy: number | undefined;
-
   return {
     id: "blinded",
     name: "Blinded",
     iconTile: 19 * 49 + 44,
     duration,
     apply(entity) {
-      originalAccuracy = entity.accuracy;
+      this.originalAccuracy = entity.accuracy;
       entity.accuracy = Math.max(0, entity.accuracy - 25);
     },
     remove(entity) {
-      if (originalAccuracy !== undefined) {
-        entity.accuracy = originalAccuracy;
-        originalAccuracy = undefined;
+      if (this.originalAccuracy !== undefined) {
+        entity.accuracy = this.originalAccuracy;
+        this.originalAccuracy = undefined;
       }
     }
   };
