@@ -19,6 +19,7 @@ import grass0Url from '../../../public/rogue0/tall-grass-0.png';
 import grass1Url from '../../../public/rogue0/tall-grass-1.png';
 import grass2Url from '../../../public/rogue0/tall-grass-2.png';
 import { updateHeroAnimation } from './heroAnimation';
+import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
 import type { PoisonCloud } from "./context";
 import { removeEntity, type Entity } from './entity';
@@ -192,6 +193,8 @@ export class Scene0 extends Phaser.Scene {
     });
   }
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  private waterSprites = new Map<string, { sprite: Phaser.GameObjects.Sprite; x: number; y: number; mask: number }>();
+  private lastWaterStep = -1;
   private wallSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private secretRoom?: Room;
   private cursor!: Phaser.GameObjects.Graphics;
@@ -268,6 +271,7 @@ export class Scene0 extends Phaser.Scene {
     generatePotionTextures(this);
     generateDoorThresholdTexture(this);
     generateUnknownItemTextures(this);
+    generateWaterTexture(this);
 
     // Restoring must not generate a floor or construct a hero: both reroll loot.
     let resumed: any;
@@ -498,6 +502,7 @@ export class Scene0 extends Phaser.Scene {
 
   update() {
     if (this.ended) return;
+    this.updateWater(this.time.now);
     // Use interpolated sprite positions so walking/lunging actors swap order
     // smoothly, including monsters and items spawned after floor creation.
     for (const entity of this.context.entities) {
@@ -1072,6 +1077,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private clearFeatureSprites() {
+    this.waterSprites?.clear();
     for (const sprite of this.featureSprites.values()) {
       sprite.destroy();
     }
@@ -1095,7 +1101,7 @@ export class Scene0 extends Phaser.Scene {
       case "grass":
         return { textureKey: 'tall-grass-0' };
       case "water":
-        return { tile: tiles.FeatureTiles.water, tint: 0x4488cc };
+        return { textureKey: WATER_TEXTURE };
       case "ice":
         return { tile: tiles.FeatureTiles.water, tint: 0xbbeeff };
       case "chasm":
@@ -1138,6 +1144,8 @@ export class Scene0 extends Phaser.Scene {
     }
 
     const seen = new Set<string>();
+    this.waterSprites ??= new Map();
+    this.waterSprites.clear();
 
     tiles.forEachFeature((x, y, state) => {
       const key = `${x},${y}`;
@@ -1153,7 +1161,10 @@ export class Scene0 extends Phaser.Scene {
       // Stable visual variation without consuming gameplay randomness.
       const texKey = state.feature === 'grass' ? `tall-grass-${(x * 7 + y * 11) % 3}`
         : visual.textureKey ?? (upright ? 'foreground-tiles' : 'tiles');
-      const frame = visual.textureKey ? 0 : (visual.tile ?? 0);
+      const mask = state.feature === 'water'
+        ? waterShoreMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'water') : 0;
+      const frame = state.feature === 'water' ? waterFrame(mask, x, y, this.time.now)
+        : visual.textureKey ? 0 : (visual.tile ?? 0);
 
       if (!sprite) {
         sprite = this.add
@@ -1164,6 +1175,8 @@ export class Scene0 extends Phaser.Scene {
       } else {
         sprite.setTexture(texKey, frame);
       }
+
+      if (state.feature === 'water') this.waterSprites.set(key, { sprite, x, y, mask });
 
       // Water, ice, traps and open thresholds remain flat. Grass and closed
       // doors have transparent silhouettes that overlap the preceding row.
@@ -1184,6 +1197,16 @@ export class Scene0 extends Phaser.Scene {
         sprite.destroy();
         this.featureSprites.delete(key);
       }
+    }
+  }
+
+  private updateWater(time: number): void {
+    const step = Math.floor(time / 180);
+    if (step === this.lastWaterStep) return;
+    this.lastWaterStep = step;
+    for (const { sprite, x, y, mask } of this.waterSprites.values()) {
+      // Never change visibility or depth: fog and actors remain above the water.
+      if (sprite.visible) sprite.setFrame(waterFrame(mask, x, y, time));
     }
   }
 
