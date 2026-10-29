@@ -19,6 +19,7 @@ import grass0Url from '../../../public/rogue0/tall-grass-0.png';
 import grass1Url from '../../../public/rogue0/tall-grass-1.png';
 import grass2Url from '../../../public/rogue0/tall-grass-2.png';
 import { updateHeroAnimation } from './heroAnimation';
+import { updateHeroBurning, clearHeroBurning } from './heroBurningVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
@@ -250,6 +251,7 @@ export class Scene0 extends Phaser.Scene {
       clearMonsterSleepVisuals(this);
       clearSurpriseVisuals(this);
       clearGrassBurns(this);
+      clearHeroBurning(this);
       this.context.onGrassBurn = undefined;
     });
     this.context.scene = this;
@@ -514,6 +516,7 @@ export class Scene0 extends Phaser.Scene {
       if (entity.sprite) entity.sprite.setDepth(worldDepth(entity.sprite.y, entity.type === 'item' ? 'item' : 'actor'));
     }
     updateHeroAnimation(this.context.player, this.time.now);
+    updateHeroBurning(this, this.context.player, this.time.now);
     if (isModalOpen(this.context)) {
       this.autosave();
       if (this.context.player) {
@@ -672,6 +675,7 @@ export class Scene0 extends Phaser.Scene {
     clearMonsterSleepVisuals(this);
     clearSurpriseVisuals(this);
     clearGrassBurns(this);
+    clearHeroBurning(this);
     this.context.floor = floor;
     this.context.poisonClouds = restoreGas(restored?.poisonClouds,
       restored ? (this.context.simulationTime ?? 0) - restored.savedAt : 0);
