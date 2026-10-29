@@ -74,6 +74,18 @@ Flows are timing primitives too: each phase lasts a number of **half-breaths**
 half to `inhale` or `exhale` so alignment never drifts. A hold like downward dog
 for four breaths is simply a phase with eight halves.
 
+## Landscape layout regression test
+
+Short landscape viewports use a compact two-column player, including fullscreen.
+Pose cues, breath audio controls, progress and next-pose information remain in
+view; ordinary scrolling is retained as a fallback for enlarged accessibility text.
+
+With Vite running, run `node scripts/test-yoga-landscape.mjs`. The optional browser
+suite requires Playwright and Chromium; `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH` and
+`YOGA_URL` can override the defaults. It uses an isolated profile and checks
+740×360 through 1280×591 viewports, real fullscreen, playback/pause, rotation and
+all catalog poses. Set `YOGA_SCREENSHOT` to save a fullscreen layout screenshot.
+
 ## Files
 
 - `poses.ts`: catalog metadata and pose cues.
