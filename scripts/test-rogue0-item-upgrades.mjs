@@ -323,7 +323,9 @@ for (const [name, min, max] of [['WandOfFirebolt', 3, 6], ['WandOfFrost', 2, 5],
     wand.refill();
     const before = wand.charges;
     assert.ok(wand.displayDescription.includes(`between ${min + level} and ${max + level} damage`));
-    assert.ok(wand.displayDescription.includes(`Range is ${wand.range()} tiles`));
+    assert.equal(wand.range(), Infinity);
+    assert.ok(wand.displayDescription.includes('No distance limit'));
+    assert.ok(!wand.displayDescription.includes('Infinity'));
     assert.equal(wand.charges, before, 'describing a wand must not consume charges');
     maximum = false; assert.equal(wand.damage(), min + level);
     maximum = true; assert.equal(wand.damage(), max + level);

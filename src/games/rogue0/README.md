@@ -32,6 +32,13 @@ Optional real-browser suite: with a Vite dev server running, use
 `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH` and `ROGUE0_URL` override their defaults.
 The browser suite uses an isolated profile, never your existing saved run.
 
+## Wand targeting
+
+All wands have no distance cap, including wands in older browser saves. Zaps
+still require an in-bounds, non-wall destination and a clear line of sight;
+the first actor in the projectile path intercepts the shot. Ordinary thrown
+items retain their five-tile range. Charges and action costs are unchanged.
+
 ## Passive wand recharge
 
 Every carried wand recovers one charge per 20 elapsed world-time units, up to

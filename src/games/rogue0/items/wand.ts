@@ -15,7 +15,6 @@ export type WandConfig = {
   attackTile: number;
   damageType: DamageType;
   charges: number;
-  range?: number;
 };
 
 export default abstract class Wand extends Entity {
@@ -28,7 +27,6 @@ export default abstract class Wand extends Entity {
   // Stored with the item so partial recharge survives saves and floor travel.
   private rechargeProgress = 0;
   readonly rechargeInterval = 20;
-  wandRange: number = 5;
 
   // Category is intrinsic, not derived from the equipment slot: wands are
   // backpack tools, but remain recognizable before their magic is identified.
@@ -51,7 +49,6 @@ export default abstract class Wand extends Entity {
     this.damageType = config.damageType;
     this.charges = config.charges;
     this.maxCharges = config.charges;
-    this.wandRange = config.range ?? 5;
 
     this.init(context, x, y);
   }
@@ -66,7 +63,7 @@ export default abstract class Wand extends Entity {
 
   get baseDescription(): string {
     const [min, max] = this.damageBounds;
-    return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. Range is ${this.range()} tiles. Charges: ${this.charges}/${this.maxCharges}. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.`;
+    return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. No distance limit; walls and blocked lines of sight stop zaps. Charges: ${this.charges}/${this.maxCharges}. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.`;
   }
 
   equip() {}
@@ -101,7 +98,8 @@ export default abstract class Wand extends Entity {
   }
 
   range() {
-    return this.wandRange;
+    // Ignore obsolete wandRange values retained by older browser saves.
+    return Number.POSITIVE_INFINITY;
   }
 
   attack() {

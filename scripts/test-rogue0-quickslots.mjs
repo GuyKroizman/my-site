@@ -60,7 +60,9 @@ for (const colour of ['red', 'green', 'blue', 'gold', 'purple']) {
 }
 const genericPotion = Object.assign(new Entity(), { equipSlot: 'consumable', identified: false });
 assert.equal(genericPotion.unidentifiedTextureKey, 'unknown-potion', 'missing art keeps a fallback icon');
-const dungeon = { log() {}, getCurrentLevel: () => Array.from({length: 8}, () => Array(8).fill(0)),
+const level = Array.from({length: 30}, () => Array(30).fill(0));
+let clearSight = true;
+const dungeon = { log() {}, getCurrentLevel: () => level,
   firstActorInPath: () => undefined, entityAtTile: () => undefined };
 const Wand = load('src/games/rogue0/items/wand.ts', { Entity, dungeon, identify: i => { i.identified = true; } }).default;
 for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
@@ -75,7 +77,7 @@ for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
   assert.equal(unknownWand.displayName, `${name} +2`);
 }
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
-  Entity, Wand, Gem: class {}, dungeon, hasLineOfSight: () => true,
+  Entity, Wand, Gem: class {}, dungeon, hasLineOfSight: () => clearSight,
 }).default;
 const hero = Object.assign(Object.create(Hero.prototype), {
   backpack: [], quickslots: Array(4).fill(undefined), context: {}, x: 1, y: 1,
@@ -102,16 +104,32 @@ assert.equal(hero.turns, 0);
 hero.cancelThrow();
 assert.equal(wand.charges, 2);
 hero.activateQuickslot(0);
-hero.throwAt(7, 7); // out of range
+hero.throwAt(30, 30); // outside the map still cannot be targeted
 assert.equal(wand.charges, 2);
+assert.equal(wand.range(), Infinity, 'old saved wandRange=5 does not impose a cap');
+clearSight = false;
 hero.activateQuickslot(0);
-hero.throwAt(3, 1); // empty tile still consumes exactly one charge
+hero.throwAt(25, 1);
+assert.equal(wand.charges, 2, 'blocked line of sight consumes no charge');
+assert.equal(hero.turns, 0);
+clearSight = true;
+level[1][25] = 1;
+hero.activateQuickslot(0);
+hero.throwAt(25, 1);
+assert.equal(wand.charges, 2, 'wall targets remain invalid');
+level[1][25] = 0;
+hero.beginThrow(potion);
+hero.throwAt(25, 1);
+assert.equal(hero.turns, 0, 'ordinary throws still have a five-tile range');
+assert.ok(hero.backpack.includes(potion));
+hero.activateQuickslot(0);
+hero.throwAt(25, 1); // a distant empty tile consumes exactly one charge
 assert.equal(wand.charges, 1);
 assert.equal(hero.turns, 1);
 assert.equal(hero.weapon, weapon);
 assert.ok(hero.backpack.includes(wand));
 hero.activateQuickslot(0);
-hero.throwAt(3, 1);
+hero.throwAt(25, 25); // diagonal shots also have no distance cap
 assert.equal(wand.charges, 0);
 hero.activateQuickslot(0);
 assert.equal(hero.context.throwMode, false);
