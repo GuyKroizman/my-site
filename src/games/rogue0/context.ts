@@ -42,6 +42,7 @@ export type GameContext = {
   onTerrainEvent?: () => void;
   onCoverChanged?: () => void;
   onSurpriseAttack?: (target: Entity) => void;
+  onGrassBurn?: (cells: Array<{ x: number; y: number }>) => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   onChooseItemTarget?: (item: Entity) => void;

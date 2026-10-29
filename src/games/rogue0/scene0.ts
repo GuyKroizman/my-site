@@ -19,6 +19,7 @@ import grass0Url from '../../../public/rogue0/tall-grass-0.png';
 import grass1Url from '../../../public/rogue0/tall-grass-1.png';
 import grass2Url from '../../../public/rogue0/tall-grass-2.png';
 import { updateHeroAnimation } from './heroAnimation';
+import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
 import type { PoisonCloud } from "./context";
@@ -248,6 +249,8 @@ export class Scene0 extends Phaser.Scene {
     this.events.once("shutdown", () => {
       clearMonsterSleepVisuals(this);
       clearSurpriseVisuals(this);
+      clearGrassBurns(this);
+      this.context.onGrassBurn = undefined;
     });
     this.context.scene = this;
     resetConsumableAppearances(this.context);
@@ -309,6 +312,7 @@ export class Scene0 extends Phaser.Scene {
     dungeon.onTerrainChanged = () => this.syncFeatures();
     this.context.onCoverChanged = () => this.syncFeatures();
     this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
+    this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);
 
     const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
     const player = resumed?.player ?? new HeroClass(this.context, spawn.x, spawn.y);
@@ -503,6 +507,7 @@ export class Scene0 extends Phaser.Scene {
   update() {
     if (this.ended) return;
     this.updateWater(this.time.now);
+    updateGrassBurns(this, this.context, this.time.now, isModalOpen(this.context));
     // Use interpolated sprite positions so walking/lunging actors swap order
     // smoothly, including monsters and items spawned after floor creation.
     for (const entity of this.context.entities) {
@@ -666,6 +671,7 @@ export class Scene0 extends Phaser.Scene {
   ) {
     clearMonsterSleepVisuals(this);
     clearSurpriseVisuals(this);
+    clearGrassBurns(this);
     this.context.floor = floor;
     this.context.poisonClouds = restoreGas(restored?.poisonClouds,
       restored ? (this.context.simulationTime ?? 0) - restored.savedAt : 0);

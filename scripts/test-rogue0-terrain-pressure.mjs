@@ -858,6 +858,8 @@ for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 
   flightEffects.applyEffect(airborne, flightEffects.createLevitatingEffect());
   flightEffects.applyEffect(source, flightEffects.createBurningEffect());
   let refreshes = 0;
+  const burnEvents = [];
+  ctx.onGrassBurn = cells => { assert.equal(refreshes, 0); burnEvents.push(cells); };
   flightDungeon.onTerrainChanged = () => refreshes++;
   assert.equal(fov.blocksSight(flightDungeon.currentLevel, 3, 2), true);
   flightDungeon.igniteGrass(ctx, source, 2, 2);
@@ -880,6 +882,9 @@ for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 
   assert.ok(grounded.healthPoints < hp, 'burn damage uses the existing world-time clock');
   flightDungeon.igniteGrass(ctx, source, 2, 2);
   assert.equal(refreshes, 1, 'spent patch cannot ignite again');
+  assert.equal(burnEvents.length, 1);
+  assert.deepEqual(burnEvents[0].map(({ x, y }) => `${x},${y}`).sort(), patch.map(([x, y]) => `${x},${y}`).sort(),
+    'visual event contains exactly the burned patch, once, before terrain refresh');
   const saved = [];
   tiles.forEachFeature((x, y, state) => saved.push({ ...state, x, y }));
   tiles.clearAllFeatures(); saved.forEach(f => tiles.setFeature(f.x, f.y, f.feature, f));

@@ -689,6 +689,10 @@ let dungeon = {
         applyEffect(other, createBurningEffect());
       }
     }
+    context.onGrassBurn?.([...burned].map(key => {
+      const [x, y] = key.split(',').map(Number);
+      return { x, y };
+    }));
     this.onTerrainChanged?.();
     this.log(context, `Fire burns through ${burned.size} grass tile${burned.size === 1 ? "" : "s"}!`);
   },
