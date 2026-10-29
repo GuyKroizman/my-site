@@ -104,6 +104,8 @@ for (let run = 0; run < 5; run++) {
     assert.equal(count('ScrollOfUpgrade'), spec.upgradeScrolls);
     assert.equal(count('Boss'), floor === 25 ? 1 : 0, `boss floor ${floor}`);
     assert.ok(count('Ration') >= 1);
+    assert.equal(count('Chest'), 2, 'two real treasure chests accompany the encounter roster');
+    assert.equal(count('Mimic'), floor >= 2 ? 1 : 0);
     const occupied = new Set(items.map(item => `${item.x},${item.y}`));
     assert.equal(occupied.size, items.length, 'spawns never overlap');
     assert.ok(!occupied.has(`${spawn.x},${spawn.y}`));

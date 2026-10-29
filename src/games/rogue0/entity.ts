@@ -22,7 +22,8 @@ const consumableAppearances = new WeakMap<GameContext, Map<string, string>>();
 const knownConsumables = new WeakMap<GameContext, Set<string>>();
 function consumableKind(item: Entity): string | undefined {
   const category = item.textureKey?.startsWith('potion-') ? 'potion'
-    : item.textureKey?.startsWith('scroll-') ? 'scroll' : undefined;
+    : item.textureKey?.startsWith('scroll-') ? 'scroll'
+    : item.textureKey?.startsWith('wand-') ? 'wand' : undefined;
   return category ? `${category}:${item.name}` : undefined;
 }
 export function resetConsumableAppearances(context: GameContext): void {
@@ -36,6 +37,17 @@ export function saveConsumableKnowledge(context: GameContext) {
 export function restoreConsumableKnowledge(context: GameContext, data: ReturnType<typeof saveConsumableKnowledge>) {
   consumableAppearances.set(context, new Map(data.appearances));
   knownConsumables.set(context, new Set(data.known));
+}
+
+// Preserve knowledge from older saves that identified wands instance-by-instance.
+// Keep the saved knowledge format (and export names) compatible with old runs.
+export function rememberIdentifiedWandTypes(context: GameContext, items: Iterable<Entity>): void {
+  let known = knownConsumables.get(context);
+  if (!known) knownConsumables.set(context, known = new Set());
+  for (const item of items) {
+    const kind = consumableKind(item);
+    if (kind?.startsWith('wand:') && item.identified) known.add(kind);
+  }
 }
 const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror', 'recharging'];
 function consumableAppearance(item: Entity): string | undefined {
@@ -86,6 +98,8 @@ export abstract class Entity {
   // Optional texture key (e.g. generated potion flasks). Falls back to "tiles".
   textureKey?: string;
   consumable: boolean = false;
+  isContainer = false;
+  openContainer(): boolean { return false; }
   requiresItemTarget = false;
   itemTargetTitle = "CLEANSE: CHOOSE ITEM";
   noItemTargetsMessage = "You have no cursed items to cleanse.";
@@ -181,8 +195,10 @@ export abstract class Entity {
   // Copies, floor changes and stack splits retain the same label within a run.
   get unidentifiedName(): string {
     let hash = 2166136261;
-    const identity = consumableKind(this) && this.context
-      ? consumableAppearance(this)!
+    // Wands keep their existing type-based aliases, independent of charges,
+    // upgrades, location or equipment slot. Do not assign them potion artwork.
+    const identity = this.textureKey?.startsWith('wand-') ? `junk:${this.name}`
+      : consumableKind(this) && this.context ? consumableAppearance(this)!
       : `${this.equipSlot}:${this.name}`;
     for (const char of identity) {
       hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
@@ -275,7 +291,7 @@ export abstract class Entity {
       this.sprite.setDepth(worldDepth(this.sprite.y, this.type === "item" ? "item" : "actor"));
 
       // Floor items pulse gently so they stand out.
-      if (this.type === "item" && this.sprite) {
+      if (this.type === "item" && !this.isContainer && this.sprite) {
         context.scene?.tweens.add({
           targets: this.sprite,
           alpha: { from: 0.7, to: 1 },

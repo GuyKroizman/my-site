@@ -550,8 +550,6 @@ export class InventoryWindow {
       actions.push({ action: "use", label: item instanceof Wand ? "Zap" : "Use", enabled: true });
     }
 
-    actions.push({ action: "throw", label: "Throw", enabled: !item.cursed || !player.slotOf(item) });
-
     if (player.slotOf(item)) {
       actions.push({
         action: "unequip",
@@ -567,6 +565,7 @@ export class InventoryWindow {
       label: "Drop",
       enabled: !item.cursed || !player.slotOf(item)
     });
+    actions.push({ action: "throw", label: "Throw", enabled: !item.cursed || !player.slotOf(item) });
 
     return actions;
   }

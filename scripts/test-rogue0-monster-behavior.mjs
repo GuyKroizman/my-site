@@ -293,6 +293,18 @@ assert.equal(offspring.sprite.scale, 0.7, 'small swarm scale survives floor recr
     return { ctx, hero, chest };
   };
   let { ctx, hero, chest } = makeMimic();
+  assert.equal(chest.maxHealthPoints, 16);
+  assert.equal(chest.attackDamage, 7);
+  assert.equal(chest.protection(), 1);
+  const deep = new Mimic({ ...ctx, floor: 25 }, 2, 2);
+  assert.equal(deep.maxHealthPoints, 32);
+  assert.equal(deep.attackDamage, 15);
+  assert.equal(deep.protection(), 3);
+  Object.assign(deep, { maxHealthPoints: 4, healthPoints: 3 });
+  deep.restoreLegacyStrength(25);
+  assert.equal(deep.healthPoints, 31, 'legacy upgrade preserves damage already taken');
+  deep.restoreLegacyStrength(25);
+  assert.equal(deep.healthPoints, 31, 'legacy upgrade only runs once');
   const initialAttacks = attacks;
   for (let i = 0; i < 40; i++) { chest.refresh(); chest.turn(); }
   chest.hearNoise(hero.x, hero.y);

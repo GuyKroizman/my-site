@@ -7,6 +7,11 @@ export type EndResult = {
   kills: number;
 };
 
+export type WandZap = {
+  fromX: number; fromY: number; toX: number; toY: number;
+  damageType: import('./effects').DamageType;
+};
+
 export type PoisonCloud = { x: number; y: number; expiresAt: number; nextTick: number };
 
 export type GameContext = {
@@ -43,6 +48,7 @@ export type GameContext = {
   onCoverChanged?: () => void;
   onSurpriseAttack?: (target: Entity) => void;
   onGrassBurn?: (cells: Array<{ x: number; y: number }>) => void;
+  onWandZap?: (zap: WandZap) => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   onChooseItemTarget?: (item: Entity) => void;

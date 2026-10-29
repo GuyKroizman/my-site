@@ -32,6 +32,32 @@ Optional real-browser suite: with a Vite dev server running, use
 `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH` and `ROGUE0_URL` override their defaults.
 The browser suite uses an isolated profile, never your existing saved run.
 
+## Treasure chests and mimics
+
+Newly generated floors contain two real treasure chests (separate from the mimic
+encounter on floors 2+). Walk into a chest using movement keys, or tap it to walk
+over and open it. Opening takes one use-action turn without moving the hero;
+its reward appears on the floor for normal pickup, even if the backpack is full.
+Chests cannot be carried. Each chest contains gold, a ration, a gem, a healing
+potion, or floor-tier equipment, rolled once when the chest is generated.
+Contents and opened state persist through travel and browser saves. Previously
+visited floors are not repopulated with new chests.
+
+Mimics stay dormant until attacked or damaged. Their stats now scale across the
+five dungeon regions: 16–32 HP, 7–15 damage, 1–3 protection, and 6-tile vision.
+Legacy 4-HP mimics in browser saves are upgraded once while preserving existing
+damage and provocation state.
+
+## Wand identification
+
+Wand identity is shared across the whole run, like potion and scroll knowledge.
+Every copy of a wand type has the same stable gibberish label, independent of
+charges, upgrades and floor location; the three wand types have distinct labels.
+Identifying or first zapping one copy reveals all existing and future copies of
+that type. Other types remain unknown, and a new run starts with no discoveries.
+Browser saves retain shared knowledge. Older saves also recover knowledge from
+identified wands in the backpack or on any visited floor without adding log spam.
+
 ## Wand targeting
 
 All wands have no distance cap, including wands in older browser saves. Zaps

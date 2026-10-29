@@ -53,7 +53,7 @@ try {
   Math.random = random;
 }
 // Shared type knowledge reaches carried, floor, and future copies, but not other runs.
-for (const category of ['potion', 'scroll']) {
+for (const category of ['potion', 'scroll', 'wand']) {
   resetConsumableAppearances(context);
   const first = make(`${category} test`, category);
   const carried = make(first.name, category);

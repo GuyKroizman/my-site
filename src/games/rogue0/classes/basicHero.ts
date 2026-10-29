@@ -285,6 +285,7 @@ export default class BasicHero extends Entity {
   // in the backpack. Returns false (and leaves the item untouched on the
   // ground) when there is no room.
   addItem(item: Entity): boolean {
+    if (item.isContainer) return false; // World containers cannot enter a backpack.
     if (item.goldAmount > 0) {
       // Only live floor piles can be collected; prevent duplicate credit.
       const index = this.context.entities.indexOf(item);
@@ -1017,6 +1018,10 @@ export default class BasicHero extends Entity {
 
     if (entity && entity.type === "item") {
       this.walkPath = [];
+      if (entity.isContainer) {
+        entity.openContainer();
+        return;
+      }
       if (this.addItem(entity)) {
         dungeon.itemPicked(entity);
         dungeon.log(this.context, `You pick up ${entity.displayName}.`);
@@ -1211,6 +1216,7 @@ export default class BasicHero extends Entity {
         this.cancelThrow();
         return;
       }
+      context.onWandZap?.({ fromX: this.x, fromY: this.y, toX: tx, toY: ty, damageType: item.damageType });
       const damage = item.damage();
       const enemy = intercepted ?? dungeon.entityAtTile(context, tx, ty);
       if (enemy?.type === "enemy") {
@@ -1684,6 +1690,10 @@ export default class BasicHero extends Entity {
 
         // Check if entity at destination is an item
         if (entity && entity.type == "item" && !hasEffect(this, "rooted")) {
+          if (entity.isContainer) {
+            entity.openContainer();
+            return;
+          }
           if (this.addItem(entity)) {
             dungeon.itemPicked(entity);
             const detail = entity.identified ? `: ${entity.displayDescription}` : "";

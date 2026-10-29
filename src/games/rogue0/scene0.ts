@@ -20,6 +20,7 @@ import grass1Url from '../../../public/rogue0/tall-grass-1.png';
 import grass2Url from '../../../public/rogue0/tall-grass-2.png';
 import { updateHeroAnimation } from './heroAnimation';
 import { updateHeroBurning, clearHeroBurning } from './heroBurningVisuals';
+import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
@@ -84,6 +85,7 @@ import Boss from "./monsters/boss";
 import Cultist from "./monsters/cultist";
 import FireElemental, { IceElemental, ShockElemental } from "./monsters/elemental";
 import Mimic from "./monsters/mimic";
+import Chest from "./items/chest";
 import SwarmOfFlies from "./monsters/swarmOfFlies";
 import { updateMonsterSleepVisuals, clearMonsterSleepVisuals } from "./monsters/monsterSleepVisuals";
 import Wraith from "./monsters/wraith";
@@ -97,7 +99,7 @@ import { computeFOV, resolveVision } from "./fov";
 import { hasEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
-import { resetConsumableAppearances, saveConsumableKnowledge, restoreConsumableKnowledge } from "./entity";
+import { resetConsumableAppearances, saveConsumableKnowledge, restoreConsumableKnowledge, rememberIdentifiedWandTypes } from "./entity";
 import { encodeGraph, decodeGraph } from './saveCodec';
 import { saveRegistry } from './saveRegistry';
 import { restoreEffects } from './saveEffects';
@@ -252,7 +254,9 @@ export class Scene0 extends Phaser.Scene {
       clearSurpriseVisuals(this);
       clearGrassBurns(this);
       clearHeroBurning(this);
+      clearWandZaps(this);
       this.context.onGrassBurn = undefined;
+      this.context.onWandZap = undefined;
     });
     this.context.scene = this;
     resetConsumableAppearances(this.context);
@@ -315,6 +319,7 @@ export class Scene0 extends Phaser.Scene {
     this.context.onCoverChanged = () => this.syncFeatures();
     this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
     this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);
+    this.context.onWandZap = zap => showWandZap(this, this.context, zap);
 
     const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
     const player = resumed?.player ?? new HeroClass(this.context, spawn.x, spawn.y);
@@ -326,6 +331,10 @@ export class Scene0 extends Phaser.Scene {
       this.context.messages = resumed.messages;
       this.context.simulationTime = resumed.time;
       restoreConsumableKnowledge(this.context, resumed.knowledge);
+      rememberIdentifiedWandTypes(this.context, [
+        ...player.getAllItems(),
+        ...[...this.floors.values()].flatMap(floor => floor.entities),
+      ]);
       generateFireElementalTexture(this);
       generateLightningElementalTexture(this);
       generateFlySwarmTexture(this);
@@ -509,6 +518,7 @@ export class Scene0 extends Phaser.Scene {
   update() {
     if (this.ended) return;
     this.updateWater(this.time.now);
+    updateWandZaps(this, this.context, this.time.now, isModalOpen(this.context));
     updateGrassBurns(this, this.context, this.time.now, isModalOpen(this.context));
     // Use interpolated sprite positions so walking/lunging actors swap order
     // smoothly, including monsters and items spawned after floor creation.
@@ -586,6 +596,9 @@ export class Scene0 extends Phaser.Scene {
           !data.map.every((row: unknown) => Array.isArray(row) && row.length === data.map[0].length && row.length <= 256 && row.every(Number.isFinite)) ||
           !Array.isArray(data.features) || !Array.isArray(data.entities) || !Array.isArray(data.seen) ||
           !Number.isFinite(data.savedAt) || !data.up || !data.down) throw new Error('Invalid saved floor');
+      for (const entity of data.entities) {
+        if (entity instanceof Mimic) entity.restoreLegacyStrength(floor);
+      }
     }
     const active = run.floors.get(run.floor);
     if (!Number.isInteger(run.player.x) || !Number.isInteger(run.player.y) ||
@@ -676,6 +689,7 @@ export class Scene0 extends Phaser.Scene {
     clearSurpriseVisuals(this);
     clearGrassBurns(this);
     clearHeroBurning(this);
+    clearWandZaps(this);
     this.context.floor = floor;
     this.context.poisonClouds = restoreGas(restored?.poisonClouds,
       restored ? (this.context.simulationTime ?? 0) - restored.savedAt : 0);
@@ -1315,6 +1329,7 @@ export class Scene0 extends Phaser.Scene {
     const quloptshCount = Math.max(0, density - 2);
     const swarmCount = floor >= 2 ? 1 : 0;
     const mimicCount = floor >= 2 ? 1 : 0;
+    const chestCount = 2;
     const cultistCount = floor >= 3 ? 1 : 0;
     const elementalCount = floor >= 3 ? 1 : 0;
     const wraithCount = floor >= 3 ? 1 : 0;
@@ -1326,7 +1341,7 @@ export class Scene0 extends Phaser.Scene {
       levelArray,
       skeletonCount + goblinCount + ghoulCount + bruteCount + bossCount + quloptshCount +
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
-        cursedGemCount + foodCount + itemCount + progressionCount,
+        cursedGemCount + foodCount + itemCount + progressionCount + chestCount,
       exclude,
       MAX_VISIBLE_X
     );
@@ -1351,6 +1366,7 @@ export class Scene0 extends Phaser.Scene {
     }
     spawnGroup(Ration, foodCount);
     spawnGroup(Boss, bossCount);
+    spawnGroup(Chest, chestCount);
 
     spawnGroup(Skeleton, skeletonCount);
     spawnGroup(Quloptsh, quloptshCount);

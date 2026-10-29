@@ -13,7 +13,8 @@ function load(path, bindings = {}) {
   }))(exports, ...Object.values(bindings));
   return exports;
 }
-const { Entity, upgrade, identify, removeEntity } = load('src/games/rogue0/entity.ts', load('src/games/rogue0/rendering.ts'));
+const { Entity, upgrade, identify, removeEntity, saveConsumableKnowledge, restoreConsumableKnowledge,
+  rememberIdentifiedWandTypes } = load('src/games/rogue0/entity.ts', load('src/games/rogue0/rendering.ts'));
 // Every category keeps its floor texture/frame/tint before and after identification.
 for (const equipSlot of ['weapon', 'armor', 'ring', 'artifact', 'consumable', 'junk']) {
   for (const textureKey of [undefined, 'custom-item']) {
@@ -172,6 +173,54 @@ const Gem = itemClass('gem', { Shield });
 const Wand = itemClass('wand');
 const ScrollOfUpgrade = itemClass('ScrollOfUpgrade', { Wand });
 const Ring = itemClass('ring');
+// Wands have distinct, stable aliases and identification is knowledge of a type,
+// not a single copy. This also covers browser persistence and legacy local flags.
+{
+  const types = ['WandOfFirebolt', 'WandOfFrost', 'WandOfLightning'].map(name => itemClass(name, { Wand }));
+  const ctx = { messages: [] };
+  const originals = types.map(Type => new Type(ctx));
+  const labels = originals.map(item => item.unidentifiedName);
+  assert.equal(new Set(labels).size, types.length, 'different wand types never share an alias');
+  for (const [i, Type] of types.entries()) {
+    const copy = new Type(ctx);
+    copy.level = 3; copy.charges = 0; copy.x = 9; copy.y = 7;
+    assert.equal(copy.unidentifiedName, labels[i], 'upgrades, charges and floor locations never change a type alias');
+    assert.equal(copy.spriteTextureKey, originals[i].textureKey, 'wand labels never replace the actual texture');
+  }
+  const Lightning = types[2];
+  const sibling = new Lightning(ctx);
+  sibling.level = 2;
+  const offFloor = new Lightning(ctx); offFloor.x = 3; offFloor.y = 8;
+  assert.equal(sibling.identified, false);
+  originals[2].damage(); // First zap discovers the type.
+  for (const copy of [originals[2], sibling, offFloor, new Lightning(ctx)]) assert.equal(copy.identified, true);
+  assert.equal(sibling.displayName, 'Wand of Lightning +2');
+  assert.equal(originals[0].identified, false);
+  assert.equal(originals[1].identified, false);
+  assert.equal(new Lightning({ messages: [] }).identified, false, 'separate runs do not share knowledge');
+  const { encodeGraph, decodeGraph } = load('src/games/rogue0/saveCodec.ts');
+  const registry = Object.fromEntries(types.map((Type, i) => [`wand${i}`, Type]));
+  const state = { items: [...originals, sibling, offFloor], knowledge: saveConsumableKnowledge(ctx) };
+  const loadedContext = { messages: [] };
+  const restored = decodeGraph(JSON.parse(JSON.stringify(encodeGraph(state, registry))), registry,
+    item => { item.context = loadedContext; });
+  restoreConsumableKnowledge(loadedContext, restored.knowledge);
+  assert.equal(restored.items[3].identified, true);
+  assert.equal(restored.items[4].identified, true);
+  assert.equal(new Lightning(loadedContext).identified, true, 'future finds stay identified after reload');
+  assert.equal(restored.items[0].identified, false);
+  assert.deepEqual(restored.items.slice(0, 3).map(item => item.unidentifiedName), labels);
+  // Old saves recorded identification only on the original instance. A known
+  // copy on another floor must seed the shared knowledge without log spam.
+  const legacyContext = { messages: [] };
+  const known = new Lightning(legacyContext); known.identified = true;
+  const unknown = new Lightning(legacyContext);
+  restoreConsumableKnowledge(legacyContext, { appearances: [], known: [] });
+  rememberIdentifiedWandTypes(legacyContext, [unknown, known]);
+  assert.equal(unknown.identified, true);
+  assert.equal(new Lightning(legacyContext).identified, true);
+  assert.deepEqual(legacyContext.messages, []);
+}
 // Scrolls always request a target, even with one eligible item. Cancelling is
 // free; confirmation upgrades only that item and consumes one stacked scroll.
 {
