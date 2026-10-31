@@ -32,6 +32,16 @@ function hostileAtTile(context: GameContext, x: number, y: number): Entity | und
     entity.x === x && entity.y === y
   );
 }
+
+// Pickup log lines read naturally ("You picked up a Gem.") without dumping an
+// item's full description into the message log. Gold piles are a mass noun and
+// get no article.
+function pickupMessage(entity: Entity): string {
+  const label = entity.displayName;
+  if (entity.goldAmount > 0) return `You picked up ${label}.`;
+  const article = /^[aeiou]/i.test(label) ? "an" : "a";
+  return `You picked up ${article} ${label}.`;
+}
 import { spawnEntityFloatingText } from "../floatingText";
 import { actionCost, starvationDamageDuring, type ActionKind } from "../timing";
 
@@ -1069,7 +1079,7 @@ export default class BasicHero extends Entity {
       }
       if (this.addItem(entity)) {
         dungeon.itemPicked(entity);
-        dungeon.log(this.context, `You pick up ${entity.displayName}.`);
+        dungeon.log(this.context, pickupMessage(entity));
         // Pickup is included in the cost of stepping onto this tile.
         this.spendTurn("move");
         dungeon.moveEntityTo(this.context, this, step.x, step.y);
@@ -1787,8 +1797,7 @@ export default class BasicHero extends Entity {
           }
           if (this.addItem(entity)) {
             dungeon.itemPicked(entity);
-            const detail = entity.identified ? `: ${entity.displayDescription}` : "";
-            dungeon.log(this.context, `You pick up ${entity.displayName}${detail}`);
+            dungeon.log(this.context, pickupMessage(entity));
             // Pickup shares the movement turn below.
           } else {
             newX = oldX;
