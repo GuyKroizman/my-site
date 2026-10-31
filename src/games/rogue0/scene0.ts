@@ -101,6 +101,7 @@ import { hasEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import { resetConsumableAppearances, saveConsumableKnowledge, restoreConsumableKnowledge, rememberIdentifiedWandTypes } from "./entity";
+import { maybeCurse } from "./curses";
 import { encodeGraph, decodeGraph } from './saveCodec';
 import { saveRegistry } from './saveRegistry';
 import { restoreEffects } from './saveEffects';
@@ -1398,9 +1399,11 @@ export class Scene0 extends Phaser.Scene {
     // Random loot drawn from a weighted, SPD-style table.
     for (let l = 0; l < itemCount && i < tiles.length; l++, i++) {
       const Loot = weightedPick(LOOT_TABLE);
-      context.entities.push(Loot === TieredWeapon || Loot === TieredArmor
+      const item = Loot === TieredWeapon || Loot === TieredArmor
         ? new Loot(context, tiles[i].x, tiles[i].y, lootTier(floor))
-        : new Loot(context, tiles[i].x, tiles[i].y));
+        : new Loot(context, tiles[i].x, tiles[i].y);
+      maybeCurse(item);
+      context.entities.push(item);
     }
   }
 

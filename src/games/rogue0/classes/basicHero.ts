@@ -18,6 +18,13 @@ import {
 } from "../effects";
 import type { DamageType, StatusEffect } from "../effects";
 import { resolveAttack } from "../combat";
+
+// A friendly decoy (mirror image) is rendered/scheduled like an enemy, but is
+// never a valid attack target for the hero. Kept local so headless tests that
+// strip imports (and inject plain object stubs) still exercise real logic.
+function isHostile(entity: Entity): boolean {
+  return entity.type === "enemy" && !entity.isDecoy;
+}
 import { spawnEntityFloatingText } from "../floatingText";
 import { actionCost, starvationDamageDuring, type ActionKind } from "../timing";
 
@@ -602,6 +609,7 @@ export default class BasicHero extends Entity {
       if (item.cursed) {
         item.cursed = false;
         item.curseLifted = true;
+        item.curseId = "";
         item.onUncursed?.();
         lifted = true;
       }
@@ -785,7 +793,7 @@ export default class BasicHero extends Entity {
       return;
     }
 
-    if (entity && entity.type === "enemy") {
+    if (entity && isHostile(entity)) {
       const currentWeapon = this.currentWeapon();
       const rangedAttack = currentWeapon && currentWeapon.range() > 0
         ? currentWeapon.attackTile || currentWeapon.tile
@@ -944,7 +952,7 @@ export default class BasicHero extends Entity {
     // encountered later along the route. Use identity rather than position.
     this.acknowledgedWalkEnemies = new Set(
       this.context.entities.filter((entity) =>
-        entity.type === "enemy" && entity.healthPoints > 0 &&
+        isHostile(entity) && entity.healthPoints > 0 &&
         this.context.visibleTiles.has(`${entity.x},${entity.y}`) &&
         !isGrassConcealed(entity.x, entity.y, this.x, this.y)
       )
@@ -958,7 +966,7 @@ export default class BasicHero extends Entity {
     if (isModalOpen(this.context)) return;
     if (this.walkPath.length === 0) return;
     if (this.context.entities.some((entity) =>
-      entity.type === "enemy" && entity.healthPoints > 0 &&
+      isHostile(entity) && entity.healthPoints > 0 &&
       !this.acknowledgedWalkEnemies.has(entity) &&
       this.context.visibleTiles.has(`${entity.x},${entity.y}`) &&
       !isGrassConcealed(entity.x, entity.y, this.x, this.y)
@@ -980,7 +988,7 @@ export default class BasicHero extends Entity {
     // Recheck every automated action: damage and movement speed may change
     // during travel. Stop without spending time, opening doors or picking up loot.
     if (this.hunger <= 0) {
-      const action = entity?.type === 'enemy' ? 'attack' : 'move';
+      const action = entity && isHostile(entity) ? 'attack' : 'move';
       const duration = actionCost(this, action, this.currentWeapon()?.attackDelay ?? this.attackDelay);
       if (starvationDamageDuring(this.context.simulationTime ?? 0, duration) >= this.healthPoints) {
         this.walkPath = [];
@@ -989,7 +997,7 @@ export default class BasicHero extends Entity {
       }
     }
 
-    if (entity && entity.type === "enemy") {
+    if (entity && isHostile(entity)) {
       this.walkPath = [];
       if (this.canAct()) {
         const weapon = this.currentWeapon();
@@ -1219,7 +1227,7 @@ export default class BasicHero extends Entity {
       const enemy = intercepted ?? dungeon.entityAtTile(context, tx, ty);
       context.onWandZap?.({ fromX: this.x, fromY: this.y, toX: tx, toY: ty, damageType: item.damageType });
       const damage = Math.round(item.damage() * (enemy ? item.wandDamageMultiplier(enemy) : 1));
-      if (enemy?.type === "enemy") {
+      if (enemy && isHostile(enemy)) {
         const attack = this.attack;
         this.attack = () => damage;
         try {
@@ -1293,7 +1301,7 @@ export default class BasicHero extends Entity {
     // Loot can share an actor's tile; entity array order must not hide the
     // living target from the impact handler.
     const target = context.entities.find(entity =>
-      entity.type === "enemy" && entity.healthPoints > 0 && entity.x === tx && entity.y === ty
+      isHostile(entity) && entity.healthPoints > 0 && entity.x === tx && entity.y === ty
     );
 
     if (target) {
@@ -1520,7 +1528,7 @@ export default class BasicHero extends Entity {
     let bestDistance = Infinity;
 
     for (const entity of this.context.entities) {
-      if (entity.type !== "enemy" || !entity.sprite) continue;
+      if (!isHostile(entity) || !entity.sprite) continue;
       if (entity.x === undefined || entity.y === undefined) continue;
       if (!this.context.visibleTiles.has(`${entity.x},${entity.y}`)) continue;
 
@@ -1543,7 +1551,7 @@ export default class BasicHero extends Entity {
     if (this.x === undefined || this.y === undefined) return undefined;
 
     for (const entity of this.context.entities) {
-      if (entity.type !== "enemy" || !entity.sprite) continue;
+      if (!isHostile(entity) || !entity.sprite) continue;
       if (entity.x === undefined || entity.y === undefined) continue;
 
       const distance = Math.max(
@@ -1562,7 +1570,7 @@ export default class BasicHero extends Entity {
 
     const enemies: Entity[] = [];
     for (const entity of this.context.entities) {
-      if (entity.type !== "enemy" || !entity.sprite) continue;
+      if (!isHostile(entity) || !entity.sprite) continue;
       if (entity.x === undefined || entity.y === undefined) continue;
       if (!this.context.visibleTiles.has(`${entity.x},${entity.y}`)) continue;
 
@@ -1671,7 +1679,7 @@ export default class BasicHero extends Entity {
         const entity = dungeon.entityAtTile(this.context, newX, newY);
 
         // Check if entity at destination is an enemy
-        if (entity && entity.type == "enemy") {
+        if (entity && isHostile(entity)) {
           const currentWeapon = this.currentWeapon();
           if (!currentWeapon) {
             return;

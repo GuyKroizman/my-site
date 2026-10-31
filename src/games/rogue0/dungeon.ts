@@ -4,6 +4,8 @@ import { dungeonTheme } from "./dungeonTheme";
 import { bresenhamLine } from "./fov";
 import type { Entity } from "./entity";
 import { removeEntity } from "./entity";
+import MirrorImage from "./monsters/mirrorImage";
+import { CURSE_PROC_CHANCE } from "./curseData";
 import { sfx } from "./audio";
 import { resolveAttack } from "./combat";
 import { spawnEntityFloatingText } from "./floatingText";
@@ -608,6 +610,65 @@ const dungeon = {
     return cells[Math.floor(Math.random() * cells.length)];
   },
 
+  // One empty, walkable, feature-unblocked cardinal neighbour. Used to place
+  // a mirror image without overlapping another actor or a hazard.
+  adjacentEmptyTile: function (
+    context: GameContext,
+    x: number,
+    y: number
+  ): { x: number; y: number } | null {
+    const level = this.currentLevel;
+    if (!level) return null;
+    const dirs: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (let i = dirs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+    }
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (level[ny]?.[nx] !== 0) continue;
+      if (tiles.isBlocking(nx, ny)) continue;
+      if (context.entities.some(e => e.sprite && e.x === nx && e.y === ny)) continue;
+      return { x: nx, y: ny };
+    }
+    return null;
+  },
+
+  // Armor curse proc: fires once per successful enemy hit against the hero.
+  // Only implemented curses are Displacement and Multiplicity (see PLAN.md).
+  procArmorCurse: function (context: GameContext, victim: Entity): void {
+    const armor = (victim as any).armor as Entity | undefined;
+    if (!armor?.cursed || !armor.curseId) return;
+    if (Math.random() >= CURSE_PROC_CHANCE) return;
+
+    if (armor.curseId === "displacement") {
+      if (victim.x === undefined || victim.y === undefined) return;
+      const tile = this.randomWalkableTile(context, victim.x, victim.y);
+      if (!tile) return;
+      victim.x = tile.x;
+      victim.y = tile.y;
+      if (context.map && victim.sprite) {
+        victim.sprite.setPosition(
+          context.map.tileToWorldX(tile.x)!,
+          context.map.tileToWorldY(tile.y)!
+        );
+      }
+      const player = context.player;
+      if (victim === player) {
+        player.walkPath = [];
+        player.inputBuffer = [];
+      }
+      this.log(context, "Your cursed armor displaces you!");
+    } else if (armor.curseId === "multiplicity") {
+      if (victim.x === undefined || victim.y === undefined) return;
+      const spot = this.adjacentEmptyTile(context, victim.x, victim.y);
+      if (!spot) return;
+      context.entities.push(new MirrorImage(context, spot.x, spot.y, victim));
+      this.log(context, "Your cursed armor conjures a mirror image!");
+    }
+  },
+
   conductShock: function (context: GameContext, target: Entity, primaryDamage: number): void {
     if (!Number.isFinite(primaryDamage) || primaryDamage <= 0 ||
         target.x === undefined || target.y === undefined || hasEffect(target, "levitating") ||
@@ -839,6 +900,9 @@ const dungeon = {
         `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for no damage.`
       );
     }
+
+    // Cursed armor reacts to being struck (Displacement/Multiplicity).
+    if (victim.type === "player") this.procArmorCurse(context, victim);
 
     for (const effect of result.appliedEffects) {
       if (victim.healthPoints > 0) {

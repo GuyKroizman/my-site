@@ -22,10 +22,13 @@ has been playtested. Checked boxes mean the described implementation exists.
 - `effects.ts` and `combat.ts` provide timed statuses, accuracy/evasion,
   physical armour, elemental resistance/vulnerability, crits and surprise
   attacks (auto-hit, bonus damage, possible bleed).
-- Item identification, cursed equipment, upgrade levels, charged wands,
-  five rings, two artifacts, expanded scrolls/potions and food exist.
-  Strength requirements and weapon/armor tiers 1–5 are implemented.
-  Durability, enchantments/glyphs and balance playtesting remain outstanding.
+- Item identification, upgrade levels, charged wands, five rings, two
+  artifacts, expanded scrolls/potions and food exist. Curse machinery exists
+  (lock-on guards, `removeCurse()`, Remove Curse/Holy Potion, a bespoke
+  Cursed Gem), but random equipment is **never generated cursed** — see the
+  SPD-style curse plan in Phase 6. Strength requirements and weapon/armor
+  tiers 1–5 are implemented. Durability, enchantments/glyphs and balance
+  playtesting remain outstanding.
 - Explicit weapon/armor/two-ring/artifact slots and a 20-slot backpack replace
   active-item aggregation. Inventory is modal, with item actions and stacking.
 - Terrain uses a coordinate-keyed feature overlay on the binary floor/wall
@@ -234,7 +237,9 @@ HUD + modal window system.
 *Depends on G3, G6.*
 
 - [x] Identification: unknown consumables/gear; identify by use or scroll.
-- [x] Cursed gear (can't unequip, penalty) + Remove Curse.
+- [x] Cursed-gear machinery (lock-on guards, `removeCurse()`, Remove Curse,
+      Holy Potion, Cursed Gem). Random curse generation + per-slot penalties
+      are planned below, not implemented yet.
 - [x] Scroll of Upgrade and item upgrade-level model; upgrade scrolls, gems and
       Holy Potions let the player choose a target.
 - [x] Implement SPD-style Strength, weapon/armor tiers 1–5, upgrade scaling
@@ -339,6 +344,91 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
     when a throw target item is removed or becomes equipped and cursed.
     Visual UI verification and five-class balance playtesting are deferred at
     user request, not completed.
+#### SPD-style cursed items (planned — named SPD curses)
+
+SPD's core risk loop is a gamble on every unidentified equipment find: a
+fraction of gear is cursed, applies a specific thematic curse while equipped, and
+stays locked on until the curse is lifted. rogue0 already has the machinery —
+the `cursed`/`curseLifted` flags, the equip/unequip/drop/throw lock-on guards,
+`removeCurse()`, Remove Curse and Holy Potion — but today the **only** cursed
+item is the bespoke Cursed Gem. Weapons, armor and rings are never generated
+cursed, so the loop never fires in normal play.
+
+**Landed (first slice):** `curseId` assignment, armor-only curse generation at
+25%, the **Displacement** and **Multiplicity** procs, the mirror-image decoy
+entity, enemy decoy targeting, player-attack guards, and
+`scripts/test-rogue0-cursed-items.mjs`. Weapon/ring curses and the remaining
+armor curses are still pending.
+
+- [x] **Generation (armor only).** Random equipment — `LOOT_TABLE` weapon/armor draws and
+      chest weapon/armor — has a per-item chance to be cursed (start at **25%**,
+      kept in one config constant). The guaranteed progression supplies (band
+      weapon/armor, Strength potions, upgrade scrolls, rations) are **never**
+      cursed. Cursed items stay unidentified on the floor and in the backpack,
+      exactly like clean ones. Route the curse roll through a small helper so
+      tests can force the outcome deterministically. Weapon and ring tables are
+      empty in this slice, so only armor can actually roll a curse (a locked
+      slot must always carry an observable penalty).
+- [ ] **Named curses, not flat penalties.** Each cursed item rolls one
+      specific curse from its slot's SPD-style table and stores a `curseId`.
+      One cursed item = one curse. Every curse reuses rogue0's existing systems
+      (effects, terrain, `gas.ts`, teleport, alarm) instead of inventing new
+      stats, and its name is revealed on equip/Remove Curse in the item
+      description — matching SPD's named curses.
+
+  *Weapon curses (SPD → rogue0):*
+
+  | Curse | SPD behaviour | rogue0 mapping |
+  |---|---|---|
+  | Wayward | attacks often miss | equipped weapon halves `effectiveAccuracy` |
+  | Sacrificial | you pay for each hit | hero takes ~25% of the damage dealt |
+  | Displacing | struck enemy is flung away | teleport the victim via `randomWalkableTile` (reuse the teleport-trap helper) |
+  | Annoying | strikes draw enemies | wake living enemies within 8 tiles to investigate (reuse the alarm-trap helper) |
+  | Friendly | struck enemy is charmed | new `charmed` effect: victim won't attack for ~4 world-time units |
+  | Polarized | wildly random damage | damage ×0.5–×1.5 each hit |
+  | Exhausting | you tire yourself | chance to apply `crippled` to the hero |
+
+  *Armor curses (SPD → rogue0):*
+
+  | Curse | SPD behaviour | rogue0 mapping |
+  |---|---|---|
+  | Multiplicity | hit → an image of you appears | spawn a friendly mirror-image decoy that enemies may target (new decoy entity) — **implemented** |
+  | Displacement | hit → you teleport | teleport the hero via `randomWalkableTile` (reuse the teleport-trap helper) — **implemented** |
+  | Anti-entropy | thermal chaos | chance to ignite the hero and freeze cardinally adjacent enemies |
+  | Corrosion | caustic gas on hit | emit a caustic cloud on the hero's tile (extend `gas.ts`) |
+  | Stench | toxic gas on hit | emit the existing toxic-gas cloud (reuse `gas.ts` as-is) |
+  | Overgrowth | grass sprouts around you | grow grass on the hero's tile and cardinal neighbours |
+  | Metabolism | you hunger faster | double hunger drain while worn |
+  | Bulk | you are slowed | apply the existing movement slow while worn |
+
+  *Ring curses (SPD):* cursed rings **invert** their passive — Might →
+  `-damage`, Haste → slower movement, Accuracy → `-accuracy`, Evasion →
+  `-evasion`, Elements → fire/ice/shock vulnerability. This is the one faithful
+  flat-inversion case; rings reuse their existing `applyPassive()` with a sign
+  flip rather than gaining a proc.
+
+  *Wand/artifact curses:* deferred. Cursed wands backfire on the caster (e.g.
+  a cursed Firebolt ignites you); cursed artifacts get per-artifact penalties
+  (e.g. Chalice drains HP). A later pass.
+- [ ] **Lock-on & reveal.** Keep the existing unequip/drop/throw guards for
+      equipped cursed items. Equipping reveals the curse: weapons/armor already
+      log it; rings must log the same reveal in `onEquip` (they currently only
+      identify). Remove Curse / Holy Potion lift every equipped curse and
+      re-enable removal — verify this path still works for generated curses.
+- [ ] **Detection.** Once known (equipped, or after Remove Curse), reuse the
+      existing red glow / "(cursed)" inventory label. Never reveal curses on
+      unidentified, unequipped items.
+- [x] **Regression.** New `scripts/test-rogue0-cursed-items.mjs` (added to
+      `npm run test:rogue0`): curse chance and guaranteed supplies stay clean;
+      each named curse's proc/penalty applies while equipped and clears on
+      unequip/uncursing (weapon procs, armor procs, ring inversion); lock-on
+      guards; Remove Curse/Holy Potion lifting; identification secrecy; and
+      save/load preserving `curseId` + curse state.
+- **Acceptance:** equipping an unidentified weapon/armor/ring is a real gamble
+  — you may get a named curse with an observable signature (a teleport on hit,
+  a decoy of yourself, self-damage, a gas cloud) plus a locked slot, with
+  Remove Curse / Holy Potion as the scarce way out, matching the SPD tension.
+
 - **Acceptance:** deciding whether to equip an unidentified item is a real,
   tense choice with consequences in both directions.
 

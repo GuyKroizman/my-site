@@ -33,28 +33,42 @@ function chebyshev(aX: number, aY: number, bX: number, bY: number): number {
   return Math.max(Math.abs(aX - bX), Math.abs(aY - bY));
 }
 
-function isAdjacentToPlayer(entity: Entity, player: Entity): boolean {
+function isAdjacentTo(entity: Entity, target: Entity): boolean {
   if (
     entity.x === undefined ||
     entity.y === undefined ||
-    player.x === undefined ||
-    player.y === undefined
+    target.x === undefined ||
+    target.y === undefined
   ) {
     return false;
   }
-  return chebyshev(entity.x, entity.y, player.x, player.y) <= 1;
+  return chebyshev(entity.x, entity.y, target.x, target.y) <= 1;
 }
 
-function inRange(entity: Entity, player: Entity): boolean {
+function inRange(entity: Entity, target: Entity): boolean {
   if (
     entity.x === undefined ||
     entity.y === undefined ||
-    player.x === undefined ||
-    player.y === undefined
+    target.x === undefined ||
+    target.y === undefined
   ) {
     return false;
   }
-  return chebyshev(entity.x, entity.y, player.x, player.y) <= entity.range();
+  return chebyshev(entity.x, entity.y, target.x, target.y) <= entity.range();
+}
+
+function visibleDecoy(entity: Entity): Entity | undefined {
+  const context = entity.context;
+  if (entity.x === undefined || entity.y === undefined) return undefined;
+  if (!context?.entities) return undefined;
+  for (const other of context.entities) {
+    if (other === entity || !other.isDecoy || other.type !== "enemy" ||
+        other.healthPoints <= 0 || other.x === undefined || other.y === undefined) continue;
+    if (canSee(dungeon.getCurrentLevel(), entity.x, entity.y, other.x, other.y, entity.visionRadius)) {
+      return other;
+    }
+  }
+  return undefined;
 }
 
 export function enemyTurn(entity: Entity): void {
@@ -82,18 +96,26 @@ export function enemyTurn(entity: Entity): void {
     return;
   }
 
+  const decoy = visibleDecoy(entity);
+  // When both the hero and a mirror image are valid targets, the enemy wastes
+  // its action on the image about half the time.
+  const preferDecoy = !!decoy && Math.random() < 0.5;
+  const attackTarget = (decoy && (preferDecoy || !seesPlayer))
+    ? decoy
+    : (seesPlayer ? player : null);
+
   let acted = false;
 
   // 1) Attack. Ranged enemies shoot when in range; melee enemies strike
-  //    when adjacent.
-  if (seesPlayer) {
+  //    when adjacent. A visible mirror image is a valid target.
+  if (attackTarget) {
     if (entity.range() > 0) {
-      if (inRange(entity, player) &&
-          dungeon.firstActorInPath(entity.context, entity, player.x, player.y) === player) {
+      if (inRange(entity, attackTarget) &&
+          dungeon.firstActorInPath(entity.context, entity, attackTarget.x!, attackTarget.y!) === attackTarget) {
         dungeon.attackEntity(
           entity.context,
           entity,
-          player,
+          attackTarget,
           entity.attackTile,
           entity.tint,
           entity.damageType
@@ -101,11 +123,11 @@ export function enemyTurn(entity: Entity): void {
         entity.spendTime("attack");
         acted = true;
       }
-    } else if (isAdjacentToPlayer(entity, player)) {
+    } else if (isAdjacentTo(entity, attackTarget)) {
       dungeon.attackEntity(
         entity.context,
         entity,
-        player,
+        attackTarget,
         0,
         undefined,
         entity.damageType
@@ -115,12 +137,19 @@ export function enemyTurn(entity: Entity): void {
     }
   }
 
-  // 2) Move toward the player, their last known position, or wander.
+  // 2) Move toward the player, a visible mirror image, their last known
+  //    position, or wander.
   if (!acted && canMove) {
     if (hasEffect(entity, "confused") && dungeon.confusedMove(entity.context, entity)) return;
     if (seesPlayer) {
-      if (!isAdjacentToPlayer(entity, player)) {
+      if (!isAdjacentTo(entity, player)) {
         const step = nextStepToward(entity, player.x, player.y);
+        if (step) acted = followStep(entity, step);
+      }
+    } else if (decoy) {
+      // Player unseen: investigate a visible mirror image instead.
+      if (!isAdjacentTo(entity, decoy)) {
+        const step = nextStepToward(entity, decoy.x!, decoy.y!);
         if (step) acted = followStep(entity, step);
       }
     } else if (entity.lastSeenX !== undefined && entity.lastSeenY !== undefined) {

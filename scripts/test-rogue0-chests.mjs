@@ -26,7 +26,7 @@ const dungeon = { canStepBetween: () => passable,
   isWalkableTile: () => false, canEnterChasm: () => false, openDoor() { openedDoors++; },
   getCurrentLevel: () => Array.from({ length: 5 }, () => Array(5).fill(0)),
 };
-const Chest = load('src/games/rogue0/items/chest.ts', { Entity, dungeon, ...rewards }).default;
+const Chest = load('src/games/rogue0/items/chest.ts', { Entity, dungeon, maybeCurse: () => false, ...rewards }).default;
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, dungeon, hasEffect: () => false, isModalOpen: () => false,
   getTrapState: () => undefined, isGrassConcealed: () => false,

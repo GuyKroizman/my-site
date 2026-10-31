@@ -1,5 +1,6 @@
 import { Entity } from '../entity';
 import type { GameContext } from '../context';
+import { maybeCurse } from '../curses';
 import dungeon from '../dungeon';
 import Gold from './gold';
 import Gem from './gem';
@@ -21,12 +22,16 @@ export default class Chest extends Entity {
     super();
     const tier = Math.max(1, Math.min(5, Math.ceil((context.floor ?? 1) / 5)));
     const roll = Math.floor(Math.random() * 6);
+    const weapon = new TieredWeapon(context, undefined, undefined, tier);
+    const armor = new TieredArmor(context, undefined, undefined, tier);
+    maybeCurse(weapon);
+    maybeCurse(armor);
     this.contents = [roll === 0 ? new Gold(context, undefined, undefined, 10 + tier * 5)
       : roll === 1 ? new Ration(context)
       : roll === 2 ? new Gem(context)
       : roll === 3 ? new PotionOfHealing(context)
-      : roll === 4 ? new TieredWeapon(context, undefined, undefined, tier)
-      : new TieredArmor(context, undefined, undefined, tier)];
+      : roll === 4 ? weapon
+      : armor];
     this.init(context, x, y);
   }
 

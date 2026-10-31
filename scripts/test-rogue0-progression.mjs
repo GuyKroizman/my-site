@@ -77,6 +77,7 @@ let currentMap;
 bindings.dungeon = { getCurrentLevel: () => currentMap, log() {} };
 bindings.sfx = { stairs() {} };
 bindings.tiles = { forEachFeature() {} };
+bindings.maybeCurse = () => false; // progression suite asserts supply placement, not curse rolls
 const { Scene0 } = load('src/games/rogue0/scene0.ts', bindings);
 for (let run = 0; run < 5; run++) {
   const totals = { strength: 0, upgrades: 0, bosses: 0 };

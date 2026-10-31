@@ -6,6 +6,8 @@ import { sfx } from "./audio";
 import type { DamageType, StatusEffect } from "./effects";
 import { tickEffects as tickStatusEffects } from "./effects";
 import { actionCost, type ActionKind } from "./timing";
+import { CURSE_NAMES, CURSE_FLAVOR } from "./curseData";
+import type { CurseId } from "./curseData";
 
 export type EntityType = "player" | "enemy" | "item";
 
@@ -158,6 +160,11 @@ export abstract class Entity {
   set identified(value: boolean) { this.locallyIdentified = value; }
   cursed: boolean = false;
   curseLifted = false;
+  // Named SPD-style curse rolled at generation (see curseData.ts). Empty
+  // means either uncursed or a legacy bespoke curse (e.g. the Cursed Gem).
+  curseId: string = "";
+  // Friendly actor (mirror image) rendered as an enemy but never hostile.
+  isDecoy: boolean = false;
   blessed: boolean = false;
   level: number = 0;
   maxLevel: number = Number.POSITIVE_INFINITY;
@@ -184,7 +191,14 @@ export abstract class Entity {
   }
 
   get curseDescription(): string {
-    if (this.cursed) return this.identified ? 'Cursed: cannot be removed while equipped until the curse is lifted.' : '';
+    if (this.cursed) {
+      if (!this.identified) return '';
+      const name = this.curseId ? CURSE_NAMES[this.curseId as CurseId] : '';
+      if (name) {
+        return `${name}: ${CURSE_FLAVOR[this.curseId as CurseId]} It cannot be removed while equipped until the curse is lifted.`;
+      }
+      return 'Cursed: cannot be removed while equipped until the curse is lifted.';
+    }
     return this.curseLifted ? 'Curse lifted: this item is no longer cursed and can be freely unequipped or dropped.' : '';
   }
 
@@ -392,7 +406,7 @@ export function removeEntity(context: GameContext, entity: Entity) {
   // until after it has run.
   entity.onDestroy();
 
-  if (entity.type === "enemy") {
+  if (entity.type === "enemy" && !entity.isDecoy) {
     sfx.death();
   }
 
