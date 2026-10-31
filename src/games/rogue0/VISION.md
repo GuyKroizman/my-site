@@ -50,7 +50,7 @@ retain their ordinary dimming under this presentation-only edge shading.
 changes, including opening doors and burning away grass while stationary.
 
 - `context.darkLevel` overrides floor lighting; absent an override, floors above
-  5 are dark. Darkness reduces radius to 4.
+  15 are dark. Darkness reduces radius to 4.
 - `createTorchEffect(duration)` restores ordinary radius in darkness.
 - `createMagicalSightEffect(duration)` gives radius 12 and ignores opacity.
 - `createMindVisionEffect(duration)` marks every living on-map enemy with a

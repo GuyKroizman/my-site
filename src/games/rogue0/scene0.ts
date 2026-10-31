@@ -190,7 +190,7 @@ export class Scene0 extends Phaser.Scene {
     const player = this.context.player;
     const active = (id: string) => !!player && hasEffect(player, id);
     return resolveVision({
-      dark: this.context.darkLevel ?? this.context.floor > 5,
+      dark: this.context.darkLevel ?? this.context.floor > 15,
       torch: active("torch"),
       magicalSight: active("magical-sight"),
       mindVision: active("mind-vision"),
@@ -999,7 +999,7 @@ export class Scene0 extends Phaser.Scene {
       this.fog.fillRect(x * t, y * t, t, t);
     }
 
-    this.fog.fillStyle(0x000000, this.context.floor <= 5 ? 0.3 : 0.55);
+    this.fog.fillStyle(0x000000, this.context.floor <= 15 ? 0.3 : 0.55);
     for (const [x, y] of remembered) {
       this.fog.fillRect(x * t, y * t, t, t);
     }
