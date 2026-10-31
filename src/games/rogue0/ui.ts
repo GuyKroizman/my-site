@@ -165,20 +165,20 @@ export class UI extends Phaser.Scene {
       g.strokeCircle(0, 0, 7);
       g.lineBetween(0, 0, 0, -4);
       g.lineBetween(0, 0, 4, 2);
-    }, "Wait"));
+    }, "Wait  [Space]"));
 
     // One tap targets inspection; a second tap on this button searches.
     this.toolbar.push(this.makeButton(() => this.context.player?.inspectOrSearch(), (g) => {
       g.lineStyle(2, iconColor, 1);
       g.strokeCircle(0, 0, 6);
       g.lineBetween(4, 4, 10, 10);
-    }, "Inspect / Search: tap a tile to inspect, or tap again to search"));
+    }, "Inspect  [x] · Search  [s]"));
 
     // Skill.
     this.toolbar.push(this.makeButton(() => this.context.player?.tryUseSkill(), (g) => {
       g.lineStyle(2, iconColor, 1);
       g.strokeTriangle(0, -8, 7, 6, -7, 6);
-    }, "Character special"));
+    }, "Character special  [f]"));
 
     // Backpack.
     this.toolbar.push(this.makeButton(() => {
@@ -188,7 +188,7 @@ export class UI extends Phaser.Scene {
       g.lineStyle(2, iconColor, 1);
       g.strokeRect(-6, -3, 12, 9);
       g.strokeCircle(0, -4, 2);
-    }, "Backpack"));
+    }, "Backpack  [i/b]"));
 
   }
 
