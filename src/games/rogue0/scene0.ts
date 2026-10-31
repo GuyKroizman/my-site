@@ -1306,20 +1306,17 @@ export class Scene0 extends Phaser.Scene {
       `${this.context.stairsX},${this.context.stairsY}`
     ]);
 
-    // The hidden room has exactly four ordinary upgrade gems. Reserve the
-    // whole room and its two-tile access corridor from random content, so
-    // supplies/bosses cannot be stranded behind the secret or overlap gems.
-    // This method runs only on first generation; revisits restore entities.
+    // The hidden room holds a single ordinary upgrade gem at its center.
+    // Reserve the whole room and its two-tile access corridor from random
+    // content, so supplies/bosses cannot be stranded behind the secret or
+    // overlap the gem. This method runs only on first generation; revisits
+    // restore entities.
     if (this.secretRoom) {
       const room = this.secretRoom;
       for (let y = room.y; y < room.y + room.h + 2; y++) {
         for (let x = 0; x < levelArray[y].length; x++) exclude.add(`${x},${y}`);
       }
-      for (const x of [room.x, room.x + room.w - 1]) {
-        for (const y of [room.y, room.y + room.h - 1]) {
-          context.entities.push(new Gem(context, x, y));
-        }
-      }
+      context.entities.push(new Gem(context, room.cx, room.cy));
     }
 
     // Preserve the existing maximum encounter density rather than inflating

@@ -93,10 +93,10 @@ for (let run = 0; run < 5; run++) {
     scene.spawnFloorContent(floor, map, spawn);
     const items = scene.context.entities;
     const treasure = items.filter(item => item instanceof Gem);
-    assert.equal(treasure.length, 4, 'exactly four ordinary gems reward each secret room');
+    assert.equal(treasure.length, 1, 'exactly one ordinary gem rewards each secret room');
     for (const gem of treasure) {
-      assert.ok([secretRoom.x, secretRoom.x + 2].includes(gem.x));
-      assert.ok([secretRoom.y, secretRoom.y + 2].includes(gem.y));
+      assert.equal(gem.x, secretRoom.cx);
+      assert.equal(gem.y, secretRoom.cy);
     }
     assert.ok(items.filter(item => !(item instanceof Gem)).every(item => item.y >= secretRoom.y + 5), 'random content stays outside the hidden room and corridor');
     const count = kind => items.filter(item => item.kind === kind).length;
@@ -127,7 +127,7 @@ for (let run = 0; run < 5; run++) {
     scene.saveFloor();
     const snapshot = scene.floors.get(floor);
     assert.ok(!supply || !snapshot.entities.includes(supply));
-    assert.equal(snapshot.entities.filter(item => item instanceof Gem).length, 3, 'collected gems stay collected across floor revisits');
+    assert.equal(snapshot.entities.filter(item => item instanceof Gem).length, 0, 'collected gems stay collected across floor revisits');
     scene.context.floor = floor - 1;
     let restored = false;
     scene.restoreFloor = (number, saved) => {
