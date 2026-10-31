@@ -25,6 +25,13 @@ import { resolveAttack } from "../combat";
 function isHostile(entity: Entity): boolean {
   return entity.type === "enemy" && !entity.isDecoy;
 }
+
+function hostileAtTile(context: GameContext, x: number, y: number): Entity | undefined {
+  return (context.entities ?? []).find(entity =>
+    isHostile(entity) && (entity.healthPoints ?? 0) > 0 && !!entity.sprite &&
+    entity.x === x && entity.y === y
+  );
+}
 import { spawnEntityFloatingText } from "../floatingText";
 import { actionCost, starvationDamageDuring, type ActionKind } from "../timing";
 
@@ -518,6 +525,16 @@ export default class BasicHero extends Entity {
         dungeon.log(this.context, "The wand is spent.");
         return false;
       }
+      // A second tap on the same wand fires at the selected target (the
+      // auto-targeted closest enemy or the last enemy tapped) instead of
+      // re-opening target selection. Never fire at the hero's own tile when
+      // no target could be auto-selected.
+      if (this.zapping && this.context.throwMode && this.context.throwItem === item &&
+          this.context.cursorX !== undefined && this.context.cursorY !== undefined &&
+          (this.context.cursorX !== this.x || this.context.cursorY !== this.y)) {
+        this.throwAtCursor();
+        return false;
+      }
       this.beginThrow(item, true);
       return false;
     }
@@ -765,7 +782,22 @@ export default class BasicHero extends Entity {
     if (entity && isGrassConcealed(entity.x, entity.y, this.x, this.y)) entity = undefined;
 
     // Throw targeting takes priority: any tap resolves the pending throw.
+    // Wand targeting is select-then-confirm: tapping an enemy selects it
+    // (highlighting its tile); tapping that same enemy again fires. Tapping
+    // any other tile still fires immediately, preserving free aiming.
     if (context.throwMode) {
+      if (this.zapping && x !== null && y !== null) {
+        const hostile = hostileAtTile(context, x, y);
+        if (hostile && !isGrassConcealed(hostile.x, hostile.y, this.x, this.y)) {
+          if (context.cursorX === x && context.cursorY === y) {
+            this.throwAt(x, y);
+          } else {
+            context.cursorX = x;
+            context.cursorY = y;
+          }
+          return;
+        }
+      }
       this.throwAt(x!, y!);
       return;
     }
@@ -1141,6 +1173,35 @@ export default class BasicHero extends Entity {
     }
   }
 
+  // Nearest visible, unobstructed enemy for wand auto-targeting. Kept
+  // defensive (entities/visibleTiles may be absent in headless tests).
+  private closestZapTarget(): Entity | undefined {
+    const context = this.context;
+    if (this.x === undefined || this.y === undefined) return undefined;
+    const level = dungeon.getCurrentLevel();
+    if (!level?.length) return undefined;
+
+    let best: Entity | undefined;
+    let bestDistance = Infinity;
+    for (const entity of context.entities ?? []) {
+      if (!isHostile(entity) || (entity.healthPoints ?? 0) <= 0 || !entity.sprite) continue;
+      if (entity.x === undefined || entity.y === undefined) continue;
+      if (!context.visibleTiles?.has(`${entity.x},${entity.y}`)) continue;
+      if (isGrassConcealed(entity.x, entity.y, this.x, this.y)) continue;
+      if (!hasLineOfSight(level, this.x, this.y, entity.x, entity.y)) continue;
+
+      const distance = Math.max(
+        Math.abs(entity.x - this.x),
+        Math.abs(entity.y - this.y)
+      );
+      if (distance < bestDistance) {
+        best = entity;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+
   beginThrow(item: Entity, zap = false): void {
     const context = this.context;
     if (!this.getAllItems().includes(item)) {
@@ -1156,7 +1217,14 @@ export default class BasicHero extends Entity {
     context.terrainActionMode = false;
     context.throwMode = true;
     context.throwItem = item;
-    if (context.cursorX === undefined || context.cursorY === undefined) {
+    if (zap) {
+      // Zapping starts aimed at the nearest visible enemy so a second tap on
+      // the wand (or a tap on that enemy) fires immediately. With no valid
+      // enemy, the cursor stays on the hero and must be moved before firing.
+      const target = this.closestZapTarget();
+      context.cursorX = target?.x ?? this.x;
+      context.cursorY = target?.y ?? this.y;
+    } else if (context.cursorX === undefined || context.cursorY === undefined) {
       context.cursorX = this.x;
       context.cursorY = this.y;
     }
