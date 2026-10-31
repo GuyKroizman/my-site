@@ -31,12 +31,16 @@ export default class FangOfTheBeast extends Entity {
   }
 
   get baseDescription(): string {
-    return `A fang that hungers for battle. Grants +${2 + this.level} damage while equipped. Grows stronger every ${STRIKES_TO_LEVEL} strikes (${this.strikes}/${STRIKES_TO_LEVEL}).`;
+    const amount = 2 + this.level;
+    const effect = this.cursed
+      ? `Reduces damage by ${amount} while equipped`
+      : `Grants +${amount} damage while equipped`;
+    return `A fang that hungers for battle. ${effect}. Grows stronger every ${STRIKES_TO_LEVEL} strikes (${this.strikes}/${STRIKES_TO_LEVEL}).`;
   }
 
   damage() {
     // Each successful attack with this equipped counts as "use" and slowly
-    // levels the artifact up.
+    // levels the artifact up. A cursed fang inverts its damage bonus.
     this.strikes += 1;
     if (this.strikes >= STRIKES_TO_LEVEL) {
       this.strikes = 0;
@@ -47,7 +51,7 @@ export default class FangOfTheBeast extends Entity {
       );
     }
 
-    return 2 + this.level;
+    return (this.cursed ? -1 : 1) * (2 + this.level);
   }
 
   attack() {

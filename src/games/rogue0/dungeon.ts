@@ -21,7 +21,7 @@ import {
   hasEffect,
   removeEffect
 } from "./effects";
-import type { DamageType } from "./effects";
+import type { DamageType, StatusEffect } from "./effects";
 
 export const Sprites = {
   floor: 0,
@@ -763,6 +763,17 @@ const dungeon = {
       applyEffect(attacker, createCrippledEffect());
       this.log(context, "Your cursed weapon exhausts you!");
     }
+  },
+
+  // Wand curse proc: a cursed wand may redirect its own magic onto the caster
+  // instead of the target. The charge is still spent; only the effect flips.
+  procWandCurse: function (context: GameContext, caster: Entity, wand: Entity): boolean {
+    if (!wand?.cursed || wand.curseId !== "backfiring") return false;
+    if (Math.random() >= CURSE_PROC_CHANCE) return false;
+    const effect = (wand as unknown as { wandEffect?: () => StatusEffect }).wandEffect?.();
+    if (effect) applyEffect(caster, effect);
+    this.log(context, "Your cursed wand backfires!");
+    return true;
   },
 
   conductShock: function (context: GameContext, target: Entity, primaryDamage: number): void {

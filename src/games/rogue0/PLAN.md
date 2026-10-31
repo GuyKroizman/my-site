@@ -24,11 +24,12 @@ has been playtested. Checked boxes mean the described implementation exists.
   attacks (auto-hit, bonus damage, possible bleed).
 - Item identification, upgrade levels, charged wands, five rings, two
   artifacts, expanded scrolls/potions and food exist. SPD-style named curses
-  are implemented across weapons, armor and rings (generation, per-slot
-  procs/passives, lock-on guards, `removeCurse()`/Remove Curse/Holy Potion, a
-  mirror-image decoy and a `charmed` effect). Strength requirements and
-  weapon/armor tiers 1–5 are implemented. Durability, enchantments/glyphs and
-  balance playtesting remain outstanding.
+  are implemented across weapons, armor, rings, wands and artifacts
+  (generation, per-slot procs/passives, lock-on guards,
+  `removeCurse()`/Remove Curse/Holy Potion, a mirror-image decoy and a
+  `charmed` effect). Strength requirements and weapon/armor tiers 1–5 are
+  implemented. Durability, enchantments/glyphs and balance playtesting remain
+  outstanding.
 - Explicit weapon/armor/two-ring/artifact slots and a 20-slot backpack replace
   active-item aggregation. Inventory is modal, with item actions and stacking.
 - Terrain uses a coordinate-keyed feature overlay on the binary floor/wall
@@ -404,9 +405,13 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
   the one faithful flat-inversion case; rings reuse their existing
   `applyPassive()` with a sign flip, and uncursing re-applies the positive form.
 
-  *Wand/artifact curses:* deferred. Cursed wands backfire on the caster (e.g.
-  a cursed Firebolt ignites you); cursed artifacts get per-artifact penalties
-  (e.g. Chalice drains HP). A later pass.
+  *Wand/artifact curses:* landed. Cursed wands roll the **Backfiring** curse:
+  a zap may redirect the wand's own effect onto the caster instead of the
+  target (a cursed Firebolt ignites you), still spending the charge. Cursed
+  artifacts roll the **Corrupted** curse, interpreted per artifact: the
+  Chalice of Blood drains health instead of regenerating, and the Fang of the
+  Beast inverts its damage bonus into a penalty. Artifacts use the existing
+  lock-on guards; wands remain backpack tools and are never locked on.
 - [x] **Lock-on & reveal.** Keep the existing unequip/drop/throw guards for
       equipped cursed items. Equipping reveals the curse for weapons/armor,
       rings and artifacts via the shared `onEquip` path. Remove Curse / Holy

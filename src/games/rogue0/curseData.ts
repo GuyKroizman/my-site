@@ -8,9 +8,13 @@ export type CurseId =
   | "displacement" | "multiplicity" | "anti-entropy" | "corrosion" | "stench"
   | "overgrowth" | "metabolism" | "bulk"
   // Ring curses
-  | "inverted";
+  | "inverted"
+  // Wand curses
+  | "backfiring"
+  // Artifact curses
+  | "corrupted";
 
-export type CurseSlot = "weapon" | "armor" | "ring";
+export type CurseSlot = "weapon" | "armor" | "ring" | "wand" | "artifact";
 
 export const CURSE_NAMES: Record<CurseId, string> = {
   wayward: "Wayward",
@@ -29,6 +33,8 @@ export const CURSE_NAMES: Record<CurseId, string> = {
   metabolism: "Metabolism",
   bulk: "Bulk",
   inverted: "Inverted",
+  backfiring: "Backfiring",
+  corrupted: "Corrupted",
 };
 
 export const CURSE_FLAVOR: Record<CurseId, string> = {
@@ -48,6 +54,8 @@ export const CURSE_FLAVOR: Record<CurseId, string> = {
   metabolism: "This armor speeds your metabolism; you hunger much faster.",
   bulk: "This armor is heavy and bulky; you move more slowly.",
   inverted: "This ring's power is inverted, granting the opposite of its normal effect.",
+  backfiring: "This wand is volatile; its magic may turn back on you when you zap.",
+  corrupted: "This artifact's power is corrupted, working against you.",
 };
 
 // Which curses each slot can roll.
@@ -55,6 +63,8 @@ export const CURSE_TABLES: Record<CurseSlot, CurseId[]> = {
   weapon: ["wayward", "sacrificial", "displacing", "annoying", "friendly", "polarized", "exhausting"],
   armor: ["displacement", "multiplicity", "anti-entropy", "corrosion", "stench", "overgrowth", "metabolism", "bulk"],
   ring: ["inverted"],
+  wand: ["backfiring"],
+  artifact: ["corrupted"],
 };
 
 // Chance a freshly generated eligible item is cursed.

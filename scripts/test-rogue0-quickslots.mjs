@@ -65,7 +65,8 @@ let clearSight = true;
 let intercepted;
 const zaps = [];
 const dungeon = { log() {}, getCurrentLevel: () => level,
-  firstActorInPath: () => intercepted, entityAtTile: () => undefined };
+  firstActorInPath: () => intercepted, entityAtTile: () => undefined,
+  procWandCurse: () => false };
 const Wand = load('src/games/rogue0/items/wand.ts', { Entity, dungeon, identify: i => { i.identified = true; } }).default;
 for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
   const unknownWand = Object.assign(Object.create(Wand.prototype), {

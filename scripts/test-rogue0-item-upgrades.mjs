@@ -401,7 +401,7 @@ assert.equal(fang.strikes, 0);
 let effect;
 const Chalice = itemClass('ChaliceOfBlood', {
   applyEffect(_player, value) { effect = value; },
-  removeEffect(_player, id) { assert.equal(id, 'chalice-regeneration'); effect = undefined; },
+  removeEffect(_player, id) { assert.ok(id === 'chalice-regeneration' || id === 'chalice-drain', `unexpected chalice effect ${id}`); effect = undefined; },
 });
 const context = { messages: [], player: { name: 'Elf', healthPoints: 99, maxHealthPoints: 100 } };
 const chalice = new Chalice(context);

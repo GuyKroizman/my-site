@@ -190,16 +190,33 @@ export abstract class Entity {
     return this.description;
   }
 
+  // Equipment slots lock cursed items on until the curse is lifted. Wands are
+  // backpack tools and are never "equipped", so they get no lock-on warning.
+  private get curseLockMessage(): string {
+    if (this.equipSlot === "weapon" || this.equipSlot === "armor" ||
+        this.equipSlot === "ring" || this.equipSlot === "artifact") {
+      return "It cannot be removed while equipped until the curse is lifted.";
+    }
+    return "";
+  }
+
   get curseDescription(): string {
     if (this.cursed) {
       if (!this.identified) return '';
       const name = this.curseId ? CURSE_NAMES[this.curseId as CurseId] : '';
       if (name) {
-        return `${name}: ${CURSE_FLAVOR[this.curseId as CurseId]} It cannot be removed while equipped until the curse is lifted.`;
+        const lock = this.curseLockMessage ? ` ${this.curseLockMessage}` : '';
+        return `${name}: ${CURSE_FLAVOR[this.curseId as CurseId]}${lock}`;
       }
+      // Legacy bespoke curses (e.g. the Cursed Gem) are always lock-on gear.
       return 'Cursed: cannot be removed while equipped until the curse is lifted.';
     }
-    return this.curseLifted ? 'Curse lifted: this item is no longer cursed and can be freely unequipped or dropped.' : '';
+    if (this.curseLifted) {
+      return this.curseLockMessage
+        ? 'Curse lifted: this item is no longer cursed and can be freely unequipped or dropped.'
+        : 'Curse lifted: this item is no longer cursed.';
+    }
+    return '';
   }
 
   get displayDescription(): string {

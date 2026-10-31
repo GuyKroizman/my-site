@@ -1230,8 +1230,18 @@ export default class BasicHero extends Entity {
         return;
       }
       const enemy = intercepted ?? dungeon.entityAtTile(context, tx, ty);
-      context.onWandZap?.({ fromX: this.x, fromY: this.y, toX: tx, toY: ty, damageType: item.damageType });
       const damage = Math.round(item.damage() * (enemy ? item.wandDamageMultiplier(enemy) : 1));
+      // A cursed wand may redirect its own magic onto the caster. The charge
+      // is already spent by `damage()`; only the effect flips onto the hero.
+      if (dungeon.procWandCurse(context, this, item)) {
+        context.throwMode = false;
+        context.throwItem = undefined;
+        this.zapping = false;
+        this.spendTurn("use");
+        this.refreshUI();
+        return;
+      }
+      context.onWandZap?.({ fromX: this.x, fromY: this.y, toX: tx, toY: ty, damageType: item.damageType });
       if (enemy && isHostile(enemy)) {
         const attack = this.attack;
         this.attack = () => damage;

@@ -22,6 +22,7 @@ export default class ChaliceOfBlood extends Entity {
 
   private bloodProgress = 0;
   private healingTurns = 0;
+  private drainingTurns = 0;
 
   get unidentifiedTextureKey(): string {
     return this.spriteTextureKey;
@@ -49,7 +50,10 @@ export default class ChaliceOfBlood extends Entity {
     const progress = this.level >= this.maxLevel
       ? "Maximum level reached."
       : `${this.bloodProgress}/${this.killsToNextLevel} monster kills while equipped toward the next level.`;
-    return `Level ${this.level}/${this.maxLevel}. Regenerates 1 health every ${this.healingInterval} world turn${this.healingInterval === 1 ? "" : "s"} while equipped. ${progress} At level 10: 1 health per turn.`;
+    const pulse = this.cursed
+      ? `Drains 1 health every ${this.healingInterval} world turn${this.healingInterval === 1 ? "" : "s"} while equipped.`
+      : `Regenerates 1 health every ${this.healingInterval} world turn${this.healingInterval === 1 ? "" : "s"} while equipped.`;
+    return `Level ${this.level}/${this.maxLevel}. ${pulse} ${progress} At level 10: 1 health per turn.`;
   }
 
   constructor(context: GameContext, x?: number, y?: number) {
@@ -61,7 +65,7 @@ export default class ChaliceOfBlood extends Entity {
     identify(this);
     const player = this.context.player;
     if (player) {
-      applyEffect(player, this.regenEffect());
+      applyEffect(player, this.cursed ? this.drainEffect() : this.regenEffect());
     }
   }
 
@@ -69,7 +73,16 @@ export default class ChaliceOfBlood extends Entity {
     const player = this.context.player;
     if (player) {
       removeEffect(player, "chalice-regeneration");
+      removeEffect(player, "chalice-drain");
     }
+  }
+
+  // Lifting the curse while the chalice is equipped swaps the active drain back
+  // to its normal regeneration pulse.
+  onUncursed(): void {
+    if (this.context.player?.artifact !== this) return;
+    removeEffect(this.context.player, "chalice-drain");
+    applyEffect(this.context.player, this.regenEffect());
   }
 
   // Rebuilt on browser resume so the tick callback targets the restored artifact.
@@ -94,6 +107,23 @@ export default class ChaliceOfBlood extends Entity {
         entity.healthPoints += amount;
         // Routine healing is reflected in the health display.
 
+      }
+    };
+  }
+
+  // Cursed chalices invert their pulse: instead of regenerating, they drain.
+  drainEffect(): StatusEffect {
+    return {
+      id: "chalice-drain",
+      name: "Life Drain",
+      iconTile: 13 * 49 + 44,
+      duration: Number.POSITIVE_INFINITY,
+      manualExpiry: true,
+      tick: (entity) => {
+        this.drainingTurns += 1;
+        if (this.drainingTurns < this.healingInterval) return;
+        this.drainingTurns = 0;
+        entity.takeDamage(1);
       }
     };
   }

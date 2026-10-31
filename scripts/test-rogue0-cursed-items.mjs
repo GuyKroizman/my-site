@@ -34,13 +34,19 @@ const item = (slot, extra = {}) => Object.assign(new Entity(), {
 assert.equal(curseEligible(item('weapon')), true);
 assert.equal(curseEligible(item('armor')), true);
 assert.equal(curseEligible(item('ring')), true);
-assert.equal(curseEligible(item('artifact')), false);
+assert.equal(curseEligible(item('artifact')), true);
 assert.equal(curseEligible(item('consumable')), false);
+assert.equal(curseEligible(Object.assign(item('junk'), { textureKey: 'wand-fire' })), true, 'wands are curse-eligible via their texture key');
 assert.equal(maybeCurse(item('armor'), 0.25, () => 0.9), false);
 assert.equal(rollCurseId(item('weapon'), () => 0), 'wayward');
 assert.equal(rollCurseId(item('ring'), () => 0), 'inverted');
+assert.equal(rollCurseId(item('artifact'), () => 0), 'corrupted');
+assert.equal(rollCurseId(Object.assign(item('junk'), { textureKey: 'wand-fire' }), () => 0), 'backfiring');
 assert.equal(maybeCurse(item('weapon'), 1, () => 0), true);
 assert.equal(maybeCurse(item('ring'), 1, () => 0), true);
+const cursedWand = Object.assign(item('junk'), { textureKey: 'wand-fire' });
+assert.equal(maybeCurse(cursedWand, 0.25, () => 0), true);
+assert.equal(cursedWand.curseId, 'backfiring');
 const cursedArmor = item('armor');
 assert.equal(maybeCurse(cursedArmor, 0.25, () => 0), true);
 assert.ok(curseData.CURSE_TABLES.armor.includes(cursedArmor.curseId));
@@ -57,6 +63,12 @@ secret.identified = true;
 assert.match(secret.displayDescription, /Multiplicity: When you are attacked/);
 const waywardDesc = item('weapon', { cursed: true, curseId: 'wayward' });
 assert.match(waywardDesc.displayDescription, /Wayward: This weapon is wildly inaccurate/);
+const backfiringDesc = Object.assign(item('junk'), { textureKey: 'wand-fire', cursed: true, curseId: 'backfiring' });
+assert.match(backfiringDesc.displayDescription, /Backfiring: This wand is volatile/);
+assert.doesNotMatch(backfiringDesc.displayDescription, /cannot be removed while equipped/, 'wands are backpack tools, never lock-on');
+const corruptedDesc = item('artifact', { cursed: true, curseId: 'corrupted' });
+assert.match(corruptedDesc.displayDescription, /Corrupted: This artifact's power is corrupted/);
+assert.match(corruptedDesc.displayDescription, /cannot be removed while equipped/);
 
 // --- Mirror image decoy: friendly, inert, ephemeral, no rewards.
 const MirrorImage = load('src/games/rogue0/monsters/mirrorImage.ts', { Entity, removeEntity }).default;
@@ -155,6 +167,50 @@ const ringCtx = () => ({ messages: [], player: {
   assert.equal(ctx.player.accuracy, 90, 'cursed Accuracy reduces accuracy');
   acc.unequip();
   assert.equal(ctx.player.accuracy, 95);
+}
+
+// --- Cursed artifacts: Chalice drains instead of regenerating; Fang inverts.
+const artifactPlayer = () => Object.assign(new Entity(), {
+  effects: [], healthPoints: 10, maxHealthPoints: 20, artifact: undefined,
+});
+const artifactApply = (e, eff) => { (e.effects ??= []).push(eff); };
+const artifactRemove = (e, id) => { e.effects = (e.effects ?? []).filter(x => x.id !== id); };
+const ChaliceOfBlood = load('src/games/rogue0/items/ChaliceOfBlood.ts', {
+  Entity, identify: (e) => { e.identified = true; },
+  applyEffect: artifactApply, removeEffect: artifactRemove,
+  dungeon: { log() {} },
+}).default;
+const FangOfTheBeast = load('src/games/rogue0/items/FangOfTheBeast.ts', {
+  Entity, identify: (e) => { e.identified = true; },
+  dungeon: { log() {} },
+}).default;
+{
+  const player = artifactPlayer();
+  const chalice = new ChaliceOfBlood({ player });
+  chalice.cursed = true; chalice.curseId = 'corrupted';
+  player.artifact = chalice;
+  chalice.equip();
+  assert.ok(player.effects.some(e => e.id === 'chalice-drain'), 'cursed chalice applies a drain instead of regeneration');
+  chalice.cursed = false;
+  chalice.onUncursed();
+  assert.ok(player.effects.some(e => e.id === 'chalice-regeneration'), 'uncursing restores regeneration');
+  assert.ok(!player.effects.some(e => e.id === 'chalice-drain'), 'uncursing removes the drain');
+}
+{
+  const player = artifactPlayer();
+  const chalice = new ChaliceOfBlood({ player });
+  chalice.cursed = true; chalice.curseId = 'corrupted';
+  player.artifact = chalice;
+  const drain = chalice.drainEffect();
+  for (let i = 0; i < 10; i++) drain.tick(player);
+  assert.equal(player.healthPoints, 9, 'cursed chalice drains 1 health per interval');
+}
+{
+  const fang = new FangOfTheBeast({ player: artifactPlayer() });
+  fang.cursed = true; fang.curseId = 'corrupted';
+  assert.equal(fang.damage(), -2, 'cursed fang reduces damage by its bonus');
+  const cleanFang = new FangOfTheBeast({ player: artifactPlayer() });
+  assert.equal(cleanFang.damage(), 2, 'clean fang grants its damage bonus');
 }
 
 // --- Proc helpers: real dungeon.ts with effect/tiles stubs.
@@ -274,17 +330,36 @@ const originalRandom = Math.random;
   assert.ok(hero.effects.some(e => e.id === 'crippled'), 'exhausting cripples the hero');
 }
 
+// Wand procs: a cursed wand redirects its own effect onto the caster.
+{
+  const hero = actor({});
+  const wand = { cursed: true, curseId: 'backfiring', wandEffect: () => ({ id: 'burning' }) };
+  Math.random = () => 0;
+  assert.equal(dungeon.procWandCurse(procContext(hero), hero, wand), true, 'backfiring wand procs');
+  assert.ok(hero.effects.some(e => e.id === 'burning'), 'backfire applies the wand effect to the caster');
+}
+{
+  const hero = actor({});
+  const cleanWand = { cursed: false, curseId: '', wandEffect: () => ({ id: 'burning' }) };
+  Math.random = () => 0;
+  assert.equal(dungeon.procWandCurse(procContext(hero), hero, cleanWand), false, 'clean wands never backfire');
+}
+
 Math.random = originalRandom;
 
 // --- Save/load preserves curseId and isDecoy through the object graph codec.
 const { encodeGraph, decodeGraph } = load('src/games/rogue0/saveCodec.ts');
 const roundTrip = decodeGraph(
-  JSON.parse(JSON.stringify(encodeGraph({ armor: displacement, img: image }, { Entity, MirrorImage }))),
+  JSON.parse(JSON.stringify(encodeGraph({
+    armor: displacement, wand: backfiringDesc, artifact: corruptedDesc, img: image,
+  }, { Entity, MirrorImage }))),
   { Entity, MirrorImage }
 );
 assert.equal(roundTrip.armor.curseId, 'displacement');
 assert.equal(roundTrip.armor.cursed, true);
+assert.equal(roundTrip.wand.curseId, 'backfiring');
+assert.equal(roundTrip.artifact.curseId, 'corrupted');
 assert.equal(roundTrip.img.isDecoy, true);
 assert.equal(roundTrip.img.name, 'Mirror Image');
 
-console.log('Rogue0 cursed items: generation, named descriptions, secrecy, decoy, passive curses, weapon/armor/ring procs, and save round-trip passed');
+console.log('Rogue0 cursed items: generation, named descriptions, secrecy, decoy, passive curses, weapon/armor/ring/wand/artifact procs, and save round-trip passed');
