@@ -69,6 +69,7 @@ import ScrollOfRecharging from "./items/ScrollOfRecharging";
 import WandOfFirebolt from "./items/WandOfFirebolt";
 import WandOfFrost from "./items/WandOfFrost";
 import WandOfLightning from "./items/WandOfLightning";
+import Ring from "./items/ring";
 import RingOfAccuracy from "./items/RingOfAccuracy";
 import RingOfEvasion from "./items/RingOfEvasion";
 import RingOfElements from "./items/RingOfElements";
@@ -335,6 +336,11 @@ export class Scene0 extends Phaser.Scene {
         ...player.getAllItems(),
         ...[...this.floors.values()].flatMap(floor => floor.entities),
       ]);
+      // Reconcile equipped ring bonuses after loading, including legacy saves
+      // where the displayed upgrade level never changed the applied passive.
+      for (const ring of [player.ring1, player.ring2]) {
+        if (ring instanceof Ring) ring.onUpgrade();
+      }
       generateFireElementalTexture(this);
       generateLightningElementalTexture(this);
       generateFlySwarmTexture(this);

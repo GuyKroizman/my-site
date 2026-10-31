@@ -17,13 +17,17 @@ export default class RingOfEvasion extends Ring {
     );
   }
 
+  get baseDescription(): string {
+    return `Grants +${EVASION_BONUS * (1 + this.level)} evasion while equipped. Each upgrade adds +5 evasion.`;
+  }
+
   applyPassive() {
     const player = this.context.player;
-    if (player) player.evasion += EVASION_BONUS;
+    if (player) player.evasion += EVASION_BONUS * (1 + this.level);
   }
 
   removePassive() {
     const player = this.context.player;
-    if (player) player.evasion -= EVASION_BONUS;
+    if (player) player.evasion -= EVASION_BONUS * (1 + (this.passiveLevel ?? 0));
   }
 }

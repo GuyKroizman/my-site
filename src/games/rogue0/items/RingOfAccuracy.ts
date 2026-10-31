@@ -17,13 +17,25 @@ export default class RingOfAccuracy extends Ring {
     );
   }
 
-  applyPassive() {
+  get baseDescription(): string {
+    return `Grants +${ACCURACY_BONUS * (1 + this.level)} accuracy while equipped. Each upgrade adds +5 accuracy.`;
+  }
+
+  private changeAccuracy(amount: number): void {
     const player = this.context.player;
-    if (player) player.accuracy += ACCURACY_BONUS;
+    if (!player) return;
+    const blindness = player.effects.find(effect => effect.id === 'blinded');
+    if (blindness?.originalAccuracy !== undefined) {
+      blindness.originalAccuracy += amount;
+      player.accuracy = Math.max(0, blindness.originalAccuracy - 25);
+    } else player.accuracy += amount;
+  }
+
+  applyPassive() {
+    this.changeAccuracy(ACCURACY_BONUS * (1 + this.level));
   }
 
   removePassive() {
-    const player = this.context.player;
-    if (player) player.accuracy -= ACCURACY_BONUS;
+    this.changeAccuracy(-ACCURACY_BONUS * (1 + (this.passiveLevel ?? 0)));
   }
 }

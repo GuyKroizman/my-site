@@ -48,6 +48,23 @@ five dungeon regions: 16–32 HP, 7–15 damage, 1–3 protection, and 6-tile vi
 Legacy 4-HP mimics in browser saves are upgraded once while preserving existing
 damage and provocation state.
 
+## Ring upgrades
+
+Ring bonuses scale with upgrade level and update immediately while equipped:
+
+| Ring | Level 0 | Gain per upgrade |
+| --- | --- | --- |
+| Accuracy | +5 accuracy | +5 accuracy |
+| Evasion | +5 evasion | +5 evasion |
+| Elements | +2 fire/ice/shock resistance | +1 to each |
+| Haste | 2× movement speed | +0.5 to the multiplier |
+| Might | +2 damage | +1 damage |
+
+Only equipped rings grant passives. Removing a ring removes its actual applied
+bonus, not an outdated or newly upgraded amount. Haste rings multiply together
+and with temporary Haste; they never accelerate attacks. Loading an older save
+reconciles already-upgraded rings automatically without consuming another scroll.
+
 ## Wand identification
 
 Wand identity is shared across the whole run, like potion and scroll knowledge.

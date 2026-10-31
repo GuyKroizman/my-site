@@ -107,6 +107,7 @@ export abstract class Entity {
   canTargetItem(_target: Entity): boolean { return false; }
   useOnItem(_target: Entity): boolean { return false; }
   onUncursed(): void {}
+  onUpgrade(): void {}
   onAttacked(_attacker: Entity): void {}
   // Sight at the start of the last decision, not after moving into view.
   // Pursuit memory is separate: a hunting enemy can still be ambushed.
@@ -431,6 +432,7 @@ export function upgrade(item: Entity): void {
     return;
   }
   item.level += 1;
+  item.onUpgrade?.();
   logMessage(item.context, item.identified
     ? `${item.name} upgraded to level ${item.level}.`
     : `${item.displayName} upgraded.`);

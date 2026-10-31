@@ -22,6 +22,10 @@ export default abstract class Ring extends Entity {
   textureKey = "unknown-ring";
 
   private passiveApplied = false;
+  // Record the bonus actually applied, so upgrading/removing never subtracts
+  // the new level's bonus from stats that still contain the old level's bonus.
+  // Missing in legacy saves, whose non-Might rings always used level-zero stats.
+  protected passiveLevel: number | undefined = 0;
 
   constructor(context: GameContext, config: RingConfig, x?: number, y?: number) {
     super();
@@ -38,6 +42,7 @@ export default abstract class Ring extends Entity {
   equip() {
     identify(this);
     if (this.passiveApplied) return;
+    this.passiveLevel = this.level;
     this.applyPassive();
     this.passiveApplied = true;
   }
@@ -46,6 +51,13 @@ export default abstract class Ring extends Entity {
     if (!this.passiveApplied) return;
     this.removePassive();
     this.passiveApplied = false;
+  }
+
+  onUpgrade(): void {
+    if (!this.passiveApplied) return;
+    this.removePassive();
+    this.passiveLevel = this.level;
+    this.applyPassive();
   }
 
   attack() {
