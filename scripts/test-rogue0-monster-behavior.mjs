@@ -79,7 +79,7 @@ function setup() {
   const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
   assert.ok(scene.includes("this.load.image('goblin', goblinArtUrl)"));
   assert.ok(scene.includes('spawnGroup(Goblin, goblinCount)'));
-  const png = fs.readFileSync('public/rogue0/monsters/goblin.png');
+  const png = fs.readFileSync('src/games/rogue0/assets/monsters/goblin.png');
   assert.equal(png.readUInt32BE(16), 16);
   assert.equal(png.readUInt32BE(20), 22);
 }

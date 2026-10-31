@@ -5,6 +5,12 @@ import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import { hasEffect, fleeStep } from "./effects";
 
+// Enemies avoid stepping on traps they can perceive (revealed/armed plates).
+// Hidden traps stay invisible, and confusion overrides avoidance entirely.
+function isVisibleTrap(x: number, y: number): boolean {
+  return tiles.getTileState(x, y)?.trap === "visible";
+}
+
 export function enemyCanSeePlayer(entity: Entity): boolean {
   const player = entity.context.player;
   if (
@@ -194,7 +200,8 @@ function wanderStep(entity: Entity): boolean {
     const nx = entity.x + heading.x;
     const ny = entity.y + heading.y;
     if (dungeon.canStepBetween(entity.x, entity.y, nx, ny) &&
-        dungeon.isWalkableTile(entity.context, nx, ny)) step = { x: nx, y: ny };
+        dungeon.isWalkableTile(entity.context, nx, ny) &&
+        !isVisibleTrap(nx, ny)) step = { x: nx, y: ny };
   }
   step ??= randomAdjacentStep(entity.context, entity);
   if (!step) return false;
@@ -211,7 +218,7 @@ export function nextStepToward(
 ): { x: number; y: number } | null {
   if (entity.x === undefined || entity.y === undefined) return null;
 
-  const path = dungeon.findPath(entity.x, entity.y, tx, ty, true);
+  const path = dungeon.findPath(entity.x, entity.y, tx, ty, true, true);
 
   if (path.length > 1) {
     return { x: path[1][0], y: path[1][1] };
@@ -223,6 +230,8 @@ export function nextStepToward(
 // emerging through a doorway into an ambush. Do not
 // overlap another actor or forget the target just because a corridor is busy.
 function followStep(entity: Entity, step: { x: number; y: number }): boolean {
+  // Never step onto a revealed trap, even when it is the navigation target.
+  if (isVisibleTrap(step.x, step.y)) return false;
   if (entity.context.entities.some(e =>
     e !== entity && (e.type === "player" || e.type === "enemy") &&
     e.healthPoints > 0 && e.x === step.x && e.y === step.y
@@ -266,7 +275,8 @@ export function randomAdjacentStep(
     const ny = entity.y + dy;
     if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
     if (dungeon.canStepBetween(entity.x, entity.y, nx, ny) &&
-        dungeon.isWalkableTile(context, nx, ny)) {
+        dungeon.isWalkableTile(context, nx, ny) &&
+        !isVisibleTrap(nx, ny)) {
       return { x: nx, y: ny };
     }
   }

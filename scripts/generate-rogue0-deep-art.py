@@ -2,7 +2,7 @@
 from pathlib import Path
 from PIL import Image, ImageDraw
 
-out = Path('public/rogue0')
+out = Path('src/games/rogue0/assets')
 themes = []
 
 # Sandstone ruins: large worn pavers and staggered, stratified masonry.
@@ -71,7 +71,6 @@ themes.append(('volcanic', floor, wall))
 
 preview = Image.new('RGBA', (3 * 128, 80))
 for i, (name, floor, wall) in enumerate(themes):
-    floor.save(out / f'{name}-floor.png')
     wall.save(out / f'{name}-wall.png')
     atlas = Image.open(out / 'stone-tiles.png').convert('RGBA')
     atlas.paste(floor, (0, 0))

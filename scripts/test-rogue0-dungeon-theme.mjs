@@ -18,7 +18,7 @@ for (const floor of [...floors, ...floors.toReversed(), 0, 26]) {
   const prefix = expected[floor - 1] ?? 'stone';
   assert.deepEqual(exports.dungeonTheme(floor), { tiles: `${prefix}-tiles`, wall: `${prefix}-wall` });
   for (const name of [`${prefix}-tiles`, `${prefix}-wall`]) {
-    assert.ok(fs.existsSync(`public/rogue0/${name}.png`));
+    assert.ok(fs.existsSync(`src/games/rogue0/assets/${name}.png`));
   }
 }
 const dungeon = fs.readFileSync('src/games/rogue0/dungeon.ts', 'utf8');
@@ -30,8 +30,8 @@ for (const theme of ['crypt', 'sandstone', 'crystal', 'volcanic']) {
   assert.ok(scene.includes(`this.load.image('${theme}-wall', ${theme}WallUrl)`));
   // PNG dimensions must preserve the atlas layout and 16px raised wall size.
   for (const part of ['tiles', 'wall']) {
-    const image = fs.readFileSync(`public/rogue0/${theme}-${part}.png`);
-    const original = fs.readFileSync(`public/rogue0/stone-${part}.png`);
+    const image = fs.readFileSync(`src/games/rogue0/assets/${theme}-${part}.png`);
+    const original = fs.readFileSync(`src/games/rogue0/assets/stone-${part}.png`);
     assert.deepEqual(image.subarray(16, 24), original.subarray(16, 24));
     assert.notDeepEqual(image, original);
   }

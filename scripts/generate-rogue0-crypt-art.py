@@ -2,7 +2,7 @@
 from pathlib import Path
 from PIL import Image, ImageDraw
 
-out = Path('public/rogue0')
+out = Path('src/games/rogue0/assets')
 floor = Image.new('RGBA', (16, 16), '#202936')
 d = ImageDraw.Draw(floor)
 # Cut square slate slabs, contrasting with the early floors' irregular rubble.
@@ -12,7 +12,6 @@ for x, y, color in [(0, 0, '#354555'), (8, 0, '#304050'),
     d.line((x, y, x + 6, y), fill='#445566')
     d.point((x + 3, y + 4), fill='#405161')
 d.line([(10, 8), (11, 10), (10, 12)], fill='#263440')
-floor.save(out / 'crypt-floor.png')
 wall = Image.new('RGBA', (16, 16), '#1c2635')
 d = ImageDraw.Draw(wall)
 # Tall dressed blocks with frosty bevels and a narrow brass inlay.

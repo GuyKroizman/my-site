@@ -48,7 +48,7 @@ for y, row in enumerate(PIXELS):
         if isinstance(color, str):
             color = tuple(bytes.fromhex(color[1:])) + (255,)
         image.putpixel((x, y), color)
-path = Path(__file__).resolve().parents[1] / 'public/rogue0/monsters/cultist.png'
+path = Path(__file__).resolve().parents[1] / 'src/games/rogue0/assets/monsters/cultist.png'
 path.parent.mkdir(parents=True, exist_ok=True)
 image.save(path)
 print(path)

@@ -116,7 +116,9 @@ reveals nearby hidden traps and secret doors. It never disarms traps, including
 on repeated searches. Inspecting a trap remains free. Item-based disarming is
 only a possible future mechanic. Generated frost, teleport and alarm traps are
 reusable; dart, fire, arrow, summon, geyser and confusion traps are single-use. Searching
-never changes their activation policy.
+never changes their activation policy. Monsters avoid revealed (armed) traps
+during ordinary navigation, but confusion overrides that caution and they may
+stumble onto a plate.
 
 **Chasms:** move into an adjacent chasm with a direction key or tap its tile.
 An “Are you sure?” confirmation warns about the fall before committing.

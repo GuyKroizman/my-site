@@ -747,6 +747,29 @@ for (const adjacent of [false, true]) {
   assert.equal(ctx.entities.includes(victim), adjacent, 'moving enemy can stumble into chasm');
   assert.equal(victim.nextActionTime, 3.75, 'AI spends exactly one action');
 }
+// Normal enemy navigation avoids revealed traps; confusion may still step on them.
+{
+  const { ctx, flyer } = flightSetup();
+  tiles.clearAllFeatures();
+  tiles.setFeature(3, 2, 'trap', { trapKind: 'confusion', trap: 'visible' });
+  const hero = flyer;
+  hero.x = 4;
+  hero.effects = [];
+  const monster = Object.assign(new Entity(), { context: ctx, type: 'enemy', name: 'Stumbler',
+    healthPoints: 10, x: 2, y: 2, sprite: sprite(), protection: () => 0,
+    takeDamage(amount) { this.healthPoints -= amount; }, range: () => 0, visionRadius: 8,
+    hearNoise() {}, onDestroy() {}, moving: false });
+  ctx.player = hero;
+  ctx.entities = [hero, monster];
+  const ai = load('ai', { dungeon: flightDungeon, tiles, ...fov, ...flightEffects });
+  assert.deepEqual(ai.nextStepToward(monster, 4, 2), null,
+    'normal navigation refuses the only route across a revealed trap');
+  flightEffects.applyEffect(monster, flightEffects.createConfusedEffect());
+  withRoll(0, () => ai.enemyTurn(monster));
+  assert.deepEqual([monster.x, monster.y], [3, 2], 'confused navigation can step onto a revealed trap');
+  assert.equal(tiles.getTrapState(3, 2), 'triggered', 'the trap still fires for the stumbler');
+  assert.ok(flightEffects.hasEffect(monster, 'confused'), 'confusion plate applies its effect');
+}
 // Teleport traps are always reusable; other kinds honor their configured policy.
 // Reactivation never depends on a world-time timer.
 for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 'alarm']) {

@@ -38,7 +38,7 @@ image = Image.new('RGBA', (16, 22))
 for y, row in enumerate(PIXELS):
     for x, pixel in enumerate(row):
         image.putpixel((x, y), tuple(bytes.fromhex(PALETTE[pixel][1:])))
-path = Path(__file__).resolve().parents[1] / 'public/rogue0/monsters/goblin.png'
+path = Path(__file__).resolve().parents[1] / 'src/games/rogue0/assets/monsters/goblin.png'
 path.parent.mkdir(parents=True, exist_ok=True)
 image.save(path)
 print(path)

@@ -2,7 +2,7 @@
 from pathlib import Path
 from PIL import Image, ImageDraw
 
-out = Path('public/rogue0')
+out = Path('src/games/rogue0/assets')
 out.mkdir(exist_ok=True)
 # Broken, partly buried dungeon flagstones. Earth fills irregular joints;
 # low-contrast mottling, no bevels or directional shadows suggesting height.
@@ -26,7 +26,6 @@ for x, y, color in [(3, 2, '#46473f'), (4, 4, '#383c35'),
     d.point((x, y), fill=color)
 d.line([(9, 0), (9, 1), (10, 2)], fill='#30352f')
 d.line([(8, 9), (7, 10), (7, 12)], fill='#33372e')
-floor.save(out / 'stone-floor.png')
 atlas = Image.open('public/colored.png').convert('RGBA')
 atlas.paste(floor, (0, 0))
 # Original worn masonry: broad horizontal blocks, recessed mortar, restrained
