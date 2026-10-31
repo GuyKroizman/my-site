@@ -428,7 +428,7 @@ export class GameScene extends Phaser.Scene {
 
     // Keep a steady count of enemies on the right side of the screen
     const camRight = this.cameras.main.scrollX + this.cameras.main.width
-    var i = 0;
+    let i = 0;
     while (this.enemies.filter(e => !e.dead).length < this.targetEnemyCount) {
       const spawnX = camRight + 360 * i + Math.random() * 400
       this.enemies.push(new Enemy(this, spawnX, this.cameras.main.height - 40))

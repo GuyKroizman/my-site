@@ -2215,7 +2215,7 @@ export class HootGameScene extends Phaser.Scene {
           const bulletSpeed = Math.sqrt((bullet as any).velocityX * (bullet as any).velocityX + (bullet as any).velocityY * (bullet as any).velocityY);
 
           switch (collisionSide) {
-            case 'bottom':
+            case 'bottom': {
               // Deflect downward with angle to left or right
               const bottomAngle = Math.random() > 0.5 ?
                 Math.PI / 2 + Math.PI / 6 : // Down-right (π/2 + π/6 = 2π/3)
@@ -2223,8 +2223,9 @@ export class HootGameScene extends Phaser.Scene {
               newVelocityX = Math.cos(bottomAngle) * bulletSpeed;
               newVelocityY = Math.sin(bottomAngle) * bulletSpeed;
               break;
+            }
 
-            case 'top':
+            case 'top': {
               // Deflect upward with angle to left or right
               const topAngle = Math.random() > 0.5 ?
                 -Math.PI / 2 + Math.PI / 6 : // Up-right (-π/2 + π/6 = -π/3)
@@ -2232,8 +2233,9 @@ export class HootGameScene extends Phaser.Scene {
               newVelocityX = Math.cos(topAngle) * bulletSpeed;
               newVelocityY = Math.sin(topAngle) * bulletSpeed;
               break;
+            }
 
-            case 'left':
+            case 'left': {
               // Deflect leftward with angle up or down
               const leftAngle = Math.random() > 0.5 ?
                 Math.PI + Math.PI / 6 : // Left-up (π + π/6 = 7π/6)
@@ -2241,8 +2243,9 @@ export class HootGameScene extends Phaser.Scene {
               newVelocityX = Math.cos(leftAngle) * bulletSpeed;
               newVelocityY = Math.sin(leftAngle) * bulletSpeed;
               break;
+            }
 
-            case 'right':
+            case 'right': {
               // Deflect rightward with angle up or down
               const rightAngle = Math.random() > 0.5 ?
                 0 + Math.PI / 6 : // Right-up (0 + π/6 = π/6)
@@ -2250,12 +2253,14 @@ export class HootGameScene extends Phaser.Scene {
               newVelocityX = Math.cos(rightAngle) * bulletSpeed;
               newVelocityY = Math.sin(rightAngle) * bulletSpeed;
               break;
+            }
 
-            default:
+            default: {
               // Fallback to random direction (shouldn't happen)
               const randomAngle = Math.random() * 2 * Math.PI;
               newVelocityX = Math.cos(randomAngle) * bulletSpeed;
               newVelocityY = Math.sin(randomAngle) * bulletSpeed;
+            }
           }
 
           // Set new velocity

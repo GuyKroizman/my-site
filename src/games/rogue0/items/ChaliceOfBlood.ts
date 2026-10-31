@@ -74,22 +74,21 @@ export default class ChaliceOfBlood extends Entity {
 
   // Rebuilt on browser resume so the tick callback targets the restored artifact.
   regenEffect(): StatusEffect {
-    const artifact = this;
     return {
       id: "chalice-regeneration",
       name: "Regeneration",
       iconTile: 13 * 49 + 44,
       duration: Number.POSITIVE_INFINITY,
       manualExpiry: true,
-      tick(entity) {
+      tick: (entity) => {
         // Do not bank healing at full health or accelerate it by re-equipping.
         if (entity.healthPoints >= entity.maxHealthPoints) {
-          artifact.healingTurns = 0;
+          this.healingTurns = 0;
           return;
         }
-        artifact.healingTurns += 1;
-        if (artifact.healingTurns < artifact.healingInterval) return;
-        artifact.healingTurns = 0;
+        this.healingTurns += 1;
+        if (this.healingTurns < this.healingInterval) return;
+        this.healingTurns = 0;
 
         const amount = Math.min(1, entity.maxHealthPoints - entity.healthPoints);
         entity.healthPoints += amount;

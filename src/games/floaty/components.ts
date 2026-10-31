@@ -421,7 +421,7 @@ function registerHandWalker(AFRAME: any) {
       ]
 
       if (!(window as any).__floatyHandDebug) {
-        ;(window as any).__floatyHandDebug = {}
+        (window as any).__floatyHandDebug = {}
       }
     },
     checkSurfaceContact: function (palmPos: any, meshes: any[]) {
@@ -566,7 +566,7 @@ function registerPlayerHealth(AFRAME: any) {
       this.publishState()
     },
     publishState: function () {
-      ;(window as any).__floatyPlayerHealth = {
+      (window as any).__floatyPlayerHealth = {
         current: this.currentHealth,
         max: this.data.maxHealth
       }

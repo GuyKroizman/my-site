@@ -24,6 +24,7 @@ export default function FloatyMcHandface() {
   const scriptLoadedRef = useRef(false)
 
   useEffect(() => {
+    const sceneNode = sceneRef.current
     const loadScripts = async () => {
       if (!document.querySelector('script[src*="aframe.min"]')) {
         await new Promise<void>((resolve) => {
@@ -54,8 +55,8 @@ export default function FloatyMcHandface() {
     }
 
     return () => {
-      if (sceneRef.current) {
-        sceneRef.current.innerHTML = ''
+      if (sceneNode) {
+        sceneNode.innerHTML = ''
       }
     }
   }, [])

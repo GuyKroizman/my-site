@@ -272,7 +272,7 @@ export default function RacingGame() {
         setIsRaceLoading(false)
       }
     }
-  }, [])
+  }, [showVirtualControls])
 
   // Start race when level changes and we're in playing state
   useEffect(() => {

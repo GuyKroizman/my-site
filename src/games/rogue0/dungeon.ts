@@ -27,7 +27,7 @@ export const Sprites = {
 
 const tileSize = 16;
 
-let dungeon = {
+const dungeon = {
   currentLevel: [] as number[][],
   layer: null as Phaser.Tilemaps.TilemapLayer | null,
   pathGrid: null as PF.Grid | null,
@@ -739,8 +739,8 @@ let dungeon = {
       context.scene.tweens.add({
         targets: attacker.sprite!,
         onComplete: () => {
-          attacker.sprite!.x = context.map?.tileToWorldX(attacker.x!)!;
-          attacker.sprite!.y = context.map?.tileToWorldY(attacker.y!)!;
+          attacker.sprite!.x = context.map!.tileToWorldX(attacker.x!)!;
+          attacker.sprite!.y = context.map!.tileToWorldY(attacker.y!)!;
           attacker.moving = false;
           attacker.tweens -= 1;
 

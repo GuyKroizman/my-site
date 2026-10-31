@@ -290,7 +290,7 @@ export class Ball {
     const distanceSq = separation.lengthSq()
     if (distanceSq >= minDistance * minDistance) return false
 
-    let normal = separation.clone()
+    const normal = separation.clone()
     let distance = Math.sqrt(distanceSq)
     if (distance <= 1e-6) {
       const relativeVelocity = new THREE.Vector3(

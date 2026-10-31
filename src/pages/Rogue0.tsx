@@ -112,6 +112,10 @@ export default function Rogue0() {
   const pendingSave = useRef<RunSave | undefined>(undefined)
   const [result, setResult] = useState<EndResult | null>(null)
   const [inspectMode, setInspectMode] = useState(false)
+  const inspectModeRef = useRef(inspectMode)
+  useEffect(() => {
+    inspectModeRef.current = inspectMode
+  }, [inspectMode])
   const [muted, setMuted] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [helpPage, setHelpPage] = useState(0)
@@ -155,7 +159,7 @@ export default function Rogue0() {
       setSaveInfo({ error: 'This saved run could not be loaded. Start a new game to replace it.' })
       setHeroClass(null)
     }
-    context.inspectMode = inspectMode
+    context.inspectMode = inspectModeRef.current
     context.onEnd = (r) => {
       phaserRef.current?.destroy(true)
       phaserRef.current = null

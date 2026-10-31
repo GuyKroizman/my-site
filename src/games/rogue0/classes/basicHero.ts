@@ -745,8 +745,8 @@ export default class BasicHero extends Entity {
     if (context.map == undefined) {
       throw new Error("context.map is undefined");
     }
-    let x = context.map.worldToTileX(event.worldX);
-    let y = context.map.worldToTileY(event.worldY);
+    const x = context.map.worldToTileX(event.worldX);
+    const y = context.map.worldToTileY(event.worldY);
 
     let entity = dungeon.entityAtTile(context, x!, y!);
     if (entity && isGrassConcealed(entity.x, entity.y, this.x, this.y)) entity = undefined;
@@ -1622,8 +1622,8 @@ export default class BasicHero extends Entity {
 
     if (!this.canAct()) return;
 
-    let oldX = this.x!;
-    let oldY = this.y!;
+    const oldX = this.x!;
+    const oldY = this.y!;
     let moved = false;
     let newX = this.x!;
     let newY = this.y!;
@@ -1668,7 +1668,7 @@ export default class BasicHero extends Entity {
       dungeon.openDoor(newX, newY);
 
       if (!dungeon.isWalkableTile(this.context, newX, newY)) {
-        let entity = dungeon.entityAtTile(this.context, newX, newY);
+        const entity = dungeon.entityAtTile(this.context, newX, newY);
 
         // Check if entity at destination is an enemy
         if (entity && entity.type == "enemy") {
