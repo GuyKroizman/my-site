@@ -40,6 +40,7 @@ export class LogWindow {
     this.root.add([this.backdrop, this.panel, this.title, this.body, this.closeButton, this.newer, this.older, this.indicator]);
     this.clip = scene.make.graphics({ x: 0, y: 0 });
     this.body.setMask(this.clip.createGeometryMask());
+    this.backdrop.on("pointerup", () => this.close());
     this.closeButton.on("pointerup", () => this.close());
     this.newer.on("pointerup", () => { this.page = Math.max(0, this.page - 1); this.render(); });
     this.older.on("pointerup", () => { this.page = Math.min(this.pages.length - 1, this.page + 1); this.render(); });
