@@ -267,6 +267,21 @@ assert.equal(flame.spriteTextureKey, fireTexture.FIRE_ELEMENTAL_TEXTURE, 'fire u
 assert.equal(flame.spriteFrame, 0);
 assert.equal(flame.damageType, 'fire');
 
+// Fire wand projectiles are super effective against ice-elemental enemies.
+{
+  const Wand = load('src/games/rogue0/items/wand.ts', {
+    Entity, identify: () => {}, dungeon, Phaser: { Math: { Between: () => 3 } }
+  }).default;
+  const WandOfFirebolt = load('src/games/rogue0/items/WandOfFirebolt.ts', {
+    Wand, createBurningEffect: () => ({ id: 'burning' })
+  }).default;
+  const firebolt = new WandOfFirebolt({});
+  assert.equal(firebolt.wandDamageMultiplier({ damageType: 'ice' }), 2,
+    'firebolt doubles against ice');
+  assert.equal(firebolt.wandDamageMultiplier({ damageType: 'fire' }), 1,
+    'firebolt is not super effective against non-ice');
+}
+
 const Flies = load('src/games/rogue0/monsters/swarmOfFlies.ts', { Monster, dungeon, ...flyTexture }).default;
 const swarm = new Flies(context, 5, 5);
 const offspring = new Flies(context, 5, 5, true);

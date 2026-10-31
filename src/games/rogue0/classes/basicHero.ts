@@ -1216,9 +1216,9 @@ export default class BasicHero extends Entity {
         this.cancelThrow();
         return;
       }
-      context.onWandZap?.({ fromX: this.x, fromY: this.y, toX: tx, toY: ty, damageType: item.damageType });
-      const damage = item.damage();
       const enemy = intercepted ?? dungeon.entityAtTile(context, tx, ty);
+      context.onWandZap?.({ fromX: this.x, fromY: this.y, toX: tx, toY: ty, damageType: item.damageType });
+      const damage = Math.round(item.damage() * (enemy ? item.wandDamageMultiplier(enemy) : 1));
       if (enemy?.type === "enemy") {
         const attack = this.attack;
         this.attack = () => damage;

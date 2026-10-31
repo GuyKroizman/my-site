@@ -31,6 +31,7 @@ class Wand {
   range() { return 5; }
   damage() { this.charges--; return 5; }
   wandEffect() { return {}; }
+  wandDamageMultiplier() { return 1; }
 }
 const Hero = load('classes/basicHero', { Entity, dungeon, resolveAttack, removeEntity, Wand, ...fov }).default;
 function setup() {

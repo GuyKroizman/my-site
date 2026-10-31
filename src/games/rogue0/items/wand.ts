@@ -61,6 +61,12 @@ export default abstract class Wand extends Entity {
     return Phaser.Math.Between(min, max);
   }
 
+  // Wands may specialise against particular foes; the fire wand is super
+  // effective against ice-elemental enemies. The base wand deals normal damage.
+  wandDamageMultiplier(_target: Entity): number {
+    return 1;
+  }
+
   get baseDescription(): string {
     const [min, max] = this.damageBounds;
     return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. No distance limit; walls and blocked lines of sight stop zaps. Charges: ${this.charges}/${this.maxCharges}. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.`;

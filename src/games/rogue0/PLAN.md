@@ -39,7 +39,17 @@ has been playtested. Checked boxes mean the described implementation exists.
   exist. Shops, trading and revival items do not.
 - `context.ts` defaults to **25 floors**. Five floors was a testing limit.
   The Bone Lord spawns only on floor 25; its stats are unchanged.
-  Five-floor equipment/supply bands exist, but themed regions do not yet.
+  Five-floor equipment/supply bands exist. Themed regions are visual-only so
+  far (crypt → sandstone → crystal → volcanic palettes); per-region enemy,
+  trap and boss scaling is future work.
+- Browser autosave/resume (localStorage) and Save & title exist; death and
+  victory clear the run. Saves retain hero, gear, effects, the scheduler clock
+  and every visited floor.
+- Wand identity is shared across a run; zaps have no distance cap and carried
+  wands recharge one charge per 20 world-time units. Upgrade scrolls, gems and
+  Holy Potions let the player choose a target.
+- Equipped ring bonuses scale with upgrade level; treasure chests generate two
+  per floor and mimics scale across the five region bands.
 - Bottom toolbar, hero/inspect panels, inventory modal and generated potion
   textures exist. Full HUD polish and the custom-art overhaul remain open.
 - The turn engine is now a **discrete-event action-time scheduler**:
@@ -225,7 +235,8 @@ HUD + modal window system.
 
 - [x] Identification: unknown consumables/gear; identify by use or scroll.
 - [x] Cursed gear (can't unequip, penalty) + Remove Curse.
-- [x] Scroll of Upgrade and item upgrade-level model.
+- [x] Scroll of Upgrade and item upgrade-level model; upgrade scrolls, gems and
+      Holy Potions let the player choose a target.
 - [x] Implement SPD-style Strength, weapon/armor tiers 1–5, upgrade scaling
       and guaranteed progression supplies (specification below).
 - [ ] Balance progression across all five classes over 25 floors; expand
@@ -243,9 +254,9 @@ multiplies weapon attack time / armor movement time by **1.2** and divides
 weapon accuracy / armor evasion by **1.2**. Bonuses are computed from current
 equipment, so drinking/upgrading/swapping updates them immediately. Hero UI
 shows Strength; identified inventory details show tier, requirement and warnings.
-Regression coverage lives in the item-upgrades and progression suites; all
-12 suites pass, as does the production build. Visual verification and balance
-playtesting remain deferred.
+Regression coverage lives in the item-upgrades and progression suites (part of
+the 26 headless suites); all pass, as does the production build. Visual
+verification and balance playtesting remain deferred.
 
 **Tier roster:** Dagger / Shortsword / Broadsword / Greatsword / Greataxe and
 Cloth / Leather / Mail / Scale / Plate Armor. At tier `t`, upgrade `u`, weapon
@@ -306,10 +317,14 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
   penalties, keep it for a later Strength potion, or invest upgrades in it (or
   the lower-tier equipment already in use).
 
-- [x] Wands with charges + Recharging scroll.
-- [x] Rings (Accuracy, Evasion, Elements, Haste, Might) and two artifacts.
+- [x] Wands with charges + Recharging scroll; wand identity is shared per run,
+      zaps have no distance cap, and carried wands passively recharge one charge
+      per 20 world-time units.
+- [x] Rings (Accuracy, Evasion, Elements, Haste, Might) and two artifacts; ring
+      bonuses now scale with upgrade level and update immediately when equipped.
 - [ ] Audit identification leaks and curse handling across every inventory action.
-  - Stabilisation pass: all 11 regression suites pass, including scheduling and
+  - Stabilisation pass: all 26 headless regression suites pass, including
+    scheduling and
     equipped-curse removal guards. Fixed upgrade logs revealing unidentified
     equipment names/levels (including the upgrade-cap path), with regression
     coverage. Stack drops now preserve item state like stack throws rather
@@ -382,12 +397,13 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
       fire also removes concealment. Vision regressions cover detection,
       ambush consumption, targeting and inspect secrecy. Visual/balance
       playtesting remains deferred.
-- [x] Voluntary chasm drops: Jump (`v` or the HUD arrow) targets a cardinally
-      adjacent empty chasm; Enter/tap commits and Esc cancels. Successful jumps
-      cost movement time, invalid/cancelled attempts cost nothing. Rooted and
-      levitating players cannot deliberately drop. Existing fall rules apply:
-      descend one floor, lose ceil(max HP / 3), potentially die; final-floor
-      falls are fatal. Normal movement and auto-walk still avoid chasms.
+- [x] Voluntary chasm drops: step into a cardinally adjacent chasm with a
+      direction key or tap its tile, then confirm the fall in an in-game
+      "Are you sure?" dialog (no Jump button or `v` shortcut). Committing costs
+      movement time and descends one floor; cancelling is free. Rooted heroes
+      cannot step into chasms; levitating heroes cross safely. Falls deal
+      ceil(max HP / 3) damage, potentially fatal; final-floor falls are fatal.
+      Auto-walk routes still avoid chasms.
 - [x] Effect-level knockback groundwork: a cardinal one-tile displacement can
       move either player or monster, preserving terrain contacts and victim
       scheduling. Walls/closed doors, occupied destinations and rooted victims
@@ -478,6 +494,9 @@ Ghoul has fast movement, regeneration and on-hit effects; Brute enrages;
 cultists summon, swarms split on death, and elementals have typed effects.
 Mimic/wraith classes exist, but that alone does not complete their intended AI.
 Archer currently attacks in range rather than kiting. Door-aware pursuit exists.
+Two treasure chests generate per floor (separate from the mimic encounter);
+opening them is a use action and rewards scale to floor tier. Mimics stay
+dormant until damaged and scale across the five region bands.
 
 - [ ] Finish every monster's intended signature ability (SPD-style):
   - Skeleton → basic brittle melee enemy; stays dead when killed (no reanimation).
@@ -568,7 +587,9 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
 ### Phase 13 — Meta & replayability
 *Independent of combat depth; pairs with the rest.*
 
-- [ ] Save/load (localStorage) + resume.
+- [x] Save/load (localStorage) + resume: one run autosaves per browser, with
+      Continue on the title screen and Save & title in-game. The remaining
+      meta features below are still open.
 - [ ] Daily seed + seeded runs; challenge modifiers (no healing, fog of war
       doubled, cursed start, etc.).
 - [ ] Bestiary, item compendium, run statistics (damage by type, floor/time).
@@ -582,6 +603,8 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
       floor 5 to floor 25 without rebalancing it.
 - [ ] Split into themed regions (sewers → prison → caves → dwarven halls →
       demon halls), each with its own palette, enemy set, trap set and region boss.
+      Partial: five visual palettes (stone/crypt/sandstone/crystal/volcanic) are
+      already wired by floor; enemy/trap/boss regional scaling remains open.
 - [ ] Difficulty/HP/ATK scale per region; introduce new enemies per region.
 - [ ] Region-unique environmental hazards (e.g. gas vents in caves, lava in
       halls).
@@ -648,14 +671,17 @@ coverage and small-screen readability before marking this phase complete.
 1. **Phase 9 first-tier XP/talents landed:** levels 2–4 award three points for
    two rank-2 class talents, selected in the Hero panel. Separate XP, Strength
    and equipment-upgrade tracks are preserved. Later tiers/subclasses remain
-   open; terrain work continues. All 15 regression suites and the production
-   build pass; visual and five-class balance playtesting remain deferred.
-2. **Finish Phase 7's terrain interactions** before adding more consumables.
+   open; terrain work continues. All 26 headless regression suites and the
+   production build pass; visual and five-class balance playtesting remain
+   deferred.
+2. **Phase 7 terrain is implemented** (doors, traps, water/ice, fire/grass,
+   chasms, gas, shock, confusion); remaining work is balance/visual playtesting.
 3. **Finish Phase 8:** archer kiting and remaining signatures. The Bone Lord
    now lives on floor 25; boss balance/redesign is deferred at user request.
 4. **Phase 9 choices + Phase 10 shops:** make class builds and gold meaningful.
-5. **Phase 15 polish and Phase 13 save/resume**, then add region identities
-   within the existing 25 floors. Keep Phase 16 deferred unless prioritised.
+5. **Phase 15 polish and Phase 13 remaining meta** (seeds, challenges,
+   bestiary, run stats, achievements), then deepen region identities beyond
+   the existing palettes. Keep Phase 16 deferred unless prioritised.
 
 ### Original dependency order (reference)
 
