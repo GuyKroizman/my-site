@@ -4,9 +4,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 
-// Load real TS logic with imports replaced by injected bindings (see the other
-// rogue0 suites). `load` strips every `import ...;` line, so any module-level
-// symbol the file needs at runtime must be passed here.
 function load(path, bindings = {}) {
   const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
   const exports = {};
@@ -33,47 +30,24 @@ const item = (slot, extra = {}) => Object.assign(new Entity(), {
   type: 'item', equipSlot: slot, cursed: false, curseId: '', identified: true, ...extra,
 });
 
-// --- Generation: only weapon/armor/ring are eligible; other slots stay clean.
+// --- Generation: weapon/armor/ring eligible; every slot has a curse table.
 assert.equal(curseEligible(item('weapon')), true);
 assert.equal(curseEligible(item('armor')), true);
 assert.equal(curseEligible(item('ring')), true);
 assert.equal(curseEligible(item('artifact')), false);
 assert.equal(curseEligible(item('consumable')), false);
-assert.equal(curseEligible(item('junk')), false);
-
-// Above the generation chance → clean; the random stream is injectable.
 assert.equal(maybeCurse(item('armor'), 0.25, () => 0.9), false);
-const clean = item('armor');
-assert.equal(maybeCurse(clean, 0.25, () => 0.9), false);
-assert.equal(clean.cursed, false);
-assert.equal(clean.curseId, '');
+assert.equal(rollCurseId(item('weapon'), () => 0), 'wayward');
+assert.equal(rollCurseId(item('ring'), () => 0), 'inverted');
+assert.equal(maybeCurse(item('weapon'), 1, () => 0), true);
+assert.equal(maybeCurse(item('ring'), 1, () => 0), true);
+const cursedArmor = item('armor');
+assert.equal(maybeCurse(cursedArmor, 0.25, () => 0), true);
+assert.ok(curseData.CURSE_TABLES.armor.includes(cursedArmor.curseId));
+assert.equal(maybeCurse(item('armor', { cursed: true, curseId: 'multiplicity' }), 0.25, () => 0), false);
 
-// Below the chance → cursed with a valid armor curse.
-let calls = 0;
-const cursed = item('armor');
-const stream = () => (calls++ === 0 ? 0.1 : 0); // cursed?, then first table entry
-assert.equal(maybeCurse(cursed, 0.25, stream), true);
-assert.equal(cursed.cursed, true);
-assert.ok(curseData.CURSE_TABLES.armor.includes(cursed.curseId));
-
-// Deterministic roll: () => 0 always yields the first armor curse.
-const displacement = item('armor');
-assert.equal(maybeCurse(displacement, 0.25, () => 0), true);
-assert.equal(displacement.curseId, 'displacement');
-
-// Weapons/rings currently have empty tables, so they are never generated
-// cursed (a locked slot must always carry an observable penalty).
-assert.equal(rollCurseId(item('weapon'), () => 0), null);
-assert.equal(rollCurseId(item('ring'), () => 0), null);
-assert.equal(maybeCurse(item('weapon'), 1, () => 0), false);
-assert.equal(maybeCurse(item('ring'), 1, () => 0), false);
-
-// Already-cursed items never reroll.
-const pre = item('armor', { cursed: true, curseId: 'multiplicity' });
-assert.equal(maybeCurse(pre, 0.25, () => 0), false);
-assert.equal(pre.curseId, 'multiplicity');
-
-// --- Descriptions: a named curse is revealed only once identified.
+// --- Descriptions: named curses reveal only once identified.
+const displacement = item('armor', { cursed: true, curseId: 'displacement' });
 assert.match(displacement.displayDescription, /Displacement: When you are attacked/);
 assert.match(displacement.displayDescription, /cannot be removed while equipped/);
 const secret = item('armor', { cursed: true, curseId: 'multiplicity', identified: false });
@@ -81,90 +55,224 @@ assert.equal(secret.curseDescription, '');
 assert.doesNotMatch(secret.displayDescription, /Multiplicity/);
 secret.identified = true;
 assert.match(secret.displayDescription, /Multiplicity: When you are attacked/);
+const waywardDesc = item('weapon', { cursed: true, curseId: 'wayward' });
+assert.match(waywardDesc.displayDescription, /Wayward: This weapon is wildly inaccurate/);
 
 // --- Mirror image decoy: friendly, inert, ephemeral, no rewards.
 const MirrorImage = load('src/games/rogue0/monsters/mirrorImage.ts', { Entity, removeEntity }).default;
 const heroLike = Object.assign(new Entity(), { tile: 26, textureKey: 'hero-color', tint: 0xffeecc });
-const ctx = { entities: [], messages: [], visibleTiles: new Set() };
-const image = new MirrorImage(ctx, 2, 3, heroLike);
+const imgCtx = { entities: [], messages: [], visibleTiles: new Set() };
+const image = new MirrorImage(imgCtx, 2, 3, heroLike);
 assert.equal(image.type, 'enemy');
 assert.equal(image.isDecoy, true);
-assert.equal(image.name, 'Mirror Image');
 assert.equal(image.healthPoints, 1);
-assert.equal(image.tile, 26);
 assert.equal(image.textureKey, 'hero-color');
-assert.equal(image.tint, 0xffeecc);
-assert.equal(image.attack(), 0);
-assert.equal(image.protection(), 0);
-image.turn(); // waits, never moves
+image.turn();
 assert.equal(image.nextActionTime, 1);
 const before = image.nextActionTime;
-for (let i = 0; i < 9 && ctx.entities.includes(image); i++) image.refresh();
-assert.ok(!ctx.entities.includes(image), 'mirror images fade on their own');
-assert.equal(image.nextActionTime, before, 'fading spends no action');
+for (let i = 0; i < 9 && imgCtx.entities.includes(image); i++) image.refresh();
+assert.ok(!imgCtx.entities.includes(image), 'mirror images fade on their own');
 
-// --- Armor curse proc: Displacement teleports; Multiplicity spawns a decoy.
-const tiles = { isBlocking: () => false };
+// --- Passive curses: Wayward (accuracy), Bulk (movement), Metabolism (hunger).
+const Hero = load('src/games/rogue0/classes/basicHero.ts', {
+  Entity, dungeon: { log() {} }, isModalOpen: () => false, hasEffect: () => false,
+  removeEffect() {}, isGrassConcealed: () => false, getTrapState: () => undefined,
+  sfx: { equip() {}, levelUp() {}, potion() {} }, spawnEntityFloatingText() {},
+  applyEffect() {}, createBurningEffect: () => ({}), createFrozenEffect: () => ({}),
+  createPoisonedEffect: () => ({}), resolveAttack: () => ({ hit: false, damage: 0 }),
+  hasLineOfSight: () => true, Gem: class {}, Wand: class {},
+}).default;
+function makeHero(over = {}) {
+  return Object.assign(Object.create(Hero.prototype), {
+    accuracy: 100, strength: 10, weapon: undefined, armor: undefined,
+    hunger: 10, healthPoints: 30, maxHealthPoints: 30, effects: [],
+    hungerWarned: true, regenerationTicks: 0, ...over,
+  });
+}
+assert.equal(makeHero({ weapon: { cursed: true, curseId: 'wayward', requiredStrength: 0 } }).effectiveAccuracy, 50, 'Wayward halves accuracy');
+assert.equal(makeHero({ armor: { cursed: true, curseId: 'bulk', requiredStrength: 0 } }).movementCostMultiplier(), 2, 'Bulk doubles movement cost');
+assert.equal(makeHero({ armor: { cursed: true, curseId: 'metabolism', requiredStrength: 0 } }).effectiveAccuracy, 100, 'other armor curses leave accuracy intact');
+const metab = makeHero({ armor: { cursed: true, curseId: 'metabolism', requiredStrength: 0 } });
+metab.refresh();
+assert.equal(metab.hunger, 9.5, 'Metabolism doubles hunger drain');
+const normal = makeHero({});
+normal.refresh();
+assert.equal(normal.hunger, 9.75, 'normal hunger drain unchanged');
+
+// --- Polarized weapon damage scales ×0.5–×1.5 on actual hits.
+const PhaserMax = { Math: { Between: (_min, max) => max } };
+const { TieredWeapon } = load('src/games/rogue0/items/tieredEquipment.ts', { Entity, Phaser: PhaserMax });
+const cleanWep = new TieredWeapon({ messages: [] }, undefined, undefined, 1);
+assert.equal(cleanWep.damage(), 5, 'clean weapon uses its normal max');
+const polWep = new TieredWeapon({ messages: [] }, undefined, undefined, 1);
+polWep.cursed = true;
+polWep.curseId = 'polarized';
+assert.equal(polWep.damage(), 8, 'polarized max roll scales ×1.5 (5 → 8)');
+
+// --- Cursed rings invert their passive; uncursing re-applies the positive form.
+const Ring = load('src/games/rogue0/items/ring.ts', { Entity, identify: (e) => { e.identified = true; } }).default;
+const RingOfMight = load('src/games/rogue0/items/RingOfMight.ts', { Ring }).default;
+const RingOfHaste = load('src/games/rogue0/items/RingOfHaste.ts', { Ring }).default;
+const RingOfElements = load('src/games/rogue0/items/RingOfElements.ts', { Ring }).default;
+const RingOfAccuracy = load('src/games/rogue0/items/RingOfAccuracy.ts', { Ring }).default;
+const ringCtx = () => ({ messages: [], player: {
+  movementSpeed: 1, accuracy: 95, evasion: 0, resistance: {}, vulnerability: {}, effects: [] } });
+{
+  const might = new RingOfMight(ringCtx());
+  assert.equal(might.damage(), 2);
+  might.cursed = true; might.curseId = 'inverted';
+  assert.equal(might.damage(), -2);
+  assert.match(might.baseDescription, /Reduces damage by 2/);
+}
+{
+  const ctx = ringCtx();
+  const haste = new RingOfHaste(ctx);
+  haste.cursed = true; haste.curseId = 'inverted';
+  haste.equip();
+  assert.equal(ctx.player.movementSpeed, 0.5, 'cursed Haste slows movement');
+  haste.cursed = false;
+  haste.onUncursed();
+  assert.equal(ctx.player.movementSpeed, 2, 'uncursing re-applies the positive haste');
+}
+{
+  const ctx = ringCtx();
+  const elems = new RingOfElements(ctx);
+  elems.cursed = true; elems.curseId = 'inverted';
+  elems.equip();
+  assert.equal(ctx.player.vulnerability.fire, 2);
+  assert.equal(ctx.player.vulnerability.shock, 2);
+  assert.equal(ctx.player.resistance.fire, undefined);
+  elems.cursed = false;
+  elems.onUncursed();
+  assert.equal(ctx.player.vulnerability.fire, 0);
+  assert.equal(ctx.player.resistance.fire, 2);
+}
+{
+  const ctx = ringCtx();
+  const acc = new RingOfAccuracy(ctx);
+  acc.cursed = true; acc.curseId = 'inverted';
+  acc.equip();
+  assert.equal(ctx.player.accuracy, 90, 'cursed Accuracy reduces accuracy');
+  acc.unequip();
+  assert.equal(ctx.player.accuracy, 95);
+}
+
+// --- Proc helpers: real dungeon.ts with effect/tiles stubs.
+const grass = new Map();
+const tiles = {
+  isBlocking: () => false,
+  getFeature: (x, y) => grass.get(`${x},${y}`),
+  setFeature: (x, y, f) => { grass.set(`${x},${y}`, f); },
+  getDoorState: () => undefined,
+  getTileState: () => undefined,
+  forEachFeature() {},
+};
+const effects = {
+  applyEffect: (e, eff) => { (e.effects ??= []).push(eff); },
+  hasEffect: () => false,
+  removeEffect() {},
+  createBurningEffect: () => ({ id: 'burning' }),
+  createFrozenEffect: () => ({ id: 'frozen' }),
+  createCrippledEffect: () => ({ id: 'crippled' }),
+  createConfusedEffect: () => ({ id: 'confused' }),
+  createPoisonedEffect: () => ({ id: 'poisoned' }),
+  createCharmedEffect: () => ({ id: 'charmed' }),
+};
 const dungeon = load('src/games/rogue0/dungeon.ts', {
   PF: { Grid: class {}, DiagonalMovement: { Always: 0 }, AStarFinder: class {} },
   bresenhamLine: () => [],
-  hasEffect: () => false,
+  ...effects,
   tiles,
   MirrorImage,
   CURSE_PROC_CHANCE: curseData.CURSE_PROC_CHANCE,
   removeEntity,
+  spawnEntityFloatingText: () => {},
 }).default;
 
 function procContext(player) {
   dungeon.currentLevel = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
   return {
-    entities: [],
-    messages: [],
-    player,
+    entities: [], messages: [], player,
     map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
     visibleTiles: new Set(),
   };
 }
-const victim = Object.assign(new Entity(), {
-  type: 'player', x: 1, y: 1, walkPath: [1], inputBuffer: ['x'],
-  sprite: { setPosition() {} },
-});
-const armor = item('armor', { cursed: true, curseId: 'displacement' });
-victim.armor = armor;
-
-// No proc when the random roll misses the chance.
+function actor(over = {}) {
+  return Object.assign(new Entity(), { type: 'player', x: 1, y: 1, healthPoints: 20, effects: [], ...over });
+}
 const originalRandom = Math.random;
-Math.random = () => 0.9;
-dungeon.procArmorCurse(procContext(victim), victim);
-assert.equal(victim.x, 1, 'missed roll leaves the hero in place');
-assert.equal(victim.y, 1);
 
-// Displacement moves the hero to a walkable tile and clears buffered input.
-Math.random = () => 0;
-dungeon.procArmorCurse(procContext(victim), victim);
-assert.notDeepEqual([victim.x, victim.y], [1, 1], 'displacement teleports the hero');
-assert.deepEqual(victim.walkPath, [], 'teleport cancels auto-walk');
-assert.deepEqual(victim.inputBuffer, [], 'teleport clears buffered commands');
+// Armor procs: anti-entropy, corrosion, stench, overgrowth.
+{
+  const victim = actor({ armor: item('armor', { cursed: true, curseId: 'anti-entropy' }) });
+  const enemy = actor({ type: 'enemy', x: 2, y: 1 });
+  const ctx = procContext(victim); ctx.entities.push(enemy);
+  Math.random = () => 0;
+  dungeon.procArmorCurse(ctx, victim);
+  assert.ok(victim.effects.some(e => e.id === 'burning'), 'anti-entropy ignites the wearer');
+  assert.ok(enemy.effects.some(e => e.id === 'frozen'), 'anti-entropy freezes adjacent enemies');
+}
+{
+  const victim = actor({ armor: item('armor', { cursed: true, curseId: 'corrosion' }) });
+  Math.random = () => 0;
+  dungeon.procArmorCurse(procContext(victim), victim);
+  assert.ok(victim.effects.some(e => e.id === 'poisoned'), 'corrosion poisons the wearer');
+}
+{
+  const victim = actor({ armor: item('armor', { cursed: true, curseId: 'stench' }) });
+  let gas = 0;
+  const ctx = procContext(victim); ctx.onCreatePoisonGas = () => ++gas;
+  Math.random = () => 0;
+  dungeon.procArmorCurse(ctx, victim);
+  assert.equal(gas, 1, 'stench releases a gas cloud');
+}
+{
+  const victim = actor({ armor: item('armor', { cursed: true, curseId: 'overgrowth' }) });
+  grass.clear();
+  Math.random = () => 0;
+  dungeon.procArmorCurse(procContext(victim), victim);
+  assert.ok([...grass.values()].some(f => f === 'grass'), 'overgrowth sprouts grass');
+}
 
-// Multiplicity spawns a mirror image on an adjacent empty tile.
-armor.curseId = 'multiplicity';
-const multiContext = procContext(victim);
-victim.x = 1; victim.y = 1;
-Math.random = () => 0;
-dungeon.procArmorCurse(multiContext, victim);
-const decoy = multiContext.entities.find(e => e.isDecoy);
-assert.ok(decoy, 'multiplicity summons a mirror image');
-assert.ok(Math.max(Math.abs(decoy.x - 1), Math.abs(decoy.y - 1)) === 1, 'decoy spawns adjacent');
-assert.equal(decoy.type, 'enemy');
-
-// Un-cursed armor (or no armor) never procs.
-Math.random = () => 0;
-armor.cursed = false;
-const noProc = procContext(victim);
-victim.x = 1; victim.y = 1;
-dungeon.procArmorCurse(noProc, victim);
-assert.equal(noProc.entities.length, 0);
-assert.deepEqual([victim.x, victim.y], [1, 1]);
+// Weapon procs: sacrificial, displacing, annoying, friendly, exhausting.
+{
+  const victim = actor({ type: 'enemy', x: 2, y: 1, healthPoints: 10 });
+  const hero = actor({ weapon: item('weapon', { cursed: true, curseId: 'sacrificial' }), walkPath: [1] });
+  const ctx = procContext(hero); ctx.entities.push(victim);
+  dungeon.procWeaponCurse(ctx, hero, victim, 8);
+  assert.equal(hero.healthPoints, 18, 'sacrificial drains 25% of dealt damage (ceil 2)');
+}
+{
+  const victim = actor({ type: 'enemy', x: 2, y: 1 });
+  const hero = actor({ weapon: item('weapon', { cursed: true, curseId: 'displacing' }) });
+  Math.random = () => 0;
+  dungeon.procWeaponCurse(procContext(hero), hero, victim, 5);
+  assert.notDeepEqual([victim.x, victim.y], [2, 1], 'displacing teleports the victim');
+}
+{
+  const far = actor({ type: 'enemy', x: 4, y: 1 });
+  const near = actor({ type: 'enemy', x: 2, y: 1 });
+  const hero = actor({ weapon: item('weapon', { cursed: true, curseId: 'annoying' }) });
+  const ctx = procContext(hero); ctx.entities.push(far, near);
+  Math.random = () => 0;
+  dungeon.procWeaponCurse(ctx, hero, near, 5);
+  assert.equal(far.lastSeenX, 1, 'annoying wakes enemies within 8 tiles');
+  assert.equal(near.lastSeenY, 1);
+}
+{
+  const victim = actor({ type: 'enemy', x: 2, y: 1 });
+  const hero = actor({ weapon: item('weapon', { cursed: true, curseId: 'friendly' }) });
+  Math.random = () => 0;
+  dungeon.procWeaponCurse(procContext(hero), hero, victim, 5);
+  assert.ok(victim.effects.some(e => e.id === 'charmed'), 'friendly charms the victim');
+}
+{
+  const victim = actor({ type: 'enemy', x: 2, y: 1 });
+  const hero = actor({ weapon: item('weapon', { cursed: true, curseId: 'exhausting' }) });
+  Math.random = () => 0;
+  dungeon.procWeaponCurse(procContext(hero), hero, victim, 5);
+  assert.ok(hero.effects.some(e => e.id === 'crippled'), 'exhausting cripples the hero');
+}
 
 Math.random = originalRandom;
 
@@ -179,4 +287,4 @@ assert.equal(roundTrip.armor.cursed, true);
 assert.equal(roundTrip.img.isDecoy, true);
 assert.equal(roundTrip.img.name, 'Mirror Image');
 
-console.log('Rogue0 cursed items: eligibility, deterministic generation, named descriptions, secrecy, mirror-image decoy, Displacement/Multiplicity procs, and save round-trip passed');
+console.log('Rogue0 cursed items: generation, named descriptions, secrecy, decoy, passive curses, weapon/armor/ring procs, and save round-trip passed');

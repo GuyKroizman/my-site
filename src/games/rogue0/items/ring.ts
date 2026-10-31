@@ -26,6 +26,11 @@ export default abstract class Ring extends Entity {
   // the new level's bonus from stats that still contain the old level's bonus.
   // Missing in legacy saves, whose non-Might rings always used level-zero stats.
   protected passiveLevel: number | undefined = 0;
+  // A cursed ring inverts its passive. Capture the sign at apply time so
+  // Remove Curse (which flips `cursed` before `onUncursed`) can still undo
+  // exactly what was installed.
+  protected get curseSign(): number { return this.cursed ? -1 : 1; }
+  protected passiveSign = 1;
 
   constructor(context: GameContext, config: RingConfig, x?: number, y?: number) {
     super();
@@ -54,6 +59,14 @@ export default abstract class Ring extends Entity {
   }
 
   onUpgrade(): void {
+    if (!this.passiveApplied) return;
+    this.removePassive();
+    this.passiveLevel = this.level;
+    this.applyPassive();
+  }
+
+  // Removing the curse flips the passive's sign while it stays equipped.
+  onUncursed(): void {
     if (!this.passiveApplied) return;
     this.removePassive();
     this.passiveLevel = this.level;

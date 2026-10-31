@@ -280,6 +280,17 @@ export function createTerrifiedEffect(duration = 4): StatusEffect {
   };
 }
 
+// Charmed monsters refuse to fight or chase (see ai.ts). Timed like other
+// debuffs; no sprite changes, the AI reads `hasEffect(entity, "charmed")`.
+export function createCharmedEffect(duration = 4): StatusEffect {
+  return {
+    id: "charmed",
+    name: "Charmed",
+    iconTile: 19 * 49 + 44,
+    duration
+  };
+}
+
 export function createConfusedEffect(duration = 4): StatusEffect {
   return { id: "confused", name: "Confused", iconTile: 19 * 49 + 43, duration };
 }

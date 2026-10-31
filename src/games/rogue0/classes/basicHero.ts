@@ -351,17 +351,17 @@ export default class BasicHero extends Entity {
   }
 
   private onEquip(item: Entity): void {
-    const revealsCurse = item.isPhysicalEquipment && !item.identified;
+    const wasIdentified = item.identified;
     if (item.isPhysicalEquipment) item.identified = true;
+    item.equip(); // Rings/artifacts identify themselves here.
     const detail = item.identified ? `: ${item.displayDescription}` : "";
     dungeon.log(this.context, `You equip ${item.displayName}${detail}.`);
-    if (revealsCurse) {
+    if (!wasIdentified && (item.isPhysicalEquipment || item.equipSlot === "ring" || item.equipSlot === "artifact")) {
       dungeon.log(this.context, item.cursed
         ? `${item.displayName} is cursed and cannot be removed until its curse is lifted.`
         : `${item.displayName} is not cursed.`);
     }
     sfx.equip();
-    item.equip();
   }
 
   private onUnequip(item: Entity): void {
@@ -643,7 +643,9 @@ export default class BasicHero extends Entity {
   }
 
   get effectiveAccuracy(): number {
-    return this.accuracy / Math.pow(1.2, this.strengthDeficit(this.weapon));
+    const base = this.accuracy / Math.pow(1.2, this.strengthDeficit(this.weapon));
+    // Wayward curse halves accuracy while the cursed weapon stays equipped.
+    return this.weapon?.cursed && this.weapon?.curseId === "wayward" ? base * 0.5 : base;
   }
 
   get effectiveEvasion(): number {
@@ -651,7 +653,8 @@ export default class BasicHero extends Entity {
   }
 
   movementCostMultiplier(): number {
-    return Math.pow(1.2, this.strengthDeficit(this.armor));
+    const bulk = this.armor?.cursed && this.armor?.curseId === "bulk" ? 2 : 1;
+    return bulk * Math.pow(1.2, this.strengthDeficit(this.armor));
   }
 
   attackCostMultiplier(): number {
@@ -688,7 +691,9 @@ export default class BasicHero extends Entity {
   refresh() {
     // Drain a quarter point per world-time unit: food lasts 4x as long.
     const wasStarving = this.hunger === 0;
-    this.hunger = Math.max(0, this.hunger - 0.25);
+    // Metabolism curse doubles hunger drain while the cursed armor stays on.
+    const drain = this.armor?.cursed && this.armor?.curseId === "metabolism" ? 0.5 : 0.25;
+    this.hunger = Math.max(0, this.hunger - drain);
 
     // Warn once when hunger first drops below 30, not every time tick.
     if (this.hunger > 0 && this.hunger < 30 && !this.hungerWarned) {

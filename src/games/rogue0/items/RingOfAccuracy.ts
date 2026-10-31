@@ -18,7 +18,10 @@ export default class RingOfAccuracy extends Ring {
   }
 
   get baseDescription(): string {
-    return `Grants +${ACCURACY_BONUS * (1 + this.level)} accuracy while equipped. Each upgrade adds +5 accuracy.`;
+    const amount = ACCURACY_BONUS * (1 + this.level);
+    return this.cursed
+      ? `Reduces accuracy by ${amount} while equipped. Each upgrade worsens it by 5.`
+      : `Grants +${amount} accuracy while equipped. Each upgrade adds +5 accuracy.`;
   }
 
   private changeAccuracy(amount: number): void {
@@ -32,10 +35,11 @@ export default class RingOfAccuracy extends Ring {
   }
 
   applyPassive() {
-    this.changeAccuracy(ACCURACY_BONUS * (1 + this.level));
+    this.passiveSign = this.curseSign;
+    this.changeAccuracy(this.passiveSign * ACCURACY_BONUS * (1 + this.level));
   }
 
   removePassive() {
-    this.changeAccuracy(-ACCURACY_BONUS * (1 + (this.passiveLevel ?? 0)));
+    this.changeAccuracy(-this.passiveSign * ACCURACY_BONUS * (1 + (this.passiveLevel ?? 0)));
   }
 }

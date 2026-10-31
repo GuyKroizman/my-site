@@ -96,6 +96,13 @@ export function enemyTurn(entity: Entity): void {
     return;
   }
 
+  // Charmed enemies refuse to fight or chase; they mill about instead.
+  if (hasEffect(entity, "charmed")) {
+    const wandered = canMove && wanderStep(entity);
+    entity.spendTime(wandered ? "move" : "wait");
+    return;
+  }
+
   const decoy = visibleDecoy(entity);
   // When both the hero and a mirror image are valid targets, the enemy wastes
   // its action on the image about half the time.

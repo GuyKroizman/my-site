@@ -24,7 +24,14 @@ export class TieredWeapon extends Entity {
   get baseDescription(): string {
     return `Causes between ${this.minDamage} and ${this.maxDamage} damage. Attack delay: ${this.attackDelay}. Upgrades add +1 minimum and +${this.tier + 1} maximum damage.`;
   }
-  damage(): number { return Phaser.Math.Between(this.minDamage, this.maxDamage); }
+  damage(): number {
+    const base = Phaser.Math.Between(this.minDamage, this.maxDamage);
+    // Polarized curse: wildly random damage (×0.5–×1.5), only on actual hits.
+    if (this.cursed && this.curseId === "polarized") {
+      return Math.max(0, Math.round(base * Phaser.Math.Between(5, 15) / 10));
+    }
+    return base;
+  }
   protection(): number { return 0; }
   attack(): number { return 0; }
   range(): number { return 0; }

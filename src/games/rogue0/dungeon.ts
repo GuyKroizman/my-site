@@ -17,6 +17,7 @@ import {
   createCrippledEffect,
   createConfusedEffect,
   createPoisonedEffect,
+  createCharmedEffect,
   hasEffect,
   removeEffect
 } from "./effects";
@@ -636,13 +637,15 @@ const dungeon = {
   },
 
   // Armor curse proc: fires once per successful enemy hit against the hero.
-  // Only implemented curses are Displacement and Multiplicity (see PLAN.md).
+  // Passive armor curses (Metabolism, Bulk) are handled by basicHero.
   procArmorCurse: function (context: GameContext, victim: Entity): void {
     const armor = (victim as any).armor as Entity | undefined;
     if (!armor?.cursed || !armor.curseId) return;
+    const id = armor.curseId;
+    if (id === "metabolism" || id === "bulk") return;
     if (Math.random() >= CURSE_PROC_CHANCE) return;
 
-    if (armor.curseId === "displacement") {
+    if (id === "displacement") {
       if (victim.x === undefined || victim.y === undefined) return;
       const tile = this.randomWalkableTile(context, victim.x, victim.y);
       if (!tile) return;
@@ -660,12 +663,105 @@ const dungeon = {
         player.inputBuffer = [];
       }
       this.log(context, "Your cursed armor displaces you!");
-    } else if (armor.curseId === "multiplicity") {
+    } else if (id === "multiplicity") {
       if (victim.x === undefined || victim.y === undefined) return;
       const spot = this.adjacentEmptyTile(context, victim.x, victim.y);
       if (!spot) return;
       context.entities.push(new MirrorImage(context, spot.x, spot.y, victim));
       this.log(context, "Your cursed armor conjures a mirror image!");
+    } else if (id === "anti-entropy") {
+      applyEffect(victim, createBurningEffect());
+      if (victim.x !== undefined && victim.y !== undefined) {
+        const vx = victim.x;
+        const vy = victim.y;
+        const targets = context.entities.filter(e =>
+          e.type === "enemy" && !e.isDecoy && e.healthPoints > 0 &&
+          e.x !== undefined && e.y !== undefined &&
+          ((e.x === vx && Math.abs(e.y - vy) === 1) ||
+           (e.y === vy && Math.abs(e.x - vx) === 1)));
+        for (const enemy of targets) applyEffect(enemy, createFrozenEffect());
+        this.log(context, targets.length
+          ? "Your cursed armor sears you and freezes nearby enemies!"
+          : "Your cursed armor sears you!");
+      }
+    } else if (id === "corrosion") {
+      applyEffect(victim, createPoisonedEffect());
+      this.log(context, "Your cursed armor splashes you with caustic ooze!");
+    } else if (id === "stench") {
+      if (victim.x !== undefined && victim.y !== undefined) {
+        const count = context.onCreatePoisonGas?.(victim.x, victim.y) ?? 0;
+        if (count) this.log(context, "Your cursed armor releases a cloud of toxic gas!");
+      }
+    } else if (id === "overgrowth") {
+      if (victim.x !== undefined && victim.y !== undefined) {
+        let grown = 0;
+        for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const nx = victim.x + dx;
+          const ny = victim.y + dy;
+          if (this.currentLevel[ny]?.[nx] === 0 &&
+              tiles.getFeature(nx, ny) === undefined && !tiles.isBlocking(nx, ny)) {
+            tiles.setFeature(nx, ny, "grass");
+            grown++;
+          }
+        }
+        if (grown) {
+          this.onTerrainChanged?.();
+          this.log(context, "Your cursed armor makes grass sprout around you!");
+        }
+      }
+    }
+  },
+
+  // Weapon curse proc: fires once per successful player hit. Passive weapon
+  // curses (Wayward, Polarized) are handled by basicHero / tieredEquipment.
+  procWeaponCurse: function (context: GameContext, attacker: Entity, victim: Entity, damageDealt: number): void {
+    const weapon = (attacker as any).weapon as Entity | undefined;
+    if (!weapon?.cursed || !weapon.curseId) return;
+    const id = weapon.curseId;
+    if (id === "wayward" || id === "polarized") return;
+
+    if (id === "sacrificial") {
+      if (damageDealt <= 0) return;
+      const cost = Math.max(1, Math.ceil(damageDealt * 0.25));
+      attacker.takeDamage(cost);
+      spawnEntityFloatingText(attacker, `-${cost}`);
+      this.log(context, "Your cursed weapon drains your life force!");
+      if (attacker.healthPoints <= 0) removeEntity(context, attacker);
+      return;
+    }
+    if (Math.random() >= CURSE_PROC_CHANCE) return;
+
+    if (id === "displacing") {
+      if (victim.x === undefined || victim.y === undefined) return;
+      const tile = this.randomWalkableTile(context, victim.x, victim.y);
+      if (!tile) return;
+      victim.x = tile.x;
+      victim.y = tile.y;
+      victim.sprite?.setPosition(
+        context.map ? context.map.tileToWorldX(tile.x)! : tile.x * 16,
+        context.map ? context.map.tileToWorldY(tile.y)! : tile.y * 16
+      );
+      this.log(context, "Your cursed weapon flings the enemy away!");
+    } else if (id === "annoying") {
+      if (attacker.x === undefined || attacker.y === undefined) return;
+      let woke = 0;
+      for (const e of context.entities) {
+        if (e.type === "enemy" && !e.isDecoy && e.healthPoints > 0 &&
+            e.x !== undefined && e.y !== undefined &&
+            Math.max(Math.abs(e.x - attacker.x), Math.abs(e.y - attacker.y)) <= 8) {
+          e.hearNoise(attacker.x, attacker.y);
+          woke++;
+        }
+      }
+      if (woke) this.log(context, "Your cursed weapon draws enemies to you!");
+    } else if (id === "friendly") {
+      if (victim.healthPoints > 0) {
+        applyEffect(victim, createCharmedEffect());
+        this.log(context, `${victim.name} is charmed by your cursed weapon!`);
+      }
+    } else if (id === "exhausting") {
+      applyEffect(attacker, createCrippledEffect());
+      this.log(context, "Your cursed weapon exhausts you!");
     }
   },
 
@@ -901,8 +997,10 @@ const dungeon = {
       );
     }
 
-    // Cursed armor reacts to being struck (Displacement/Multiplicity).
+    // Cursed armor reacts to being struck; cursed weapons react to landing
+    // a hit (Sacrificial/Displacing/Annoying/Friendly/Exhausting).
     if (victim.type === "player") this.procArmorCurse(context, victim);
+    if (attacker.type === "player") this.procWeaponCurse(context, attacker, victim, result.damage);
 
     for (const effect of result.appliedEffects) {
       if (victim.healthPoints > 0) {

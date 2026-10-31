@@ -22,10 +22,13 @@ export default class RingOfMight extends Ring {
   }
 
   get baseDescription(): string {
-    return `Grants +${this.damage()} damage while equipped.`;
+    const amount = 2 + this.level;
+    return this.cursed
+      ? `Reduces damage by ${amount} while equipped. Each upgrade worsens it by 1.`
+      : `Grants +${amount} damage while equipped.`;
   }
 
   damage() {
-    return 2 + this.level;
+    return (this.cursed ? -1 : 1) * (2 + this.level);
   }
 }

@@ -18,17 +18,22 @@ export default class RingOfElements extends Ring {
   }
 
   get baseDescription(): string {
-    return `Resists fire, ice and shock (${ELEMENTAL_RESISTANCE + this.level} each) while equipped. Each upgrade adds +1 resistance to each element.`;
+    const amount = ELEMENTAL_RESISTANCE + this.level;
+    return this.cursed
+      ? `Makes you vulnerable to fire, ice and shock (${amount} each) while equipped. Each upgrade worsens it by 1.`
+      : `Resists fire, ice and shock (${amount} each) while equipped. Each upgrade adds +1 resistance to each element.`;
   }
 
   applyPassive() {
+    const sign = this.passiveSign = this.curseSign;
     const player = this.context.player;
     if (!player) return;
 
     const bonus = ELEMENTAL_RESISTANCE + this.level;
-    player.resistance.fire = (player.resistance.fire ?? 0) + bonus;
-    player.resistance.ice = (player.resistance.ice ?? 0) + bonus;
-    player.resistance.shock = (player.resistance.shock ?? 0) + bonus;
+    for (const type of ['fire', 'ice', 'shock'] as const) {
+      if (sign < 0) player.vulnerability[type] = (player.vulnerability[type] ?? 0) + bonus;
+      else player.resistance[type] = (player.resistance[type] ?? 0) + bonus;
+    }
   }
 
   removePassive() {
@@ -36,8 +41,10 @@ export default class RingOfElements extends Ring {
     if (!player) return;
 
     const bonus = ELEMENTAL_RESISTANCE + (this.passiveLevel ?? 0);
-    player.resistance.fire = Math.max(0, (player.resistance.fire ?? 0) - bonus);
-    player.resistance.ice = Math.max(0, (player.resistance.ice ?? 0) - bonus);
-    player.resistance.shock = Math.max(0, (player.resistance.shock ?? 0) - bonus);
+    const sign = this.passiveSign;
+    for (const type of ['fire', 'ice', 'shock'] as const) {
+      if (sign < 0) player.vulnerability[type] = Math.max(0, (player.vulnerability[type] ?? 0) - bonus);
+      else player.resistance[type] = Math.max(0, (player.resistance[type] ?? 0) - bonus);
+    }
   }
 }
