@@ -33,6 +33,17 @@ export function rollCurseId(item: Entity, random: () => number = Math.random): C
   return table[Math.floor(random() * table.length)];
 }
 
+// Roll a named curse for the item's slot that is different from its current
+// curse. Used by the Cursed Gem to swap one curse for another.
+export function rerollCurseId(item: Entity, random: () => number = Math.random): CurseId | null {
+  const slot = curseSlotOf(item);
+  const table = slot ? CURSE_TABLES[slot] : undefined;
+  if (!table || table.length === 0) return null;
+  const candidates = table.filter((id) => id !== item.curseId);
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(random() * candidates.length)];
+}
+
 // Assign a named curse to a freshly generated item. Returns true if cursed.
 // `random` is injectable so regression tests can force outcomes.
 export function maybeCurse(

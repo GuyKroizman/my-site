@@ -173,9 +173,14 @@ assert.equal(context.scene.input.enabled, true);
   const dungeon = { log(ctx, message) { ctx.messages.unshift(message); } };
   const removeEffect = (hero, id) => { hero.effects = hero.effects.filter(e => e.id !== id); };
   const applyEffect = (hero, effect) => { removeEffect(hero, effect.id); hero.effects.push(effect); };
+  const curseData = load('src/games/rogue0/curseData.ts');
+  const { rerollCurseId } = load('src/games/rogue0/curses.ts', {
+    CURSE_GENERATION_CHANCE: curseData.CURSE_GENERATION_CHANCE,
+    CURSE_TABLES: curseData.CURSE_TABLES,
+  });
   const HolyPotion = load('src/games/rogue0/items/holyPotion.ts', { Entity, identify, removeEntity, dungeon }).default;
   const CursedGem = load('src/games/rogue0/items/cursedGem.ts', {
-    Entity, removeEffect, applyEffect, createCursedEffect: () => ({ id: 'cursed' }),
+    Entity, identify, removeEntity, rerollCurseId, CURSE_NAMES: curseData.CURSE_NAMES,
   }).default;
   const TargetHero = load('src/games/rogue0/classes/basicHero.ts', {
     Entity, Gem, Wand: class {}, dungeon, removeEffect, identify,
@@ -189,10 +194,16 @@ assert.equal(context.scene.input.enabled, true);
   ctx.player = hero;
   const potion = new HolyPotion(ctx);
   potion.count = 2;
-  const first = new CursedGem(ctx), second = new CursedGem(ctx);
-  hero.ring1 = first; hero.ring2 = second; hero.backpack = [potion];
+  const first = Object.assign(new Entity(), {
+    context: ctx, type: 'item', equipSlot: 'weapon', cursed: true, curseId: 'wayward',
+    name: 'Cursed Sword', identified: false,
+  });
+  const second = Object.assign(new Entity(), {
+    context: ctx, type: 'item', equipSlot: 'armor', cursed: true, curseId: 'bulk',
+    name: 'Cursed Shield', identified: false,
+  });
+  hero.weapon = first; hero.armor = second; hero.backpack = [potion];
   ctx.entities = [potion, first, second];
-  first.equip(); second.equip();
   const picker = new InventoryWindow({}, ctx);
   picker.render = () => {}; picker.clearObjects = () => {};
   assert.equal(hero.useItem(potion), false);
@@ -209,19 +220,16 @@ assert.equal(context.scene.input.enabled, true);
   picker.openMenu(first);
   assert.equal(picker.isOpen(), false);
   assert.equal(first.cursed, false); assert.equal(second.cursed, true);
-  assert.equal(first.name, 'Cleansed Gem');
-  assert.match(first.displayDescription, /no longer drains health/);
+  assert.equal(first.curseId, '');
+  assert.match(first.displayDescription, /Curse lifted: this item is no longer cursed/);
   assert.equal(first.identified, true);
   assert.equal(potion.count, 1); assert.ok(ctx.entities.includes(potion));
   assert.equal(uses, 1, 'confirmation spends exactly one use action');
-  assert.ok(hero.effects.some(e => e.id === 'cursed'), 'other equipped cursed gem retains its drain');
   hero.useItem(potion); picker.openMenu(second);
   assert.equal(uses, 2);
-  assert.ok(!hero.effects.some(e => e.id === 'cursed'));
+  assert.equal(second.cursed, false);
   assert.ok(!hero.getAllItems().includes(potion));
   assert.ok(!ctx.entities.includes(potion));
-  first.equip(); second.equip();
-  assert.deepEqual(hero.effects, [], 're-equipping cleansed gems never reapplies a curse');
   const spare = new HolyPotion(ctx); hero.backpack.push(spare);
   hero.useItem(spare);
   assert.equal(picker.isOpen(), false, 'no eligible target leaves potion unspent');
@@ -295,6 +303,53 @@ assert.equal(context.scene.input.enabled, true);
   for (const file of fs.readdirSync('src/games/rogue0/items').filter(file => file.endsWith('.ts'))) {
     assert.ok(!/get displayDescription\s*\(/.test(fs.readFileSync(`src/games/rogue0/items/${file}`, 'utf8')),
       `${file} must not bypass shared curse-description handling`);
+  }
+
+  // Cursed Gem is now a consumable: choose a cursed weapon/armor and reroll
+  // its named curse into a different one, consuming the gem and one turn.
+  {
+    const ctx2 = { entities: [], messages: [], scene: { input: { enabled: true } } };
+    let uses2 = 0;
+    const hero2 = Object.assign(Object.create(TargetHero.prototype), {
+      context: ctx2, backpack: [], effects: [], canAct: () => true,
+      refreshUI() {}, clearItemUI() {}, spendTurn() { uses2++; },
+    });
+    ctx2.player = hero2;
+    const gem = new CursedGem(ctx2);
+    gem.count = 1;
+    const clean = Object.assign(new Entity(), {
+      context: ctx2, type: 'item', equipSlot: 'weapon', cursed: false, curseId: '',
+      name: 'Clean Sword', identified: true,
+    });
+    const weapon = Object.assign(new Entity(), {
+      context: ctx2, type: 'item', equipSlot: 'weapon', cursed: true, curseId: 'wayward',
+      name: 'Cursed Sword', identified: false,
+    });
+    const armor = Object.assign(new Entity(), {
+      context: ctx2, type: 'item', equipSlot: 'armor', cursed: true, curseId: 'bulk',
+      name: 'Cursed Shield', identified: false,
+    });
+    hero2.backpack = [gem, clean, weapon, armor];
+    ctx2.entities = [gem, clean, weapon, armor];
+    assert.equal(gem.canTargetItem(gem), false, 'gem cannot target itself');
+    assert.equal(gem.canTargetItem(clean), false, 'gem ignores uncursed gear');
+    assert.equal(gem.canTargetItem(Object.assign(new Entity(), { equipSlot: 'consumable', cursed: true })), false, 'gem only targets weapons/armor');
+    assert.equal(gem.canTargetItem(weapon), true);
+    assert.equal(gem.canTargetItem(armor), true);
+    assert.equal(gem.useOnItem(weapon), true);
+    assert.notEqual(weapon.curseId, 'wayward', 'curse is replaced');
+    assert.ok(curseData.CURSE_TABLES.weapon.includes(weapon.curseId), 'new curse is from the weapon table');
+    assert.equal(weapon.cursed, true, 'the item stays cursed');
+    assert.equal(weapon.identified, true, 'the gem reveals the chosen item');
+    assert.ok(!hero2.getAllItems().includes(gem), 'gem is consumed');
+    assert.ok(!ctx2.entities.includes(gem));
+    assert.equal(uses2, 1, 'using the gem spends one turn');
+    const gem2 = new CursedGem(ctx2);
+    hero2.backpack.push(gem2); ctx2.entities.push(gem2);
+    assert.equal(gem2.useOnItem(armor), true);
+    assert.notEqual(armor.curseId, 'bulk', 'armor curse is replaced');
+    assert.ok(curseData.CURSE_TABLES.armor.includes(armor.curseId), 'new armor curse is from the armor table');
+    assert.equal(uses2, 2);
   }
 }
 console.log('Rogue0 gem and Holy Potion target selection, cancellation, stacking, cleansing descriptions and turn costs passed');

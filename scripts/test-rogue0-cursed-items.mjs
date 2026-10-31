@@ -14,7 +14,7 @@ function load(path, bindings = {}) {
 }
 
 const curseData = load('src/games/rogue0/curseData.ts');
-const { curseEligible, maybeCurse, rollCurseId } = load('src/games/rogue0/curses.ts', {
+const { curseEligible, maybeCurse, rollCurseId, rerollCurseId } = load('src/games/rogue0/curses.ts', {
   CURSE_GENERATION_CHANCE: curseData.CURSE_GENERATION_CHANCE,
   CURSE_TABLES: curseData.CURSE_TABLES,
 });
@@ -44,6 +44,9 @@ assert.equal(rollCurseId(item('artifact'), () => 0), 'corrupted');
 assert.equal(rollCurseId(Object.assign(item('junk'), { textureKey: 'wand-fire' }), () => 0), 'backfiring');
 assert.equal(maybeCurse(item('weapon'), 1, () => 0), true);
 assert.equal(maybeCurse(item('ring'), 1, () => 0), true);
+assert.equal(rerollCurseId(item('weapon', { cursed: true, curseId: 'wayward' }), () => 0), 'sacrificial', 'reroll excludes the current curse');
+assert.equal(rerollCurseId(item('armor', { cursed: true, curseId: 'bulk' }), () => 0), 'displacement', 'reroll uses the item\u2019s own slot table');
+assert.equal(rerollCurseId(item('ring', { cursed: true, curseId: 'inverted' }), () => 0), null, 'single-curse slots cannot reroll');
 const cursedWand = Object.assign(item('junk'), { textureKey: 'wand-fire' });
 assert.equal(maybeCurse(cursedWand, 0.25, () => 0), true);
 assert.equal(cursedWand.curseId, 'backfiring');
