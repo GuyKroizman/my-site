@@ -27,10 +27,22 @@ function carve(map: number[][], room: Room): void {
   }
 }
 
-function connect(map: number[][], a: Room, b: Room): void {
-  const horizontalFirst = Math.random() < 0.5;
-  let x = a.cx;
-  let y = a.cy;
+function clampInt(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+// Carves an L-shaped corridor between two points. `horizontalFirst` controls
+// which arm runs first.
+function carveL(
+  map: number[][],
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  horizontalFirst: boolean
+): void {
+  let x = ax;
+  let y = ay;
 
   const carveTo = (tx: number, ty: number) => {
     while (x !== tx) {
@@ -44,14 +56,246 @@ function connect(map: number[][], a: Room, b: Room): void {
   };
 
   if (horizontalFirst) {
-    carveTo(b.cx, a.cy);
-    carveTo(b.cx, b.cy);
+    carveTo(bx, ay);
+    carveTo(bx, by);
   } else {
-    carveTo(a.cx, b.cy);
-    carveTo(b.cx, b.cy);
+    carveTo(ax, by);
+    carveTo(bx, by);
   }
 
-  map[b.cy][b.cx] = 0;
+  map[by][bx] = 0;
+}
+
+function connect(map: number[][], a: Room, b: Room): void {
+  carveL(map, a.cx, a.cy, b.cx, b.cy, Math.random() < 0.5);
+}
+
+function roomOverlaps(a: Room, b: Room): boolean {
+  return (
+    a.x < b.x + b.w + 1 &&
+    a.x + a.w + 1 > b.x &&
+    a.y < b.y + b.h + 1 &&
+    a.y + a.h + 1 > b.y
+  );
+}
+
+// --- Organic chasm shape generation -----------------------------------------
+
+// Deterministic value noise (and fBm) so chasm outlines are organic but
+// stable for a given floor seed.
+function hash2(x: number, y: number, seed: number): number {
+  let h = (x * 374761393 + y * 668265263 + seed * 2246822519) | 0;
+  h = ((h ^ (h >>> 13)) * 1274126177) | 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+
+function smoothstep(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
+function valueNoise(x: number, y: number, seed: number): number {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+  const a = hash2(ix, iy, seed);
+  const b = hash2(ix + 1, iy, seed);
+  const c = hash2(ix, iy + 1, seed);
+  const d = hash2(ix + 1, iy + 1, seed);
+  const ux = smoothstep(fx);
+  const uy = smoothstep(fy);
+  return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+}
+
+function fbm(x: number, y: number, seed: number): number {
+  let value = 0;
+  let amplitude = 0.5;
+  let frequency = 1;
+  let total = 0;
+  for (let octave = 0; octave < 3; octave++) {
+    value += amplitude * valueNoise(x * frequency, y * frequency, seed + octave * 101);
+    total += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2;
+  }
+  return value / total;
+}
+
+// Carves an organic chasm into the interior of a room. The border stays a
+// walkable ring; value noise plus a radial bias splits the interior into chasm
+// and floor, then any floor pocket sealed off from the ring is sunk so the
+// room never gains an unreachable island.
+function growOrganicChasm(room: Room, seed: number): Set<string> {
+  const margin = 2;
+  const x0 = room.x + margin;
+  const y0 = room.y + margin;
+  const x1 = room.x + room.w - margin;
+  const y1 = room.y + room.h - margin;
+
+  const chasm = new Set<string>();
+  const cx = room.cx;
+  const cy = room.cy;
+  const rx = Math.max(1, (x1 - x0) / 2);
+  const ry = Math.max(1, (y1 - y0) / 2);
+
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const n = fbm(x * 0.16, y * 0.16, seed);
+      const dx = (x - cx) / rx;
+      const dy = (y - cy) / ry;
+      const radial = Math.max(0, 1 - (dx * dx + dy * dy));
+      // Noise shapes the boundary; the radial core guarantees the chasm is
+      // always a substantial central mass rather than a stray speck.
+      const value = n * 0.55 + radial * 0.45;
+      if (value > 0.5 || radial > 0.6) chasm.add(`${x},${y}`);
+    }
+  }
+
+  if (chasm.size === 0) return chasm;
+
+  // Keep only the largest chasm mass so the feature reads as one big hole
+  // rather than a scatter of disconnected pits.
+  const unvisited = new Set(chasm);
+  let largest: string[] = [];
+  while (unvisited.size > 0) {
+    const first = unvisited.values().next().value as string;
+    const queue = [first];
+    unvisited.delete(first);
+    const comp: string[] = [];
+    for (let i = 0; i < queue.length; i++) {
+      comp.push(queue[i]);
+      const [x, y] = queue[i].split(",").map(Number);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const k = `${x + dx},${y + dy}`;
+        if (unvisited.has(k)) {
+          unvisited.delete(k);
+          queue.push(k);
+        }
+      }
+    }
+    if (comp.length > largest.length) largest = comp;
+  }
+  chasm.clear();
+  for (const k of largest) chasm.add(k);
+
+  // Flood from every ring tile to find interior floor that stays reachable.
+  const reachable = new Set<string>();
+  const queue: Array<[number, number]> = [];
+  for (let y = room.y; y < room.y + room.h; y++) {
+    for (let x = room.x; x < room.x + room.w; x++) {
+      if (x < x0 || x >= x1 || y < y0 || y >= y1) {
+        const k = `${x},${y}`;
+        if (reachable.has(k)) continue;
+        reachable.add(k);
+        queue.push([x, y]);
+      }
+    }
+  }
+  for (let i = 0; i < queue.length; i++) {
+    const [x, y] = queue[i];
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < room.x || ny < room.y || nx >= room.x + room.w || ny >= room.y + room.h) continue;
+      const k = `${nx},${ny}`;
+      if (chasm.has(k) || reachable.has(k)) continue;
+      reachable.add(k);
+      queue.push([nx, ny]);
+    }
+  }
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const k = `${x},${y}`;
+      if (!chasm.has(k) && !reachable.has(k)) chasm.add(k);
+    }
+  }
+
+  return chasm;
+}
+
+// --- Chasm-aware room connection --------------------------------------------
+
+// Shortest carved path between two points that routes around `forbidden` tiles
+// (the chasm interior). Walls are fair game: they become corridor.
+function bfsConnectPath(
+  map: number[][],
+  forbidden: Set<string>,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number
+): Array<[number, number]> | null {
+  const h = map.length;
+  const w = map[0].length;
+  const startKey = `${sx},${sy}`;
+  const targetKey = `${tx},${ty}`;
+  if (forbidden.has(startKey) || forbidden.has(targetKey)) return null;
+
+  const prev = new Map<string, string>([[startKey, ""]]);
+  const queue: Array<[number, number]> = [[sx, sy]];
+
+  for (let i = 0; i < queue.length; i++) {
+    const [x, y] = queue[i];
+    if (x === tx && y === ty) break;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const k = `${nx},${ny}`;
+      if (forbidden.has(k) || prev.has(k)) continue;
+      prev.set(k, `${x},${y}`);
+      queue.push([nx, ny]);
+    }
+  }
+
+  if (!prev.has(targetKey)) return null;
+  const path: Array<[number, number]> = [];
+  let cur = targetKey;
+  while (cur !== startKey) {
+    const [x, y] = cur.split(",").map(Number);
+    path.push([x, y]);
+    cur = prev.get(cur)!;
+  }
+  path.reverse();
+  return path;
+}
+
+// Connects every anchor into one network. Corridors are shortest paths that
+// avoid `forbidden`, so rooms can surround the chasm chamber freely.
+function connectRoomsSpanning(
+  map: number[][],
+  anchors: Array<{ x: number; y: number }>,
+  forbidden: Set<string>
+): void {
+  if (anchors.length < 2) return;
+  const connected = new Set<number>([0]);
+
+  while (connected.size < anchors.length) {
+    let best: { ci: number; ui: number; d: number } | null = null;
+    for (const ci of connected) {
+      for (let ui = 0; ui < anchors.length; ui++) {
+        if (connected.has(ui)) continue;
+        const d =
+          Math.abs(anchors[ci].x - anchors[ui].x) +
+          Math.abs(anchors[ci].y - anchors[ui].y);
+        if (!best || d < best.d) best = { ci, ui, d };
+      }
+    }
+    if (!best) break;
+
+    const path = bfsConnectPath(
+      map,
+      forbidden,
+      anchors[best.ci].x,
+      anchors[best.ci].y,
+      anchors[best.ui].x,
+      anchors[best.ui].y
+    );
+    if (path) {
+      for (const [x, y] of path) map[y][x] = 0;
+    }
+    connected.add(best.ui);
+  }
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -236,6 +480,141 @@ function growChasmPatch(
   return patch;
 }
 
+// Carves an organic room instead of a plain rectangle. The same value-noise
+// fBm used for chasms decides floor vs wall, with a radial bias toward the
+// room centre so the shape stays one coherent cavern. Only the floor component
+// containing the corridor anchor is kept, so the room can never gain a
+// sealed-off pocket.
+function carveOrganicRoom(map: number[][], room: Room, seed: number): void {
+  const x0 = room.x;
+  const y0 = room.y;
+  const x1 = room.x + room.w;
+  const y1 = room.y + room.h;
+  const cx = room.cx;
+  const cy = room.cy;
+  const rx = Math.max(1, (x1 - x0) / 2);
+  const ry = Math.max(1, (y1 - y0) / 2);
+
+  const floor = new Set<string>();
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const n = fbm(x * 0.16, y * 0.16, seed);
+      const dx = (x - cx) / rx;
+      const dy = (y - cy) / ry;
+      const radial = Math.max(0, 1 - (dx * dx + dy * dy));
+      const value = n * 0.55 + radial * 0.45;
+      // Same noise/radial test the chasms use, inverted: the central mass and
+      // noise extensions become floor, while the outer fringe stays wall.
+      if (value > 0.5 || radial > 0.6) floor.add(`${x},${y}`);
+    }
+  }
+
+  // The corridor anchor must always be floor.
+  floor.add(`${cx},${cy}`);
+
+  // Keep only the floor component reachable from the centre. Any isolated
+  // pockets produced by the noise stay as wall.
+  const kept = new Set<string>([`${cx},${cy}`]);
+  const queue: Array<[number, number]> = [[cx, cy]];
+  for (let i = 0; i < queue.length; i++) {
+    const [x, y] = queue[i];
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < x0 || ny < y0 || nx >= x1 || ny >= y1) continue;
+      const k = `${nx},${ny}`;
+      if (!floor.has(k) || kept.has(k)) continue;
+      kept.add(k);
+      queue.push([nx, ny]);
+    }
+  }
+
+  for (const k of kept) {
+    const [x, y] = k.split(",").map(Number);
+    map[y][x] = 0;
+  }
+}
+
+// True when every floor tile inside a room is one connected 4-neighbour mass.
+// Used to reject pillar placements that would split the room in two.
+function isRoomFloorConnected(map: number[][], room: Room): boolean {
+  const x0 = room.x;
+  const y0 = room.y;
+  const x1 = room.x + room.w;
+  const y1 = room.y + room.h;
+
+  let sx = -1;
+  let sy = -1;
+  let total = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      if (map[y][x] === 0) {
+        total++;
+        if (sx < 0) {
+          sx = x;
+          sy = y;
+        }
+      }
+    }
+  }
+  if (sx < 0) return true;
+
+  const visited = new Set<string>([`${sx},${sy}`]);
+  const queue: Array<[number, number]> = [[sx, sy]];
+  for (let i = 0; i < queue.length; i++) {
+    const [x, y] = queue[i];
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < x0 || ny < y0 || nx >= x1 || ny >= y1) continue;
+      if (map[ny][nx] !== 0) continue;
+      const k = `${nx},${ny}`;
+      if (visited.has(k)) continue;
+      visited.add(k);
+      queue.push([nx, ny]);
+    }
+  }
+  return visited.size === total;
+}
+
+// Adds free-standing wall tiles (pillars) to a room. Pillars stay clear of the
+// corridor anchor and its immediate doorway, never touch each other, and are
+// reverted if they would cut the room floor into separate pieces.
+function addPillars(map: number[][], room: Room, maxPillars: number): void {
+  const x0 = room.x;
+  const y0 = room.y;
+  const x1 = room.x + room.w;
+  const y1 = room.y + room.h;
+
+  const reserved = new Set<string>([`${room.cx},${room.cy}`]);
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    reserved.add(`${room.cx + dx},${room.cy + dy}`);
+  }
+
+  const candidates: Array<[number, number]> = [];
+  for (let y = y0 + 1; y < y1 - 1; y++) {
+    for (let x = x0 + 1; x < x1 - 1; x++) {
+      if (map[y][x] !== 0) continue;
+      if (reserved.has(`${x},${y}`)) continue;
+      candidates.push([x, y]);
+    }
+  }
+  shuffle(candidates);
+
+  const pillars: Array<[number, number]> = [];
+  for (const [x, y] of candidates) {
+    if (pillars.length >= maxPillars) break;
+    if (pillars.some(([px, py]) => Math.abs(px - x) + Math.abs(py - y) === 1)) continue;
+
+    map[y][x] = 1;
+    if (!isRoomFloorConnected(map, room)) {
+      map[y][x] = 0;
+      continue;
+    }
+    pillars.push([x, y]);
+  }
+}
+
 export function generateMap(floor = 1): GeneratedMap {
   // The introductory floor has half the area and half the rooms.
   const width = floor === 1 ? 50 : MAP_WIDTH;
@@ -244,6 +623,39 @@ export function generateMap(floor = 1): GeneratedMap {
     Array(width).fill(1)
   );
   const rooms: Room[] = [];
+
+  // Floors 6+ carve a big chasm chamber at a random spot: a walkable ring
+  // around a noise-shaped chasm. Regular rooms fill the rest of the map and a
+  // spanning network of corridors links everything without crossing the chasm.
+  const bigChasm = floor >= 6;
+  let chasmRoom: Room | undefined;
+  let chasmTiles: Set<string> | undefined;
+
+  if (bigChasm) {
+    const roomW = 14 + Math.floor(Math.random() * 11); // 14..24 wide
+    const roomH = 10 + Math.floor(Math.random() * 9); // 10..18 tall
+    const x = clampInt(
+      2 + Math.floor(Math.random() * Math.max(1, width - roomW - 3)),
+      2,
+      width - roomW - 2
+    );
+    const y = clampInt(
+      12 + Math.floor(Math.random() * Math.max(1, height - roomH - 13)),
+      12,
+      height - roomH - 2
+    );
+
+    chasmRoom = {
+      x,
+      y,
+      w: roomW,
+      h: roomH,
+      cx: Math.floor(x + roomW / 2),
+      cy: Math.floor(y + roomH / 2)
+    };
+    carve(map, chasmRoom);
+    chasmTiles = growOrganicChasm(chasmRoom, Math.floor(Math.random() * 1_000_000));
+  }
 
   const maxRooms = floor === 1 ? 7 : 14;
   const maxAttempts = 200;
@@ -268,23 +680,44 @@ export function generateMap(floor = 1): GeneratedMap {
       cy: Math.floor(y + h / 2)
     };
 
-    const overlaps = rooms.some(
-      (r) =>
-        x < r.x + r.w + 1 &&
-        x + w + 1 > r.x &&
-        y < r.y + r.h + 1 &&
-        y + h + 1 > r.y
-    );
+    const overlaps =
+      (chasmRoom ? roomOverlaps(room, chasmRoom) : false) ||
+      rooms.some((r) => roomOverlaps(room, r));
 
     if (overlaps) continue;
 
-    carve(map, room);
+    // Floors 6+ start to vary: some rooms get organic noise-shaped
+    // outlines and some get free-standing pillars.
+    const organic =
+      floor >= 6 && room.w >= 6 && room.h >= 5 && Math.random() < 0.5;
+    if (organic) {
+      carveOrganicRoom(map, room, Math.floor(Math.random() * 1_000_000));
+    } else {
+      carve(map, room);
+    }
+
     rooms.push(room);
+
+    if (floor >= 6 && Math.random() < 0.45) {
+      addPillars(map, room, 1 + Math.floor(Math.random() * 3));
+    }
   }
 
-  for (let i = 1; i < rooms.length; i++) {
-    connect(map, rooms[i - 1], rooms[i]);
+  if (bigChasm && chasmRoom && chasmTiles) {
+    // Regular rooms anchor on their centres; the chasm chamber anchors on its
+    // walkable ring so corridors enter the room without touching the chasm.
+    const anchors = [
+      ...rooms.map((r) => ({ x: r.cx, y: r.cy })),
+      { x: chasmRoom.x + 1, y: chasmRoom.cy }
+    ];
+    connectRoomsSpanning(map, anchors, chasmTiles);
+  } else {
+    for (let i = 1; i < rooms.length; i++) {
+      connect(map, rooms[i - 1], rooms[i]);
+    }
   }
+
+  if (chasmRoom) rooms.push(chasmRoom);
 
   // --- Terrain feature placement (procedural floors only) ---
   const features: FeaturePlacement[] = [];
@@ -301,6 +734,17 @@ export function generateMap(floor = 1): GeneratedMap {
       } else {
         corridorTiles.push({ x, y });
       }
+    }
+  }
+
+  // The big chasm overlays the chamber's interior floor, leaving the
+  // surrounding ring walkable. Reserve those tiles before doors and terrain
+  // so nothing else ever spawns on the chasm.
+  if (chasmTiles) {
+    for (const key of chasmTiles) {
+      const [x, y] = key.split(",").map(Number);
+      features.push({ x, y, feature: "chasm" });
+      used.add(key);
     }
   }
 
@@ -368,6 +812,15 @@ export function generateMap(floor = 1): GeneratedMap {
   // travel, stays fully connected — so a chasm can never cut the player off
   // from any reachable section of the map.
   const reserved = new Set(rooms.map((r) => `${r.cx},${r.cy}`));
+  // Keep the small random chasm patches out of the big chasm chamber so its
+  // ring remains a clean walkable loop around the one large chasm.
+  if (chasmRoom) {
+    for (let y = chasmRoom.y; y < chasmRoom.y + chasmRoom.h; y++) {
+      for (let x = chasmRoom.x; x < chasmRoom.x + chasmRoom.w; x++) {
+        reserved.add(`${x},${y}`);
+      }
+    }
+  }
   const secretApproachY = map.findIndex((row) => row.includes(0));
   if (secretApproachY >= 0) {
     const secretApproachX = map[secretApproachY].indexOf(0);
