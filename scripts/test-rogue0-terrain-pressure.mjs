@@ -145,6 +145,7 @@ assert.equal(ctx.entities.length, 0, 'lethal trap removes victim');
 const { Entity } = load('entity', { actionCost: load('timing').actionCost });
 const Hero = load('classes/basicHero', {
   Entity, dungeon, ...fov, Wand: class {}, hasEffect: () => false,
+  getFeature: tiles.getFeature,
   removeEntity: (ctx, e) => { ctx.entities = ctx.entities.filter(v => v !== e); }
 }).default;
 ctx = setup([actor('enemy', 4, 3)]);
@@ -341,6 +342,24 @@ for (const Item of [Potion, Gem]) {
   assert.equal(hero.backpack.length, 0, 'last unit leaves inventory');
   assert.equal(ctx.entities.find(e => e.x === 3 && e.y === 3), item);
   assert.equal(item.count, 1);
+}
+
+// A thrown item landing on a chasm falls in and is lost, never resting on the
+// rim or triggering an arrow trap beneath.
+for (const Item of [undefined, Potion, Gem]) {
+  const label = Item?.name ?? 'plain item';
+  const { hero, ctx, item } = throwingHero(3, Item);
+  tiles.clearFeature(3, 3);
+  tiles.setFeature(3, 3, 'chasm');
+  hero.throwAt(3, 3);
+  assert.equal(item.count, 2, `${label}: exactly one is thrown into the chasm`);
+  assert.equal(hero.backpack[0], item);
+  assert.equal(ctx.entities.filter(e => e.type === 'item').length, 1,
+    `${label}: the chasm consumes the projectile, keeping only the stack`);
+  assert.equal(ctx.entities.some(e => e.x === 3 && e.y === 3), false,
+    `${label}: no floor item remains over the chasm`);
+  assert.match(ctx.messages[0], /falls into the chasm/);
+  assert.equal(tiles.getFeature(3, 3), 'chasm');
 }
 
 // Exercise actual shared death cleanup: onDestroy sees landing coordinates,

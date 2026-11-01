@@ -5,7 +5,7 @@ import { isModalOpen, type GameContext } from "../context";
 import dungeon from "../dungeon";
 import Gem from "../items/gem";
 import Wand from "../items/wand";
-import { getTrapState, isGrassConcealed } from "../tiles";
+import { getFeature, getTrapState, isGrassConcealed } from "../tiles";
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
 import {
@@ -1401,6 +1401,14 @@ export default class BasicHero extends Entity {
       this.applyThrownItemToEnemy(item, target);
       removeEntity(context, item);
       dungeon.triggerArrowTrap(context, tx, ty);
+      return;
+    }
+
+    // Items that land in a chasm fall in and are lost. Checked before the
+    // terrain potions so a flask can't splash the void from the rim.
+    if (getFeature(tx, ty) === "chasm") {
+      removeEntity(context, item);
+      dungeon.log(context, `${item.displayName} falls into the chasm and is lost.`);
       return;
     }
 

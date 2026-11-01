@@ -130,7 +130,7 @@ for (const type of ['enemy', 'player']) {
   const Potion = load('items/PotionOfToxicGas', { Entity, removeEntity, ...effects }).default;
   const potion = Object.assign(Object.create(Potion.prototype), { context: ctx });
   potion.equip(); assert.equal(ctx.poisonClouds.length, 5);
-  const Hero = load('classes/basicHero', { Entity, removeEntity, dungeon, ...effects }).default;
+  const Hero = load('classes/basicHero', { Entity, removeEntity, dungeon, ...effects, getFeature: tiles.getFeature }).default;
   const thrower = Object.assign(Object.create(Hero.prototype), { context: ctx });
   thrower.placeItemOnGround = () => assert.fail('gas potion should shatter');
   const thrown = { name: 'Potion of Toxic Gas', consumable: true, type: 'item' };
