@@ -69,6 +69,7 @@ import ScrollOfRecharging from "./items/ScrollOfRecharging";
 import WandOfFirebolt from "./items/WandOfFirebolt";
 import WandOfFrost from "./items/WandOfFrost";
 import WandOfLightning from "./items/WandOfLightning";
+import Wand from "./items/wand";
 import Ring from "./items/ring";
 import RingOfAccuracy from "./items/RingOfAccuracy";
 import RingOfEvasion from "./items/RingOfEvasion";
@@ -341,6 +342,14 @@ export class Scene0 extends Phaser.Scene {
       // where the displayed upgrade level never changed the applied passive.
       for (const ring of [player.ring1, player.ring2]) {
         if (ring instanceof Ring) ring.onUpgrade();
+      }
+      // Charge capacity now scales with wand upgrades; older saves recorded
+      // maxCharges as the base value and need the same reconciliation.
+      for (const item of [
+        ...player.getAllItems(),
+        ...[...this.floors.values()].flatMap(floor => floor.entities),
+      ]) {
+        if (item instanceof Wand) item.reconcileChargeScaling();
       }
       generateFireElementalTexture(this);
       generateLightningElementalTexture(this);

@@ -74,6 +74,7 @@ export class UI extends Phaser.Scene {
   private healthFill: Phaser.GameObjects.Rectangle | undefined;
   private healthText: Phaser.GameObjects.Text | undefined;
   private heroStatus: Phaser.GameObjects.Text | undefined;
+  private floorStatus: Phaser.GameObjects.Text | undefined;
   private healthWidth = 140;
 
   constructor(context: GameContext) {
@@ -136,6 +137,10 @@ export class UI extends Phaser.Scene {
     this.heroStatus = this.add.text(0, 0, '', {
       fontFamily: `${FONT_MONO}, monospace`, fontSize: 14, color: COL.muted
     });
+    this.floorStatus = this.add.text(0, 0, '', {
+      fontFamily: `${FONT_MONO}, monospace`, fontSize: 16, color: COL.gold,
+      stroke: '#16121c', strokeThickness: 3
+    }).setOrigin(1, 0);
     this.quickslotPane = new QuickslotPane(this, this.context, this.inventoryWindow!);
     this.buildLog();
     this.buildHeroModal();
@@ -374,6 +379,7 @@ export class UI extends Phaser.Scene {
     this.healthFill?.setPosition(healthX + 1, edge + 1);
     this.healthText?.setPosition(healthX + this.healthWidth / 2, edge + 8);
     this.heroStatus?.setPosition(healthX, edge + 20);
+    this.floorStatus?.setPosition(w - edge, edge);
     // A lightweight message strip above the bottom controls, with history on tap.
     const logW = Math.min(w - 16 - size - gap, 520);
     const logH = 48;
@@ -442,6 +448,7 @@ export class UI extends Phaser.Scene {
       this.healthFill?.setSize((this.healthWidth - 2) * fraction, 14).setVisible(fraction > 0);
       this.healthText?.setText(`${player.healthPoints}/${player.maxHealthPoints}`);
       this.heroStatus?.setText(`Lv ${player.level} · Food ${Math.ceil(player.hunger)} · ${player.hungerState}`);
+      this.floorStatus?.setText(`Floor ${this.context.floor}`);
     }
     this.updateHeroModal();
     this.updateInspectModal();

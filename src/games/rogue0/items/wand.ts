@@ -24,6 +24,8 @@ export default abstract class Wand extends Entity {
   protected locallyIdentified = false;
   charges: number = 0;
   maxCharges: number = 0;
+  // Pre-scaling charge capacity; maxCharges is derived from this plus level.
+  baseMaxCharges: number = 0;
   // Stored with the item so partial recharge survives saves and floor travel.
   private rechargeProgress = 0;
   readonly rechargeInterval = 20;
@@ -49,6 +51,7 @@ export default abstract class Wand extends Entity {
     this.damageType = config.damageType;
     this.charges = config.charges;
     this.maxCharges = config.charges;
+    this.baseMaxCharges = config.charges;
 
     this.init(context, x, y);
   }
@@ -69,12 +72,29 @@ export default abstract class Wand extends Entity {
 
   get baseDescription(): string {
     const [min, max] = this.damageBounds;
-    return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. No distance limit; walls and blocked lines of sight stop zaps. Charges: ${this.charges}/${this.maxCharges}. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.`;
+    return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. No distance limit; walls and blocked lines of sight stop zaps. Charges: ${this.charges}/${this.maxCharges}. Upgrades add +1 to current and maximum charges. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.`;
   }
 
   equip() {}
 
   unequip() {}
+
+  // Keep maxCharges in sync with the upgrade level. Older saves predate
+  // charge scaling and recorded maxCharges as the base value, so derive from
+  // those saves rather than leaving upgraded wands at their base capacity.
+  reconcileChargeScaling(): void {
+    if (this.baseMaxCharges == null || Number.isNaN(this.baseMaxCharges)) {
+      this.baseMaxCharges = this.maxCharges ?? 3;
+    }
+    this.maxCharges = this.baseMaxCharges + this.level;
+    if (this.charges > this.maxCharges) this.charges = this.maxCharges;
+  }
+
+  // Wands gain +1 current and maximum charge per upgrade, alongside damage.
+  onUpgrade(): void {
+    this.reconcileChargeScaling();
+    this.charges = Math.min(this.maxCharges, this.charges + 1);
+  }
 
   // Restore this wand to full charges (used by Scroll of Recharging).
   refill(): void {

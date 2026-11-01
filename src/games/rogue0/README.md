@@ -85,7 +85,8 @@ items retain their five-tile range. Charges and action costs are unchanged.
 ## Passive wand recharge
 
 Every carried wand recovers one charge per 20 elapsed world-time units, up to
-its maximum. Wands recharge independently in the backpack; quickslot assignment
+its maximum. Upgrading a wand adds +1 to both its current and maximum charges.
+Wands recharge independently in the backpack; quickslot assignment
 is not required. Waiting advances recharge, but idle frames, open menus and time
 away from the game do not. Floor items do not recharge. Partial progress survives
 floor travel, dropping/picking up and browser saves; time spent on the ground is

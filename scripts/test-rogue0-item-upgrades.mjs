@@ -378,9 +378,28 @@ for (const [name, min, max] of [['WandOfFirebolt', 3, 6], ['WandOfFrost', 2, 5],
     assert.equal(wand.charges, before, 'describing a wand must not consume charges');
     maximum = false; assert.equal(wand.damage(), min + level);
     maximum = true; assert.equal(wand.damage(), max + level);
-    assert.ok(wand.displayDescription.includes('Charges: 1/3'));
+    assert.ok(wand.displayDescription.includes(`Charges: ${1 + level}/${3 + level}`));
     if (level < 3) upgrade(wand);
   }
+}
+{
+  const Frost = itemClass('WandOfFrost', { Wand });
+  const spent = new Frost({ messages: [] });
+  spent.identified = true;
+  spent.charges = 0;
+  upgrade(spent);
+  assert.equal(spent.maxCharges, 4, 'upgrades raise wand capacity');
+  assert.equal(spent.charges, 1, 'an upgrade also restores one spent charge');
+
+  const legacy = new Frost({ messages: [] });
+  legacy.identified = true;
+  legacy.level = 3;
+  legacy.maxCharges = 3;
+  legacy.charges = 1;
+  delete legacy.baseMaxCharges;
+  legacy.reconcileChargeScaling();
+  assert.equal(legacy.maxCharges, 6, 'legacy saves reconcile capacity from level');
+  assert.equal(legacy.charges, 1, 'reconciliation does not invent charges');
 }
 const might = new (itemClass('RingOfMight', { Ring }))({ messages: [] });
 const fang = new (itemClass('FangOfTheBeast'))({ messages: [] });
