@@ -730,7 +730,9 @@ export class Scene0 extends Phaser.Scene {
     this.placePlayer(spawn.x, spawn.y);
 
     const stairsPos =
-      stairs ?? findFarthestWalkable(levelArray, spawn.x, spawn.y, MAX_VISIBLE_X);
+      stairs ??
+      findFarthestWalkable(levelArray, spawn.x, spawn.y, MAX_VISIBLE_X, (x, y) =>
+        tiles.getFeature(x, y) === "chasm");
     this.context.stairsX = stairsPos.x;
     this.context.stairsY = stairsPos.y;
     const up = restored?.up ?? spawn;
@@ -787,7 +789,8 @@ export class Scene0 extends Phaser.Scene {
     const spawn = spawnRoom
       ? { x: spawnRoom.cx, y: spawnRoom.cy }
       : this.findSpawn(levelArray);
-    const stairs = findFarthestWalkable(levelArray, spawn.x, spawn.y, MAX_VISIBLE_X);
+    const stairs = findFarthestWalkable(levelArray, spawn.x, spawn.y, MAX_VISIBLE_X, (x, y) =>
+      tiles.getFeature(x, y) === "chasm");
 
     // Spawn and stairs must never sit on a terrain feature.
     tiles.clearFeature(spawn.x, spawn.y);

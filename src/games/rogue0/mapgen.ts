@@ -63,23 +63,6 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function orthoWalkableCount(map: number[][], x: number, y: number): number {
-  const dirs: Array<[number, number]> = [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1]
-  ];
-  let count = 0;
-  for (const [dx, dy] of dirs) {
-    const nx = x + dx;
-    const ny = y + dy;
-    if (nx < 0 || ny < 0 || nx >= map[0].length || ny >= map.length) continue;
-    if (map[ny][nx] === 0) count++;
-  }
-  return count;
-}
-
 function isRoomInterior(rooms: Room[], x: number, y: number): boolean {
   return rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 }
@@ -149,6 +132,105 @@ function growPatch(
     }
 
     frontier = next;
+  }
+
+  return patch;
+}
+
+// Returns true when every walkable floor tile (map === 0) not listed in
+// `blocked` is reachable from any other via cardinal steps. Chasms are the
+// only permanently blocking feature for this check: doors can be opened, and
+// grass/water/traps do not block ground travel.
+function isFloorConnected(map: number[][], blocked: Set<string>): boolean {
+  const h = map.length;
+  const w = map[0].length;
+  let sx = -1;
+  let sy = -1;
+  for (let y = 0; y < h && sx < 0; y++) {
+    for (let x = 0; x < w; x++) {
+      if (map[y][x] === 0 && !blocked.has(`${x},${y}`)) {
+        sx = x;
+        sy = y;
+        break;
+      }
+    }
+  }
+  if (sx < 0) return true;
+
+  const visited = new Set<string>([`${sx},${sy}`]);
+  const queue: Array<[number, number]> = [[sx, sy]];
+  for (let i = 0; i < queue.length; i++) {
+    const [x, y] = queue[i];
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      if (map[ny][nx] !== 0) continue;
+      const key = `${nx},${ny}`;
+      if (blocked.has(key) || visited.has(key)) continue;
+      visited.add(key);
+      queue.push([nx, ny]);
+    }
+  }
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (map[y][x] === 0 && !blocked.has(`${x},${y}`) && !visited.has(`${x},${y}`)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// Grows an irregular chasm patch inside rooms. Growth is a random walk over
+// fresh room-interior floor, so patches take different sizes and organic
+// shapes instead of a fixed single tile. Reserved tiles (room centres and the
+// future secret-corridor approach) are never consumed.
+function growChasmPatch(
+  map: number[][],
+  rooms: Room[],
+  reserved: Set<string>,
+  start: { x: number; y: number },
+  size: number,
+  used: Set<string>
+): Array<{ x: number; y: number }> {
+  const patch: Array<{ x: number; y: number }> = [start];
+  used.add(`${start.x},${start.y}`);
+  const tips: Array<{ x: number; y: number }> = [start];
+
+  let guard = 0;
+  while (patch.length < size && tips.length > 0 && guard++ < size * 8) {
+    const tip = tips[Math.floor(Math.random() * tips.length)];
+    const dirs = shuffle<[number, number]>([
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ]);
+
+    let grew = false;
+    for (const [dx, dy] of dirs) {
+      const nx = tip.x + dx;
+      const ny = tip.y + dy;
+      if (nx < 0 || ny < 0 || nx >= map[0].length || ny >= map.length) continue;
+      if (map[ny][nx] !== 0) continue;
+      if (!isRoomInterior(rooms, nx, ny)) continue;
+      const key = `${nx},${ny}`;
+      if (used.has(key) || reserved.has(key)) continue;
+
+      used.add(key);
+      const cell = { x: nx, y: ny };
+      patch.push(cell);
+      tips.push(cell);
+      grew = true;
+      break;
+    }
+
+    if (!grew) {
+      const idx = tips.indexOf(tip);
+      if (idx >= 0) tips.splice(idx, 1);
+    }
   }
 
   return patch;
@@ -281,21 +363,47 @@ export function generateMap(floor = 1): GeneratedMap {
     used.add(`${tile.x},${tile.y}`);
   }
 
-  // Optional chasm in a room corner/dead-end so it never severs the only
-  // corridor between rooms.
-  if (Math.random() < 0.7) {
-    const chasmCandidates = shuffle(
+  // Chasms come in varied multi-tile patches. Each candidate is grown inside
+  // rooms and only committed when the floor, with that patch blocking ground
+  // travel, stays fully connected — so a chasm can never cut the player off
+  // from any reachable section of the map.
+  const reserved = new Set(rooms.map((r) => `${r.cx},${r.cy}`));
+  const secretApproachY = map.findIndex((row) => row.includes(0));
+  if (secretApproachY >= 0) {
+    const secretApproachX = map[secretApproachY].indexOf(0);
+    if (secretApproachX >= 0) reserved.add(`${secretApproachX},${secretApproachY}`);
+  }
+
+  const chasmPatchCount = 1 + (Math.random() < 0.4 ? 1 : 0);
+  for (let p = 0; p < chasmPatchCount; p++) {
+    const targetSize = 2 + Math.floor(Math.random() * 5); // 2..6 tiles
+    const candidates = shuffle(
       roomTiles.filter(
-        (t) =>
-          !used.has(`${t.x},${t.y}`) && orthoWalkableCount(map, t.x, t.y) <= 2
+        (t) => !used.has(`${t.x},${t.y}`) && !reserved.has(`${t.x},${t.y}`)
       )
     );
-    const tile =
-      chasmCandidates[0] ??
-      shuffle(roomTiles.filter((t) => !used.has(`${t.x},${t.y}`)))[0];
-    if (tile) {
-      features.push({ x: tile.x, y: tile.y, feature: "chasm" });
-      used.add(`${tile.x},${tile.y}`);
+
+    let attempts = 0;
+    for (const seed of candidates) {
+      if (attempts++ >= 20) break;
+      const trialUsed = new Set(used);
+      const patch = growChasmPatch(map, rooms, reserved, seed, targetSize, trialUsed);
+      if (patch.length < 2) continue;
+
+      const blocked = new Set<string>();
+      for (const t of patch) blocked.add(`${t.x},${t.y}`);
+      // Previously committed chasm patches also block ground travel.
+      for (const f of features) {
+        if (f.feature === "chasm") blocked.add(`${f.x},${f.y}`);
+      }
+
+      if (!isFloorConnected(map, blocked)) continue;
+
+      for (const t of patch) {
+        features.push({ x: t.x, y: t.y, feature: "chasm" });
+        used.add(`${t.x},${t.y}`);
+      }
+      break;
     }
   }
 
@@ -329,7 +437,8 @@ export function findFarthestWalkable(
   map: number[][],
   sx: number,
   sy: number,
-  maxX: number = MAP_WIDTH
+  maxX: number = MAP_WIDTH,
+  blocked: (x: number, y: number) => boolean = () => false
 ): { x: number; y: number } {
   const h = map.length;
   const w = map[0].length;
@@ -359,6 +468,7 @@ export function findFarthestWalkable(
       const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
       if (map[ny][nx] === 1) continue;
+      if (blocked(nx, ny)) continue;
       if (dist[ny][nx] !== -1) continue;
       dist[ny][nx] = d + 1;
       queue.push([nx, ny]);

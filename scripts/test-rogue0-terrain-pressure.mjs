@@ -13,13 +13,31 @@ function load(name, bindings = {}) {
 }
 const tiles = load('tiles');
 const fov = load('fov', tiles);
-const { generateMap } = load('mapgen', tiles);
+const { generateMap, findFarthestWalkable } = load('mapgen', tiles);
 const dungeon = load('dungeon', { PF, tiles, ...fov,
   hasEffect: () => false, sfx: { step() {} },
   removeEntity: (ctx, e) => { ctx.entities = ctx.entities.filter(v => v !== e); }
 }).default;
 let changes = 0;
 dungeon.onTerrainChanged = () => changes++;
+function floodReachable(map, start, blocked) {
+  const visited = new Set([`${start.x},${start.y}`]);
+  const queue = [{ x: start.x, y: start.y }];
+  for (let qi = 0; qi < queue.length; qi++) {
+    const { x, y } = queue[qi];
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= map[0].length || ny >= map.length) continue;
+      if (map[ny][nx] !== 0) continue;
+      const key = `${nx},${ny}`;
+      if (blocked.has(key) || visited.has(key)) continue;
+      visited.add(key);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return visited;
+}
 for (let i = 0; i < 200; i++) {
   tiles.clearAllFeatures();
   const { map, rooms, features, secretRoom } = generateMap(i % 25 + 1);
@@ -34,6 +52,17 @@ for (let i = 0; i < 200; i++) {
   assert.ok(map[0].every(cell => cell === 1), 'northern boundary stays sealed');
   assert.ok(rooms.length > 1);
   for (const f of features) tiles.setFeature(f.x, f.y, f.feature, f);
+  const chasms = features.filter(f => f.feature === 'chasm');
+  if (chasms.length > 0) assert.ok(chasms.length >= 2, 'chasms are multi-tile patches, never a lone tile');
+  const spawn = { x: rooms[0].cx, y: rooms[0].cy };
+  const blocked = new Set(chasms.map(c => `${c.x},${c.y}`));
+  const reachable = floodReachable(map, spawn, blocked);
+  for (const key of floodReachable(map, spawn, new Set())) {
+    if (blocked.has(key)) continue;
+    assert.ok(reachable.has(key), `chasm cannot isolate ${key}`);
+  }
+  const stairs = findFarthestWalkable(map, spawn.x, spawn.y, map[0].length, (sx, sy) => tiles.getFeature(sx, sy) === 'chasm');
+  assert.notEqual(tiles.getFeature(stairs.x, stairs.y), 'chasm', 'stairs never land on a chasm');
   const secret = features.find(f => f.feature === 'secretDoor');
   assert.ok(secret, 'every floor has a secret branch');
   assert.ok(features.some(f => f.trapKind === 'arrow' && f.trap === 'visible'));
