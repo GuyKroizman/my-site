@@ -379,7 +379,8 @@ export class UI extends Phaser.Scene {
     this.healthFill?.setPosition(healthX + 1, edge + 1);
     this.healthText?.setPosition(healthX + this.healthWidth / 2, edge + 8);
     this.heroStatus?.setPosition(healthX, edge + 20);
-    this.floorStatus?.setPosition(w - edge, edge);
+    // Keep the floor readout clear of the DOM menu button (top-right).
+    this.floorStatus?.setPosition(w - edge, edge + 36);
     // A lightweight message strip above the bottom controls, with history on tap.
     const logW = Math.min(w - 16 - size - gap, 520);
     const logH = 48;

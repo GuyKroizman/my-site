@@ -472,23 +472,24 @@ body {
   line-height: 1.5;
 }
 
-.rogue0-menu-toggle {
+.rogue0-game-btn.rogue0-menu-toggle {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 22px;
+  height: 22px;
   margin-left: auto;
+  padding: 3px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .rogue0-menu-icon {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .rogue0-menu-icon span {
-  width: 18px;
+  width: 12px;
   height: 2px;
   background: currentColor;
 }
