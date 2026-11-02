@@ -605,7 +605,7 @@ assert.deepEqual([hunter.lastSeenX, hunter.lastSeenY], [4, 3], 'attacking enemie
 hunter.x = 2;
 doors.set('3,3', 'closed');
 huntAI.enemyTurn(hunter);
-assert.equal(hunter.x, 2, 'hunter spends its action opening the door');
+assert.equal(hunter.x, 3, 'hunter opens the door and steps onto its tile');
 assert.equal(doors.get('3,3'), 'open');
 assert.equal(hunter.awareOfPlayer, false, 'opening a door leaves a reaction window');
 assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), true);
@@ -634,14 +634,13 @@ assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), false, 'ambus
   nextPath = [[3, 3], [4, 2]];
   assert.equal(huntAI.enemyCanSeePlayer(pursuer), false, 'closed door hides player beyond it');
   huntAI.enemyTurn(pursuer);
-  assert.deepEqual([pursuer.x, pursuer.y], [3, 3], 'normal pursuit opens the remembered doorway in place');
+  assert.deepEqual([pursuer.x, pursuer.y], [4, 2], 'pursuer opens the remembered doorway and steps onto it');
   assert.equal(doors.get('4,2'), 'open');
   assert.equal(pursuer.awareOfPlayer, false, 'opening a door preserves the surprise opening');
-  huntAI.enemyTurn(pursuer);
-  assert.deepEqual([pursuer.x, pursuer.y], [4, 2], 'pursuer steps through the open door next action');
   const before = huntAttacks;
   huntAI.enemyTurn(pursuer);
   assert.equal(huntAttacks, before + 1, 'reacquires player without door-search AI');
+  assert.deepEqual([pursuer.x, pursuer.y], [4, 2], 'pursuer attacks from the doorway rather than moving again');
   for (let x = 0; x < 7; x++) arena[2][x] = 0;
 }
 // Walking around a one-tile pillar breaks sight without erasing pursuit.

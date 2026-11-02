@@ -153,7 +153,8 @@ export function enemyTurn(entity: Entity): void {
   }
 
   // 2) Move toward the player, a visible mirror image, their last known
-  //    position, or wander. Opening a door is its own action, not a move.
+  //    position, or wander. A pursuer that opens a door steps onto its tile
+  //    in the same action, but still pays the fixed open-door action cost.
   if (!acted && canMove) {
     if (hasEffect(entity, "confused") && dungeon.confusedMove(entity.context, entity)) return;
     if (seesPlayer) {
@@ -232,9 +233,9 @@ export function nextStepToward(
   return null;
 }
 
-// Plan through doors and open them as their own action, like a pursuer
-// stopping to push a door open before stepping through. Do not overlap
-// another actor or forget the target just because a corridor is busy.
+// Plan through doors and step through in one action, opening a closed door
+// before entering its tile. Do not overlap another actor or forget the target
+// just because a corridor is busy.
 function followStep(entity: Entity, step: { x: number; y: number }): ActionKind | null {
   // Never step onto a revealed trap, even when it is the navigation target.
   if (isVisibleTrap(step.x, step.y)) return null;
@@ -242,16 +243,17 @@ function followStep(entity: Entity, step: { x: number; y: number }): ActionKind 
     e !== entity && (e.type === "player" || e.type === "enemy") &&
     e.healthPoints > 0 && e.x === step.x && e.y === step.y
   )) return null;
+  let openedDoor = false;
   if (tiles.getDoorState(step.x, step.y) === "closed") {
     if (!dungeon.openDoor(step.x, step.y)) return null;
-    // Opening a door occupies this action, so the pursuer stays put this turn
-    // and steps through on a later one. A monster that saw us before opening
-    // it is still exposed until its next turn or our first hit.
+    // The pursuer opens the door and steps onto its tile in the same action.
+    // It has not yet had a chance to react, so the waiting player's next hit
+    // can still land as a surprise attack.
     entity.awareOfPlayer = false;
-    return "openDoor";
+    openedDoor = true;
   }
   dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
-  return "move";
+  return openedDoor ? "openDoor" : "move";
 }
 
 export function randomAdjacentStep(
