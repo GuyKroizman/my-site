@@ -48,7 +48,9 @@ export type GameContext = {
   onCoverChanged?: () => void;
   onSurpriseAttack?: (target: Entity) => void;
   onGrassBurn?: (cells: Array<{ x: number; y: number }>) => void;
-  onWandZap?: (zap: WandZap) => void;
+  // `onImpact`, when provided, fires once the bolt head visually reaches its
+  // destination so a wand kill lands on impact instead of on the firing frame.
+  onWandZap?: (zap: WandZap, onImpact?: () => void) => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   onChooseItemTarget?: (item: Entity) => void;

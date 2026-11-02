@@ -1319,33 +1319,48 @@ export default class BasicHero extends Entity {
         this.refreshUI();
         return;
       }
-      context.onWandZap?.({ fromX: this.x, fromY: this.y, toX: tx, toY: ty, damageType: item.damageType });
-      if (enemy && isHostile(enemy)) {
-        const attack = this.attack;
-        this.attack = () => damage;
-        try {
-          const result = resolveAttack(context, this, enemy, {
-            damageType: item.damageType, isRanged: true, onHitEffects: [item.wandEffect()]
-          });
-          if (result.hit) {
-            enemy.takeDamage(result.damage);
-            if (result.damageType === "shock" && result.damage > 0) context.onShockWater?.(enemy, result.damage);
-            for (const effect of result.appliedEffects) {
-              if (enemy.healthPoints > 0) applyEffect(enemy, effect);
+      // Resolve the hit when the bolt head reaches the target, not the frame
+      // the zap is fired: otherwise a killed monster disappears before the
+      // projectile animation arrives. The hero stays `moving` until then so
+      // the turn scheduler waits for the projectile, exactly like a thrown item.
+      const applyImpact = () => {
+        if (enemy && isHostile(enemy)) {
+          const attack = this.attack;
+          this.attack = () => damage;
+          try {
+            const result = resolveAttack(context, this, enemy, {
+              damageType: item.damageType, isRanged: true, onHitEffects: [item.wandEffect()]
+            });
+            if (result.hit) {
+              enemy.takeDamage(result.damage);
+              if (result.damageType === "shock" && result.damage > 0) context.onShockWater?.(enemy, result.damage);
+              for (const effect of result.appliedEffects) {
+                if (enemy.healthPoints > 0) applyEffect(enemy, effect);
+              }
+              dungeon.applyHitEffects(context, enemy);
+              if (enemy.healthPoints <= 0) removeEntity(context, enemy);
             }
-            dungeon.applyHitEffects(context, enemy);
-            if (enemy.healthPoints <= 0) removeEntity(context, enemy);
+            dungeon.log(context, `${item.displayName}: ${result.surprise ? "surprise, " : ""}${result.crit ? "critical, " : ""}${result.hit ? `${result.damage} damage` : "miss"}.`);
+          } finally {
+            this.attack = attack;
           }
-          dungeon.log(context, `${item.displayName}: ${result.surprise ? "surprise, " : ""}${result.crit ? "critical, " : ""}${result.hit ? `${result.damage} damage` : "miss"}.`);
-        } finally {
-          this.attack = attack;
         }
-      }
+        this.moving = false;
+      };
+
       context.throwMode = false;
       context.throwItem = undefined;
       this.zapping = false;
       this.spendTurn("use");
       this.refreshUI();
+
+      if (context.onWandZap) {
+        this.moving = true;
+        context.onWandZap({ fromX: this.x, fromY: this.y, toX: tx, toY: ty, damageType: item.damageType }, applyImpact);
+      } else {
+        // Headless/tests without a renderer have no bolt to wait for.
+        applyImpact();
+      }
       return;
     }
 

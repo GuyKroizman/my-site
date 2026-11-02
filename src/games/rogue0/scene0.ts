@@ -322,7 +322,7 @@ export class Scene0 extends Phaser.Scene {
     this.context.onCoverChanged = () => this.syncFeatures();
     this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
     this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);
-    this.context.onWandZap = zap => showWandZap(this, this.context, zap);
+    this.context.onWandZap = (zap, onImpact) => showWandZap(this, this.context, zap, onImpact);
 
     const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
     const player = resumed?.player ?? new HeroClass(this.context, spawn.x, spawn.y);

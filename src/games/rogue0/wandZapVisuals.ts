@@ -1,19 +1,25 @@
 import type Phaser from 'phaser';
 import type { GameContext, WandZap } from './context';
 
-type Bolt = WandZap & { age: number; duration: number };
+type Bolt = WandZap & { age: number; duration: number; impacted?: boolean; onImpact?: () => void };
+
+// Distance-scaled flight time; the bolt's onImpact callback fires at exactly
+// this age, so a wand's damage lands when the bolt head reaches its target.
+export function wandZapDuration(zap: WandZap): number {
+  const distance = Math.hypot(zap.toX - zap.fromX, zap.toY - zap.fromY);
+  return Math.min(420, 160 + distance * 18);
+}
 type State = { bolts: Bolt[]; graphic: Phaser.GameObjects.Graphics; lastTime: number };
 const states = new WeakMap<Phaser.Scene, State>();
 
-export function showWandZap(scene: Phaser.Scene, context: GameContext, zap: WandZap): void {
+export function showWandZap(scene: Phaser.Scene, context: GameContext, zap: WandZap, onImpact?: () => void): void {
   let state = states.get(scene);
   if (!state) {
     state = { bolts: [], graphic: scene.add.graphics().setDepth(98), lastTime: scene.time.now };
     states.set(scene, state);
   }
   // Presentation only: no RNG, damage, actor readiness or simulation deadlines.
-  const distance = Math.hypot(zap.toX - zap.fromX, zap.toY - zap.fromY);
-  state.bolts.push({ ...zap, age: 0, duration: Math.min(420, 160 + distance * 18) });
+  state.bolts.push({ ...zap, age: 0, duration: wandZapDuration(zap), impacted: false, onImpact });
   if (state.bolts.length > 32) state.bolts.shift();
   updateWandZaps(scene, context, scene.time.now, false);
 }
@@ -27,6 +33,10 @@ export function updateWandZaps(scene: Phaser.Scene, context: GameContext, now: n
   g.clear();
   state.bolts = state.bolts.filter(bolt => {
     if (!paused) bolt.age += elapsed;
+    if (!bolt.impacted && bolt.age >= bolt.duration) {
+      bolt.impacted = true;
+      bolt.onImpact?.();
+    }
     if (bolt.age >= bolt.duration + 180) return false;
     const ice = bolt.damageType === 'ice', shock = bolt.damageType === 'shock';
     const color = ice ? 0x69cce6 : shock ? 0xb1a4ff : 0xf68a30;
