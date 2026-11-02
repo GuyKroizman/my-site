@@ -3,6 +3,7 @@ import { canSee } from "./fov";
 import * as tiles from "./tiles";
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
+import type { ActionKind } from "./timing";
 import { hasEffect, fleeStep } from "./effects";
 
 // Enemies avoid stepping on traps they can perceive (revealed/armed plates).
@@ -118,6 +119,7 @@ export function enemyTurn(entity: Entity): void {
     : (seesPlayer ? player : null);
 
   let acted = false;
+  let moveAction: ActionKind = "move";
 
   // 1) Attack. Ranged enemies shoot when in range; melee enemies strike
   //    when adjacent. A visible mirror image is a valid target.
@@ -151,24 +153,27 @@ export function enemyTurn(entity: Entity): void {
   }
 
   // 2) Move toward the player, a visible mirror image, their last known
-  //    position, or wander.
+  //    position, or wander. Opening a door is its own action, not a move.
   if (!acted && canMove) {
     if (hasEffect(entity, "confused") && dungeon.confusedMove(entity.context, entity)) return;
     if (seesPlayer) {
       if (!isAdjacentTo(entity, player)) {
         const step = nextStepToward(entity, player.x, player.y);
-        if (step) acted = followStep(entity, step);
+        const action = step ? followStep(entity, step) : null;
+        if (action) { acted = true; moveAction = action; }
       }
     } else if (decoy) {
       // Player unseen: investigate a visible mirror image instead.
       if (!isAdjacentTo(entity, decoy)) {
         const step = nextStepToward(entity, decoy.x!, decoy.y!);
-        if (step) acted = followStep(entity, step);
+        const action = step ? followStep(entity, step) : null;
+        if (action) { acted = true; moveAction = action; }
       }
     } else if (entity.lastSeenX !== undefined && entity.lastSeenY !== undefined) {
       const step = nextStepToward(entity, entity.lastSeenX, entity.lastSeenY);
       if (step) {
-        acted = followStep(entity, step);
+        const action = followStep(entity, step);
+        if (action) { acted = true; moveAction = action; }
       } else {
         // Arrived or the route no longer exists: resume roaming next action.
         entity.lastSeenX = undefined;
@@ -176,10 +181,11 @@ export function enemyTurn(entity: Entity): void {
       }
     } else {
       acted = wanderStep(entity);
+      moveAction = "move";
     }
 
     if (acted) {
-      entity.spendTime("move");
+      entity.spendTime(moveAction);
     }
   }
 
@@ -226,24 +232,26 @@ export function nextStepToward(
   return null;
 }
 
-// Plan through doors and open them while stepping in, like a pursuer
-// emerging through a doorway into an ambush. Do not
-// overlap another actor or forget the target just because a corridor is busy.
-function followStep(entity: Entity, step: { x: number; y: number }): boolean {
+// Plan through doors and open them as their own action, like a pursuer
+// stopping to push a door open before stepping through. Do not overlap
+// another actor or forget the target just because a corridor is busy.
+function followStep(entity: Entity, step: { x: number; y: number }): ActionKind | null {
   // Never step onto a revealed trap, even when it is the navigation target.
-  if (isVisibleTrap(step.x, step.y)) return false;
+  if (isVisibleTrap(step.x, step.y)) return null;
   if (entity.context.entities.some(e =>
     e !== entity && (e.type === "player" || e.type === "enemy") &&
     e.healthPoints > 0 && e.x === step.x && e.y === step.y
-  )) return false;
+  )) return null;
   if (tiles.getDoorState(step.x, step.y) === "closed") {
-    if (!dungeon.openDoor(step.x, step.y)) return false;
-    // Opening/entering a doorway occupies this action. Even a monster that
-    // saw us before opening it is exposed until its next turn or our first hit.
+    if (!dungeon.openDoor(step.x, step.y)) return null;
+    // Opening a door occupies this action, so the pursuer stays put this turn
+    // and steps through on a later one. A monster that saw us before opening
+    // it is still exposed until its next turn or our first hit.
     entity.awareOfPlayer = false;
+    return "openDoor";
   }
   dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
-  return true;
+  return "move";
 }
 
 export function randomAdjacentStep(

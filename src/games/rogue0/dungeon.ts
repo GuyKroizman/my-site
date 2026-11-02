@@ -153,21 +153,6 @@ const dungeon = {
     if (level[y][x] !== 0) return false;
     const flying = !!context.player && hasEffect(context.player, "levitating");
     if (tiles.isBlocking(x, y) && !(flying && tiles.getFeature(x, y) === "chasm")) {
-      // Closed doors open when the player tries to step into them. This lives
-      // here because the player's movement code is in basicHero.processInput
-      // (which is outside the set of files this terrain pass may edit).
-      const state = tiles.getTileState(x, y);
-      if (state?.feature === "door" && state.door === "closed") {
-        const player = context.player;
-        if (
-          player &&
-          player.x !== undefined &&
-          player.y !== undefined &&
-          this.canStepBetween(player.x, player.y, x, y, player)
-        ) {
-          this.openDoor(x, y);
-        }
-      }
       return false;
     }
 

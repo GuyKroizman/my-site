@@ -1087,8 +1087,12 @@ export default class BasicHero extends Entity {
       return;
     }
 
-    // Open a closed door when stepping into it (no-op for other tiles).
-    dungeon.openDoor(step.x, step.y);
+    // Opening a closed door is its own action: spend the turn here, then step
+    // through on the next auto-walk action.
+    if (dungeon.openDoor(step.x, step.y)) {
+      this.spendTurn("openDoor");
+      return;
+    }
     if (dungeon.isWalkableTile(this.context, step.x, step.y)) {
       this.walkPath.shift();
       this.spendTurn("move");
@@ -1789,7 +1793,12 @@ export default class BasicHero extends Entity {
       if (hasEffect(this, "rooted") &&
           dungeon.entityAtTile(this.context, newX, newY)?.type !== "enemy") return;
       if (this.tryStepIntoChasm(newX, newY)) return;
-      dungeon.openDoor(newX, newY);
+      // Opening a closed door is its own action (SPD-style): spend a turn to
+      // open it and stay put, then step through on a later action.
+      if (dungeon.openDoor(newX, newY)) {
+        this.spendTurn("openDoor");
+        return;
+      }
 
       if (!dungeon.isWalkableTile(this.context, newX, newY)) {
         const entity = dungeon.entityAtTile(this.context, newX, newY);

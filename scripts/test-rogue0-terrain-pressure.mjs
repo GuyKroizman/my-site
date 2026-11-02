@@ -38,6 +38,17 @@ function floodReachable(map, start, blocked) {
   }
   return visited;
 }
+// A door sits in the wall opening just outside a room: cardinally adjacent to
+// the room's edge, not inside the room and not deep inside a corridor.
+function isDoorwayFor(room, d) {
+  const inside = d.x >= room.x && d.x < room.x + room.w && d.y >= room.y && d.y < room.y + room.h;
+  if (inside) return false;
+  const leftRight = (d.x === room.x - 1 || d.x === room.x + room.w) &&
+    d.y >= room.y && d.y < room.y + room.h;
+  const topBottom = (d.y === room.y - 1 || d.y === room.y + room.h) &&
+    d.x >= room.x && d.x < room.x + room.w;
+  return leftRight || topBottom;
+}
 for (let i = 0; i < 200; i++) {
   tiles.clearAllFeatures();
   const { map, rooms, features, secretRoom } = generateMap(i % 25 + 1);
@@ -51,6 +62,16 @@ for (let i = 0; i < 200; i++) {
   }
   assert.ok(map[0].every(cell => cell === 1), 'northern boundary stays sealed');
   assert.ok(rooms.length > 1);
+  // Doors gate room entrances: every room has at least one, and every door
+  // sits in the wall opening just outside a room rather than deep in a corridor.
+  const doorFeatures = features.filter(f => f.feature === 'door');
+  for (const room of rooms) {
+    assert.ok(doorFeatures.some(d => isDoorwayFor(room, d)), 'every room has an entrance door');
+  }
+  for (const d of doorFeatures) {
+    assert.ok(rooms.some(room => isDoorwayFor(room, d)),
+      'doors sit in doorway openings, not corridor interiors');
+  }
   for (const f of features) tiles.setFeature(f.x, f.y, f.feature, f);
   const chasms = features.filter(f => f.feature === 'chasm');
   if (chasms.length > 0) assert.ok(chasms.length >= 2, 'chasms are multi-tile patches, never a lone tile');

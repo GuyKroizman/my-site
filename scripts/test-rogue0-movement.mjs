@@ -605,9 +605,9 @@ assert.deepEqual([hunter.lastSeenX, hunter.lastSeenY], [4, 3], 'attacking enemie
 hunter.x = 2;
 doors.set('3,3', 'closed');
 huntAI.enemyTurn(hunter);
-assert.equal(hunter.x, 3, 'hunter opens and enters the door while pursuing');
+assert.equal(hunter.x, 2, 'hunter spends its action opening the door');
 assert.equal(doors.get('3,3'), 'open');
-assert.equal(hunter.awareOfPlayer, false, 'emerging from cover leaves a reaction window');
+assert.equal(hunter.awareOfPlayer, false, 'opening a door leaves a reaction window');
 assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), true);
 let surpriseCues = 0;
 huntContext.onSurpriseAttack = victim => { assert.equal(victim, hunter); surpriseCues++; };
@@ -634,8 +634,11 @@ assert.equal(combat.isSurpriseAttack(huntContext, target, hunter), false, 'ambus
   nextPath = [[3, 3], [4, 2]];
   assert.equal(huntAI.enemyCanSeePlayer(pursuer), false, 'closed door hides player beyond it');
   huntAI.enemyTurn(pursuer);
-  assert.deepEqual([pursuer.x, pursuer.y], [4, 2], 'normal pursuit opens and enters remembered doorway');
-  assert.equal(pursuer.awareOfPlayer, false, 'door entry preserves surprise opening');
+  assert.deepEqual([pursuer.x, pursuer.y], [3, 3], 'normal pursuit opens the remembered doorway in place');
+  assert.equal(doors.get('4,2'), 'open');
+  assert.equal(pursuer.awareOfPlayer, false, 'opening a door preserves the surprise opening');
+  huntAI.enemyTurn(pursuer);
+  assert.deepEqual([pursuer.x, pursuer.y], [4, 2], 'pursuer steps through the open door next action');
   const before = huntAttacks;
   huntAI.enemyTurn(pursuer);
   assert.equal(huntAttacks, before + 1, 'reacquires player without door-search AI');
@@ -809,6 +812,41 @@ for (const [key, dx, dy] of [['Home', -1, -1], ['PageUp', 1, -1], ['End', -1, 1]
   dungeon.attackEntity = () => { hit = true; };
   hero.processInput(key);
   assert.equal(hit, true, `${key} attacks diagonally`);
+}
+// Opening a door is its own action: one turn, no movement (SPD-style).
+{
+  const saved = {
+    openDoor: dungeon.openDoor,
+    entityAtTile: dungeon.entityAtTile,
+    isWalkableTile: dungeon.isWalkableTile,
+    moveEntityTo: dungeon.moveEntityTo,
+  };
+  let opened = 0, movedTo = null;
+  Object.assign(dungeon, {
+    openDoor() { opened++; return true; },
+    entityAtTile: () => undefined,
+    isWalkableTile: () => true,
+    moveEntityTo: (ctx, e, x, y) => { movedTo = [x, y]; },
+  });
+  const doorHero = Object.assign(Object.create(Hero.prototype), {
+    context: { entities: [], visibleTiles: new Set() },
+    x: 0, y: 0, effects: [], movementSpeed: 1, attackDelay: 1,
+    currentWeapon: () => undefined, actionReady: true,
+    acknowledgedWalkEnemies: new Set(), walkPath: [], inputBuffer: [],
+    hunger: 100, healthPoints: 10, actions: [],
+    spendTurn(action) { this.actions.push(action); this.actionReady = false; },
+  });
+  doorHero.processInput('ArrowRight');
+  assert.equal(opened, 1, 'manual door entry opens the door');
+  assert.deepEqual(doorHero.actions, ['openDoor'], 'manual door entry spends an open-door turn');
+  assert.equal(movedTo, null, 'opening a door does not move the hero');
+  Object.assign(doorHero, { x: 0, y: 0, actionReady: true, walkPath: [{ x: 1, y: 0 }], actions: [] });
+  doorHero.nextStepToward = () => ({ x: 1, y: 0 });
+  doorHero.stepAutoWalk();
+  assert.equal(opened, 2, 'auto-walk opens the door too');
+  assert.deepEqual(doorHero.actions, ['openDoor'], 'auto-walk opening spends its own turn');
+  assert.equal(movedTo, null, 'auto-walk does not step through a door it just opened');
+  Object.assign(dungeon, saved);
 }
 // Click/touch targets run the real hero route planning and auto-walk attack.
 dungeon.findPath = realDungeon.findPath.bind(realDungeon);

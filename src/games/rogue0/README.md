@@ -109,6 +109,7 @@ Current Rogue0 action costs (normal action = 1 time unit):
 | Attack, hit or miss | Equipped weapon's `attackDelay × weaponStrengthPenalty` |
 | Weapon-based skill | Weapon's penalized attack delay |
 | Use item, throw, equip/unequip, drop, non-weapon skill, wait | 1 |
+| Open a closed door (in place; step through next action) | 1 |
 | Search | 2 |
 | Invalid action, inspection, open backpack | 0 |
 

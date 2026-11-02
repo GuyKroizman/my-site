@@ -437,7 +437,9 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
 ### Phase 7 — Terrain & environment
 *Depends on G4.*
 
-- [x] Doors open on entry and close behind actors; monsters traverse doors.
+- [x] Doors open as their own 1-turn action (SPD-style: the actor stays in
+      place, then steps through next action) and close behind actors; monsters
+      traverse doors the same way.
 - [x] Search reveals adjacent hidden traps; dart/fire/frost/teleport traps trigger.
 - [x] Burning actors ignite grass; stepping into water douses burning.
 - [x] Chasms block ordinary movement.

@@ -31,26 +31,27 @@ function clampInt(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-// Carves an L-shaped corridor between two points. `horizontalFirst` controls
-// which arm runs first.
-function carveL(
-  map: number[][],
+// Builds the tile sequence of an L-shaped corridor between two points.
+// `horizontalFirst` controls which arm runs first; the order matches the
+// order the tiles are carved.
+function carveLPath(
   ax: number,
   ay: number,
   bx: number,
   by: number,
   horizontalFirst: boolean
-): void {
+): Array<[number, number]> {
+  const path: Array<[number, number]> = [];
   let x = ax;
   let y = ay;
 
   const carveTo = (tx: number, ty: number) => {
     while (x !== tx) {
-      map[y][x] = 0;
+      path.push([x, y]);
       x += Math.sign(tx - x);
     }
     while (y !== ty) {
-      map[y][x] = 0;
+      path.push([x, y]);
       y += Math.sign(ty - y);
     }
   };
@@ -63,11 +64,43 @@ function carveL(
     carveTo(bx, by);
   }
 
-  map[by][bx] = 0;
+  path.push([bx, by]);
+  return path;
 }
 
-function connect(map: number[][], a: Room, b: Room): void {
-  carveL(map, a.cx, a.cy, b.cx, b.cy, Math.random() < 0.5);
+function connect(map: number[][], a: Room, b: Room, doorways: Set<string>): void {
+  const horizontalFirst = Math.random() < 0.5;
+  const path = carveLPath(a.cx, a.cy, b.cx, b.cy, horizontalFirst);
+  for (const [x, y] of path) map[y][x] = 0;
+
+  const exitA = exitDoorwayFromPath(a, path);
+  const enterB = enterDoorwayFromPath(b, path);
+  if (exitA) doorways.add(`${exitA.x},${exitA.y}`);
+  if (enterB) doorways.add(`${enterB.x},${enterB.y}`);
+}
+
+function insideRoom(room: Room, x: number, y: number): boolean {
+  return x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h;
+}
+
+// The first corridor tile outside `room` after a carved path leaves it;
+// the wall opening where the corridor exits the room.
+function exitDoorwayFromPath(room: Room, path: Array<[number, number]>): { x: number; y: number } | null {
+  for (const [x, y] of path) {
+    if (!insideRoom(room, x, y)) return { x, y };
+  }
+  return null;
+}
+
+// The last corridor tile outside `room` before a carved path enters it;
+// the wall opening where the corridor enters the room.
+function enterDoorwayFromPath(room: Room, path: Array<[number, number]>): { x: number; y: number } | null {
+  let lastOutside: { x: number; y: number } | null = null;
+  for (const [x, y] of path) {
+    if (insideRoom(room, x, y)) return lastOutside;
+    lastOutside = { x, y };
+  }
+  return null;
 }
 
 function roomOverlaps(a: Room, b: Room): boolean {
@@ -265,10 +298,16 @@ function bfsConnectPath(
 function connectRoomsSpanning(
   map: number[][],
   anchors: Array<{ x: number; y: number }>,
-  forbidden: Set<string>
+  forbidden: Set<string>,
+  rooms: Room[],
+  chasmRoom: Room | undefined,
+  doorways: Set<string>
 ): void {
   if (anchors.length < 2) return;
   const connected = new Set<number>([0]);
+
+  const roomFor = (i: number): Room | undefined =>
+    i < rooms.length ? rooms[i] : chasmRoom;
 
   while (connected.size < anchors.length) {
     let best: { ci: number; ui: number; d: number } | null = null;
@@ -293,6 +332,17 @@ function connectRoomsSpanning(
     );
     if (path) {
       for (const [x, y] of path) map[y][x] = 0;
+
+      const startRoom = roomFor(best.ci);
+      const endRoom = roomFor(best.ui);
+      if (startRoom) {
+        const doorway = exitDoorwayFromPath(startRoom, path);
+        if (doorway) doorways.add(`${doorway.x},${doorway.y}`);
+      }
+      if (endRoom) {
+        const doorway = enterDoorwayFromPath(endRoom, path);
+        if (doorway) doorways.add(`${doorway.x},${doorway.y}`);
+      }
     }
     connected.add(best.ui);
   }
@@ -309,26 +359,6 @@ function shuffle<T>(arr: T[]): T[] {
 
 function isRoomInterior(rooms: Room[], x: number, y: number): boolean {
   return rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
-}
-
-// True when the tile is a straight 1-wide corridor (two opposite walkable
-// neighbours), not an L-bend corner or a junction.
-function isStraightCorridor(map: number[][], x: number, y: number): boolean {
-  const left = map[y]?.[x - 1] === 0;
-  const right = map[y]?.[x + 1] === 0;
-  const up = map[y - 1]?.[x] === 0;
-  const down = map[y + 1]?.[x] === 0;
-  return (left && right && !up && !down) || (up && down && !left && !right);
-}
-
-function isAdjacentToRoom(rooms: Room[], x: number, y: number): boolean {
-  const dirs: Array<[number, number]> = [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1]
-  ];
-  return dirs.some(([dx, dy]) => isRoomInterior(rooms, x + dx, y + dy));
 }
 
 // Grows a small, contiguous blob of room-interior floor tiles for grass and
@@ -703,6 +733,10 @@ export function generateMap(floor = 1): GeneratedMap {
     }
   }
 
+  // Doorways are tracked while corridors are carved so each room entrance can
+  // get a door exactly once, including organic rooms and the chasm chamber.
+  const doorways = new Set<string>();
+
   if (bigChasm && chasmRoom && chasmTiles) {
     // Regular rooms anchor on their centres; the chasm chamber anchors on its
     // walkable ring so corridors enter the room without touching the chasm.
@@ -710,10 +744,10 @@ export function generateMap(floor = 1): GeneratedMap {
       ...rooms.map((r) => ({ x: r.cx, y: r.cy })),
       { x: chasmRoom.x + 1, y: chasmRoom.cy }
     ];
-    connectRoomsSpanning(map, anchors, chasmTiles);
+    connectRoomsSpanning(map, anchors, chasmTiles, rooms, chasmRoom, doorways);
   } else {
     for (let i = 1; i < rooms.length; i++) {
-      connect(map, rooms[i - 1], rooms[i]);
+      connect(map, rooms[i - 1], rooms[i], doorways);
     }
   }
 
@@ -723,7 +757,6 @@ export function generateMap(floor = 1): GeneratedMap {
   const features: FeaturePlacement[] = [];
   const used = new Set<string>();
 
-  const corridorTiles: Array<{ x: number; y: number }> = [];
   const roomTiles: Array<{ x: number; y: number }> = [];
 
   for (let y = 0; y < height; y++) {
@@ -731,8 +764,6 @@ export function generateMap(floor = 1): GeneratedMap {
       if (map[y][x] !== 0) continue;
       if (isRoomInterior(rooms, x, y)) {
         roomTiles.push({ x, y });
-      } else {
-        corridorTiles.push({ x, y });
       }
     }
   }
@@ -748,21 +779,14 @@ export function generateMap(floor = 1): GeneratedMap {
     }
   }
 
-  // Doors go in the middle of narrow corridors, away from rooms. A door tile
-  // needs exactly two walkable neighbours and must not touch a room, so it
-  // never appears to sit inside a room.
-  const doorCandidates = shuffle(
-    corridorTiles.filter(
-      (t) =>
-        isStraightCorridor(map, t.x, t.y) &&
-        !isAdjacentToRoom(rooms, t.x, t.y)
-    )
-  );
-  const doorCount = Math.min(3, doorCandidates.length);
-  for (let i = 0; i < doorCount; i++) {
-    const { x, y } = doorCandidates[i];
+  // A closed door marks every entrance where a corridor meets a room. The
+  // doorway set was built while corridors were carved, so each is a single
+  // opening tile rather than a stretch of corridor running beside a room.
+  for (const key of doorways) {
+    const [x, y] = key.split(",").map(Number);
+    if (map[y]?.[x] !== 0) continue;
     features.push({ x, y, feature: "door" });
-    used.add(`${x},${y}`);
+    used.add(key);
   }
 
   // 1-3 grass patches inside rooms.
