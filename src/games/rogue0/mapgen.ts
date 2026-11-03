@@ -83,6 +83,17 @@ function insideRoom(room: Room, x: number, y: number): boolean {
   return x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h;
 }
 
+// A door only makes sense in a 1-tile-wide straight passage. Junctions, L-bend
+// corners and 2-wide corridors have extra floor neighbours, so a single door
+// there would leave an open lane beside it.
+function isStraightDoorway(map: number[][], x: number, y: number): boolean {
+  const left = map[y]?.[x - 1] === 0;
+  const right = map[y]?.[x + 1] === 0;
+  const up = map[y - 1]?.[x] === 0;
+  const down = map[y + 1]?.[x] === 0;
+  return (left && right && !up && !down) || (up && down && !left && !right);
+}
+
 // The first corridor tile outside `room` after a carved path leaves it;
 // the wall opening where the corridor exits the room.
 function exitDoorwayFromPath(room: Room, path: Array<[number, number]>): { x: number; y: number } | null {
@@ -779,12 +790,14 @@ export function generateMap(floor = 1): GeneratedMap {
     }
   }
 
-  // A closed door marks every entrance where a corridor meets a room. The
-  // doorway set was built while corridors were carved, so each is a single
-  // opening tile rather than a stretch of corridor running beside a room.
+  // A closed door marks an entrance where a corridor meets a room, but only
+  // when that entrance is a straight 1-wide passage. Junctions and 2-wide
+  // corridors are left open rather than getting a door that spans just one of
+  // several walkable lanes.
   for (const key of doorways) {
     const [x, y] = key.split(",").map(Number);
     if (map[y]?.[x] !== 0) continue;
+    if (!isStraightDoorway(map, x, y)) continue;
     features.push({ x, y, feature: "door" });
     used.add(key);
   }

@@ -38,16 +38,15 @@ function floodReachable(map, start, blocked) {
   }
   return visited;
 }
-// A door sits in the wall opening just outside a room: cardinally adjacent to
-// the room's edge, not inside the room and not deep inside a corridor.
-function isDoorwayFor(room, d) {
-  const inside = d.x >= room.x && d.x < room.x + room.w && d.y >= room.y && d.y < room.y + room.h;
-  if (inside) return false;
-  const leftRight = (d.x === room.x - 1 || d.x === room.x + room.w) &&
-    d.y >= room.y && d.y < room.y + room.h;
-  const topBottom = (d.y === room.y - 1 || d.y === room.y + room.h) &&
-    d.x >= room.x && d.x < room.x + room.w;
-  return leftRight || topBottom;
+// A door is valid only in a straight 1-wide passage: two opposite floor
+// neighbours and no floor on either side. This rejects L-bends, T-junctions
+// and 2-wide corridors where a single door would leave an open lane beside it.
+function isStraightDoorway(map, d) {
+  const left = map[d.y]?.[d.x - 1] === 0;
+  const right = map[d.y]?.[d.x + 1] === 0;
+  const up = map[d.y - 1]?.[d.x] === 0;
+  const down = map[d.y + 1]?.[d.x] === 0;
+  return (left && right && !up && !down) || (up && down && !left && !right);
 }
 for (let i = 0; i < 200; i++) {
   tiles.clearAllFeatures();
@@ -62,15 +61,13 @@ for (let i = 0; i < 200; i++) {
   }
   assert.ok(map[0].every(cell => cell === 1), 'northern boundary stays sealed');
   assert.ok(rooms.length > 1);
-  // Doors gate room entrances: every room has at least one, and every door
-  // sits in the wall opening just outside a room rather than deep in a corridor.
+  // Doors must sit in a straight 1-wide corridor. Junctions, L-bends and
+  // 2-wide corridors are left as open archways instead of getting a door
+  // that only covers one of several walkable lanes.
   const doorFeatures = features.filter(f => f.feature === 'door');
-  for (const room of rooms) {
-    assert.ok(doorFeatures.some(d => isDoorwayFor(room, d)), 'every room has an entrance door');
-  }
   for (const d of doorFeatures) {
-    assert.ok(rooms.some(room => isDoorwayFor(room, d)),
-      'doors sit in doorway openings, not corridor interiors');
+    assert.ok(isStraightDoorway(map, d),
+      'doors sit in straight 1-wide corridors, not junctions or 2-wide corridors');
   }
   for (const f of features) tiles.setFeature(f.x, f.y, f.feature, f);
   const chasms = features.filter(f => f.feature === 'chasm');
