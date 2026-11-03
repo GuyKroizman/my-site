@@ -101,6 +101,7 @@ import { computeFOV, resolveVision } from "./fov";
 import { hasEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
+import { generateArmorTextures } from "./armorTextures";
 import { resetConsumableAppearances, saveConsumableKnowledge, restoreConsumableKnowledge, rememberIdentifiedWandTypes } from "./entity";
 import { maybeCurse } from "./curses";
 import { encodeGraph, decodeGraph } from './saveCodec';
@@ -285,6 +286,7 @@ export class Scene0 extends Phaser.Scene {
     generateGoblinArrowTexture(this);
     generateCultistBoltTexture(this);
     generatePotionTextures(this);
+    generateArmorTextures(this);
     generateDoorThresholdTexture(this);
     generateUnknownItemTextures(this);
     generateWaterTexture(this);

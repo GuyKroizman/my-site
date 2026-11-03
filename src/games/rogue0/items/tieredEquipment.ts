@@ -2,6 +2,17 @@ import Phaser from "phaser";
 import { Entity, type EntityType, type EquipSlot } from "../entity";
 import type { GameContext } from "../context";
 
+// One generated texture per armor tier, drawn at runtime by armorTextures.ts.
+// Keeping the keys here lets the simulation tests load this module without
+// resolving the Phaser-only rendering helper.
+export const ARMOR_TEXTURES = [
+  "armor-cloth",
+  "armor-leather",
+  "armor-mail",
+  "armor-scale",
+  "armor-plate"
+] as const;
+
 // Initial progression curves, independent of hero XP. Legacy class starting
 // equipment remains usable; these are the dungeon's complete tiered roster.
 export class TieredWeapon extends Entity {
@@ -52,7 +63,8 @@ export class TieredArmor extends Entity {
     super();
     this.tier = Math.max(1, Math.min(5, Math.floor(tier)));
     this.name = ["Cloth Armor", "Leather Armor", "Mail Armor", "Scale Armor", "Plate Armor"][this.tier - 1];
-    this.tile = 776; // Shield silhouette is temporary, not a second armor slot.
+    this.textureKey = ARMOR_TEXTURES[this.tier - 1];
+    this.tile = 776; // Fallback only; the generated armor texture is what renders.
     this.init(context, x, y);
   }
 

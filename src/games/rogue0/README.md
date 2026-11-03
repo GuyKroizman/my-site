@@ -218,8 +218,9 @@ Dungeon equipment spans tiers 1–5: Dagger through Greataxe and Cloth through
 Plate Armor. Tier and upgrade level are independent. Weapon damage at tier `t`,
 upgrade `u` ranges from `t + u` to `5t + (t + 1)u`; armor absorbs `2t + tu`.
 Class starting gear retains its previous stats. Armor replaces a shield in the
-same slot. Both gems and upgrade scrolls support the new gear. Artwork remains
-a placeholder using the existing weapon/shield silhouettes.
+same slot. Both gems and upgrade scrolls support the new gear. Armor now has
+distinct generated textures for each tier; weapon art remains a placeholder
+using the existing sword silhouette.
 
 Each five-floor band guarantees two Strength potions (floors 2/4 within the
 band), three upgrade scrolls (1/3/4), a band-tier weapon (1), and armor (3).
