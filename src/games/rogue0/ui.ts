@@ -59,6 +59,7 @@ export class UI extends Phaser.Scene {
   private inspectModalBg: Phaser.GameObjects.Rectangle | undefined;
   private inspectModalText: Phaser.GameObjects.Text | undefined;
   private inspectCloseBtn: Phaser.GameObjects.Text | undefined;
+  private inspectBackdrop: Phaser.GameObjects.Rectangle | undefined;
   private inspectChoiceRows: Phaser.GameObjects.Text[] = [];
   private inspectChoicePage = 0;
   private renderedInspectChoices: GameContext["inspectChoices"];
@@ -87,6 +88,7 @@ export class UI extends Phaser.Scene {
     this.heroModalText = undefined;
     this.inspectModal = undefined;
     this.inspectModalText = undefined;
+    this.inspectBackdrop = undefined;
   }
 
   create() {
@@ -316,8 +318,19 @@ export class UI extends Phaser.Scene {
   private buildInspectModal() {
     const w = 340;
     const h = 170;
+    this.inspectBackdrop = this.add
+      .rectangle(0, 0, 1, 1, 0x000000, 0.5)
+      .setOrigin(0)
+      .setDepth(599)
+      .setVisible(false)
+      .setInteractive();
+    this.inspectBackdrop.on("pointerup", () => this.closeInspectModal());
+
     const root = this.add.container(0, 0).setDepth(600).setVisible(false);
-    this.inspectModalBg = this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1);
+    // Interactive so taps on the modal body don't fall through to the
+    // outside-click backdrop and dismiss the dialog.
+    this.inspectModalBg = this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
+      .setInteractive();
     root.add(this.inspectModalBg);
     root.add(
       this.add.text(10, 8, "Inspect", {
@@ -345,11 +358,13 @@ export class UI extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.inspectCloseBtn.on("pointerover", () => this.inspectCloseBtn?.setColor(COL.text));
     this.inspectCloseBtn.on("pointerout", () => this.inspectCloseBtn?.setColor(COL.gold));
-    this.inspectCloseBtn.on("pointerup", () => {
-      this.context.inspectChoices = undefined;
-      this.context.inspectedEntity = undefined;
-      this.context.inspectedTerrain = undefined;
-    });
+    this.inspectCloseBtn.on("pointerup", () => this.closeInspectModal());
+  }
+
+  private closeInspectModal() {
+    this.context.inspectChoices = undefined;
+    this.context.inspectedEntity = undefined;
+    this.context.inspectedTerrain = undefined;
   }
 
   private layout() {
@@ -419,6 +434,7 @@ export class UI extends Phaser.Scene {
     const iy = Phaser.Math.Clamp((h - inspH) / 2, 8, Math.max(8, h - inspH - 8));
     this.inspectModal?.setPosition(ix, iy);
     this.inspectCloseBtn?.setPosition(ix + inspW - 12, iy + 8);
+    this.inspectBackdrop?.setSize(w, h);
   }
 
   private toggleHeroModal() {
@@ -544,6 +560,7 @@ export class UI extends Phaser.Scene {
     if (choices?.length) {
       this.inspectModal.setVisible(true);
       this.inspectCloseBtn?.setVisible(true);
+      this.inspectBackdrop?.setVisible(true);
       return;
     }
 
@@ -553,6 +570,7 @@ export class UI extends Phaser.Scene {
     if (e) {
       this.inspectModal.setVisible(true);
       this.inspectCloseBtn?.setVisible(true);
+      this.inspectBackdrop?.setVisible(true);
       if (e.type === "enemy") {
         const hp = e.healthPoints ?? 0;
         const maxHp = e.maxHealthPoints ?? e.healthPoints ?? 0;
@@ -573,11 +591,13 @@ export class UI extends Phaser.Scene {
     if (terrain) {
       this.inspectModal.setVisible(true);
       this.inspectCloseBtn?.setVisible(true);
+      this.inspectBackdrop?.setVisible(true);
       this.inspectModalText.setText(terrain);
       return;
     }
 
     this.inspectModal.setVisible(false);
     this.inspectCloseBtn?.setVisible(false);
+    this.inspectBackdrop?.setVisible(false);
   }
 }
