@@ -93,12 +93,17 @@ for (let run = 0; run < 5; run++) {
     scene.spawnFloorContent(floor, map, spawn);
     const items = scene.context.entities;
     const treasure = items.filter(item => item instanceof Gem);
-    assert.equal(treasure.length, 1, 'exactly one ordinary gem rewards each secret room');
-    for (const gem of treasure) {
-      assert.equal(gem.x, secretRoom.cx);
-      assert.equal(gem.y, secretRoom.cy);
+    if (mapgen.floorHasSecretRoom(floor)) {
+      assert.equal(treasure.length, 1, 'exactly one ordinary gem rewards each secret room');
+      for (const gem of treasure) {
+        assert.equal(gem.x, secretRoom.cx);
+        assert.equal(gem.y, secretRoom.cy);
+      }
+      assert.ok(items.filter(item => !(item instanceof Gem)).every(item => item.y >= secretRoom.y + 5), 'random content stays outside the hidden room and corridor');
+    } else {
+      assert.equal(treasure.length, 0, 'no gem reward without a secret room');
+      assert.equal(secretRoom, undefined, 'secret room only appears on band floors');
     }
-    assert.ok(items.filter(item => !(item instanceof Gem)).every(item => item.y >= secretRoom.y + 5), 'random content stays outside the hidden room and corridor');
     const count = kind => items.filter(item => item.kind === kind).length;
     const spec = progression.floorProgression(floor);
     assert.equal(count('PotionOfStrength'), spec.strengthPotions);
@@ -121,7 +126,7 @@ for (let run = 0; run < 5; run++) {
     // supply before saving to represent picking it up, then descend to snapshot.
     const supply = items.find(item => item.kind === 'PotionOfStrength' || item.kind === 'ScrollOfUpgrade');
     if (supply) items.splice(items.indexOf(supply), 1);
-    items.splice(items.indexOf(treasure[0]), 1); // Pick up one reward before leaving.
+    if (treasure.length) items.splice(items.indexOf(treasure[0]), 1); // Pick up one reward before leaving.
     scene.floors = new Map();
     scene.seen = map.map(row => row.map(() => false));
     scene.saveFloor();

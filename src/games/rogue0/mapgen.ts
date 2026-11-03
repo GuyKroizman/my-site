@@ -3,6 +3,13 @@ import { isBlocking, type FeaturePlacement, type TrapKind } from "./tiles";
 export const MAP_WIDTH = 80;
 export const MAP_HEIGHT = 50;
 
+// Secret gem rooms appear once per five-floor band (floors 5, 10, 15, 20, 25),
+// not on every floor. Keep this deterministic so tests and run pacing stay
+// predictable.
+export function floorHasSecretRoom(floor: number): boolean {
+  return floor % 5 === 0;
+}
+
 export type Room = {
   x: number;
   y: number;
@@ -709,7 +716,8 @@ export function generateMap(floor = 1): GeneratedMap {
     const w = 4 + Math.floor(Math.random() * 8);
     const h = 4 + Math.floor(Math.random() * 6);
     const x = 1 + Math.floor(Math.random() * (width - w - 2));
-    // Reserve space for the hidden corridor and a walled 3x3 treasure room.
+    // Reserve a northern wall band so band-floor secret rooms always have
+    // room for the hidden corridor and a walled 3x3 treasure room.
     const y = 10 + Math.floor(Math.random() * (height - h - 11));
 
     const room: Room = {
@@ -906,9 +914,10 @@ export function generateMap(floor = 1): GeneratedMap {
   // reserved band is solid wall, so the branch cannot accidentally reconnect
   // around the secret. Keep two approach tiles, the searchable end wall,
   // and two hidden corridor tiles, then open into a small treasure room.
+  // Secret rooms spawn once per five-floor band, not every level.
   const northY = map.findIndex(row => row.includes(0));
   let secretRoom: Room | undefined;
-  if (northY >= 10) {
+  if (floorHasSecretRoom(floor) && northY >= 10) {
     const x = map[northY].indexOf(0);
     for (const offset of [1, 2, 4, 5]) map[northY - offset][x] = 0;
     features.push({ x, y: northY - 3, feature: "secretDoor" });

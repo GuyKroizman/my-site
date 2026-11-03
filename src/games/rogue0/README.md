@@ -224,7 +224,9 @@ Each five-floor band guarantees two Strength potions (floors 2/4 within the
 band), three upgrade scrolls (1/3/4), a band-tier weapon (1), and armor (3).
 That is **10 Strength potions and 15 upgrade scrolls** across the run; neither
 appears as extra random floor loot. Gems from monsters still provide additional
-upgrades. Random equipment normally matches its band but can be one tier earlier
+upgrades, as does the hidden searchable gem room that appears once per band
+(floors 5, 10, 15, 20 and 25). Random equipment normally matches its band but
+can be one tier earlier
 or later. Floor snapshots preserve remaining loot, so revisits do not refill it.
 These are initial progression curves, not a claim of full-run balance.
 

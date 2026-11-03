@@ -13,7 +13,7 @@ function load(name, bindings = {}) {
 }
 const tiles = load('tiles');
 const fov = load('fov', tiles);
-const { generateMap, findFarthestWalkable } = load('mapgen', tiles);
+const { generateMap, findFarthestWalkable, floorHasSecretRoom } = load('mapgen', tiles);
 const dungeon = load('dungeon', { PF, tiles, ...fov,
   hasEffect: () => false, sfx: { step() {} },
   removeEntity: (ctx, e) => { ctx.entities = ctx.entities.filter(v => v !== e); }
@@ -50,14 +50,21 @@ function isStraightDoorway(map, d) {
 }
 for (let i = 0; i < 200; i++) {
   tiles.clearAllFeatures();
-  const { map, rooms, features, secretRoom } = generateMap(i % 25 + 1);
-  assert.ok(secretRoom, 'every generated secret corridor leads to a treasure room');
-  assert.equal(secretRoom.w, 3); assert.equal(secretRoom.h, 3);
-  for (let ry = secretRoom.y; ry < secretRoom.y + 3; ry++) {
-    for (let rx = secretRoom.x; rx < secretRoom.x + 3; rx++) {
-      assert.equal(map[ry][rx], 0, 'treasure room is fully carved');
-      assert.ok(!features.some(f => f.x === rx && f.y === ry), 'treasure room has no traps or obstructing terrain');
+  const floor = i % 25 + 1;
+  const hasSecret = floorHasSecretRoom(floor);
+  const { map, rooms, features, secretRoom } = generateMap(floor);
+  if (hasSecret) {
+    assert.ok(secretRoom, 'band floors generate a secret corridor leading to a treasure room');
+    assert.equal(secretRoom.w, 3); assert.equal(secretRoom.h, 3);
+    for (let ry = secretRoom.y; ry < secretRoom.y + 3; ry++) {
+      for (let rx = secretRoom.x; rx < secretRoom.x + 3; rx++) {
+        assert.equal(map[ry][rx], 0, 'treasure room is fully carved');
+        assert.ok(!features.some(f => f.x === rx && f.y === ry), 'treasure room has no traps or obstructing terrain');
+      }
     }
+  } else {
+    assert.equal(secretRoom, undefined, 'no secret treasure room outside band floors');
+    assert.ok(!features.some(f => f.feature === 'secretDoor'), 'no secret door outside band floors');
   }
   assert.ok(map[0].every(cell => cell === 1), 'northern boundary stays sealed');
   assert.ok(rooms.length > 1);
@@ -81,56 +88,58 @@ for (let i = 0; i < 200; i++) {
   }
   const stairs = findFarthestWalkable(map, spawn.x, spawn.y, map[0].length, (sx, sy) => tiles.getFeature(sx, sy) === 'chasm');
   assert.notEqual(tiles.getFeature(stairs.x, stairs.y), 'chasm', 'stairs never land on a chasm');
-  const secret = features.find(f => f.feature === 'secretDoor');
-  assert.ok(secret, 'every floor has a secret branch');
   assert.ok(features.some(f => f.trapKind === 'arrow' && f.trap === 'visible'));
   for (const f of features.filter(f => f.feature === 'trap')) {
     assert.equal(!!f.trapReusable, ['frost', 'teleport', 'alarm'].includes(f.trapKind));
   }
-  const { x, y } = secret;
-  assert.equal(map[y][x], 1);
-  assert.equal(map[y + 1][x], 0);
-  assert.equal(map[y - 1][x], 0);
-  assert.equal(map[y - 2][x], 0);
-  assert.equal(map[y + 1][x - 1], 1);
-  assert.equal(map[y + 1][x + 1], 1);
-  assert.equal(tiles.describeTile(tiles.getTileState(x, y), true), 'A wall.');
-  dungeon.currentLevel = map;
-  dungeon.pathGrid = new PF.Grid(map);
-  tiles.applyToPathGrid(dungeon.pathGrid);
-  dungeon.diagonalFinder = new PF.AStarFinder({ diagonalMovement: PF.DiagonalMovement.OnlyWhenNoObstacles });
-  dungeon.context = { messages: [] };
-  let redraw;
-  dungeon.layer = { putTileAt: (...args) => { redraw = args; } };
-  assert.equal(dungeon.findPath(x, y + 1, x, y - 1, true).length, 0);
-  assert.deepEqual(dungeon.findPath(x, y + 1, secretRoom.cx, secretRoom.cy, true), [], 'no alternate entrance bypasses the secret');
-  assert.equal(dungeon.inspectTile(x, y), 'A wall.', 'inspect does not leak secret doors');
-  assert.equal(tiles.isBlocking(x, y), true);
-  assert.equal(fov.blocksSight(map, x, y), true);
-  // Other generated traps may be nearby; only the secret must stay hidden.
-  dungeon.searchAround(x, y + 2);
-  assert.equal(tiles.getFeature(x, y), 'secretDoor', 'search cannot reveal a distant secret');
-  const changesBeforeSearch = changes;
-  tiles.setFeature(x + 1, y + 1, 'trap', { trap: 'hidden' });
-  assert.equal(dungeon.searchAround(x, y + 1), 2, 'search preserves trap discovery');
-  assert.equal(tiles.getTrapState(x + 1, y + 1), 'visible');
-  assert.equal(map[y][x], 0);
-  assert.equal(tiles.getDoorState(x, y), 'closed', 'discovery does not open the door');
-  assert.equal(dungeon.pathGrid.isWalkableAt(x, y), false);
-  assert.equal(changes, changesBeforeSearch + 1, 'discovery refreshes terrain once');
-  assert.deepEqual(redraw, [0, x, y]);
-  assert.equal(fov.blocksSight(map, x, y), true);
-  assert.equal(dungeon.findPath(x, y + 1, x, y - 1, true).length, 3);
-  assert.equal(dungeon.searchAround(x, y + 1), 0);
-  dungeon.openDoor(x, y);
-  assert.equal(fov.blocksSight(map, x, y), false);
-  assert.equal(dungeon.pathGrid.isWalkableAt(x, y), true);
-  assert.ok(dungeon.findPath(x, y + 1, secretRoom.cx, secretRoom.cy).length > 0, 'searching and opening the door reaches the treasure room');
-  const saved = [];
-  tiles.forEachFeature((x, y, state) => saved.push({ ...state, x, y }));
-  tiles.clearAllFeatures();
-  saved.forEach(f => tiles.setFeature(f.x, f.y, f.feature, f));
-  assert.equal(tiles.getDoorState(x, y), 'open', 'revisit keeps discovered/open door');
+  if (hasSecret) {
+    const secret = features.find(f => f.feature === 'secretDoor');
+    assert.ok(secret, 'band floors have a secret branch');
+    const { x, y } = secret;
+    assert.equal(map[y][x], 1);
+    assert.equal(map[y + 1][x], 0);
+    assert.equal(map[y - 1][x], 0);
+    assert.equal(map[y - 2][x], 0);
+    assert.equal(map[y + 1][x - 1], 1);
+    assert.equal(map[y + 1][x + 1], 1);
+    assert.equal(tiles.describeTile(tiles.getTileState(x, y), true), 'A wall.');
+    dungeon.currentLevel = map;
+    dungeon.pathGrid = new PF.Grid(map);
+    tiles.applyToPathGrid(dungeon.pathGrid);
+    dungeon.diagonalFinder = new PF.AStarFinder({ diagonalMovement: PF.DiagonalMovement.OnlyWhenNoObstacles });
+    dungeon.context = { messages: [] };
+    let redraw;
+    dungeon.layer = { putTileAt: (...args) => { redraw = args; } };
+    assert.equal(dungeon.findPath(x, y + 1, x, y - 1, true).length, 0);
+    assert.deepEqual(dungeon.findPath(x, y + 1, secretRoom.cx, secretRoom.cy, true), [], 'no alternate entrance bypasses the secret');
+    assert.equal(dungeon.inspectTile(x, y), 'A wall.', 'inspect does not leak secret doors');
+    assert.equal(tiles.isBlocking(x, y), true);
+    assert.equal(fov.blocksSight(map, x, y), true);
+    // Other generated traps may be nearby; only the secret must stay hidden.
+    dungeon.searchAround(x, y + 2);
+    assert.equal(tiles.getFeature(x, y), 'secretDoor', 'search cannot reveal a distant secret');
+    const changesBeforeSearch = changes;
+    tiles.setFeature(x + 1, y + 1, 'trap', { trap: 'hidden' });
+    assert.equal(dungeon.searchAround(x, y + 1), 2, 'search preserves trap discovery');
+    assert.equal(tiles.getTrapState(x + 1, y + 1), 'visible');
+    assert.equal(map[y][x], 0);
+    assert.equal(tiles.getDoorState(x, y), 'closed', 'discovery does not open the door');
+    assert.equal(dungeon.pathGrid.isWalkableAt(x, y), false);
+    assert.equal(changes, changesBeforeSearch + 1, 'discovery refreshes terrain once');
+    assert.deepEqual(redraw, [0, x, y]);
+    assert.equal(fov.blocksSight(map, x, y), true);
+    assert.equal(dungeon.findPath(x, y + 1, x, y - 1, true).length, 3);
+    assert.equal(dungeon.searchAround(x, y + 1), 0);
+    dungeon.openDoor(x, y);
+    assert.equal(fov.blocksSight(map, x, y), false);
+    assert.equal(dungeon.pathGrid.isWalkableAt(x, y), true);
+    assert.ok(dungeon.findPath(x, y + 1, secretRoom.cx, secretRoom.cy).length > 0, 'searching and opening the door reaches the treasure room');
+    const saved = [];
+    tiles.forEachFeature((x, y, state) => saved.push({ ...state, x, y }));
+    tiles.clearAllFeatures();
+    saved.forEach(f => tiles.setFeature(f.x, f.y, f.feature, f));
+    assert.equal(tiles.getDoorState(x, y), 'open', 'revisit keeps discovered/open door');
+  }
 }
 function actor(type, x, y, hp = 10) {
   return { type, x, y, healthPoints: hp, name: type, protection: () => 0,
