@@ -23,6 +23,7 @@ export class ConfirmationWindow {
     this.cancel = text("Cancel", "#e8e1d5").setPadding(16, 12).setBackgroundColor("#332b3e").setInteractive({ useHandCursor: true });
     this.accept = text("Jump down", "#f0b429").setPadding(16, 12).setBackgroundColor("#332b3e").setOrigin(1, 0).setInteractive({ useHandCursor: true });
     this.root.add([this.backdrop, this.panel, this.title, this.body, this.cancel, this.accept]);
+    this.backdrop.on("pointerup", () => this.close());
     this.cancel.on("pointerup", () => this.close());
     this.accept.on("pointerup", () => this.close(true));
     context.onConfirmChasm = (warning, action) => {

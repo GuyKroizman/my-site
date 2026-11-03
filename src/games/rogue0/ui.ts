@@ -54,6 +54,7 @@ export class UI extends Phaser.Scene {
   private talentRows: Phaser.GameObjects.Text[] = [];
   private talentTab?: Phaser.GameObjects.Text;
   private heroCloseBtn: Phaser.GameObjects.Text | undefined;
+  private heroBackdrop: Phaser.GameObjects.Rectangle | undefined;
 
   private inspectModal: Phaser.GameObjects.Container | undefined;
   private inspectModalBg: Phaser.GameObjects.Rectangle | undefined;
@@ -86,6 +87,7 @@ export class UI extends Phaser.Scene {
     this.inventoryWindow = undefined;
     this.heroModal = undefined;
     this.heroModalText = undefined;
+    this.heroBackdrop = undefined;
     this.inspectModal = undefined;
     this.inspectModalText = undefined;
     this.inspectBackdrop = undefined;
@@ -261,8 +263,19 @@ export class UI extends Phaser.Scene {
     const h = 300;
     this.showingTalents = false;
     this.talentRows = [];
+    this.heroBackdrop = this.add
+      .rectangle(0, 0, 1, 1, 0x000000, 0.5)
+      .setOrigin(0)
+      .setDepth(599)
+      .setVisible(false)
+      .setInteractive();
+    this.heroBackdrop.on("pointerup", () => this.closeHeroModal());
+
     const root = this.add.container(0, 0).setDepth(600).setVisible(false);
-    this.heroModalBg = this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1);
+    // Interactive so taps on the modal body don't fall through to the
+    // outside-click backdrop and dismiss the dialog.
+    this.heroModalBg = this.add.rectangle(0, 0, w, h, C.panel, 0.98).setOrigin(0).setStrokeStyle(2, C.borderStrong, 1)
+      .setInteractive();
     root.add(this.heroModalBg);
     root.add(
       this.add.text(10, 8, "Hero", {
@@ -424,6 +437,7 @@ export class UI extends Phaser.Scene {
       (w - heroW * heroScale) / 2,
       Phaser.Math.Clamp((h - heroH * heroScale) / 2 - 40, 8, Math.max(8, h - heroH * heroScale - 8))
     );
+    this.heroBackdrop?.setSize(w, h);
 
     // Inspect modal: clamp to the viewport and center it.
     const inspW = Math.min(340, w - 16);
@@ -442,12 +456,14 @@ export class UI extends Phaser.Scene {
     this.heroModalOpen = !this.heroModalOpen;
     this.context.heroModalOpen = this.heroModalOpen;
     this.heroModal?.setVisible(this.heroModalOpen);
+    this.heroBackdrop?.setVisible(this.heroModalOpen);
   }
 
   private closeHeroModal() {
     this.heroModalOpen = false;
     this.context.heroModalOpen = false;
     this.heroModal?.setVisible(false);
+    this.heroBackdrop?.setVisible(false);
   }
 
   update() {
