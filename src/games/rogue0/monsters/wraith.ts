@@ -1,13 +1,16 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
 import { createWeakenedEffect } from "../effects";
+import { WRAITH_TEXTURE, generateWraithTexture } from "./wraithTexture";
 
 export default class Wraith extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
+    if (context.scene) generateWraithTexture(context.scene);
     super(context, {
       name: "Wraith",
       description: "A spectral horror that weakens those it touches.",
-      tile: 8 * 49 + 27, // Ghost sprite (row 8, column 27).
+      tile: 0,
+      textureKey: WRAITH_TEXTURE,
       healthPoints: 7,
       movementSpeed: 1,
       attackDelay: 1,

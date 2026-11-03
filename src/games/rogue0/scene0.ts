@@ -110,6 +110,7 @@ import { writeRunSave, clearRunSave } from './saveStorage';
 import { generateFireElementalTexture } from './monsters/fireElementalTexture';
 import { generateLightningElementalTexture } from './monsters/lightningElementalTexture';
 import { generateFlySwarmTexture } from './monsters/flySwarmTexture';
+import { generateWraithTexture } from './monsters/wraithTexture';
 import { generateCultistBoltTexture, generateGoblinArrowTexture, generateTrapArrowTexture } from './projectileTextures';
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
@@ -357,6 +358,7 @@ export class Scene0 extends Phaser.Scene {
       generateFireElementalTexture(this);
       generateLightningElementalTexture(this);
       generateFlySwarmTexture(this);
+      generateWraithTexture(this);
       player.bindInput();
       player.init(this.context, spawn.x, spawn.y);
       turnManager.time = resumed.time;
