@@ -182,6 +182,21 @@ once Food is at least 30 (evaluated after that unit's food drain). Potions and
 magical healing are unaffected. These are SPD-inspired states with Rogue0
 balance values, not an exact reproduction of SPD. Entering a floor does not heal.
 
+## Ranged monsters and melee fallback
+
+Goblins are the only ranged monster: they fire barbed arrows up to 5 tiles for
+2 damage plus 3 turns of bleeding. When a target is **adjacent** (Chebyshev
+distance 1, including diagonals) they cannot draw the bow and switch to a
+dagger: 1 damage, no bleeding, and a normal melee lunge animation. Closing the
+distance therefore cuts the damage the archer deals in half and stops the
+typed bleeding.
+
+The sidearm is configured per monster via `MonsterConfig.meleeDamage`. Any
+monster with `range > 0` opts into the fallback automatically; when the value
+is missing (e.g. an older browser save restored without the field) the melee
+strike derives `max(1, round(attackDamage / 2))`. Monsters with `range = 0`
+are untouched: `meleeAttack()` returns their full primary damage.
+
 ## Run length and equipment progression
 
 A run has **25 floors**, with the unchanged Bone Lord on floor **25**. The old

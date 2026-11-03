@@ -365,6 +365,19 @@ export abstract class Entity {
 
   abstract attack(): number;
 
+  // Damage for a close-quarters strike. Most entities hit as hard in melee as
+  // with their main attack; ranged attackers (bows, spells) override this with
+  // a weaker sidearm and opt in via `hasMeleeSidearm`.
+  meleeAttack(): number {
+    return this.attack();
+  }
+
+  // True when this entity should answer an adjacent target with `meleeAttack`
+  // instead of firing its primary ranged attack point-blank.
+  hasMeleeSidearm(): boolean {
+    return false;
+  }
+
   abstract protection(): number;
 
   abstract range(): number;
@@ -388,8 +401,10 @@ export abstract class Entity {
   }
 
   // Status effects this entity applies on a successful attack. Overridden by
-  // monsters with on-hit abilities (e.g. Ghoul bleeding).
-  onHitEffects(): StatusEffect[] {
+  // monsters with on-hit abilities (e.g. Ghoul bleeding). `isRanged` lets an
+  // ability belong to the primary attack only (e.g. barbed arrows bleed, but a
+  // goblin's close-quarters dagger does not).
+  onHitEffects(_isRanged: boolean = true): StatusEffect[] {
     return [];
   }
 }

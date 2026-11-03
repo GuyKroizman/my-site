@@ -130,8 +130,13 @@ export function resolveAttack(
     }
   }
 
-  // Base damage (already aggregates equipped gear for heroes).
-  let damage = attacker.attack();
+  // Base damage (already aggregates equipped gear for heroes). Ranged attacks
+  // use the entity's primary attack; close-quarters strikes use its melee
+  // damage, which is weaker for archers that switch to a sidearm. Plain-object
+  // test doubles may omit the optional accessor.
+  let damage = opts.isRanged
+    ? attacker.attack()
+    : (attacker.meleeAttack?.() ?? attacker.attack());
   if (hasEffect(attacker, "weakened")) {
     damage = Math.max(0, damage - WEAKENED_ATTACK_PENALTY);
   }

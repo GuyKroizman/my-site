@@ -3,9 +3,11 @@ import type { GameContext } from "../context";
 import Gem from "../items/gem";
 import HolyPotion from "../items/holyPotion";
 import { createBleedingEffect } from "../effects";
+import { GOBLIN_ARROW_TEXTURE, generateGoblinArrowTexture } from "../projectileTextures";
 
 export default class Goblin extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
+    if (context.scene) generateGoblinArrowTexture(context.scene);
     super(context, {
       name: "Goblin",
       description: "A spiteful, sharp-eared goblin. Fires barbed arrows from a distance that cause bleeding.",
@@ -20,12 +22,15 @@ export default class Goblin extends Monster {
       evasion: 20,
       xp: 5,
       range: 5,
+      meleeDamage: 1,
       attackTile: 10 * 49 + 15,
+      projectileTexture: GOBLIN_ARROW_TEXTURE,
       loot: [false, Gem, HolyPotion]
     }, x, y);
   }
 
-  onHitEffects() {
-    return [createBleedingEffect(3)];
+  onHitEffects(isRanged = true) {
+    // Barbed arrows cause bleeding; the goblin's dagger does not.
+    return isRanged ? [createBleedingEffect(3)] : [];
   }
 }

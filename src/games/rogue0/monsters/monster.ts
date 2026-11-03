@@ -20,6 +20,7 @@ export type MonsterConfig = {
   protection: number;
   range: number;
   attackTile?: number;
+  projectileTexture?: string;
   scale?: number;
   textureKey?: string;
   initiallyAwake?: boolean;
@@ -30,6 +31,9 @@ export type MonsterConfig = {
   evasion?: number;
   resistance?: Partial<Record<DamageType, number>>;
   vulnerability?: Partial<Record<DamageType, number>>;
+  // Optional sidearm strength for ranged monsters; defaults to half the
+  // primary attack (rounded up, minimum 1).
+  meleeDamage?: number;
 };
 
 export default class Monster extends Entity {
@@ -43,6 +47,7 @@ export default class Monster extends Entity {
   maxHealthPoints: number;
   visionRadius: number;
   attackDamage: number;
+  meleeDamage?: number;
   protectionValue: number;
   rangeValue: number;
   loot: any[];
@@ -73,9 +78,13 @@ export default class Monster extends Entity {
     this.attackDelay = config.attackDelay;
     this.visionRadius = config.visionRadius;
     this.attackDamage = config.attackDamage;
+    this.meleeDamage = config.meleeDamage;
     this.protectionValue = config.protection;
     this.rangeValue = config.range;
     this.attackTile = config.attackTile ?? this.attackTile;
+    // Ranged monsters draw `projectileTexture` instead of their tilesheet
+    // `attackTile`, which is a full opaque 16x16 frame.
+    this.projectileTexture = config.projectileTexture ?? this.projectileTexture;
     this.loot = config.loot ?? [];
     this.gold = config.gold ?? 3;
     this.xpValue = config.xp ?? 5;
@@ -146,6 +155,19 @@ export default class Monster extends Entity {
 
   attack() {
     return this.attackDamage;
+  }
+
+  // Archers and casters cannot bring their ranged weapon to bear at touching
+  // distance, so they fall back to a weaker sidearm (hilt, claw or dagger).
+  // Older saves restore without `meleeDamage`, so the derived half-strength
+  // strike keeps old goblins consistent.
+  meleeAttack() {
+    if (this.rangeValue <= 0) return this.attackDamage;
+    return this.meleeDamage ?? Math.max(1, Math.round(this.attackDamage / 2));
+  }
+
+  hasMeleeSidearm() {
+    return this.rangeValue > 0;
   }
 
   damage() {

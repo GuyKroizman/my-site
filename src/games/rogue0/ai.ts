@@ -121,11 +121,25 @@ export function enemyTurn(entity: Entity): void {
   let acted = false;
   let moveAction: ActionKind = "move";
 
-  // 1) Attack. Ranged enemies shoot when in range; melee enemies strike
-  //    when adjacent. A visible mirror image is a valid target.
+  // 1) Attack. Ranged enemies shoot when in range, but switch to a weaker
+  //    melee sidearm when a target is adjacent (arming a bow point-blank is
+  //    worse than a dagger). Melee enemies strike when adjacent. A visible
+  //    mirror image is a valid target.
   if (attackTarget) {
+    const adjacent = isAdjacentTo(entity, attackTarget);
     if (entity.range() > 0) {
-      if (inRange(entity, attackTarget) &&
+      if (adjacent && entity.hasMeleeSidearm()) {
+        dungeon.attackEntity(
+          entity.context,
+          entity,
+          attackTarget,
+          0,
+          undefined,
+          entity.damageType
+        );
+        entity.spendTime("attack");
+        acted = true;
+      } else if (inRange(entity, attackTarget) &&
           dungeon.firstActorInPath(entity.context, entity, attackTarget.x!, attackTarget.y!) === attackTarget) {
         dungeon.attackEntity(
           entity.context,
@@ -138,7 +152,7 @@ export function enemyTurn(entity: Entity): void {
         entity.spendTime("attack");
         acted = true;
       }
-    } else if (isAdjacentTo(entity, attackTarget)) {
+    } else if (adjacent) {
       dungeon.attackEntity(
         entity.context,
         entity,

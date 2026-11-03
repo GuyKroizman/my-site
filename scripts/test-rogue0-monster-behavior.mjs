@@ -20,6 +20,7 @@ const doors = new Map();
 const tiles = { getDoorState: (x, y) => doors.get(`${x},${y}`), getTileState: () => undefined };
 const sight = load('src/games/rogue0/fov.ts', { ...tiles, isGrassConcealed: () => false });
 let attacks = 0;
+let lastAttack;
 const dungeon = {
   getCurrentLevel: () => map,
   log() {},
@@ -29,7 +30,12 @@ const dungeon = {
     e.healthPoints > 0 && e.x === x && e.y === y && e.type !== 'item'),
   moveEntityTo(_context, e, x, y) { e.x = x; e.y = y; },
   findPath: (x, y, tx, ty) => x === tx && y === ty ? [[x, y]] : [[x, y], [x + Math.sign(tx - x), y + Math.sign(ty - y)]],
-  attackEntity() { attacks++; },
+  firstActorInPath: (context, _attacker, tx, ty) => context.entities.find(e =>
+    e.x === tx && e.y === ty && (e.type === 'player' || e.type === 'enemy')),
+  attackEntity(_context, attacker, victim, tile) {
+    attacks++;
+    lastAttack = { tile, attacker, victim };
+  },
 };
 const ai = load('src/games/rogue0/ai.ts', { dungeon, tiles, ...sight, hasEffect, fleeStep: () => false });
 const manager = load('src/games/rogue0/turnManager.ts', { dungeon, hasEffect, removeEffect }).default;
@@ -67,21 +73,110 @@ function setup() {
   const Goblin = load('src/games/rogue0/monsters/goblin.ts', {
     Monster, Gem: class {}, HolyPotion: class {},
     createBleedingEffect: turns => ({ id: 'bleeding', turns }),
+    GOBLIN_ARROW_TEXTURE: 'monster-goblin-arrow', generateGoblinArrowTexture: () => {},
   }).default;
-  const { context } = setup();
+  const { context, player } = setup();
   const goblin = new Goblin(context, 3, 3);
   assert.equal(goblin.name, 'Goblin');
   assert.equal(goblin.textureKey, 'goblin');
   assert.equal(goblin.healthPoints, 6);
   assert.equal(goblin.range(), 5);
   assert.equal(goblin.attackDamage, 2);
+  assert.equal(goblin.meleeAttack(), 1, 'a goblin stabs for less than an arrow hits');
+  assert.ok(goblin.meleeAttack() < goblin.attack(), 'melee is a downgrade for the archer');
+  assert.equal(goblin.hasMeleeSidearm(), true, 'ranged goblins carry a sidearm');
+  assert.equal(goblin.projectileTexture, 'monster-goblin-arrow',
+    'goblin arrows use dedicated art instead of an opaque tilesheet frame');
   assert.deepEqual(goblin.onHitEffects(), [{ id: 'bleeding', turns: 3 }]);
+  assert.deepEqual(goblin.onHitEffects(false), [], 'the melee sidearm does not cause arrow bleeding');
+  // Adjacent heroes are stabbed, not shot point-blank.
+  context.entities = [player, goblin];
+  goblin.wakeUp();
+  Object.assign(player, { x: 4, y: 3 });
+  let before = attacks;
+  goblin.turn();
+  assert.equal(attacks, before + 1, 'adjacent goblin still attacks');
+  assert.equal(lastAttack.tile, 0, 'adjacent goblin uses a melee strike');
+  assert.equal(lastAttack.victim, player);
+  // One step further out it draws the bow again.
+  Object.assign(player, { x: 6, y: 3 });
+  before = attacks;
+  goblin.turn();
+  assert.equal(attacks, before + 1, 'goblin shoots at range');
+  assert.equal(lastAttack.tile, goblin.attackTile, 'ranged goblin uses its arrow attack');
+  assert.equal(goblin.meleeAttack(), 1, 'the sidearm never replaces ranged damage');
   const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
   assert.ok(scene.includes("this.load.image('goblin', goblinArtUrl)"));
   assert.ok(scene.includes('spawnGroup(Goblin, goblinCount)'));
   const png = fs.readFileSync('src/games/rogue0/assets/monsters/goblin.png');
   assert.equal(png.readUInt32BE(16), 16);
   assert.equal(png.readUInt32BE(20), 22);
+}
+// Melee-only monsters are unchanged: they strike with their full attack.
+{
+  const { context } = setup();
+  const brawler = new Monster(context, config, 3, 3);
+  assert.equal(brawler.hasMeleeSidearm(), false);
+  assert.equal(brawler.meleeAttack(), brawler.attack(), 'range-0 monsters never lose damage');
+}
+// Combat math, not just the AI, downgrades the sidearm.
+{
+  const combat = load('src/games/rogue0/combat.ts', {
+    ...sight, hasEffect, createBleedingEffect: () => ({ id: 'bleeding' }),
+    tiles: { ...tiles, getFeature: () => undefined, isGrassConcealed: () => false },
+  });
+  const Goblin = load('src/games/rogue0/monsters/goblin.ts', {
+    Monster, Gem: class {}, HolyPotion: class {},
+    createBleedingEffect: turns => ({ id: 'bleeding', turns }),
+    GOBLIN_ARROW_TEXTURE: 'monster-goblin-arrow', generateGoblinArrowTexture: () => {},
+  }).default;
+  const { context, player } = setup();
+  const goblin = new Goblin(context, 3, 3);
+  context.currentLevel = map;
+  context.visibleTiles.add('3,3');
+  Object.assign(player, { x: 2, y: 3, protection: () => 0 });
+  const random = Math.random;
+  try {
+    Math.random = () => 0.5; // Hit, no crit, no randomness.
+    const shot = combat.resolveAttack(context, goblin, player, { isRanged: true });
+    const stab = combat.resolveAttack(context, goblin, player, {});
+    assert.equal(shot.damage, 2, 'arrows keep their full damage');
+    assert.equal(stab.damage, 1, 'the sidearm strike is weaker');
+    assert.ok(stab.damage < shot.damage, 'closing to melee reduces incoming damage');
+  } finally { Math.random = random; }
+}
+// Goblin and trap arrows share slim art that never hides a floor tile.
+{
+  const arrowTexture = load('src/games/rogue0/projectileTextures.ts');
+  const pixels = arrowTexture.ARROW_PIXELS;
+  assert.equal(pixels.length, 3, 'arrow is three pixels tall');
+  assert.ok(pixels.every(row => row.length === 10), 'arrow is ten pixels long');
+  const cells = pixels.join('');
+  assert.ok(cells.length - cells.replace(/\./g, '').length <= 20, 'arrow has a transparent background');
+  for (const palette of [arrowTexture.GOBLIN_ARROW_PALETTE, arrowTexture.TRAP_ARROW_PALETTE]) {
+    for (const pixel of cells) {
+      assert.ok(pixel === '.' || pixel in palette, 'every drawn pixel has a color');
+    }
+  }
+  assert.notDeepEqual(arrowTexture.GOBLIN_ARROW_PALETTE, arrowTexture.TRAP_ARROW_PALETTE,
+    'goblin and trap arrows stay visually distinct');
+  assert.equal(arrowTexture.TRAP_ARROW_TEXTURE, 'bow-arrow', 'arrow traps keep their texture key');
+  const generated = [];
+  const written = [];
+  const arrowTextures = new Set();
+  const arrowGraphics = { fillStyle() {}, fillRect(...args) { written.push(args); }, destroy() {},
+    generateTexture(key, width, height) {
+      generated.push(key); arrowTextures.add(key); assert.deepEqual([width, height], [10, 3]);
+    } };
+  const arrowScene = { textures: { exists: key => arrowTextures.has(key) },
+    make: { graphics: () => arrowGraphics } };
+  arrowTexture.generateGoblinArrowTexture(arrowScene);
+  arrowTexture.generateGoblinArrowTexture(arrowScene);
+  arrowTexture.generateTrapArrowTexture(arrowScene);
+  arrowTexture.generateTrapArrowTexture(arrowScene);
+  assert.deepEqual(generated, ['monster-goblin-arrow', 'bow-arrow'],
+    'each arrow texture is generated once');
+  assert.ok(written.every(([x, y]) => x >= 0 && x < 10 && y >= 0 && y < 3));
 }
 // Alarm-style noise wakes sleepers but only supplies a fixed investigation target.
 {
@@ -169,8 +264,9 @@ player.effects = [];
 monster.turn();
 assert.equal(monster.sleeping, false, 'nearby visible hero wakes sleeper');
 assert.equal(monster.x, 3, 'waking creature can react normally');
+const attacksBeforeAdjacentTurn = attacks;
 monster.turn();
-assert.equal(attacks, 1, 'awake adjacent creature attacks');
+assert.equal(attacks, attacksBeforeAdjacentTurn + 1, 'awake adjacent creature attacks');
 
 // Deterministic RNG: sleepers expire, then wander without seeing the hero.
 const savedRandom = Math.random;

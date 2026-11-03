@@ -110,6 +110,7 @@ import { writeRunSave, clearRunSave } from './saveStorage';
 import { generateFireElementalTexture } from './monsters/fireElementalTexture';
 import { generateLightningElementalTexture } from './monsters/lightningElementalTexture';
 import { generateFlySwarmTexture } from './monsters/flySwarmTexture';
+import { generateGoblinArrowTexture, generateTrapArrowTexture } from './projectileTextures';
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
 
@@ -280,6 +281,7 @@ export class Scene0 extends Phaser.Scene {
 
     this.makeSparkTexture();
     this.makeArrowTexture();
+    generateGoblinArrowTexture(this);
     generatePotionTextures(this);
     generateDoorThresholdTexture(this);
     generateUnknownItemTextures(this);
@@ -1254,20 +1256,9 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private makeArrowTexture() {
-    if (this.textures.exists("bow-arrow")) return;
-    // Points right; the projectile rotates toward its target at launch.
-    const g = this.make.graphics(undefined, false);
-    g.fillStyle(0x30251c, 1);
-    g.fillRect(2, 3, 12, 4);
-    g.fillStyle(0xc99554, 1);
-    g.fillRect(2, 4, 11, 2);
-    g.fillStyle(0xe8e1d5, 1);
-    g.fillTriangle(10, 1, 16, 5, 10, 9);
-    g.fillStyle(0xb9cbd4, 1);
-    g.fillTriangle(0, 1, 5, 4, 2, 4);
-    g.fillTriangle(0, 9, 5, 6, 2, 6);
-    g.generateTexture("bow-arrow", 16, 10);
-    g.destroy();
+    // Arrow and dart traps fire the pale bow arrow; goblin archers use the same
+    // 10x3 silhouette in their own palette.
+    generateTrapArrowTexture(this);
   }
 
   private makeSparkTexture() {

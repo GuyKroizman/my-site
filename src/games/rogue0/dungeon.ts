@@ -968,7 +968,8 @@ const dungeon = {
     const result = resolveAttack(context, attacker, victim, {
       damageType: damageType ?? "physical",
       isRanged: rangedAttack ? true : false,
-      onHitEffects: attacker.onHitEffects()
+      // Sidearm strikes can skip abilities that belong to the primary attack.
+      onHitEffects: attacker.onHitEffects(!!rangedAttack)
     });
 
     if (!result.hit) {
