@@ -5,6 +5,7 @@ import { LogWindow } from "./logWindow";
 import { ConfirmationWindow } from "./confirmationWindow";
 import { QuickslotPane } from "./quickslotPane";
 import { attachTooltip } from "./tooltip";
+import { describeEffect } from "./effects";
 
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
@@ -78,6 +79,13 @@ export class UI extends Phaser.Scene {
   private heroStatus: Phaser.GameObjects.Text | undefined;
   private floorStatus: Phaser.GameObjects.Text | undefined;
   private healthWidth = 140;
+  private statusIcons: {
+    bg: Phaser.GameObjects.Rectangle;
+    icon: Phaser.GameObjects.Sprite;
+    id: string;
+  }[] = [];
+  private readonly statusIconSize = 18;
+  private readonly statusIconGap = 3;
 
   constructor(context: GameContext) {
     super("ui-scene");
@@ -131,6 +139,7 @@ export class UI extends Phaser.Scene {
 
   buildHUD() {
     this.buildToolbar();
+    this.buildStatusIcons();
     this.healthTrack = this.add.rectangle(0, 0, 140, 16, C.panel)
       .setOrigin(0).setStrokeStyle(1, C.borderStrong);
     this.healthFill = this.add.rectangle(0, 0, 138, 14, 0xf0b429).setOrigin(0);
@@ -234,6 +243,76 @@ export class UI extends Phaser.Scene {
     return { bg, icon: g, label: txt };
   }
 
+  private buildStatusIcons() {
+    for (let i = 0; i < 12; i++) {
+      const bg = this.add
+        .rectangle(0, 0, this.statusIconSize, this.statusIconSize, C.panel, 1)
+        .setStrokeStyle(1, C.borderStrong, 1)
+        .setInteractive({ useHandCursor: true })
+        .setVisible(false);
+      const icon = this.add.sprite(0, 0, "tiles", 26).setVisible(false);
+      bg.on("pointerover", () => bg.setStrokeStyle(1, 0xf0b429, 1));
+      bg.on("pointerout", () => bg.setStrokeStyle(1, C.borderStrong, 1));
+      const slot = { bg, icon, id: "" };
+      this.statusIcons.push(slot);
+      attachTooltip(
+        this,
+        this.context,
+        bg,
+        () => this.statusTooltipLabel(slot),
+        () => slot.bg.visible && !isModalOpen(this.context)
+      );
+    }
+  }
+
+  private statusTooltipLabel(slot: { id: string }): string {
+    const effect = this.context.player?.effects.find((e) => e.id === slot.id);
+    if (!effect) return "";
+    const infinite =
+      effect.manualExpiry || effect.duration === Number.POSITIVE_INFINITY;
+    const duration = infinite ? "∞" : `${effect.duration}`;
+    const detail = describeEffect(effect);
+    return detail
+      ? `${effect.name} (${duration}) — ${detail}`
+      : `${effect.name} (${duration})`;
+  }
+
+  private updateStatusIcons() {
+    const effects = this.context.player?.effects ?? [];
+    const w = this.scale.width;
+    const { size } = getHudMetrics(w, this.scale.height);
+    const edge = 8;
+    const healthX = edge + size + 6;
+    const startX = healthX + this.healthWidth + 8;
+    const y = edge;
+    const ic = this.statusIconSize;
+    const gap = this.statusIconGap;
+    const maxX = w - 96; // keep the floor readout in the top-right clear
+
+    this.statusIcons.forEach((slot, i) => {
+      const effect = effects[i];
+      if (!effect) {
+        slot.id = "";
+        slot.bg.setVisible(false);
+        slot.icon.setVisible(false);
+        return;
+      }
+
+      const x = startX + i * (ic + gap);
+      const fits = x + ic <= maxX;
+      slot.id = effect.id;
+      slot.bg.setVisible(fits);
+      slot.icon.setVisible(fits);
+      if (!fits) return;
+
+      slot.bg.setPosition(x + ic / 2, y + ic / 2).setSize(ic, ic);
+      slot.icon
+        .setPosition(x + ic / 2, y + ic / 2)
+        .setTexture("tiles", effect.iconTile)
+        .setDisplaySize(ic - 4, ic - 4);
+    });
+  }
+
   private buildLog() {
     this.logPanel = this.add.rectangle(0, 0, 100, 60, C.panel, 0.9).setOrigin(0)
       .setInteractive({ useHandCursor: true });
@@ -260,7 +339,7 @@ export class UI extends Phaser.Scene {
 
   private buildHeroModal() {
     const w = 320;
-    const h = 300;
+    const h = 360;
     this.showingTalents = false;
     this.talentRows = [];
     this.heroBackdrop = this.add
@@ -426,7 +505,7 @@ export class UI extends Phaser.Scene {
 
     // Hero modal: clamp to the viewport and center it.
     const heroW = Math.min(320, w - 16);
-    const heroH = 300;
+    const heroH = 360;
     this.heroModalBg?.setSize(heroW, heroH);
     this.heroModalText?.setWordWrapWidth(heroW - 20);
     this.talentRows.forEach(row => row.setWordWrapWidth(heroW - 20));
@@ -483,6 +562,7 @@ export class UI extends Phaser.Scene {
       this.heroStatus?.setText(`Lv ${player.level} · Food ${Math.ceil(player.hunger)} · ${player.hungerState}`);
       this.floorStatus?.setText(`Floor ${this.context.floor}`);
     }
+    this.updateStatusIcons();
     this.updateHeroModal();
     this.updateInspectModal();
     this.inventoryWindow?.refresh();
@@ -510,15 +590,16 @@ export class UI extends Phaser.Scene {
     }
     let text = p.statsText();
     if (p.effects.length) {
-      text +=
-        "\n\n" +
-        p.effects
-          .map((e) => {
-            const infinite =
-              e.manualExpiry || e.duration === Number.POSITIVE_INFINITY;
-            return `${e.name} ${infinite ? "∞" : e.duration}`;
-          })
-          .join("\n");
+      text += "\n\nEffects:";
+      for (const e of p.effects) {
+        const infinite =
+          e.manualExpiry || e.duration === Number.POSITIVE_INFINITY;
+        const duration = infinite ? "∞" : `${e.duration}`;
+        const detail = describeEffect(e);
+        text += detail
+          ? `\n${e.name} (${duration}) — ${detail}`
+          : `\n${e.name} (${duration})`;
+      }
     }
     this.heroModalText.setText(text);
   }

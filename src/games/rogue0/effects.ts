@@ -24,6 +24,8 @@ export type StatusEffect = {
   name: string;
   iconTile: number;
   duration: number;
+  // Short, human-readable explanation shown in the character modal/tooltip.
+  description?: string;
   // Each buff has its own tick phase, so a buff applied at t=0.5 lasts
   // its full duration rather than expiring at the next integer boundary.
   nextTick?: number;
@@ -336,6 +338,35 @@ export function createRootedEffect(duration = 3): StatusEffect {
     iconTile: 20 * 49 + 43,
     duration
   };
+}
+
+const EFFECT_DESCRIPTIONS: Record<string, string> = {
+  burning: "Takes 1 fire damage per turn.",
+  poisoned: "Takes 1 poison damage per turn.",
+  bleeding: "Takes 1 physical damage per turn.",
+  regeneration: "Restores 1 health per turn.",
+  frozen: "Loses one scheduled action.",
+  weakened: "Deals 1 less attack damage.",
+  crippled: "Moves at half speed.",
+  strengthened: "Deals 2 bonus attack damage.",
+  cursed: "Takes 1 damage per turn while cursed.",
+  invisible: "Monsters cannot see you until you attack.",
+  haste: "Doubles movement speed.",
+  levitating: "Floats over chasms and ground hazards.",
+  terrified: "Flees from the player.",
+  charmed: "Refuses to fight or chase.",
+  confused: "Movement picks a random direction.",
+  torch: "Lights the area on dark floors.",
+  "magical-sight": "Sees through walls in a 12-tile radius.",
+  "mind-vision": "Senses nearby enemies through walls.",
+  blinded: "Sight reduced to your tile; accuracy -25.",
+  rooted: "Cannot move.",
+  "chalice-regeneration": "Regenerates health over time from the Chalice of Blood.",
+  "chalice-drain": "Drains health over time from a cursed Chalice of Blood."
+};
+
+export function describeEffect(effect: StatusEffect): string {
+  return effect.description ?? EFFECT_DESCRIPTIONS[effect.id] ?? "";
 }
 
 // Moves an entity one walkable tile directly away from the player without

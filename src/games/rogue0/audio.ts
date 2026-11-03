@@ -95,6 +95,11 @@ export const sfx = {
     tone(200, 0.08, 'square', 0.07, 0, 80);
     noise(0.06, 0.09);
   },
+  surpriseHit(): void {
+    tone(880, 0.07, 'square', 0.06, 0, 220);
+    tone(220, 0.12, 'sawtooth', 0.09, 0.04, 60);
+    noise(0.1, 0.1, 0.03);
+  },
   hurt(): void {
     tone(150, 0.16, 'sawtooth', 0.11, 0, 65);
     noise(0.1, 0.08);

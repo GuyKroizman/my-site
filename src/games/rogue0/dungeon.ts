@@ -991,7 +991,7 @@ const dungeon = {
         context,
         `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for ${result.damage} ${result.damageType} damage.`
       );
-      this.applyHitEffects(context, victim);
+      this.applyHitEffects(context, victim, result.surprise);
     } else {
       this.log(
         context,
@@ -1022,11 +1022,13 @@ const dungeon = {
     context.messages = context.messages.slice(0, 20);
   },
 
-  applyHitEffects: function (context: GameContext, victim: Entity): void {
+  applyHitEffects: function (context: GameContext, victim: Entity, surprise = false): void {
     if (!context.scene) return;
 
     if (victim.type === "player") {
       sfx.hurt();
+    } else if (surprise) {
+      sfx.surpriseHit();
     } else {
       sfx.hit();
     }

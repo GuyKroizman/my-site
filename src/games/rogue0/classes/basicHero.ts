@@ -1346,7 +1346,7 @@ export default class BasicHero extends Entity {
               for (const effect of result.appliedEffects) {
                 if (enemy.healthPoints > 0) applyEffect(enemy, effect);
               }
-              dungeon.applyHitEffects(context, enemy);
+              dungeon.applyHitEffects(context, enemy, result.surprise);
               if (enemy.healthPoints <= 0) removeEntity(context, enemy);
             }
             dungeon.log(context, `${item.displayName}: ${result.surprise ? "surprise, " : ""}${result.crit ? "critical, " : ""}${result.hit ? `${result.damage} damage` : "miss"}.`);
@@ -1513,7 +1513,7 @@ export default class BasicHero extends Entity {
           context,
           `You throw ${item.displayName} at ${enemy.name} for ${result.damage} ${result.damageType} damage.`
         );
-        dungeon.applyHitEffects(context, enemy);
+        dungeon.applyHitEffects(context, enemy, result.surprise);
       } else {
         dungeon.log(
           context,
@@ -1664,7 +1664,7 @@ export default class BasicHero extends Entity {
         this.context,
         `You hit ${victim.name} for ${result.damage} ${result.damageType} damage.`
       );
-      dungeon.applyHitEffects(this.context, victim);
+      dungeon.applyHitEffects(this.context, victim, result.surprise);
     } else {
       dungeon.log(
         this.context,
