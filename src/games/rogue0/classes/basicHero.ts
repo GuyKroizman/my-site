@@ -1337,6 +1337,9 @@ export default class BasicHero extends Entity {
             });
             if (result.hit) {
               enemy.takeDamage(result.damage);
+              if (result.damage > 0 && this.type === "player" && hasEffect(this, "invisible")) {
+                removeEffect(this, "invisible");
+              }
               if (result.damageType === "shock" && result.damage > 0) context.onShockWater?.(enemy, result.damage);
               for (const effect of result.appliedEffects) {
                 if (enemy.healthPoints > 0) applyEffect(enemy, effect);
@@ -1470,6 +1473,9 @@ export default class BasicHero extends Entity {
 
       if (result.damage > 0) {
         enemy.takeDamage(result.damage);
+        if (this.type === "player" && hasEffect(this, "invisible")) {
+          removeEffect(this, "invisible");
+        }
         if (result.damageType === "shock") context.onShockWater?.(enemy, result.damage);
         dungeon.log(
           context,
@@ -1616,6 +1622,9 @@ export default class BasicHero extends Entity {
 
     if (result.damage > 0) {
       victim.takeDamage(result.damage);
+      if (this.type === "player" && hasEffect(this, "invisible")) {
+        removeEffect(this, "invisible");
+      }
       if (result.damageType === "shock") this.context.onShockWater?.(victim, result.damage);
       dungeon.log(
         this.context,

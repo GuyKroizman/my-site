@@ -980,6 +980,10 @@ const dungeon = {
     const prefix = attackNote ? `${attackNote}! ` : "";
     if (result.damage > 0) {
       victim.takeDamage(result.damage);
+      // Landing real damage on an enemy breaks the player's invisibility.
+      if (attacker.type === "player" && hasEffect(attacker, "invisible")) {
+        removeEffect(attacker, "invisible");
+      }
       if (result.damageType === "shock") context.onShockWater?.(victim, result.damage);
       spawnEntityFloatingText(victim, `-${result.damage}`);
       this.log(
