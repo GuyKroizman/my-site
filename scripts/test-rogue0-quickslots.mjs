@@ -82,9 +82,21 @@ for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, Wand, Gem: class {}, dungeon, hasLineOfSight: () => clearSight,
   resolveAttack: () => ({ hit: false, damage: 0, appliedEffects: [] }),
+  getFeature: () => 'floor',
 }).default;
 const hero = Object.assign(Object.create(Hero.prototype), {
-  backpack: [], quickslots: Array(4).fill(undefined), context: { onWandZap: zap => zaps.push(zap) }, x: 1, y: 1,
+  backpack: [], quickslots: Array(4).fill(undefined),
+  context: {
+    onWandZap: zap => zaps.push(zap),
+    entities: [],
+    map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
+    scene: {
+      input: {},
+      add: { sprite: () => ({ setOrigin() { return this; }, setDepth() { return this; }, destroy() {} }) },
+      tweens: { add: () => {} },
+    },
+  },
+  x: 1, y: 1,
   canAct: () => true, refreshUI() {}, spendTurn() { this.turns++; }, turns: 0,
 });
 const weapon = { equipSlot: 'weapon' };
@@ -124,12 +136,13 @@ assert.equal(wand.charges, 2, 'wall targets remain invalid');
 level[1][25] = 0;
 hero.beginThrow(potion);
 hero.throwAt(25, 1);
-assert.equal(hero.turns, 0, 'ordinary throws still have a five-tile range');
-assert.ok(hero.backpack.includes(potion));
+assert.equal(hero.turns, 1, 'ordinary throws have no distance cap');
+assert.equal(hero.backpack.includes(potion), false, 'a distant throw consumes the item');
+assert.equal(hero.moving, true, 'a distant throw still waits on the projectile');
 hero.activateQuickslot(0);
 hero.throwAt(25, 1); // a distant empty tile consumes exactly one charge
 assert.equal(wand.charges, 1);
-assert.equal(hero.turns, 1);
+assert.equal(hero.turns, 2);
 assert.equal(hero.weapon, weapon);
 assert.ok(hero.backpack.includes(wand));
 hero.activateQuickslot(0);
@@ -137,7 +150,7 @@ hero.throwAt(25, 25); // diagonal shots also have no distance cap
 assert.equal(wand.charges, 0);
 hero.activateQuickslot(0);
 assert.equal(hero.context.throwMode, false);
-assert.equal(hero.turns, 2);
+assert.equal(hero.turns, 3);
 hero.backpack = [wand];
 assert.equal(hero.quickslotItem(1), undefined);
 const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand, Gem: class {} });
@@ -151,7 +164,7 @@ assert.equal(inventory.isOpen(), true);
 inventory.openMenu(wand);
 assert.equal(inventory.isOpen(), false);
 assert.equal(hero.quickslotItem(2), wand);
-assert.equal(hero.turns, 2);
+assert.equal(hero.turns, 3);
 assert.ok(!inventory.buildActions(hero, wand).some(a => a.action === 'equip'));
 assert.ok(inventory.buildActions(hero, wand).some(a => a.label === 'Zap'));
 // Destructive/movement actions stay last for every inventory item category.
@@ -180,5 +193,5 @@ hero.activateQuickslot(0);
 hero.throwAt(25, 1);
 assert.equal(zaps.at(-1).toX, 10, 'projectile stops at the first actor, even on a miss');
 assert.equal(wand.charges, 0);
-assert.equal(hero.turns, 3, 'visual callback does not add charge or action costs');
+assert.equal(hero.turns, 4, 'visual callback does not add charge or action costs');
 console.log('Rogue0 quickslot eligibility, selection, cleanup and independent wand targeting/projectile events passed');

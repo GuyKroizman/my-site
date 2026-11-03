@@ -1293,8 +1293,10 @@ export default class BasicHero extends Entity {
     const isWall = inBounds && level[ty][tx] === 1;
     const hasLOS = inBounds && hasLineOfSight(level, this.x, this.y, tx, ty);
 
-    const range = this.zapping && item instanceof Wand ? item.range() : 5;
-    if (!inBounds || distance > range || !hasLOS || isWall) {
+    // Thrown items have no distance cap; only wands keep their own range
+    // (which is already unlimited for every wand currently in the game).
+    const outOfRange = this.zapping && item instanceof Wand && distance > item.range();
+    if (!inBounds || outOfRange || !hasLOS || isWall) {
       dungeon.log(context, "You can't throw there.");
       this.cancelThrow();
       return;
@@ -1394,18 +1396,48 @@ export default class BasicHero extends Entity {
       .setDepth(250);
     if (item.tint) projectile.tint = item.tint;
 
-    scene.tweens.add({
-      targets: projectile,
-      x: map.tileToWorldX(tx)!,
-      y: map.tileToWorldY(ty)!,
-      duration: 140,
-      ease: "Power2",
-      onComplete: () => {
-        projectile.destroy();
-        this.resolveThrowLanding(thrown, tx, ty);
-        this.moving = false;
-      }
-    });
+    const targetX = map.tileToWorldX(tx)!;
+    const targetY = map.tileToWorldY(ty)!;
+    const landsInChasm = getFeature(tx, ty) === "chasm";
+
+    const finishThrow = () => {
+      projectile.destroy();
+      this.resolveThrowLanding(thrown, tx, ty);
+      this.moving = false;
+    };
+
+    if (landsInChasm) {
+      // Fly to the chasm rim, then fall in: the item shrinks and fades into
+      // the dark as it drops out of sight.
+      scene.tweens.add({
+        targets: projectile,
+        x: targetX,
+        y: targetY,
+        duration: 130,
+        ease: "Power2",
+        onComplete: () => {
+          scene.tweens.add({
+            targets: projectile,
+            y: targetY + 6,
+            alpha: 0,
+            scaleX: 0.2,
+            scaleY: 0.2,
+            duration: 160,
+            ease: "Sine.easeIn",
+            onComplete: finishThrow
+          });
+        }
+      });
+    } else {
+      scene.tweens.add({
+        targets: projectile,
+        x: targetX,
+        y: targetY,
+        duration: 140,
+        ease: "Power2",
+        onComplete: finishThrow
+      });
+    }
 
     context.throwMode = false;
     context.throwItem = undefined;

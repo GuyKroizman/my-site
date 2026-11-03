@@ -472,7 +472,7 @@ export class UI extends Phaser.Scene {
     const hint = this.context.throwMode
         ? this.context.throwItem instanceof Wand
           ? `Target ${this.context.throwItem.displayName}: tap an enemy to select it, tap it (or the wand) again to fire. Esc cancels.`
-          : `Target ${this.context.throwItem?.displayName ?? "item"}: tap a tile in range and sight, or move cursor + Enter. Esc cancels.`
+          : `Target ${this.context.throwItem?.displayName ?? "item"}: tap any tile in sight, or move cursor + Enter. Esc cancels.`
         : undefined;
     this.log.setText(hint ?? this.context.messages.join("\n"));
     const player = this.context.player;

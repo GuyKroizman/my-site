@@ -80,7 +80,8 @@ identified wands in the backpack or on any visited floor without adding log spam
 All wands have no distance cap, including wands in older browser saves. Zaps
 still require an in-bounds, non-wall destination and a clear line of sight;
 the first actor in the projectile path intercepts the shot. Ordinary thrown
-items retain their five-tile range. Charges and action costs are unchanged.
+items also have no distance cap; they only need an in-bounds, non-wall
+destination in line of sight. Charges and action costs are unchanged.
 
 ## Passive wand recharge
 
