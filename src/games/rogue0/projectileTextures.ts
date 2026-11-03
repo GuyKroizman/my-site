@@ -20,6 +20,17 @@ export const GOBLIN_ARROW_PALETTE: Record<string, number> = {
   s: 0x969f90 // iron head shadow
 };
 
+// Cultists hurl a bolt of necromantic light: violet fletching, corpse-green head
+// echoing the glow inside the cultist's hood.
+export const CULTIST_BOLT_TEXTURE = "monster-cultist-bolt";
+export const CULTIST_BOLT_PALETTE: Record<string, number> = {
+  F: 0x643b78, // violet fletching
+  f: 0x392744, // fletching shadow
+  w: 0x8a6ba0, // pale violet shaft
+  S: 0x78db94, // necromantic light
+  s: 0x3f8f5c // necromantic shadow
+};
+
 // Arrow and dart traps fire the paler bow arrow of the original tileset art.
 export const TRAP_ARROW_TEXTURE = "bow-arrow";
 export const TRAP_ARROW_PALETTE: Record<string, number> = {
@@ -47,6 +58,10 @@ function drawArrow(scene: Phaser.Scene, key: string, palette: Record<string, num
 // art points right and the arrowhead is the front third of the texture.
 export function generateGoblinArrowTexture(scene: Phaser.Scene): void {
   drawArrow(scene, GOBLIN_ARROW_TEXTURE, GOBLIN_ARROW_PALETTE);
+}
+
+export function generateCultistBoltTexture(scene: Phaser.Scene): void {
+  drawArrow(scene, CULTIST_BOLT_TEXTURE, CULTIST_BOLT_PALETTE);
 }
 
 export function generateTrapArrowTexture(scene: Phaser.Scene): void {

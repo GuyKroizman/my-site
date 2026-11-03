@@ -304,7 +304,8 @@ let buffs = 0;
 const bindings = { Monster, dungeon, Gem: class {}, HolyPotion: class {}, BerserkPotion: class {},
   hasEffect, applyEffect() { buffs++; }, createStrengthenedEffect() {}, createRegenerationEffect() {} };
 const Skeleton = load('src/games/rogue0/monsters/skelaton.ts', bindings).default;
-const Cultist = load('src/games/rogue0/monsters/cultist.ts', { ...bindings, Skeleton }).default;
+const Cultist = load('src/games/rogue0/monsters/cultist.ts', { ...bindings, Skeleton,
+  CULTIST_BOLT_TEXTURE: 'monster-cultist-bolt', generateCultistBoltTexture: () => {} }).default;
 const Ghoul = load('src/games/rogue0/monsters/ghoul.ts', bindings).default;
 const Brute = load('src/games/rogue0/monsters/brute.ts', bindings).default;
 ({ context, player } = setup());
@@ -320,6 +321,38 @@ const cultist = new Cultist(context, 5, 5);
 cultist.wakeUp(); cultist.turn();
 assert.ok(context.entities.at(-1) instanceof Skeleton);
 assert.equal(context.entities.at(-1).sleeping, false);
+
+// Cultists snipe like goblins: distant heroes take a bolt, adjacent ones a staff.
+{
+  const ranged = setup();
+  const caster = new Cultist(ranged.context, 3, 3);
+  assert.equal(caster.range(), 5, 'cultists attack at range');
+  assert.equal(caster.projectileTexture, 'monster-cultist-bolt',
+    'cultists draw bolt art, not an opaque tilesheet frame');
+  assert.equal(caster.meleeAttack(), 1, 'staff strikes are weaker than bolts');
+  assert.ok(caster.meleeAttack() < caster.attack(), 'melee is a downgrade for the caster');
+  assert.equal(caster.hasMeleeSidearm(), true, 'ranged cultists carry a sidearm');
+  ranged.context.entities = [ranged.player, caster];
+  caster.wakeUp();
+  Object.assign(ranged.player, { x: 6, y: 3 });
+  let shots = attacks;
+  caster.turn();
+  assert.equal(attacks, shots + 1, 'cultist casts at range');
+  assert.equal(lastAttack.victim, ranged.player);
+  assert.equal(lastAttack.tile, caster.attackTile, 'ranged cultist uses its bolt attack');
+  // Summoning still happens on the same turn as the shot.
+  assert.equal(ranged.context.entities.filter(e => e instanceof Skeleton).length, 1,
+    'a shooting cultist still raises a skeleton');
+  Object.assign(ranged.player, { x: 2, y: 3 });
+  shots = attacks;
+  caster.turn();
+  assert.equal(attacks, shots + 1, 'adjacent cultist still attacks');
+  assert.equal(lastAttack.tile, 0, 'adjacent cultist uses a melee strike');
+  assert.equal(lastAttack.victim, ranged.player);
+  const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
+  assert.ok(scene.includes('generateCultistBoltTexture(this)'),
+    'the scene prepares bolt art before the first cultist spawns');
+}
 
 const flyTexture = load('src/games/rogue0/monsters/flySwarmTexture.ts');
 let generated = 0;
@@ -349,6 +382,26 @@ for (const pixel of lightningTexture.LIGHTNING_ELEMENTAL_PIXELS.join('')) {
 lightningTexture.generateLightningElementalTexture(flyScene);
 lightningTexture.generateLightningElementalTexture(flyScene);
 assert.equal(generated, 3, 'lightning texture is generated once independently of other monsters');
+// Cultist bolts reuse the arrow silhouette with a necromantic palette.
+{
+  const projectiles = load('src/games/rogue0/projectileTextures.ts');
+  let bolts = 0;
+  const boltTextures = new Set();
+  const boltDraws = [];
+  const boltGraphics = { fillStyle() {}, fillRect(...args) { boltDraws.push(args); }, destroy() {},
+    generateTexture(key) { bolts++; boltTextures.add(key); } };
+  const boltScene = { textures: { exists: key => boltTextures.has(key) },
+    make: { graphics: () => boltGraphics } };
+  projectiles.generateCultistBoltTexture(boltScene);
+  projectiles.generateCultistBoltTexture(boltScene);
+  assert.equal(bolts, 1, 'cultist bolt art is generated once');
+  assert.ok(boltTextures.has(projectiles.CULTIST_BOLT_TEXTURE));
+  const symbols = [...new Set(projectiles.ARROW_PIXELS.join('').replace(/\./g, ''))].sort();
+  assert.deepEqual(Object.keys(projectiles.CULTIST_BOLT_PALETTE).sort(), symbols,
+    'bolt palette covers exactly the arrow symbols');
+  assert.equal(boltDraws.length, projectiles.ARROW_PIXELS.join('').replace(/\./g, '').length,
+    'bolt art stays transparent around the projectile');
+}
 const { FireElemental, ShockElemental } = load('src/games/rogue0/monsters/elemental.ts', {
   Monster, ...fireTexture, ...lightningTexture
 });

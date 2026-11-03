@@ -184,12 +184,13 @@ balance values, not an exact reproduction of SPD. Entering a floor does not heal
 
 ## Ranged monsters and melee fallback
 
-Goblins are the only ranged monster: they fire barbed arrows up to 5 tiles for
-2 damage plus 3 turns of bleeding. When a target is **adjacent** (Chebyshev
-distance 1, including diagonals) they cannot draw the bow and switch to a
-dagger: 1 damage, no bleeding, and a normal melee lunge animation. Closing the
-distance therefore cuts the damage the archer deals in half and stops the
-typed bleeding.
+Goblins and cultists are ranged. Goblins fire barbed arrows up to 5 tiles for
+2 damage plus 3 turns of bleeding. Cultists hurl necromantic bolts up to 5
+tiles for 2 damage (no bleeding) and still raise skeletons. When a target is
+**adjacent** (Chebyshev distance 1, including diagonals) they cannot use their
+ranged attack and switch to a sidearm: 1 damage, a normal melee lunge animation,
+no arrow bleeding and no bolt. Closing the distance therefore cuts the damage
+the ranged attacker deals in half and stops the goblin's typed bleeding.
 
 The sidearm is configured per monster via `MonsterConfig.meleeDamage`. Any
 monster with `range > 0` opts into the fallback automatically; when the value

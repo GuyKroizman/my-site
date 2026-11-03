@@ -3,14 +3,16 @@ import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import Skeleton from "./skelaton";
 import Gem from "../items/gem";
+import { CULTIST_BOLT_TEXTURE, generateCultistBoltTexture } from "../projectileTextures";
 
 export default class Cultist extends Monster {
   private summonCooldown = 0;
 
   constructor(context: GameContext, x?: number, y?: number) {
+    if (context.scene) generateCultistBoltTexture(context.scene);
     super(context, {
       name: "Cultist",
-      description: "A robed cultist who raises skeletons to fight for it.",
+      description: "A robed cultist who hurls necromantic bolts and raises skeletons to fight for it.",
       tile: 0,
       textureKey: "cultist", // Original violet-robed summoner with a bone staff.
       healthPoints: 8,
@@ -20,7 +22,11 @@ export default class Cultist extends Monster {
       attackDamage: 2,
       protection: 0,
       xp: 8,
-      range: 0,
+      // A truthy attackTile routes the AI through the ranged branch; the
+      // projectile texture supplies the visible bolt, not this tilesheet frame.
+      range: 5,
+      meleeDamage: 1,
+      projectileTexture: CULTIST_BOLT_TEXTURE,
       loot: [false, false, Gem]
     }, x, y);
   }

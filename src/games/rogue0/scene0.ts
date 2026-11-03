@@ -110,7 +110,7 @@ import { writeRunSave, clearRunSave } from './saveStorage';
 import { generateFireElementalTexture } from './monsters/fireElementalTexture';
 import { generateLightningElementalTexture } from './monsters/lightningElementalTexture';
 import { generateFlySwarmTexture } from './monsters/flySwarmTexture';
-import { generateGoblinArrowTexture, generateTrapArrowTexture } from './projectileTextures';
+import { generateCultistBoltTexture, generateGoblinArrowTexture, generateTrapArrowTexture } from './projectileTextures';
 import * as tiles from "./tiles";
 import type { FeaturePlacement } from "./tiles";
 
@@ -282,6 +282,7 @@ export class Scene0 extends Phaser.Scene {
     this.makeSparkTexture();
     this.makeArrowTexture();
     generateGoblinArrowTexture(this);
+    generateCultistBoltTexture(this);
     generatePotionTextures(this);
     generateDoorThresholdTexture(this);
     generateUnknownItemTextures(this);

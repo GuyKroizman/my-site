@@ -585,7 +585,8 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
 
 Implemented foundations: Skeleton stays dead; Quloptsh has on-hit effects;
 Ghoul has fast movement, regeneration and on-hit effects; Brute enrages;
-cultists summon, swarms split on death, and elementals have typed effects.
+cultists summon and snipe with necromantic bolts, swarms split on death, and
+elementals have typed effects.
 Mimic/wraith classes exist, but that alone does not complete their intended AI.
 Archer currently attacks in range rather than kiting. Door-aware pursuit exists.
 Two treasure chests generate per floor (separate from the mimic encounter);
