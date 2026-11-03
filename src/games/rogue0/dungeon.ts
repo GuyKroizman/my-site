@@ -109,7 +109,7 @@ const dungeon = {
   // closed doors; movement must open the door before entering.
   findPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false, avoidTraps = false, actor?: Entity): number[][] {
     const grid = this.pathGrid!.clone();
-    const flying = !!actor && hasEffect(actor, "levitating");
+    const flying = !!actor && actor.isFlying;
     if (flying) {
       tiles.forEachFeature((x, y, s) => {
         if (s.feature === "chasm" && this.currentLevel[y]?.[x] === 0) grid.setWalkableAt(x, y, true);
@@ -140,7 +140,7 @@ const dungeon = {
     return this.diagonalFinder!.findPath(sx, sy, tx, ty, grid);
   },
 
-  isWalkableTile: function (context: GameContext, x: number, y: number): boolean {
+  isWalkableTile: function (context: GameContext, x: number, y: number, actor?: Entity): boolean {
     const level = this.currentLevel;
     if (!level || y < 0 || x < 0 || y >= level.length || x >= level[0].length) {
       return false;
@@ -151,7 +151,8 @@ const dungeon = {
     }
 
     if (level[y][x] !== 0) return false;
-    const flying = !!context.player && hasEffect(context.player, "levitating");
+    const mover = actor ?? context.player;
+    const flying = !!mover && mover.isFlying;
     if (tiles.isBlocking(x, y) && !(flying && tiles.getFeature(x, y) === "chasm")) {
       return false;
     }
@@ -323,7 +324,7 @@ const dungeon = {
       return true;
     }
     this.log(context, `${actor.type === "player" ? "You stumble" : `${actor.name} stumbles`} in confusion!`);
-    const falling = chasm && !hasEffect(actor, "levitating");
+    const falling = chasm && !actor.isFlying;
     this.moveEntityTo(context, actor, x, y, falling);
     if (falling) this.fallIntoChasm(context, actor);
     return true;
@@ -345,7 +346,7 @@ const dungeon = {
     // Wake monsters without granting magical knowledge of the player's position.
     target.hearNoise(target.x, target.y);
     this.log(context, `${target.type === "player" ? "You are" : `${target.name} is`} knocked back!`);
-    if (chasm && !hasEffect(target, "levitating")) {
+    if (chasm && !target.isFlying) {
       this.moveEntityTo(context, target, x, y, true);
       this.log(context, `${target.type === "player" ? "You fall" : `${target.name} falls`} into the chasm!`);
       this.fallIntoChasm(context, target);
@@ -357,7 +358,7 @@ const dungeon = {
 
   canEnterChasm: function (context: GameContext, actor: Entity, x: number, y: number): boolean {
     if (actor.type !== "player" || actor.healthPoints <= 0 || actor.x === undefined || actor.y === undefined ||
-        hasEffect(actor, "rooted") || hasEffect(actor, "levitating") ||
+        hasEffect(actor, "rooted") || actor.isFlying ||
         Math.max(Math.abs(actor.x - x), Math.abs(actor.y - y)) !== 1 ||
         !this.canStepBetween(actor.x, actor.y, x, y, actor) ||
         this.currentLevel[y]?.[x] !== 0 || tiles.getFeature(x, y) !== "chasm" ||
@@ -417,7 +418,7 @@ const dungeon = {
     let destX = x;
     let destY = y;
 
-    const flying = hasEffect(entity, "levitating");
+    const flying = entity.isFlying;
     const entryTrap = tiles.getTileState(destX, destY);
     if (entering && !flying && entity.type !== "item" && entity.healthPoints > 0 &&
         oldX !== undefined && oldY !== undefined && entryTrap?.feature === "trap" &&
@@ -763,7 +764,7 @@ const dungeon = {
 
   conductShock: function (context: GameContext, target: Entity, primaryDamage: number): void {
     if (!Number.isFinite(primaryDamage) || primaryDamage <= 0 ||
-        target.x === undefined || target.y === undefined || hasEffect(target, "levitating") ||
+        target.x === undefined || target.y === undefined || target.isFlying ||
         tiles.getFeature(target.x, target.y) !== "water") return;
     const connected = new Set<string>();
     const pending: Array<[number, number]> = [[target.x, target.y]];
@@ -779,7 +780,7 @@ const dungeon = {
     const victims = context.entities.filter(e => e !== target &&
       (e.type === "player" || e.type === "enemy") && e.healthPoints > 0 &&
       e.x !== undefined && e.y !== undefined && connected.has(`${e.x},${e.y}`) &&
-      !hasEffect(e, "levitating"));
+      !e.isFlying);
     const baseDamage = Math.ceil(primaryDamage / 2);
     for (const victim of victims) {
       if (!context.entities.includes(victim) || victim.healthPoints <= 0) continue;
@@ -838,7 +839,7 @@ const dungeon = {
     for (const other of context.entities) {
       if (other !== entity && (other.type === "player" || other.type === "enemy") &&
           other.healthPoints > 0 && other.x !== undefined && other.y !== undefined &&
-          burned.has(`${other.x},${other.y}`) && !hasEffect(other, "levitating")) {
+          burned.has(`${other.x},${other.y}`) && !other.isFlying) {
         applyEffect(other, createBurningEffect());
       }
     }
@@ -1008,6 +1009,8 @@ const dungeon = {
         applyEffect(victim, effect);
       }
     }
+
+    victim.onHitBy?.(attacker, result.damageType, result.damage);
 
     if (victim.healthPoints <= 0) {
       removeEntity(context, victim);

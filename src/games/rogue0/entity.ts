@@ -77,6 +77,9 @@ export abstract class Entity {
   healthPoints: number = 0;
   maxHealthPoints: number = 0;
   movementSpeed: number = 1;
+  // Naturally airborne actors (e.g. swarm of flies) ignore ground hazards and
+  // cross chasms. The levitating status effect grants the same temporarily.
+  flying: boolean = false;
   // Time required for an attack; weapons override this independently of walking.
   attackDelay: number = 1;
   nextActionTime: number = 0;
@@ -111,6 +114,9 @@ export abstract class Entity {
   onUncursed(): void {}
   onUpgrade(): void {}
   onAttacked(_attacker: Entity): void {}
+  // Called after a successful attack lands and its damage is applied, before
+  // death cleanup. Lets victims react to the exact hit (e.g. a swarm splits).
+  onHitBy?(_attacker: Entity, _damageType: DamageType, _damage: number): void;
   // Sight at the start of the last decision, not after moving into view.
   // Pursuit memory is separate: a hunting enemy can still be ambushed.
   awareOfPlayer: boolean = false;
@@ -150,6 +156,9 @@ export abstract class Entity {
 
   get effectiveAccuracy(): number { return this.accuracy; }
   get effectiveEvasion(): number { return this.evasion; }
+  get isFlying(): boolean {
+    return this.flying || this.effects.some((e) => e.id === "levitating");
+  }
   movementCostMultiplier(): number { return 1; }
   attackCostMultiplier(): number { return 1; }
   protected locallyIdentified: boolean = true;

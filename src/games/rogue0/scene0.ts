@@ -617,6 +617,8 @@ export class Scene0 extends Phaser.Scene {
           !Number.isFinite(data.savedAt) || !data.up || !data.down) throw new Error('Invalid saved floor');
       for (const entity of data.entities) {
         if (entity instanceof Mimic) entity.restoreLegacyStrength(floor);
+        // Pre-flight saves lack the `flying` field; swarms always fly.
+        if (entity instanceof SwarmOfFlies) entity.flying = true;
       }
     }
     const active = run.floors.get(run.floor);

@@ -1495,6 +1495,8 @@ export default class BasicHero extends Entity {
         }
       }
 
+      enemy.onHitBy?.(this, result.damageType, result.damage);
+
       if (enemy.healthPoints <= 0) {
         removeEntity(context, enemy);
       }
@@ -1643,6 +1645,8 @@ export default class BasicHero extends Entity {
         applyEffect(victim, effect);
       }
     }
+
+    victim.onHitBy?.(this, result.damageType, result.damage);
 
     if (victim.healthPoints <= 0) {
       removeEntity(this.context, victim);
