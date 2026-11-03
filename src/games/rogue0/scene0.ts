@@ -859,6 +859,10 @@ export class Scene0 extends Phaser.Scene {
     }
     const { levelArray, spawn, stairs } = this.generateLevel(next);
 
+    // Build the tilemap under the new floor's theme, not the floor we just
+    // left. setupFloor re-assigns context.floor as well, but dungeon.initialize
+    // reads it here to pick the tileset.
+    this.context.floor = next;
     dungeon.initialize(this.context, levelArray);
     this.setupFloor(next, levelArray, spawn, stairs);
     sfx.stairs();
@@ -903,6 +907,9 @@ export class Scene0 extends Phaser.Scene {
 
   private restoreFloor(floor: number, saved: SavedFloor, arrival: { x: number; y: number }) {
     this.applyFeatures(saved.features);
+    // dungeon.initialize chooses the tileset from context.floor, so switch to
+    // the restored floor before rebuilding the tilemap.
+    this.context.floor = floor;
     dungeon.initialize(this.context, saved.map);
     this.setupFloor(floor, saved.map, arrival, saved.down, saved);
   }

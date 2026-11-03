@@ -415,6 +415,7 @@ const flame = new FireElemental(context, 5, 5);
 assert.equal(flame.spriteTextureKey, fireTexture.FIRE_ELEMENTAL_TEXTURE, 'fire uses flame art, not the chest atlas frame');
 assert.equal(flame.spriteFrame, 0);
 assert.equal(flame.damageType, 'fire');
+assert.equal(flame.vulnerability.ice, 1, 'fire elementals take extra damage from ice');
 
 // Fire wand projectiles are super effective against ice-elemental enemies.
 {

@@ -67,6 +67,10 @@ const UI_C = {
 const UI_FONT_PIXEL = "Press Start 2P";
 const UI_FONT_MONO = "VT323";
 
+// A thrown Potion of Frost is especially dangerous to fire elementals: the
+// flask's cold payload hits them directly before the normal frozen splash.
+const FROST_POTION_FIRE_DAMAGE = 4;
+
 type EquipSlotKey = "weapon" | "armor" | "ring1" | "ring2" | "artifact";
 
 export const CLASS_TALENTS = {
@@ -1553,7 +1557,27 @@ export default class BasicHero extends Entity {
       applyEffect(enemy, createPoisonedEffect(4));
       if (enemy.x !== undefined && enemy.y !== undefined) context.onCreatePoisonGas?.(enemy.x, enemy.y);
     } else if (name.includes("frost")) {
-      applyEffect(enemy, createFrozenEffect(1));
+      // Fire elementals are critically weak to cold: a frost potion deals
+      // direct ice damage (respecting ice resistance/vulnerability) before
+      // the usual frozen splash. Other targets are merely frozen.
+      if (enemy.damageType === "fire") {
+        const damage = Math.max(
+          0,
+          FROST_POTION_FIRE_DAMAGE - (enemy.resistance.ice ?? 0) + (enemy.vulnerability.ice ?? 0)
+        );
+        if (damage > 0) enemy.takeDamage(damage);
+        dungeon.log(
+          context,
+          `The frost potion hits ${enemy.name} for ${damage} ice damage.`
+        );
+        if (enemy.healthPoints <= 0) {
+          removeEntity(context, enemy);
+        } else {
+          applyEffect(enemy, createFrozenEffect(1));
+        }
+      } else {
+        applyEffect(enemy, createFrozenEffect(1));
+      }
     } else {
       dungeon.log(context, "It splashes harmlessly.");
     }
