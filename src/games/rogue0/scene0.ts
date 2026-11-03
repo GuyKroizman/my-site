@@ -1039,9 +1039,15 @@ export class Scene0 extends Phaser.Scene {
       sprite.setVisible(this.seen[y]?.[x] === true);
     }
     this.gasOverlay?.clear();
+    const now = this.context.simulationTime ?? 0;
     for (const cloud of this.context.poisonClouds ?? []) {
-      if (cloud.expiresAt <= (this.context.simulationTime ?? 0) + 1e-9 || !this.visible.has(`${cloud.x},${cloud.y}`)) continue;
-      this.gasOverlay?.fillStyle(0x88bb44, 0.4);
+      if (cloud.expiresAt <= now + 1e-9 || !this.visible.has(`${cloud.x},${cloud.y}`)) continue;
+      // New clouds fade out over their remaining lifetime; legacy saves render
+      // at the old constant opacity.
+      const alpha = cloud.bornAt !== undefined && cloud.expiresAt > cloud.bornAt + 1e-9
+        ? 0.4 * Math.max(0, Math.min(1, (cloud.expiresAt - now) / (cloud.expiresAt - cloud.bornAt)))
+        : 0.4;
+      this.gasOverlay?.fillStyle(0x88bb44, alpha);
       this.gasOverlay?.fillRect(cloud.x * 16, cloud.y * 16, 16, 16);
     }
     const foreground = foregroundEntities(this.context.entities, player);

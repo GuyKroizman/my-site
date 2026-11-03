@@ -564,19 +564,21 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       and wands share this behavior. `test-rogue0-shock-water.mjs` covers networks,
       exclusions, resistances, caster risk, deaths and all four attack paths.
       Visual and balance playtesting remain deferred.
-- [x] Lingering poison clouds: Toxic Gas potions create a cardinal five-cell
-      splash (clipped by walls/closed doors), whether drunk or thrown, including
-      throws at empty floor. Clouds last four world-time units with independent
-      fractional pulse phases. Entry and pulses sustain Poisoned for at least two
-      units without resetting its damage phase; original direct potion poison
-      remains four units. Levitation does not protect against airborne gas, and
-      clouds can hurt the player. Overlapping cells merge and extend lifetime,
-      not damage stacks. Expiry wins pulse ties. A separate overlay preserves
-      ground terrain, with visible-only green shading and inspect descriptions.
+- [x] Lingering poison clouds: Toxic Gas potions release a cloud that expands
+      one cardinal ring per world-time unit (clipped by walls/closed doors) up to
+      a radius-3 diamond, whether drunk or thrown, including throws at empty
+      floor. Each ring then expires from the outer edge inward so the cloud
+      gradually shrinks and fades instead of vanishing all at once. Entry and
+      pulses sustain Poisoned for at least two units without resetting its damage
+      phase; original direct potion poison remains four units. Levitation does not
+      protect against airborne gas, and clouds can hurt the player. Overlapping
+      cells merge and extend lifetime, not damage stacks. Expiry wins pulse ties.
+      A separate overlay preserves ground terrain, with visible-only green shading
+      that fades over each cell's remaining lifetime and inspect descriptions.
       Saved floors copy cloud state and shift event clocks on restoration, so
       inactive floors pause gas. `gas.ts` plus the gas/stair suites cover geometry,
-      exposure, overlap, idle frames, timing, expiry, deaths, movement and potions.
-      Visual and balance playtesting remain deferred.
+      expansion, exposure, overlap, idle frames, timing, expiry, deaths, movement
+      and potions. Visual and balance playtesting remain deferred.
 - **Acceptance:** positioning and terrain become a first-class tactical layer,
   not just walls.
 

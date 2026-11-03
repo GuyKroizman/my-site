@@ -12,7 +12,18 @@ export type WandZap = {
   damageType: import('./effects').DamageType;
 };
 
-export type PoisonCloud = { x: number; y: number; expiresAt: number; nextTick: number };
+export type PoisonCloud = {
+  x: number;
+  y: number;
+  expiresAt: number;
+  nextTick: number;
+  // Expansion/dissipation fields. Older saves may omit these; gas.ts treats
+  // a missing `nextExpand` as "no further expansion" and a missing `bornAt` as
+  // a legacy cloud that renders at full opacity.
+  nextExpand?: number;
+  radius?: number;
+  bornAt?: number;
+};
 
 export type GameContext = {
   map: Phaser.Tilemaps.Tilemap | undefined;

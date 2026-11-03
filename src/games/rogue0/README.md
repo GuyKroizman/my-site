@@ -168,11 +168,12 @@ use absolute ready timestamps. Faster movement does not accelerate hunger,
 poison, or cooldowns. Floor changes preserve the clock and buff/cooldown timing.
 
 Poison clouds add independent fractional terrain events to this same scheduler:
-clouds last 4 time units and pulse once per unit from their creation phase.
-Exposure sustains Poisoned for at least 2 units without postponing its damage
-phase; expiry wins ties with a cloud pulse. Clouds are separate from ground
-features, affect levitating actors too, and pause with inactive floors. Rendering
-only displays visible clouds; it never advances their lifetime.
+a Toxic Gas cloud expands one cardinal ring per unit up to a radius-3 diamond,
+then expires from its outer edge inward, fading as it goes. Exposure sustains
+Poisoned for at least 2 units without postponing its damage phase; expiry wins
+ties with a cloud pulse. Clouds are separate from ground features, affect
+levitating actors too, and pause with inactive floors. Rendering only displays
+visible clouds; it never advances their lifetime.
 Animation durations and frame rate never determine logical action costs.
 
 Food drops by 0.25 per world-time unit. Fed (30–100 Food) heroes naturally
