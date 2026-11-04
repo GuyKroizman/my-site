@@ -1,6 +1,7 @@
 import Monster from "./monster";
 import { LIGHTNING_ELEMENTAL_TEXTURE, generateLightningElementalTexture } from "./lightningElementalTexture";
 import { FIRE_ELEMENTAL_TEXTURE, generateFireElementalTexture } from "./fireElementalTexture";
+import { ICE_ELEMENTAL_TEXTURE, generateIceElementalTexture } from "./iceElementalTexture";
 import type { GameContext } from "../context";
 import {
   createBurningEffect,
@@ -38,10 +39,12 @@ export class FireElemental extends Monster {
 
 export class IceElemental extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
+    if (context.scene) generateIceElementalTexture(context.scene);
     super(context, {
       name: "Ice Elemental",
       description: "A frozen horror whose touch locks victims in place.",
-      tile: 6 * 49 + 9,
+      tile: 0,
+      textureKey: ICE_ELEMENTAL_TEXTURE,
       healthPoints: 16,
       movementSpeed: 1,
       attackDelay: 1,

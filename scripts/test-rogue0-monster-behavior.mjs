@@ -402,8 +402,31 @@ assert.equal(generated, 3, 'lightning texture is generated once independently of
   assert.equal(boltDraws.length, projectiles.ARROW_PIXELS.join('').replace(/\./g, '').length,
     'bolt art stays transparent around the projectile');
 }
-const { FireElemental, ShockElemental } = load('src/games/rogue0/monsters/elemental.ts', {
-  Monster, ...fireTexture, ...lightningTexture
+const iceTexture = load('src/games/rogue0/monsters/iceElementalTexture.ts');
+assert.equal(iceTexture.ICE_ELEMENTAL_PIXELS.length, 16);
+assert.ok(iceTexture.ICE_ELEMENTAL_PIXELS.every(row => row.length === 16));
+for (const pixel of iceTexture.ICE_ELEMENTAL_PIXELS.join('')) {
+  assert.ok(pixel === '.' || pixel in iceTexture.ICE_ELEMENTAL_PALETTE);
+}
+{
+  // Reachability: every coloured pixel must touch another, so the crystal
+  // shards never break into stray singles that read as floor litter.
+  const rows = iceTexture.ICE_ELEMENTAL_PIXELS;
+  const solid = (x, y) => rows[y]?.[x] !== undefined && rows[y][x] !== '.';
+  let stray = 0;
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    if (!solid(x, y)) continue;
+    const neighbours = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => solid(x + dx, y + dy));
+    if (neighbours.length === 0) stray++;
+  }
+  assert.ok(stray <= 4, `ice art keeps detached flecks minimal (${stray})`);
+}
+iceTexture.generateIceElementalTexture(flyScene);
+iceTexture.generateIceElementalTexture(flyScene);
+assert.equal(generated, 4, 'ice texture is generated once independently of other monsters');
+assert.ok(draws.every(([x, y]) => x >= 0 && x < 16 && y >= 0 && y < 16));
+const { FireElemental, IceElemental, ShockElemental } = load('src/games/rogue0/monsters/elemental.ts', {
+  Monster, ...fireTexture, ...lightningTexture, ...iceTexture
 });
 const lightning = new ShockElemental(context, 5, 5);
 assert.equal(lightning.name, 'Lightning Elemental');
@@ -416,6 +439,15 @@ assert.equal(flame.spriteTextureKey, fireTexture.FIRE_ELEMENTAL_TEXTURE, 'fire u
 assert.equal(flame.spriteFrame, 0);
 assert.equal(flame.damageType, 'fire');
 assert.equal(flame.vulnerability.ice, 1, 'fire elementals take extra damage from ice');
+const ice = new IceElemental(context, 5, 5);
+assert.equal(ice.name, 'Ice Elemental');
+assert.equal(ice.spriteTextureKey, iceTexture.ICE_ELEMENTAL_TEXTURE,
+  'ice uses crystal art, not the chest atlas frame');
+assert.equal(ice.spriteFrame, 0, 'crystal art is a single frame, not an atlas index');
+assert.equal(ice.damageType, 'ice');
+assert.equal(ice.resistance.ice, 2);
+assert.equal(ice.vulnerability.fire, 1);
+assert.notEqual(ice.spriteFrame, 6 * 49 + 9, 'the chest tile is no longer drawn for ice elementals');
 
 // Fire wand projectiles are super effective against ice-elemental enemies.
 {

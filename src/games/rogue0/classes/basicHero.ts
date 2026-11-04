@@ -1,10 +1,10 @@
 import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
-import { isModalOpen, type GameContext } from "../context";
+import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import Gem from "../items/gem";
 import Wand from "../items/wand";
-import { getFeature, getTrapState, isGrassConcealed } from "../tiles";
+import { getFeature, isGrassConcealed } from "../tiles";
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
 import {
@@ -24,31 +24,11 @@ import { splitStackItem, type EquipSlotKey } from '../inventory';
 import { placeFloorItem } from '../itemPresentation';
 import { heroStatsText } from '../heroViewModel';
 
-// A friendly decoy (mirror image) is rendered/scheduled like an enemy, but is
-// never a valid attack target for the hero. Kept local so headless tests that
-// strip imports (and inject plain object stubs) still exercise real logic.
-function isHostile(entity: Entity): boolean {
-  return entity.type === "enemy" && !entity.isDecoy;
-}
-
-function hostileAtTile(context: GameContext, x: number, y: number): Entity | undefined {
-  return (context.entities ?? []).find(entity =>
-    isHostile(entity) && (entity.healthPoints ?? 0) > 0 && !!entity.sprite &&
-    entity.x === x && entity.y === y
-  );
-}
-
-// Pickup log lines read naturally ("You picked up a Gem.") without dumping an
-// item's full description into the message log. Gold piles are a mass noun and
-// get no article.
-function pickupMessage(entity: Entity): string {
-  const label = entity.displayName;
-  if (entity.goldAmount > 0) return `You picked up ${label}.`;
-  const article = /^[aeiou]/i.test(label) ? "an" : "a";
-  return `You picked up ${article} ${label}.`;
-}
+import { heroControls } from '../heroControls';
+import { isHostile } from '../heroControlRules';
+import type { HeroControlHost, PointerPosition } from '../heroControlTypes';
 import { spawnEntityFloatingText } from "../floatingText";
-import { actionCost, starvationDamageDuring, type ActionKind } from "../timing";
+import type { ActionKind } from "../timing";
 
 // A thrown Potion of Frost is especially dangerous to fire elementals: the
 // flask's cold payload hits them directly before the normal frozen splash.
@@ -77,7 +57,7 @@ export const CLASS_TALENTS = {
   ]
 } as const;
 
-export default class BasicHero extends Entity {
+export default class BasicHero extends Entity implements HeroControlHost {
   name: string = "The Hero";
   description: string = "A brave adventurer";
   actionReady: boolean = true;
@@ -130,7 +110,8 @@ export default class BasicHero extends Entity {
   artifact: Entity | undefined;
   backpack: Entity[] = [];
   quickslots: (Entity | undefined)[] = Array(4).fill(undefined);
-  private zapping = false;
+  // Runtime control state shared with the input/targeting facade; reset on load.
+  zapping = false;
 
   canQuickslot(item: Entity): boolean {
     return item instanceof Wand || item.consumable;
@@ -157,8 +138,8 @@ export default class BasicHero extends Entity {
 
   inputBuffer: string[] = [];
   walkPath: Array<{ x: number; y: number }> = [];
-  private acknowledgedWalkEnemies = new Set<Entity>();
-  private walkTargetEntity?: Entity;
+  acknowledgedWalkEnemies = new Set<Entity>();
+  walkTargetEntity?: Entity;
 
   // Per-class skills recharge in elapsed simulation time, not action count.
   skill: string = "";
@@ -193,27 +174,7 @@ export default class BasicHero extends Entity {
 
   /** Also used after restoring the hero without rerolling its starting gear. */
   bindInput(): void {
-    const context = this.context;
-    if (context.scene?.input?.keyboard == undefined) {
-      throw new Error("Error in PlayerCharacter context is undefined");
-    }
-
-    context.scene.input.keyboard.on("keydown", (event: KeyboardEvent) => {
-      if (isModalOpen(this.context)) return;
-      if (this.cursorDir(event.key)) event.preventDefault();
-      // Cursor keys (x / Esc / Enter / arrows / HJKL) stay live while the
-      // inspect or throw cursor is active, even when it isn't the player's
-      // turn. Everything else keeps the existing canAct()/buffer behaviour.
-      if (this.canAct() || (this.cursorActive() && this.isCursorKey(event.key))) {
-        this.processInput(event.key);
-      } else {
-        this.bufferKey(event.key);
-      }
-    });
-
-    context.scene.input.on("pointerup", (event: Phaser.Input.Pointer) => {
-      this.processTouchInput(context, event);
-    });
+    heroControls.bindInput(this);
   }
 
   turn() {
@@ -241,18 +202,12 @@ export default class BasicHero extends Entity {
     this.spendTime(action, this.currentWeapon()?.attackDelay ?? this.attackDelay);
   }
 
-  bufferKey(key: string) {
-    if (this.inputBuffer.length < 4) {
-      this.inputBuffer.push(key);
-    }
+  bufferKey(key: string): void {
+    heroControls.bufferKey(this, key);
   }
 
-  drainInputBuffer() {
-    if (!this.canAct() || this.inputBuffer.length === 0) return;
-    const key = this.inputBuffer.shift();
-    if (key !== undefined) {
-      this.processInput(key);
-    }
+  drainInputBuffer(): void {
+    heroControls.drainInputBuffer(this);
   }
 
   // Compatibility facade: callers and saved fields stay on the hero, while
@@ -481,179 +436,30 @@ export default class BasicHero extends Entity {
     }
   }
 
-  processTouchInput(context: GameContext, event: Phaser.Input.Pointer) {
-    if (isModalOpen(context)) return;
-    if (context.pinching || context.panning) return;
-    if (context.map == undefined) {
-      throw new Error("context.map is undefined");
-    }
-    const x = context.map.worldToTileX(event.worldX);
-    const y = context.map.worldToTileY(event.worldY);
-
-    let entity = dungeon.entityAtTile(context, x!, y!);
-    if (entity && isGrassConcealed(entity.x, entity.y, this.x, this.y)) entity = undefined;
-
-    // Throw targeting takes priority: any tap resolves the pending throw.
-    // Wand targeting is select-then-confirm: tapping an enemy selects it
-    // (highlighting its tile); tapping that same enemy again fires. Tapping
-    // any other tile still fires immediately, preserving free aiming.
-    if (context.throwMode) {
-      if (this.zapping && x !== null && y !== null) {
-        const hostile = hostileAtTile(context, x, y);
-        if (hostile && !isGrassConcealed(hostile.x, hostile.y, this.x, this.y)) {
-          if (context.cursorX === x && context.cursorY === y) {
-            this.throwAt(x, y);
-          } else {
-            context.cursorX = x;
-            context.cursorY = y;
-          }
-          return;
-        }
-      }
-      this.throwAt(x!, y!);
-      return;
-    }
-
-    // Inspect is a UI action: always available, on any turn.
-    if (context.inspectMode) {
-      if (x !== null && y !== null) {
-        this.exitCursorModes();
-        this.inspectTile(x, y);
-      }
-      return;
-    }
-
-    if (x !== null && y !== null && this.x === x && this.y === y &&
-        x === context.upstairsX && y === context.upstairsY) {
-      context.onAscend?.();
-      return;
-    }
-
-    // Tap the stairs you're standing on to descend (mobile-friendly).
-    if (
-      x !== null &&
-      y !== null &&
-      this.x === x &&
-      this.y === y &&
-      x === context.stairsX &&
-      y === context.stairsY
-    ) {
-      context.onDescend?.();
-      return;
-    }
-
-    if (entity && isHostile(entity)) {
-      const currentWeapon = this.currentWeapon();
-      const rangedAttack = currentWeapon && currentWeapon.range() > 0
-        ? currentWeapon.attackTile || currentWeapon.tile
-        : false;
-      const distance = currentWeapon
-        ? dungeon.distanceBetweenEntities(this, entity)
-        : 0;
-      const hasLOS = hasLineOfSight(
-        dungeon.getCurrentLevel(),
-        this.x!,
-        this.y!,
-        entity.x!,
-        entity.y!
-      );
-
-      if (
-        currentWeapon &&
-        rangedAttack &&
-        hasLOS &&
-        distance <= currentWeapon.range() &&
-        this.canAct()
-      ) {
-        dungeon.attackEntity(
-          context,
-          this,
-          entity,
-          rangedAttack,
-          currentWeapon.tint,
-          currentWeapon.damageType
-        );
-        this.spendTurn("attack");
-      } else {
-        // No ranged attack: chase the enemy and attack when adjacent.
-        this.setWalkTarget(entity.x!, entity.y!, entity);
-      }
-      return;
-    }
-
-    if (entity && entity.type === "item") {
-      // Walk toward the item and pick it up when adjacent.
-      this.setWalkTarget(entity.x!, entity.y!);
-      return;
-    }
-
-    // Tap a walkable tile to move there (SPD-style).
-    this.setWalkTarget(x!, y!);
+  // Control facade: public for the explicit HeroControlHost contract. The
+  // factories own policy; actor methods/state and existing callers stay stable.
+  processTouchInput(context: GameContext, event: PointerPosition): void {
+    heroControls.processTouchInput(this, context, event);
   }
 
-  // --- Inspect cursor + throw targeting ---
-
-  private cursorActive(): boolean {
-    return this.context.inspectMode || this.context.throwMode || !!this.context.terrainActionMode;
+  cursorActive(): boolean {
+    return heroControls.cursorActive(this);
   }
 
-  private isCursorKey(key: string): boolean {
-    return (
-      key === "x" || key === "X" || key === "Escape" || key === "Enter" ||
-      key === "ArrowLeft" || key === "ArrowRight" ||
-      key === "ArrowUp" || key === "ArrowDown" ||
-      this.cursorDir(key) !== undefined
-    );
+  isCursorKey(key: string): boolean {
+    return heroControls.isCursorKey(this, key);
   }
 
-  private cursorDir(key: string): { dx: number; dy: number } | undefined {
-    switch (key) {
-      case "Home": return { dx: -1, dy: -1 };
-      case "PageUp": return { dx: 1, dy: -1 };
-      case "End": return { dx: -1, dy: 1 };
-      case "PageDown": return { dx: 1, dy: 1 };
-      case "ArrowLeft":
-      case "h":
-        return { dx: -1, dy: 0 };
-      case "ArrowRight":
-      case "l":
-        return { dx: 1, dy: 0 };
-      case "ArrowUp":
-      case "k":
-        return { dx: 0, dy: -1 };
-      case "ArrowDown":
-      case "j":
-        return { dx: 0, dy: 1 };
-      default:
-        return undefined;
-    }
+  cursorDir(key: string): { dx: number; dy: number } | undefined {
+    return heroControls.cursorDir(this, key);
   }
 
   inspectOrSearch(): void {
-    this.context.terrainActionMode = false;
-    if (this.context.throwMode) this.cancelThrow();
-    this.walkPath = [];
-    if (this.context.inspectMode) {
-      this.exitCursorModes();
-      this.context.inspectChoices = undefined;
-      this.search();
-    } else {
-      this.toggleInspectMode();
-    }
+    heroControls.inspectOrSearch(this);
   }
 
   toggleInspectMode(): void {
-    const context = this.context;
-    context.terrainActionMode = false;
-    context.inspectMode = !context.inspectMode;
-    context.inspectedEntity = undefined;
-    context.inspectedTerrain = undefined;
-    if (context.inspectMode) {
-      // Position the cursor, but wait for a tile selection before inspecting.
-      context.cursorX = this.x;
-      context.cursorY = this.y;
-    }
-    context.onInspectModeChange?.(context.inspectMode);
+    heroControls.toggleInspectMode(this);
   }
 
   // SPD-style search (looking glass): reveal hidden traps around the hero.
@@ -684,328 +490,52 @@ export default class BasicHero extends Entity {
     this.spendTurn("search");
   }
 
-  // --- Touch-to-move (auto-walk) ---
-
-  private nextStepToward(tx: number, ty: number): { x: number; y: number } | null {
-    if (this.x === undefined || this.y === undefined) return null;
-    const path = dungeon.findPath(this.x, this.y, tx, ty, true, true, this);
-    if (path.length > 1) return { x: path[1][0], y: path[1][1] };
-    return null;
+  nextStepToward(tx: number, ty: number): { x: number; y: number } | null {
+    return heroControls.nextStepToward(this, tx, ty);
   }
 
-  private setWalkTarget(tx: number, ty: number, target?: Entity): void {
-    if (this.x === undefined || this.y === undefined) return;
-    // Chasing a hostile entity re-targets each step (see stepAutoWalk) so a
-    // moving monster is pursued, not the tile it occupied when tapped.
-    this.walkTargetEntity =
-      target && isHostile(target) ? target : undefined;
-    if (this.tryStepIntoChasm(tx, ty)) return;
-    this.context.onResumeFollow?.();
-    // A fresh command acknowledges current threats, but not other monsters
-    // encountered later along the route. Use identity rather than position.
-    this.acknowledgedWalkEnemies = new Set(
-      this.context.entities.filter((entity) =>
-        isHostile(entity) && entity.healthPoints > 0 &&
-        this.context.visibleTiles.has(`${entity.x},${entity.y}`) &&
-        !isGrassConcealed(entity.x, entity.y, this.x, this.y)
-      )
-    );
-    const path = dungeon.findPath(this.x, this.y, tx, ty, true, true, this);
-    this.walkPath =
-      path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
+  setWalkTarget(tx: number, ty: number, target?: Entity): void {
+    heroControls.setWalkTarget(this, tx, ty, target);
   }
 
-  private stepAutoWalk(): void {
-    if (isModalOpen(this.context)) return;
-    if (this.walkPath.length === 0) return;
-    if (this.context.entities.some((entity) =>
-      isHostile(entity) && entity.healthPoints > 0 &&
-      !this.acknowledgedWalkEnemies.has(entity) &&
-      this.context.visibleTiles.has(`${entity.x},${entity.y}`) &&
-      !isGrassConcealed(entity.x, entity.y, this.x, this.y)
-    )) {
-      this.walkPath = [];
-      this.walkTargetEntity = undefined;
-      return;
-    }
-    if (!this.canAct()) return;
-
-    // A moving enemy is chased by re-pathing toward its current tile every
-    // step. If it dies, stop; if it leaves sight, fall back to its last known
-    // position (already stored as the end of the current walkPath).
-    if (this.walkTargetEntity) {
-      const target = this.walkTargetEntity;
-      const alive =
-        isHostile(target) &&
-        target.healthPoints > 0 &&
-        target.x !== undefined &&
-        target.y !== undefined &&
-        this.context.entities.includes(target);
-      if (!alive || this.x === undefined || this.y === undefined) {
-        this.walkTargetEntity = undefined;
-        this.walkPath = [];
-        return;
-      }
-      if (!this.context.visibleTiles.has(`${target.x},${target.y}`) ||
-          isGrassConcealed(target.x, target.y, this.x, this.y)) {
-        this.walkTargetEntity = undefined;
-      } else {
-        const path = dungeon.findPath(this.x!, this.y!, target.x!, target.y!, true, true, this);
-        this.walkPath =
-          path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
-        if (this.walkPath.length === 0) {
-          this.walkTargetEntity = undefined;
-          return;
-        }
-      }
-    }
-
-    const destination = this.walkPath[this.walkPath.length - 1];
-    if (!destination) {
-      this.walkPath = [];
-      this.walkTargetEntity = undefined;
-      return;
-    }
-    const step = this.nextStepToward(destination.x, destination.y);
-    if (!step) {
-      this.walkPath = [];
-      this.walkTargetEntity = undefined;
-      return;
-    }
-
-    const entity = dungeon.entityAtTile(this.context, step.x, step.y);
-
-    // Recheck every automated action: damage and movement speed may change
-    // during travel. Stop without spending time, opening doors or picking up loot.
-    if (this.hunger <= 0) {
-      const action = entity && isHostile(entity) ? 'attack' : 'move';
-      const duration = actionCost(this, action, this.currentWeapon()?.attackDelay ?? this.attackDelay);
-      if (starvationDamageDuring(this.context.simulationTime ?? 0, duration) >= this.healthPoints) {
-        this.walkPath = [];
-        this.walkTargetEntity = undefined;
-        dungeon.log(this.context, 'Auto-walk stopped: starvation would kill you. Eat or heal before continuing.');
-        return;
-      }
-    }
-
-    if (entity && isHostile(entity)) {
-      this.walkPath = [];
-      this.walkTargetEntity = undefined;
-      if (this.canAct()) {
-        const weapon = this.currentWeapon();
-        if (weapon) {
-          const ranged = weapon.range() > 0 ? weapon.attackTile || weapon.tile : 0;
-          dungeon.attackEntity(
-            this.context,
-            this,
-            entity,
-            ranged,
-            weapon.tint,
-            weapon.damageType
-          );
-          this.spendTurn("attack");
-        }
-      }
-      return;
-    }
-
-    if (hasEffect(this, "rooted")) {
-      this.walkPath = [];
-      this.walkTargetEntity = undefined;
-      return;
-    }
-
-    if (hasEffect(this, "confused") && dungeon.confusedMove(this.context, this)) return;
-
-    if (entity && entity.type === "item") {
-      this.walkPath = [];
-      if (entity.isContainer) {
-        entity.openContainer();
-        return;
-      }
-      if (this.addItem(entity)) {
-        dungeon.itemPicked(entity);
-        dungeon.log(this.context, pickupMessage(entity));
-        // Pickup is included in the cost of stepping onto this tile.
-        this.spendTurn("move");
-        dungeon.moveEntityTo(this.context, this, step.x, step.y);
-      }
-      return;
-    }
-
-    // Opening a closed door is its own action: spend the turn here, then step
-    // through on the next auto-walk action.
-    if (dungeon.openDoor(step.x, step.y)) {
-      this.spendTurn("openDoor");
-      return;
-    }
-    if (dungeon.isWalkableTile(this.context, step.x, step.y)) {
-      this.walkPath.shift();
-      this.spendTurn("move");
-      dungeon.moveEntityTo(this.context, this, step.x, step.y);
-    } else {
-      this.walkPath = [];
-      this.walkTargetEntity = undefined;
-    }
+  stepAutoWalk(): void {
+    heroControls.stepAutoWalk(this);
   }
 
-  private tryStepIntoChasm(x: number, y: number): boolean {
-    if (!dungeon.canEnterChasm(this.context, this, x, y)) return false;
-    this.walkPath = [];
-    this.inputBuffer = [];
-    if (!this.canAct() || isModalOpen(this.context)) return true;
-    const warning = this.context.floor === 25
-      ? "You will fall to your death."
-      : "You will fall to the level below and take damage (1/3 of your maximum HP).";
-    const floor = this.context.floor;
-    const originX = this.x;
-    const originY = this.y;
-    this.context.onConfirmChasm?.(warning, () => {
-      // The UI is asynchronous: reject stale confirmations after travel or death.
-      if (this.context.floor !== floor || this.x !== originX || this.y !== originY ||
-          this.healthPoints <= 0 || !this.canAct() || isModalOpen(this.context)) return;
-      if (dungeon.stepIntoChasm(this.context, this, x, y)) this.spendTurn("move");
-    });
-    return true;
+  tryStepIntoChasm(x: number, y: number): boolean {
+    return heroControls.tryStepIntoChasm(this, x, y);
   }
 
-  private exitCursorModes(): void {
-    const context = this.context;
-    context.terrainActionMode = false;
-    if (context.throwMode) {
-      this.cancelThrow();
-      return;
-    }
-    if (context.inspectMode) {
-      context.inspectMode = false;
-      context.inspectedEntity = undefined;
-      context.inspectedTerrain = undefined;
-      context.onInspectModeChange?.(false);
-    }
+  exitCursorModes(): void {
+    heroControls.exitCursorModes(this);
   }
 
-  private moveCursor(dx: number, dy: number): void {
-    const context = this.context;
-    if (context.cursorX === undefined || context.cursorY === undefined) {
-      context.cursorX = this.x;
-      context.cursorY = this.y;
-    }
-    if (context.cursorX === undefined || context.cursorY === undefined) return;
-
-    const level = dungeon.getCurrentLevel();
-    const nx = context.cursorX + dx;
-    const ny = context.cursorY + dy;
-    if (ny < 0 || nx < 0 || ny >= level.length || nx >= level[0].length) return;
-
-    context.cursorX = nx;
-    context.cursorY = ny;
-
-    if (context.inspectMode) {
-      this.updateInspectedFromCursor();
-    }
+  moveCursor(dx: number, dy: number): void {
+    heroControls.moveCursor(this, dx, dy);
   }
 
-  private updateInspectedFromCursor(): void {
-    const context = this.context;
-    if (context.cursorX === undefined || context.cursorY === undefined) return;
-    const x = context.cursorX;
-    const y = context.cursorY;
-
-    this.inspectTile(x, y);
+  updateInspectedFromCursor(): void {
+    heroControls.updateInspectedFromCursor(this);
   }
 
-  private inspectTile(x: number, y: number): void {
-    const context = this.context;
-    context.inspectChoices = undefined;
-    context.inspectedEntity = undefined;
-    context.inspectedTerrain = undefined;
-    if (!context.visibleTiles.has(`${x},${y}`)) return;
-
-    const entities = context.entities.filter((entity) =>
-      entity.sprite && entity.x === x && entity.y === y && entity.type !== "player" &&
-      !isGrassConcealed(entity.x, entity.y, this.x, this.y)
-    );
-    if (entities.length > 1) {
-      context.inspectChoices = entities;
-    } else if (entities.length === 1) {
-      context.inspectedEntity = entities[0];
-    } else {
-      context.inspectedTerrain = dungeon.inspectTile(x, y);
-    }
+  inspectTile(x: number, y: number): void {
+    heroControls.inspectTile(this, x, y);
   }
 
-  // Nearest visible, unobstructed enemy for wand auto-targeting. Kept
-  // defensive (entities/visibleTiles may be absent in headless tests).
-  private closestZapTarget(): Entity | undefined {
-    const context = this.context;
-    if (this.x === undefined || this.y === undefined) return undefined;
-    const level = dungeon.getCurrentLevel();
-    if (!level?.length) return undefined;
-
-    let best: Entity | undefined;
-    let bestDistance = Infinity;
-    for (const entity of context.entities ?? []) {
-      if (!isHostile(entity) || (entity.healthPoints ?? 0) <= 0 || !entity.sprite) continue;
-      if (entity.x === undefined || entity.y === undefined) continue;
-      if (!context.visibleTiles?.has(`${entity.x},${entity.y}`)) continue;
-      if (isGrassConcealed(entity.x, entity.y, this.x, this.y)) continue;
-      if (!hasLineOfSight(level, this.x, this.y, entity.x, entity.y)) continue;
-
-      const distance = Math.max(
-        Math.abs(entity.x - this.x),
-        Math.abs(entity.y - this.y)
-      );
-      if (distance < bestDistance) {
-        best = entity;
-        bestDistance = distance;
-      }
-    }
-    return best;
+  closestZapTarget(): Entity | undefined {
+    return heroControls.closestZapTarget(this);
   }
 
   beginThrow(item: Entity, zap = false): void {
-    const context = this.context;
-    if (!this.getAllItems().includes(item)) {
-      dungeon.log(context, "You don't have that item.");
-      return;
-    }
-    if (item.cursed && this.slotOf(item) && !zap) {
-      dungeon.log(context, `${item.displayName} is cursed and cannot be thrown.`);
-      return;
-    }
-
-    this.zapping = zap;
-    context.terrainActionMode = false;
-    context.throwMode = true;
-    context.throwItem = item;
-    if (zap) {
-      // Zapping starts aimed at the nearest visible enemy so a second tap on
-      // the wand (or a tap on that enemy) fires immediately. With no valid
-      // enemy, the cursor stays on the hero and must be moved before firing.
-      const target = this.closestZapTarget();
-      context.cursorX = target?.x ?? this.x;
-      context.cursorY = target?.y ?? this.y;
-    } else if (context.cursorX === undefined || context.cursorY === undefined) {
-      context.cursorX = this.x;
-      context.cursorY = this.y;
-    }
-    // Targeting instructions are shown temporarily by the HUD.
+    heroControls.beginThrow(this, item, zap);
   }
 
   cancelThrow(): void {
-    const context = this.context;
-    if (!context.throwMode) return;
-    context.throwMode = false;
-    context.throwItem = undefined;
-    this.zapping = false;
-
+    heroControls.cancelThrow(this);
   }
 
   throwAtCursor(): void {
-    const context = this.context;
-    if (!context.throwMode || !context.throwItem) return;
-    if (context.cursorX === undefined || context.cursorY === undefined) return;
-    this.throwAt(context.cursorX, context.cursorY);
+    heroControls.throwAtCursor(this);
   }
 
   // Resolve a throw at a tile (reached from a pointer tap or the cursor).
@@ -1431,149 +961,12 @@ export default class BasicHero extends Entity {
     return enemies;
   }
 
-  processInput(key: string) {
-    if (isModalOpen(this.context)) return;
-    const context = this.context;
+  processInput(key: string): void {
+    heroControls.processInput(this, key);
+  }
 
-    // --- Inspect / throw cursor modes ---
-    // While a cursor is active, arrows/HJKL move the highlighted tile instead
-    // of the player, x/Escape leave the mode, and Enter throws at the cursor.
-    if (this.cursorActive()) {
-      if (key === "Escape") {
-        this.exitCursorModes();
-        return;
-      }
-      if (key === "x" || key === "X") {
-        if (context.terrainActionMode) {
-          this.exitCursorModes();
-        } else if (context.throwMode) {
-          this.cancelThrow();
-        } else {
-          this.toggleInspectMode();
-        }
-        return;
-      }
-      if (key === "Enter") {
-        if (context.throwMode) {
-          this.throwAtCursor();
-        }
-        return;
-      }
-      const dir = this.cursorDir(key);
-      if (dir) {
-        this.moveCursor(dir.dx, dir.dy);
-        return;
-      }
-      // Ignore every other key while a cursor mode is active.
-      return;
-    }
-
-    // `x` toggles the inspect cursor on from normal play.
-    if (key === "x" || key === "X") {
-      this.toggleInspectMode();
-      return;
-    }
-
-    if (!this.canAct()) return;
-
-    const oldX = this.x!;
-    const oldY = this.y!;
-    let moved = false;
-    let newX = this.x!;
-    let newY = this.y!;
-
-    // Active class skill (f / F).
-    if (key === "f" || key === "F") {
-      this.tryUseSkill();
-      return;
-    }
-
-    // Search (s / S): reveal nearby secrets without disabling traps.
-    if (key === "s" || key === "S") {
-      this.search();
-      return;
-    }
-
-    // Pass the turn
-    if (key == " ") {
-      this.waitTurn();
-    }
-
-    const dir = this.cursorDir(key);
-    if (dir) {
-      newX += dir.dx;
-      newY += dir.dy;
-      if (hasEffect(this, "confused") &&
-          dungeon.entityAtTile(context, newX, newY)?.type !== "enemy" &&
-          dungeon.confusedMove(context, this)) return;
-      moved = true;
-    }
-
-    // Execute movement
-    if (moved) {
-      this.context.onResumeFollow?.();
-      this.walkPath = []; // manual input cancels auto-walk
-      if (!dungeon.canStepBetween(oldX, oldY, newX, newY, this)) return;
-      // Entering a revealed trap requires explicitly clicking its tile.
-      if (getTrapState(newX, newY) === "visible") return;
-      if (hasEffect(this, "rooted") &&
-          dungeon.entityAtTile(this.context, newX, newY)?.type !== "enemy") return;
-      if (this.tryStepIntoChasm(newX, newY)) return;
-      // Opening a closed door is its own action (SPD-style): spend a turn to
-      // open it and stay put, then step through on a later action.
-      if (dungeon.openDoor(newX, newY)) {
-        this.spendTurn("openDoor");
-        return;
-      }
-
-      if (!dungeon.isWalkableTile(this.context, newX, newY)) {
-        const entity = dungeon.entityAtTile(this.context, newX, newY);
-
-        // Check if entity at destination is an enemy
-        if (entity && isHostile(entity)) {
-          const currentWeapon = this.currentWeapon();
-          if (!currentWeapon) {
-            return;
-          }
-          const rangedAttack = currentWeapon.range() > 0 ? currentWeapon.attackTile || currentWeapon.tile : 0;
-          dungeon.attackEntity(
-            this.context,
-            this,
-            entity,
-            rangedAttack,
-            currentWeapon.tint,
-            currentWeapon.damageType
-          );
-          this.spendTurn("attack");
-        }
-
-        // Check if entity at destination is an item
-        if (entity && entity.type == "item" && !hasEffect(this, "rooted")) {
-          if (entity.isContainer) {
-            entity.openContainer();
-            return;
-          }
-          if (this.addItem(entity)) {
-            dungeon.itemPicked(entity);
-            dungeon.log(this.context, pickupMessage(entity));
-            // Pickup shares the movement turn below.
-          } else {
-            newX = oldX;
-            newY = oldY;
-          }
-        } else {
-          newX = oldX;
-          newY = oldY;
-        }
-
-      }
-
-      if (newX !== oldX || newY !== oldY) {
-        if (hasEffect(this, "rooted")) return;
-        this.spendTurn("move");
-        dungeon.moveEntityTo(this.context, this, newX, newY);
-      }
-    }
+  stepManually(dx: number, dy: number): void {
+    heroControls.stepManually(this, dx, dy);
   }
 
   isOver() {

@@ -1,0 +1,148 @@
+import type { Entity } from './entity';
+import type { HeroControlHost, HeroControlServices } from './heroControlTypes';
+import { cursorDirection, isHostile } from './heroControlRules.ts';
+
+// Inspect/aim mode transitions are free. Projectile resolution remains on the
+// hero; this module selects a target without consuming charges or action time.
+export function createHeroTargeting(services: HeroControlServices) {
+  const { dungeon, isGrassConcealed, hasLineOfSight } = services;
+  return {
+    cursorDir: (_hero: HeroControlHost, key: string) => cursorDirection(key),
+    cursorActive: (hero: HeroControlHost) =>
+      hero.context.inspectMode || hero.context.throwMode || !!hero.context.terrainActionMode,
+    isCursorKey: (hero: HeroControlHost, key: string) =>
+      key === 'x' || key === 'X' || key === 'Escape' || key === 'Enter' || hero.cursorDir(key) !== undefined,
+
+    inspectOrSearch(hero: HeroControlHost): void {
+      hero.context.terrainActionMode = false;
+      if (hero.context.throwMode) hero.cancelThrow();
+      hero.walkPath = [];
+      if (hero.context.inspectMode) {
+        hero.exitCursorModes();
+        hero.context.inspectChoices = undefined;
+        hero.search();
+      } else {
+        hero.toggleInspectMode();
+      }
+    },
+
+    toggleInspectMode(hero: HeroControlHost): void {
+      const context = hero.context;
+      context.terrainActionMode = false;
+      context.inspectMode = !context.inspectMode;
+      context.inspectedEntity = undefined;
+      context.inspectedTerrain = undefined;
+      if (context.inspectMode) {
+        context.cursorX = hero.x;
+        context.cursorY = hero.y;
+      }
+      context.onInspectModeChange?.(context.inspectMode);
+    },
+
+    exitCursorModes(hero: HeroControlHost): void {
+      const context = hero.context;
+      context.terrainActionMode = false;
+      if (context.throwMode) {
+        hero.cancelThrow();
+        return;
+      }
+      if (context.inspectMode) {
+        context.inspectMode = false;
+        context.inspectedEntity = undefined;
+        context.inspectedTerrain = undefined;
+        context.onInspectModeChange?.(false);
+      }
+    },
+
+    moveCursor(hero: HeroControlHost, dx: number, dy: number): void {
+      const context = hero.context;
+      if (context.cursorX === undefined || context.cursorY === undefined) {
+        context.cursorX = hero.x;
+        context.cursorY = hero.y;
+      }
+      if (context.cursorX === undefined || context.cursorY === undefined) return;
+      const level = dungeon.getCurrentLevel();
+      const nx = context.cursorX + dx, ny = context.cursorY + dy;
+      if (ny < 0 || nx < 0 || ny >= level.length || nx >= level[0].length) return;
+      context.cursorX = nx;
+      context.cursorY = ny;
+      if (context.inspectMode) hero.updateInspectedFromCursor();
+    },
+
+    updateInspectedFromCursor(hero: HeroControlHost): void {
+      const { cursorX, cursorY } = hero.context;
+      if (cursorX !== undefined && cursorY !== undefined) hero.inspectTile(cursorX, cursorY);
+    },
+
+    inspectTile(hero: HeroControlHost, x: number, y: number): void {
+      const context = hero.context;
+      context.inspectChoices = undefined;
+      context.inspectedEntity = undefined;
+      context.inspectedTerrain = undefined;
+      if (!context.visibleTiles.has(`${x},${y}`)) return;
+      const entities = context.entities.filter(entity =>
+        entity.sprite && entity.x === x && entity.y === y && entity.type !== 'player' &&
+        !isGrassConcealed(entity.x, entity.y, hero.x, hero.y));
+      if (entities.length > 1) context.inspectChoices = entities;
+      else if (entities.length === 1) context.inspectedEntity = entities[0];
+      else context.inspectedTerrain = dungeon.inspectTile(x, y);
+    },
+
+    closestZapTarget(hero: HeroControlHost): Entity | undefined {
+      const context = hero.context;
+      if (hero.x === undefined || hero.y === undefined) return undefined;
+      const level = dungeon.getCurrentLevel();
+      if (!level?.length) return undefined;
+      let best: Entity | undefined;
+      let bestDistance = Infinity;
+      for (const entity of context.entities ?? []) {
+        if (!isHostile(entity) || (entity.healthPoints ?? 0) <= 0 || !entity.sprite) continue;
+        if (entity.x === undefined || entity.y === undefined) continue;
+        if (!context.visibleTiles?.has(`${entity.x},${entity.y}`)) continue;
+        if (isGrassConcealed(entity.x, entity.y, hero.x, hero.y)) continue;
+        if (!hasLineOfSight(level, hero.x, hero.y, entity.x, entity.y)) continue;
+        const distance = Math.max(Math.abs(entity.x - hero.x), Math.abs(entity.y - hero.y));
+        if (distance < bestDistance) { best = entity; bestDistance = distance; }
+      }
+      return best;
+    },
+
+    beginThrow(hero: HeroControlHost, item: Entity, zap = false): void {
+      const context = hero.context;
+      if (!hero.getAllItems().includes(item)) {
+        dungeon.log(context, "You don't have that item.");
+        return;
+      }
+      if (item.cursed && hero.slotOf(item) && !zap) {
+        dungeon.log(context, `${item.displayName} is cursed and cannot be thrown.`);
+        return;
+      }
+      hero.zapping = zap;
+      context.terrainActionMode = false;
+      context.throwMode = true;
+      context.throwItem = item;
+      if (zap) {
+        const target = hero.closestZapTarget();
+        context.cursorX = target?.x ?? hero.x;
+        context.cursorY = target?.y ?? hero.y;
+      } else if (context.cursorX === undefined || context.cursorY === undefined) {
+        context.cursorX = hero.x;
+        context.cursorY = hero.y;
+      }
+    },
+
+    cancelThrow(hero: HeroControlHost): void {
+      if (!hero.context.throwMode) return;
+      hero.context.throwMode = false;
+      hero.context.throwItem = undefined;
+      hero.zapping = false;
+    },
+
+    throwAtCursor(hero: HeroControlHost): void {
+      const context = hero.context;
+      if (!context.throwMode || !context.throwItem) return;
+      if (context.cursorX === undefined || context.cursorY === undefined) return;
+      hero.throwAt(context.cursorX, context.cursorY);
+    },
+  };
+}

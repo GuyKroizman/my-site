@@ -89,16 +89,21 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   Object.assign(scroll, { requiresItemTarget: false, itemTargetTitle: 'CLEANSE: CHOOSE ITEM',
     description: 'Upgrades your equipped weapon.', count: 3, locallyIdentified: true });
   hero.backpack = [scroll];
-  const registry = { hero: SavedHero, scroll: ScrollOfUpgrade };
+  class IceElemental { constructor() { Object.assign(this, { type: 'enemy', tile: 6 * 49 + 9 }); } }
+  const legacyIce = new IceElemental();
+  Object.assign(legacyIce, { x: 0, y: 0, healthPoints: 16 });
+  const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, IceElemental };
   const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
     knowledge: { appearances: [], known: [] }, floors: new Map([[1, {
-      map: [[0]], seen: [[true]], features: [], entities: [], savedAt: 0,
+      map: [[0]], seen: [[true]], features: [], entities: [legacyIce], savedAt: 0,
       up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
     }]]) }, registry);
   const { decodeRunSave } = load('src/games/rogue0/runPersistence.ts', {
     decodeGraph, saveRegistry: registry, restoreEffects, ScrollOfUpgrade,
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
     Mimic: class {}, SwarmOfFlies: class {},
+    IceElemental,
+    ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
   });
   const save = { version: 1, heroClass: 'Warrior', floor: 1, graph };
   const run = decodeRunSave(save, {});
@@ -111,6 +116,11 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.match(restored.description, /Choose/);
   assert.equal(restored.count, 3);
   assert.equal(restored.identified, true);
+  const savedIce = run.floors.get(1).entities[0];
+  assert.ok(savedIce instanceof IceElemental);
+  assert.equal(savedIce.textureKey, 'monster-ice-elemental',
+    'legacy ice elementals drop the chest atlas frame when rebuilt');
+  assert.equal(savedIce.tile, 0);
 }
 const memory = new Map();
 let blocked = false;

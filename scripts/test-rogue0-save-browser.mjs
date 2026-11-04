@@ -86,6 +86,16 @@ try {
     applyEffect(p, createBlindedEffect(8)); applyEffect(p, createPoisonedEffect(6));
     const { saveConsumableKnowledge } = await import('/src/games/rogue0/entity.ts');
     ctx.poisonClouds = [{ x: 1, y: 1, nextTick: (ctx.simulationTime ?? 0) + 1, expiresAt: (ctx.simulationTime ?? 0) + 10 }];
+    // A checkpoint must not resume queued movement, pursuit or targeting. Pause
+    // world input so this fixture cannot execute commands before the reload.
+    ctx.helpOpen = true;
+    p.inputBuffer = ['ArrowRight'];
+    p.walkPath = [{ x: p.x + 1, y: p.y }];
+    p.walkTargetEntity = ctx.entities.find(entity => entity.type === 'enemy');
+    p.acknowledgedWalkEnemies = new Set([p.walkTargetEntity]);
+    p.zapping = true;
+    ctx.throwMode = true;
+    ctx.throwItem = wand;
     ctx.saveNow();
     return { firstMap, gas: ctx.poisonClouds, map: JSON.stringify(dungeon.getCurrentLevel()), knowledge: saveConsumableKnowledge(ctx),
       x: p.x, y: p.y, floor: ctx.floor, accuracy: p.accuracy,
@@ -103,7 +113,15 @@ try {
     const { default: Wand } = await import('/src/games/rogue0/items/WandOfFrost.ts');
     const { saveConsumableKnowledge } = await import('/src/games/rogue0/entity.ts');
     c.saveNow();
-    return { firstMap: JSON.stringify(s.floors.get(1).map), gas: c.poisonClouds, map: JSON.stringify(dungeon.getCurrentLevel()),
+    const keyboard = c.scene.input.keyboard, input = c.scene.input;
+    const before = [keyboard.listenerCount('keydown'), input.listenerCount('pointerup'),
+      c.scene.events.listenerCount('shutdown')];
+    p.bindInput(); p.bindInput();
+    const after = [keyboard.listenerCount('keydown'), input.listenerCount('pointerup'),
+      c.scene.events.listenerCount('shutdown')];
+    return { controls: [p.inputBuffer.length, p.walkPath.length, p.acknowledgedWalkEnemies.size,
+        p.walkTargetEntity === undefined, p.zapping, c.throwMode, c.inspectMode],
+      bindings: { before, after }, firstMap: JSON.stringify(s.floors.get(1).map), gas: c.poisonClouds, map: JSON.stringify(dungeon.getCurrentLevel()),
       knowledge: saveConsumableKnowledge(c), x: p.x, y: p.y, floor: c.floor, accuracy: p.accuracy,
       effects: p.effects.map(({id, duration, nextTick}) => ({id, duration, nextTick})),
       enemies: c.entities.filter(e => e.type === 'enemy').map(e => [e.name, e.x, e.y, e.healthPoints, e.sleepTurnsRemaining]),
@@ -115,6 +133,8 @@ try {
   });
   for (const [key, value] of Object.entries(expected)) assert.deepEqual(actual[key], value, key);
   assert.deepEqual(actual.artifact, [5, 5, 7, 'function']);
+  assert.deepEqual(actual.controls, [0, 0, 0, true, false, false, false], 'control state is reset after resume');
+  assert.deepEqual(actual.bindings.after, actual.bindings.before, 'repeated binding does not accumulate real Phaser listeners');
   assert.deepEqual([actual.hp, actual.hunger, actual.gold, actual.upgrade, actual.talent, actual.wand, actual.charges],
     [24, 63.5, 77, 2, 1, true, 2]);
 
@@ -180,7 +200,7 @@ try {
   await page.getByRole('heading', { name: 'You died' }).waitFor();
   assert.equal(await page.evaluate(() => localStorage.getItem('rogue0.run.v1')), null);
   assert.deepEqual(errors, [], 'no save or load errors');
-  console.log('Rogue0 browser resume: floors, maps, stats, talents, shared quickslots, effects, knowledge, enemies, live inventory/HUD, autosave, replacement cancellation and permadeath passed');
+  console.log('Rogue0 browser resume: floors, maps, stats, talents, shared quickslots, effects, knowledge, enemies, live inventory/HUD, clean control state, idempotent input binding, autosave, replacement cancellation and permadeath passed');
 } finally {
   await browser.close();
 }

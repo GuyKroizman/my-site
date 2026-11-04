@@ -22,6 +22,16 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
   The active `ui.ts` HUD reads current state each frame; the uncalled legacy
   sidebar and its `createUI`/`refreshUI` machinery have been removed from heroes.
   Item changes no longer call into hero-owned UI objects.
+- `heroInput.ts` routes keyboard/touch input and owns runtime subscriptions.
+  Rebinding a hero is idempotent; scene shutdown detaches its handlers without
+  removing other listeners. `heroNavigation.ts` owns manual/automatic movement
+  policy, threat interruption, starvation checks and chasm confirmations.
+  `heroTargeting.ts` owns inspect/aim modes and visible wand-target selection.
+  These modules take explicit services/actors and import no Phaser runtime.
+  `heroControls.ts` supplies runtime wiring, and `HeroControlHost` defines the
+  hero facade. Queues, pursuit and aiming state are still reset on browser load;
+  no new controller object or save ID is introduced. Projectile impact and
+  terrain/scheduler execution remain outside these input modules.
 - `runPersistence.ts` owns typed floor/run snapshots, decoding, validation and
   v1 compatibility repairs. `Scene0` still owns Phaser lifecycle, checkpoint
   timing, rendering and floor transitions. Restoring actors must not rerun
@@ -41,13 +51,16 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
 Run `npm run test:rogue0` for all headless suites, or
 `npm run test:rogue0:combat` for the shared combat pipeline and
 `npm run test:rogue0:inventory` for the inventory, item presentation and HUD view
-boundaries. These new suites import the extracted modules directly. The
-Chromium suite also checks the live HUD and inventory after resume, including
-free modal opening/closing. Test history is appended automatically.
+boundaries. `npm run test:rogue0:controls` covers input lifecycle, buffering,
+movement costs, pursuit, starvation/chasm safety and targeting. These new
+suites import the extracted modules directly. The Chromium suite also checks
+the live HUD/inventory after resume, free modal opening/closing, cleared pending
+controls, and repeated input binding with real Phaser listeners. Test history
+is appended automatically.
 
-Further incremental work: extract hero input/navigation/targeting and scene
-rendering responsibilities, replace the remaining isolated source loaders,
-then move the terrain/dungeon/scheduler singletons to run-owned state. Save
+Further incremental work: separate projectile resolution and scene rendering,
+replace the remaining isolated source loaders, then move the terrain/dungeon/
+scheduler singletons to run-owned state. Save
 field selection also remains graph-based; changes to persisted fields still
 need compatibility handling.
 

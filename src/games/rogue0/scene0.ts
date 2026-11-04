@@ -98,6 +98,7 @@ import { saveRegistry } from './saveRegistry';
 import { writeRunSave, clearRunSave } from './saveStorage';
 import { generateFireElementalTexture } from './monsters/fireElementalTexture';
 import { generateLightningElementalTexture } from './monsters/lightningElementalTexture';
+import { generateIceElementalTexture } from './monsters/iceElementalTexture';
 import { generateFlySwarmTexture } from './monsters/flySwarmTexture';
 import { generateWraithTexture } from './monsters/wraithTexture';
 import { generateCultistBoltTexture, generateGoblinArrowTexture, generateTrapArrowTexture } from './projectileTextures';
@@ -332,6 +333,7 @@ export class Scene0 extends Phaser.Scene {
       restoreRunState(this.context, resumed);
       generateFireElementalTexture(this);
       generateLightningElementalTexture(this);
+      generateIceElementalTexture(this);
       generateFlySwarmTexture(this);
       generateWraithTexture(this);
       player.bindInput();

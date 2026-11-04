@@ -14,6 +14,8 @@ import Ring from './items/ring';
 import Wand from './items/wand';
 import Mimic from './monsters/mimic';
 import SwarmOfFlies from './monsters/swarmOfFlies';
+import { IceElemental } from './monsters/elemental';
+import { ICE_ELEMENTAL_TEXTURE } from './monsters/iceElementalTexture';
 
 export type SavedFloor = {
   savedAt: number;
@@ -73,6 +75,12 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     for (const entity of data.entities) {
       if (entity instanceof Mimic) entity.restoreLegacyStrength(floor);
       if (entity instanceof SwarmOfFlies) entity.flying = true;
+      // Older saves stored the ice elemental as a chest atlas frame; point it
+      // back at the generated crystal art when its sprite is rebuilt.
+      if (entity instanceof IceElemental && entity.textureKey !== ICE_ELEMENTAL_TEXTURE) {
+        entity.textureKey = ICE_ELEMENTAL_TEXTURE;
+        entity.tile = 0;
+      }
     }
   }
   const active = run.floors.get(run.floor)!;
