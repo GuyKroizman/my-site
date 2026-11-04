@@ -195,6 +195,14 @@ never changes their activation policy. Monsters avoid revealed (armed) traps
 during ordinary navigation, but confusion overrides that caution and they may
 stumble onto a plate.
 
+**Inspect** (`x`, or the magnifying glass) is free and never spends a turn.
+Moving the cursor over a visible tile describes it; hidden traps still read as
+"Stone floor." When a tile holds several things the dialog lists them all —
+items, monsters and the terrain itself — and each entry has its own detail view,
+so a scroll lying on a trap no longer hides the trap. Tiles with nothing beyond
+plain floor skip the terrain entry, so a lone item still opens directly. Tapping
+a row chooses it; number keys `1`–`3` choose a row on the current page.
+
 **Chasms:** move into an adjacent chasm with a direction key or tap its tile.
 An “Are you sure?” confirmation warns about the fall before committing.
 Accepting drops you into the next floor, costs movement time, and deals

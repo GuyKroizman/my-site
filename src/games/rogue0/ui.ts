@@ -1,4 +1,4 @@
-import { isModalOpen, type GameContext } from "./context";
+import { applyInspectChoice, isModalOpen, type GameContext } from "./context";
 import { InventoryWindow } from "./inventoryWindow";
 import Wand from "./items/wand";
 import { LogWindow } from "./logWindow";
@@ -10,6 +10,8 @@ import { heroHudView } from './heroViewModel';
 
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
+// Number of inspect entries shown per page (one row per line).
+const INSPECT_CHOICE_PAGE_SIZE = 3;
 
 const COL = {
   gold: "#f0b429",
@@ -118,6 +120,17 @@ export class UI extends Phaser.Scene {
       if (this.context.logModalOpen) {
         if (key === "Escape") this.logWindow?.close();
         return;
+      }
+      // Pick from the shared-tile inspect list; taps work too.
+      const choices = this.context.inspectChoices;
+      if (choices?.length) {
+        if (key === "Escape") { this.closeInspectModal(); return; }
+        const pick = Number(key);
+        if (Number.isInteger(pick) && pick >= 1 && pick <= INSPECT_CHOICE_PAGE_SIZE) {
+          const choice = choices[this.inspectChoicePage * INSPECT_CHOICE_PAGE_SIZE + pick - 1];
+          if (choice) applyInspectChoice(this.context, choice);
+          return;
+        }
       }
       if (key === "i" || key === "I" || key === "b" || key === "B") {
         this.closeHeroModal();
@@ -519,14 +532,30 @@ export class UI extends Phaser.Scene {
     );
     this.heroBackdrop?.setSize(w, h);
 
-    // Inspect modal: clamp to the viewport and center it.
+    // Inspect modal: sized to its content (see fitInspectModal).
+    this.fitInspectModal();
+  }
+
+  // Grows/shrinks the inspect dialog to its current text or choice list and
+  // clamps it into the viewport, so long terrain descriptions stay readable.
+  private fitInspectModal() {
+    if (!this.inspectModal || !this.inspectModalBg || !this.inspectModalText) return;
+    const w = this.scale.width;
+    const h = this.scale.height;
     const inspW = Math.min(340, w - 16);
-    const inspH = 170;
-    this.inspectModalBg?.setSize(inspW, inspH);
-    this.inspectModalText?.setWordWrapWidth(inspW - 20);
+    let contentBottom = 60;
+    if (this.context.inspectChoices?.length) {
+      contentBottom = this.inspectChoiceRows.reduce(
+        (max, row) => Math.max(max, row.y + row.height), contentBottom);
+    } else if (this.inspectModalText.visible) {
+      contentBottom = this.inspectModalText.y + this.inspectModalText.height;
+    }
+    const inspH = Math.min(Math.max(96, contentBottom + 14), h - 16);
+    this.inspectModalBg.setSize(inspW, inspH);
+    this.inspectModalText.setWordWrapWidth(inspW - 20);
     const ix = (w - inspW) / 2;
     const iy = Phaser.Math.Clamp((h - inspH) / 2, 8, Math.max(8, h - inspH - 8));
-    this.inspectModal?.setPosition(ix, iy);
+    this.inspectModal.setPosition(ix, iy);
     this.inspectCloseBtn?.setPosition(ix + inspW - 12, iy + 8);
     this.inspectBackdrop?.setSize(w, h);
   }
@@ -626,14 +655,13 @@ export class UI extends Phaser.Scene {
       this.inspectChoiceRows.push(row);
     };
 
-    addRow(26, "Choose an object to inspect:");
-    const pageSize = 3;
+    addRow(26, "Choose something to inspect:");
+    const pageSize = INSPECT_CHOICE_PAGE_SIZE;
     const start = this.inspectChoicePage * pageSize;
-    choices.slice(start, start + pageSize).forEach((entity, index) => {
-      addRow(50 + index * 28, `${start + index + 1}. ${entity.displayName}`, () => {
-        this.context.inspectChoices = undefined;
-        this.context.inspectedEntity = entity;
-        this.context.inspectedTerrain = undefined;
+    choices.slice(start, start + pageSize).forEach((choice, index) => {
+      const label = choice.kind === "terrain" ? choice.label : choice.entity.displayName;
+      addRow(50 + index * 28, `${start + index + 1}. ${label}`, () => {
+        applyInspectChoice(this.context, choice);
       });
     });
     const pages = Math.ceil(choices.length / pageSize);
@@ -646,6 +674,11 @@ export class UI extends Phaser.Scene {
   }
 
   private updateInspectModal() {
+    this.refreshInspectModal();
+    this.fitInspectModal();
+  }
+
+  private refreshInspectModal() {
     if (!this.inspectModal || !this.inspectModalText) return;
 
     const choices = this.context.inspectChoices;

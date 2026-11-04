@@ -25,6 +25,12 @@ export type PoisonCloud = {
   bornAt?: number;
 };
 
+// One entry in the shared-tile inspect list: a visible entity or the terrain
+// itself, so an item can never hide a trap (or vice versa).
+export type InspectChoice =
+  | { kind: "entity"; entity: Entity }
+  | { kind: "terrain"; label: string; description: string };
+
 export type GameContext = {
   map: Phaser.Tilemaps.Tilemap | undefined;
   currentLevel?: number[][];
@@ -70,7 +76,7 @@ export type GameContext = {
   confirmationOpen?: boolean;
   onConfirmChasm?: (warning: string, onConfirm: () => void) => void;
   helpOpen?: boolean;
-  inspectChoices?: Entity[];
+  inspectChoices?: InspectChoice[];
   inspectedEntity?: Entity;
   // Terrain/tile description currently under the inspect cursor.
   inspectedTerrain?: string;
@@ -105,6 +111,29 @@ export type GameContext = {
 export function isModalOpen(context: GameContext): boolean {
   return !!(context.inventoryOpen || context.heroModalOpen || context.logModalOpen || context.confirmationOpen || context.helpOpen ||
     context.inspectChoices?.length || context.inspectedEntity || context.inspectedTerrain);
+}
+
+// Resolves a pick from the inspect list into the modal's detail view.
+export function applyInspectChoice(context: GameContext, choice: InspectChoice): void {
+  context.inspectChoices = undefined;
+  if (choice.kind === "terrain") {
+    context.inspectedEntity = undefined;
+    context.inspectedTerrain = choice.description;
+    return;
+  }
+  context.inspectedTerrain = undefined;
+  context.inspectedEntity = choice.entity;
+}
+
+// Removes one entity from an open inspect list (it may die while still listed).
+export function forgetInspectedEntity(context: GameContext, entity: Entity): void {
+  if (context.inspectedEntity === entity) {
+    context.inspectedEntity = undefined;
+  }
+  const choices = context.inspectChoices;
+  if (!choices?.some(choice => choice.kind === "entity" && choice.entity === entity)) return;
+  const remaining = choices.filter(choice => choice.kind !== "entity" || choice.entity !== entity);
+  context.inspectChoices = remaining.length ? remaining : undefined;
 }
 
 export function createGameContext(): GameContext {

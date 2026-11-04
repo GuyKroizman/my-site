@@ -179,13 +179,25 @@ const dungeon = {
 
   // Describes a tile for the Inspect command. Purely informational — it does
   // not reveal hidden traps (those stay invisible until stepped on).
-  inspectTile: function (x: number, y: number): string {
+  // `label` is a short name for the shared-tile choice list; it is undefined
+  // when the terrain is ordinary, so item-only tiles need no extra step.
+  inspectTileInfo: function (x: number, y: number): { label?: string; description: string } {
     const state = tiles.getTileState(x, y);
     const map = this.currentLevel;
     const isWall = !!map && map[y]?.[x] === 1;
     const gas = this.context?.poisonClouds?.some(c => c.x === x && c.y === y &&
       c.expiresAt > (this.context?.simulationTime ?? 0) + 1e-9);
-    return tiles.describeTile(state, isWall) + (gas ? " Poison gas: poisons on entry and while you remain here, even when levitating." : "");
+    const description = tiles.describeTile(state, isWall) +
+      (gas ? " Poison gas: poisons on entry and while you remain here, even when levitating." : "");
+    const featureLabel = tiles.describeTileLabel(state, isWall);
+    const label = featureLabel
+      ? (gas ? `${featureLabel} (poison gas)` : featureLabel)
+      : (gas ? "Poison gas" : undefined);
+    return { label, description };
+  },
+
+  inspectTile: function (x: number, y: number): string {
+    return this.inspectTileInfo(x, y).description;
   },
 
   // Reveal hidden traps and secret end walls in the surrounding 3x3 area.

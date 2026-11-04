@@ -2,7 +2,7 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('controls');
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { createGameContext, isModalOpen } from '../src/games/rogue0/context.ts';
+import { applyInspectChoice, createGameContext, forgetInspectedEntity, isModalOpen } from '../src/games/rogue0/context.ts';
 import { actionCost, starvationDamageDuring } from '../src/games/rogue0/timing.ts';
 import { createHeroNavigation } from '../src/games/rogue0/heroNavigation.ts';
 import { createHeroTargeting } from '../src/games/rogue0/heroTargeting.ts';
@@ -89,7 +89,7 @@ function fixture() {
   };
   const controls = { ...createHeroNavigation(services), ...createHeroTargeting(services), ...createHeroInput(services) };
   for (const [name, method] of Object.entries(controls)) hero[name] = (...args) => method(hero, ...args);
-  return { hero, context, state, controls, keyboard, input, events };
+  return { hero, context, state, controls, dungeon, keyboard, input, events };
 }
 function enemy(f, x, y, properties = {}) {
   const target = { type: 'enemy', x, y, healthPoints: 10, sprite: {}, ...properties };
@@ -320,11 +320,48 @@ for (const stale of ['floor', 'position', 'death', 'readiness', 'modal', 'none']
   f.hero.processTouchInput(f.context, { worldX: 7, worldY: 7 });
   assert.equal(f.context.inspectMode, false); assert.equal(f.context.inspectedTerrain, undefined);
   const a = enemy(f, 3, 3), b = enemy(f, 3, 3);
-  f.hero.inspectTile(3, 3); assert.deepEqual(f.context.inspectChoices, [a, b]);
+  f.hero.inspectTile(3, 3);
+  assert.deepEqual(f.context.inspectChoices.map(choice => choice.entity), [a, b]);
   f.context.inspectChoices = undefined; f.context.entities = [f.hero];
   f.hero.inspectOrSearch(); assert.equal(f.context.inspectMode, true);
   ready(f); f.hero.inspectOrSearch();
   assert.equal(f.state.searches, 1); assert.equal(f.hero.nextActionTime, 2);
+}
+
+// Terrain on a tile with an item is offered as its own inspect entry instead of
+// being hidden behind the item, and can be selected on its own.
+{
+  const f = fixture();
+  const scroll = { type: 'item', x: 3, y: 3, sprite: {}, displayName: 'Scroll of Blink',
+    identified: false };
+  f.context.entities.push(scroll);
+  f.dungeon.inspectTileInfo = () => ({ label: 'Dart trap',
+    description: 'A dart trap (poisons). Single-use: spent after activation.' });
+  f.context.visibleTiles.add('3,3');
+  f.hero.inspectTile(3, 3);
+  assert.equal(f.context.inspectedEntity, undefined, 'the item no longer wins by default');
+  assert.deepEqual(f.context.inspectChoices.map(choice => choice.kind), ['entity', 'terrain']);
+  assert.equal(f.context.inspectChoices[1].label, 'Dart trap');
+  applyInspectChoice(f.context, f.context.inspectChoices[1]);
+  assert.equal(f.context.inspectChoices, undefined);
+  assert.equal(f.context.inspectedTerrain, 'A dart trap (poisons). Single-use: spent after activation.');
+  assert.equal(f.context.inspectedEntity, undefined);
+  applyInspectChoice(f.context, { kind: 'entity', entity: scroll });
+  assert.equal(f.context.inspectedEntity, scroll);
+  assert.equal(f.context.inspectedTerrain, undefined);
+  // An item on plain floor still resolves straight to the item.
+  f.dungeon.inspectTileInfo = () => ({ description: 'Stone floor.' });
+  f.hero.inspectTile(3, 3);
+  assert.equal(f.context.inspectChoices, undefined);
+  assert.equal(f.context.inspectedEntity, scroll);
+  // Killing a listed entity drops only its entry.
+  f.dungeon.inspectTileInfo = () => ({ label: 'Dart trap', description: 'A dart trap.' });
+  f.hero.inspectTile(3, 3);
+  assert.equal(f.context.inspectChoices.length, 2);
+  forgetInspectedEntity(f.context, scroll);
+  assert.deepEqual(f.context.inspectChoices.map(choice => choice.kind), ['terrain']);
+  forgetInspectedEntity(f.context, scroll);
+  assert.equal(f.context.inspectChoices.length, 1, 'unrelated entities leave the list alone');
 }
 
 // Pinch/pan/modal taps never become walk commands; stairs dispatch only while

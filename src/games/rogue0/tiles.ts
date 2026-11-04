@@ -185,6 +185,47 @@ const TRAP_LABELS: Record<TrapKind, string> = {
   confusion: "confusion trap (confuses grounded actors for 4 time units; movement becomes random and can enter chasms)"
 };
 
+// Short names for the inspect choice list (the full text is the description).
+const TRAP_SHORT_NAMES: Record<TrapKind, string> = {
+  dart: "Dart trap",
+  arrow: "Arrow trap",
+  fire: "Fire trap",
+  frost: "Frost trap",
+  teleport: "Teleport trap",
+  summon: "Summoning trap",
+  alarm: "Alarm trap",
+  geyser: "Geyser trap",
+  confusion: "Confusion trap"
+};
+
+// Short terrain name for the inspect choice list. Returns undefined when the
+// floor has nothing worth listing beside items: plain stone/wall, secret doors
+// (still disguised) and hidden traps (invisible by design).
+export function describeTileLabel(
+  state: TileState | undefined,
+  _isWall: boolean
+): string | undefined {
+  if (!state) return undefined;
+  switch (state.feature) {
+    case "secretDoor":
+      return undefined;
+    case "door":
+      return state.door === "closed" ? "Closed door" : "Open door";
+    case "water":
+      return "Water";
+    case "ice":
+      return "Ice";
+    case "grass":
+      return "Tall grass";
+    case "chasm":
+      return "Chasm";
+    case "trap":
+      if (state.trap === "hidden") return undefined;
+      return `${state.trap === "triggered" ? "Triggered " : ""}${TRAP_SHORT_NAMES[state.trapKind ?? "dart"]}`;
+  }
+  return undefined;
+}
+
 // Human-readable description of a tile for the Inspect command.
 export function describeTile(
   state: TileState | undefined,

@@ -3,6 +3,7 @@ recordTestRun('swarm');
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
+import { forgetInspectedEntity } from '../src/games/rogue0/context.ts';
 
 function load(path, bindings = {}) {
   const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
@@ -62,7 +63,7 @@ const Monster = load('src/games/rogue0/monsters/monster.ts', {
 
 const SwarmOfFlies = load('src/games/rogue0/monsters/swarmOfFlies.ts', {
   Monster, dungeon, tiles, swarmTurn: ai.swarmTurn, Gold, PotionOfHealing, Phaser,
-  FLY_SWARM_TEXTURE: 'monster-fly-swarm', generateFlySwarmTexture: () => {},
+  FLY_SWARM_TEXTURE: 'monster-fly-swarm', generateFlySwarmTexture: () => {}, forgetInspectedEntity,
 }).default;
 
 function setup(swarmX = 5, swarmY = 3) {

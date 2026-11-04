@@ -1,4 +1,6 @@
 import type { Entity } from './entity';
+import { applyInspectChoice } from './context.ts';
+import type { InspectChoice } from './context.ts';
 import type { HeroControlHost, HeroControlServices } from './heroControlTypes';
 import { cursorDirection, isHostile } from './heroControlRules.ts';
 
@@ -30,6 +32,7 @@ export function createHeroTargeting(services: HeroControlServices) {
       const context = hero.context;
       context.terrainActionMode = false;
       context.inspectMode = !context.inspectMode;
+      context.inspectChoices = undefined;
       context.inspectedEntity = undefined;
       context.inspectedTerrain = undefined;
       if (context.inspectMode) {
@@ -48,6 +51,7 @@ export function createHeroTargeting(services: HeroControlServices) {
       }
       if (context.inspectMode) {
         context.inspectMode = false;
+        context.inspectChoices = undefined;
         context.inspectedEntity = undefined;
         context.inspectedTerrain = undefined;
         context.onInspectModeChange?.(false);
@@ -83,9 +87,16 @@ export function createHeroTargeting(services: HeroControlServices) {
       const entities = context.entities.filter(entity =>
         entity.sprite && entity.x === x && entity.y === y && entity.type !== 'player' &&
         !isGrassConcealed(entity.x, entity.y, hero.x, hero.y));
-      if (entities.length > 1) context.inspectChoices = entities;
-      else if (entities.length === 1) context.inspectedEntity = entities[0];
-      else context.inspectedTerrain = dungeon.inspectTile(x, y);
+      // Terrain is its own entry whenever it says more than plain floor, so an
+      // item on a trap never hides the trap (and vice versa).
+      const info = dungeon.inspectTileInfo?.(x, y);
+      const choices: InspectChoice[] = entities.map(entity => ({ kind: 'entity', entity }));
+      if (info?.label) {
+        choices.push({ kind: 'terrain', label: info.label, description: info.description });
+      }
+      if (choices.length > 1) context.inspectChoices = choices;
+      else if (choices.length === 1) applyInspectChoice(context, choices[0]);
+      else context.inspectedTerrain = info?.description ?? dungeon.inspectTile(x, y);
     },
 
     closestZapTarget(hero: HeroControlHost): Entity | undefined {

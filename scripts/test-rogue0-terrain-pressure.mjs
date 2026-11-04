@@ -630,6 +630,8 @@ function geyserSetup(type = 'player') {
 for (const type of ['player', 'enemy']) {
   const { ctx, victim } = geyserSetup(type);
   assert.ok(!tiles.describeTile(tiles.getTileState(2, 2), false).includes('geyser'), 'hidden trap stays secret');
+  assert.equal(tiles.describeTileLabel(tiles.getTileState(2, 2), false), undefined,
+    'hidden traps add no inspect choice entry');
   flightDungeon.moveEntityTo(ctx, victim, 2, 2);
   assert.equal(tiles.getTrapState(2, 2), 'triggered');
   assert.equal(victim.nextActionTime, 2.75, 'blast charges no extra victim time');
@@ -680,6 +682,10 @@ for (const obstruction of ['wall', 'door', 'actor', 'rooted']) {
   assert.equal(tiles.getTrapState(2, 2), 'visible', 'search reveals, not disarms');
   assert.match(tiles.describeTile(tiles.getTileState(2, 2), false), /geyser/);
   assert.match(tiles.describeTile(tiles.getTileState(2, 2), false), /Single-use/);
+  assert.equal(tiles.describeTileLabel(tiles.getTileState(2, 2), false), 'Geyser trap',
+    'a revealed trap is listed beside items on the same tile');
+  assert.equal(flightDungeon.inspectTileInfo(2, 2).label, 'Geyser trap');
+  assert.match(flightDungeon.inspectTileInfo(2, 2).description, /geyser/);
   victim.x = 1;
   flightDungeon.moveEntityTo(ctx, victim, 2, 2);
   assert.equal(ctx.pendingFall, true, 'revealed geyser remains dangerous');
@@ -857,6 +863,8 @@ for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 
     flightDungeon.pathGrid.setWalkableAt(3, 2, true);
     tiles.setFeature(2, 2, 'trap', { trapKind, trapReusable: configuredReusable, trap: 'hidden' });
     assert.equal(tiles.describeTile(tiles.getTileState(2, 2), false), 'Stone floor.');
+    assert.equal(tiles.describeTileLabel(tiles.getTileState(2, 2), false), undefined,
+      'plain floor is never offered as an inspect choice');
     assert.equal(flightDungeon.searchAround(1, 2), 1);
     assert.equal(flightDungeon.searchAround(1, 2), 0);
     assert.equal(tiles.getTrapState(2, 2), 'visible', 'search reveals, never disarms');

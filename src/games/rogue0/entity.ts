@@ -1,6 +1,7 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import Phaser from "phaser";
 import { actorOriginY, worldDepth } from './rendering';
+import { forgetInspectedEntity } from "./context.ts";
 import type { GameContext } from "./context";
 import { sfx } from "./audio";
 import type { DamageType, StatusEffect } from "./effects";
@@ -454,9 +455,7 @@ export function removeEntity(context: GameContext, entity: Entity) {
   entity.x = undefined;
   entity.y = undefined;
 
-  if (context.inspectedEntity === entity) {
-    context.inspectedEntity = undefined;
-  }
+  forgetInspectedEntity(context, entity);
 }
 
 function logMessage(context: GameContext, text: string): void {

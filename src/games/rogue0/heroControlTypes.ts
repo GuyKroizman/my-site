@@ -54,7 +54,7 @@ export type HeroControlServices = {
   dungeon: Pick<typeof dungeon, 'entityAtTile' | 'getCurrentLevel' | 'distanceBetweenEntities' |
     'attackEntity' | 'findPath' | 'log' | 'confusedMove' | 'itemPicked' | 'moveEntityTo' |
     'openDoor' | 'isWalkableTile' | 'canEnterChasm' | 'stepIntoChasm' | 'canStepBetween' |
-    'inspectTile' | 'searchAround'>;
+    'inspectTile' | 'inspectTileInfo' | 'searchAround'>;
   hasEffect: typeof hasEffect;
   isGrassConcealed: typeof isGrassConcealed;
   getTrapState: typeof getTrapState;

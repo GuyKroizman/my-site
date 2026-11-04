@@ -3,6 +3,7 @@ recordTestRun('monster-behavior');
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
+import { forgetInspectedEntity } from '../src/games/rogue0/context.ts';
 
 function load(path, bindings = {}) {
   const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
@@ -464,7 +465,8 @@ assert.notEqual(ice.spriteFrame, 6 * 49 + 9, 'the chest tile is no longer drawn 
     'firebolt is not super effective against non-ice');
 }
 
-const Flies = load('src/games/rogue0/monsters/swarmOfFlies.ts', { Monster, dungeon, ...flyTexture }).default;
+const Flies = load('src/games/rogue0/monsters/swarmOfFlies.ts',
+  { Monster, dungeon, ...flyTexture, forgetInspectedEntity }).default;
 const swarm = new Flies(context, 5, 5);
 const offspring = new Flies(context, 5, 5, true);
 assert.equal(swarm.spriteTextureKey, flyTexture.FLY_SWARM_TEXTURE);

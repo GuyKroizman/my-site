@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import Monster from "./monster";
 import type { GameContext } from "../context";
+import { forgetInspectedEntity } from "../context.ts";
 import type { Entity } from "../entity";
 import type { DamageType } from "../effects";
 import dungeon from "../dungeon";
@@ -118,7 +119,7 @@ export default class SwarmOfFlies extends Monster {
       });
     }
 
-    if (context.inspectedEntity === this) context.inspectedEntity = undefined;
+    forgetInspectedEntity(context, this);
     this.x = undefined;
     this.y = undefined;
   }

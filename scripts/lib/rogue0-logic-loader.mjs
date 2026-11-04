@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import ts from 'typescript';
 import { applyAttackResult } from '../../src/games/rogue0/combatApplication.ts';
 import { createInventoryActions, splitStackItem } from '../../src/games/rogue0/inventory.ts';
+import { forgetInspectedEntity } from '../../src/games/rogue0/context.ts';
 import { clearFloorSprite, clearItemUI, placeFloorItem } from '../../src/games/rogue0/itemPresentation.ts';
 import { heroStatsText, heroHudView } from '../../src/games/rogue0/heroViewModel.ts';
 import { createHeroNavigation } from '../../src/games/rogue0/heroNavigation.ts';
@@ -36,7 +37,7 @@ export function loadLogic(path, bindings = {}) {
     ...createHeroInput(bindings),
   };
   const dependencies = { applyAttackResult, heroInventory, heroControls, isHostile,
-    splitStackItem, placeFloorItem, heroStatsText, heroHudView, ...bindings };
+    forgetInspectedEntity, splitStackItem, placeFloorItem, heroStatsText, heroHudView, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));
   return exports;
