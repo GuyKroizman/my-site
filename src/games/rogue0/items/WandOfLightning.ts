@@ -8,7 +8,7 @@ export default class WandOfLightning extends Wand {
       context,
       {
         name: "Wand of Lightning",
-        description: "Zaps its target with lightning, weakening their blows.",
+        description: "Zaps its target with lightning, weakening their blows and arcing into adjacent enemies (and you, if adjacent).",
         tile: 15 * 49 + 44,
         attackTile: 10 * 49 + 19,
         damageType: "shock",
@@ -25,5 +25,9 @@ export default class WandOfLightning extends Wand {
 
   wandEffect() {
     return createWeakenedEffect(3);
+  }
+
+  arcsToAdjacent(): boolean {
+    return true;
   }
 }

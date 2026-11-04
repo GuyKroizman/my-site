@@ -564,6 +564,17 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       and wands share this behavior. `test-rogue0-shock-water.mjs` covers networks,
       exclusions, resistances, caster risk, deaths and all four attack paths.
       Visual and balance playtesting remain deferred.
+- [x] Lightning wand arcs into adjacent actors. A successful lightning-wand zap
+      dealing positive shock damage to an enemy arcs once into every living
+      grounded actor adjacent to that target (cardinally or diagonally)—including
+      the hero, who takes damage for standing next to the bolt. Secondary arc
+      damage is `ceil(primary damage dealt / 2)`, reduced by shock resistance and
+      increased by shock vulnerability; physical armor does not apply. No
+      recursive arcs, extra crits/on-hit effects, charges or action costs; the
+      primary target is never hit twice and secondary deaths use normal removal.
+      The fire/ice wands never arc. `test-rogue0-lightning-arc.mjs` covers
+      adjacency, diagonals, resistances, caster risk, deaths and wand dispatch.
+      Visual and balance playtesting remain deferred.
 - [x] Lingering poison clouds: Toxic Gas potions release a cloud that expands
       one cardinal ring per world-time unit (clipped by walls/closed doors) up to
       a radius-3 diamond, whether drunk or thrown, including throws at empty

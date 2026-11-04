@@ -793,6 +793,33 @@ const dungeon = {
     }
   },
 
+  // The lightning wand arcs once into every living grounded actor adjacent to
+  // the struck target — including the caster, who takes damage for standing
+  // next to the bolt. Secondary damage is ceil(primary / 2), reduced by shock
+  // resistance and increased by shock vulnerability, exactly like water
+  // conduction. No recursive arcs, crits, on-hit effects, charges or action
+  // cost; the primary target is never hit twice and deaths use normal removal.
+  conductShockAdjacent: function (context: GameContext, target: Entity, primaryDamage: number): void {
+    if (!Number.isFinite(primaryDamage) || primaryDamage <= 0 ||
+        target.x === undefined || target.y === undefined) return;
+    const tx = target.x;
+    const ty = target.y;
+    const victims = context.entities.filter(e => e !== target &&
+      (e.type === "player" || e.type === "enemy") && e.healthPoints > 0 &&
+      e.x !== undefined && e.y !== undefined && !e.isFlying &&
+      Math.max(Math.abs(e.x - tx), Math.abs(e.y - ty)) <= 1);
+    const baseDamage = Math.ceil(primaryDamage / 2);
+    for (const victim of victims) {
+      if (!context.entities.includes(victim) || victim.healthPoints <= 0) continue;
+      const damage = Math.max(0, baseDamage - (victim.resistance.shock ?? 0) + (victim.vulnerability.shock ?? 0));
+      if (damage > 0) victim.takeDamage(damage);
+      if (victim.type === "player" || context.visibleTiles.has(`${victim.x},${victim.y}`)) {
+        this.log(context, `Lightning arcs into ${victim.type === "player" ? "you" : victim.name} for ${damage} shock damage.`);
+      }
+      if (victim.healthPoints <= 0) removeEntity(context, victim);
+    }
+  },
+
   freezeWater: function (context: GameContext, x: number, y: number): number {
     // A cardinal splash cannot freeze through corners, doors or walls.
     let count = 0;

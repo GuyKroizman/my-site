@@ -70,6 +70,12 @@ export default abstract class Wand extends Entity {
     return 1;
   }
 
+  // Whether a successful zap arcs into adjacent actors. Only the lightning wand
+  // chains; other wands hit a single target.
+  arcsToAdjacent(): boolean {
+    return false;
+  }
+
   get baseDescription(): string {
     const [min, max] = this.damageBounds;
     return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. No distance limit; walls and blocked lines of sight stop zaps. Charges: ${this.charges}/${this.maxCharges}. Upgrades add +1 to current and maximum charges. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.`;

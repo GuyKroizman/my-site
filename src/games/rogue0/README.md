@@ -83,6 +83,15 @@ the first actor in the projectile path intercepts the shot. Ordinary thrown
 items also have no distance cap; they only need an in-bounds, non-wall
 destination in line of sight. Charges and action costs are unchanged.
 
+## Lightning wand arcs
+
+The Wand of Lightning arcs from a struck enemy into every living grounded
+actor adjacent to it (cardinally or diagonally) — including the hero, who takes
+damage for standing next to the bolt. Secondary arc damage is `ceil(primary
+damage / 2)`, reduced by shock resistance and increased by shock vulnerability;
+physical armor does not apply. Arcs do not chain recursively, never hit the
+primary target a second time, and add no extra action cost or charge use.
+
 ## Passive wand recharge
 
 Every carried wand recovers one charge per 20 elapsed world-time units, up to

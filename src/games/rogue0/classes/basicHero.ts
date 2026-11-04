@@ -1393,6 +1393,9 @@ export default class BasicHero extends Entity {
                 removeEffect(this, "invisible");
               }
               if (result.damageType === "shock" && result.damage > 0) context.onShockWater?.(enemy, result.damage);
+              if (result.damageType === "shock" && result.damage > 0 && item.arcsToAdjacent()) {
+                dungeon.conductShockAdjacent(context, enemy, result.damage);
+              }
               for (const effect of result.appliedEffects) {
                 if (enemy.healthPoints > 0) applyEffect(enemy, effect);
               }
