@@ -8,7 +8,7 @@ import { heroStatsText, heroHudView } from '../../src/games/rogue0/heroViewModel
 import { createHeroNavigation } from '../../src/games/rogue0/heroNavigation.ts';
 import { createHeroTargeting } from '../../src/games/rogue0/heroTargeting.ts';
 import { createHeroInput } from '../../src/games/rogue0/heroInput.ts';
-import { isHostile } from '../../src/games/rogue0/heroControlRules.ts';
+import { hostileAtTile, isHostile } from '../../src/games/rogue0/heroControlRules.ts';
 
 // Compatibility harness for existing isolated-method suites. Parse imports as
 // TypeScript rather than deleting them with a regex. New boundary/integration
@@ -36,7 +36,7 @@ export function loadLogic(path, bindings = {}) {
     ...createHeroTargeting(bindings),
     ...createHeroInput(bindings),
   };
-  const dependencies = { applyAttackResult, heroInventory, heroControls, isHostile,
+  const dependencies = { applyAttackResult, heroInventory, heroControls, isHostile, hostileAtTile,
     forgetInspectedEntity, splitStackItem, placeFloorItem, heroStatsText, heroHudView, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));

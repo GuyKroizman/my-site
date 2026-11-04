@@ -106,6 +106,8 @@ export class InventoryWindow {
 
   openWindow(): void {
     if (!this.context.player) return;
+    // Opening the backpack is how a player abandons wand/throw targeting.
+    if (this.context.throwMode) this.context.player.cancelThrow();
     this.open = true;
     this.quickslot = undefined;
     this.enchantingGem = undefined;

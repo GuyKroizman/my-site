@@ -73,6 +73,7 @@ for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
 }
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, Wand, Gem: class {}, dungeon, hasLineOfSight: () => clearSight,
+  isGrassConcealed: () => false,
   resolveAttack: () => ({ hit: false, damage: 0, appliedEffects: [] }),
   getFeature: () => 'floor',
 }).default;
@@ -110,12 +111,12 @@ assert.equal(hero.context.throwMode, true);
 assert.equal(wand.charges, 2);
 assert.equal(hero.turns, 0);
 hero.activateQuickslot(0);
-assert.equal(hero.context.throwMode, false, 'tapping the aiming wand again cancels it');
+assert.equal(hero.context.throwMode, false, 'tapping the aiming wand with no enemy selected deselects it');
 assert.equal(hero.zapping, false);
 assert.equal(hero.context.throwItem, undefined);
-assert.equal(wand.charges, 2, 'cancelling aiming spends no charge');
-assert.equal(hero.turns, 0, 'cancelling aiming spends no turn');
-assert.deepEqual(zaps, [], 'cancelling aiming fires no zap');
+assert.equal(wand.charges, 2, 'deselecting spends no charge');
+assert.equal(hero.turns, 0, 'deselecting spends no turn');
+assert.deepEqual(zaps, [], 'deselecting fires no zap');
 hero.cancelThrow();
 assert.equal(wand.charges, 2);
 hero.activateQuickslot(0);
@@ -193,4 +194,33 @@ hero.throwAt(25, 1);
 assert.equal(zaps.at(-1).toX, 10, 'projectile stops at the first actor, even on a miss');
 assert.equal(wand.charges, 0);
 assert.equal(hero.turns, 4, 'visual callback does not add charge or action costs');
+
+// A second tap on the aiming wand fires at the highlighted enemy. Opening the
+// backpack (not a stray wand tap) is how the player changes their mind.
+wand.charges = 2;
+hero.turns = 0;
+zaps.length = 0;
+intercepted = undefined;
+const goblin = { type: 'enemy', x: 6, y: 1, healthPoints: 5, displayName: 'goblin', sprite: {} };
+hero.context.entities = [goblin];
+hero.context.visibleTiles = new Set(['6,1']);
+hero.activateQuickslot(0);
+assert.equal(hero.context.throwMode, true);
+assert.deepEqual([hero.context.cursorX, hero.context.cursorY], [6, 1], 'aim starts on the nearest visible enemy');
+hero.activateQuickslot(0);
+assert.equal(hero.context.throwMode, false, 'tapping the aiming wand again fires instead of cancelling');
+assert.equal(wand.charges, 1, 'the confirming tap spends one charge');
+assert.equal(hero.turns, 1, 'the confirming tap spends one turn');
+assert.deepEqual(zaps.map(zap => [zap.toX, zap.toY]), [[6, 1]], 'the zap lands on the highlighted enemy');
+
+hero.context.visibleTiles = new Set();
+hero.activateQuickslot(0);
+assert.equal(hero.context.throwMode, true);
+inventory.openWindow();
+assert.equal(hero.context.throwMode, false, 'opening the backpack abandons wand targeting');
+assert.equal(hero.zapping, false);
+assert.equal(hero.context.throwItem, undefined);
+assert.equal(wand.charges, 1, 'abandoning a zap through the backpack spends no charge');
+assert.equal(hero.turns, 1, 'abandoning a zap through the backpack spends no turn');
+inventory.close();
 console.log('Rogue0 quickslot eligibility, selection, cleanup and independent wand targeting/projectile events passed');

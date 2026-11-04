@@ -25,7 +25,7 @@ import { placeFloorItem } from '../itemPresentation';
 import { heroStatsText } from '../heroViewModel';
 
 import { heroControls } from '../heroControls';
-import { isHostile } from '../heroControlRules';
+import { hostileAtTile, isHostile } from '../heroControlRules';
 import type { HeroControlHost, PointerPosition } from '../heroControlTypes';
 import { spawnEntityFloatingText } from "../floatingText";
 import type { ActionKind } from "../timing";
@@ -243,12 +243,19 @@ export default class BasicHero extends Entity implements HeroControlHost {
   // Use a consumable. Identifies it (if needed) and runs its consume effect.
   useItem(item: Entity): boolean {
     if (!this.getAllItems().includes(item)) return false;
-    // Tapping the wand that is already aiming cancels target selection
-    // instead of firing. Only the target tile (or Enter) confirms the shot,
-    // so a stray second tap never spends a charge or a turn.
+    // Tapping the wand that is already aiming fires at the highlighted enemy.
+    // Changing your mind means opening the backpack, which cancels targeting.
+    // With nothing hostile under the cursor the tap only deselects, so a stray
+    // second tap never spends a charge or a turn.
     if (item instanceof Wand && this.zapping && this.context.throwMode &&
         this.context.throwItem === item) {
-      this.cancelThrow();
+      const { cursorX, cursorY } = this.context;
+      if (cursorX !== undefined && cursorY !== undefined &&
+          hostileAtTile(this.context, cursorX, cursorY)) {
+        this.throwAt(cursorX, cursorY);
+      } else {
+        this.cancelThrow();
+      }
       return false;
     }
     if (!this.canAct()) return false;
