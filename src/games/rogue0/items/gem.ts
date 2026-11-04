@@ -31,7 +31,6 @@ export default class Gem extends Entity {
     player.removeItem(this);
     if (lastGem) removeEntity(this.context, this);
     player.spendTurn("use");
-    player.refreshUI();
     return true;
   }
 

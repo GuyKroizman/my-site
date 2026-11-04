@@ -51,7 +51,6 @@ export default class CursedGem extends Entity {
     player.removeItem(this);
     if (lastGem) removeEntity(this.context, this);
     player.spendTurn("use");
-    player.refreshUI();
 
     const curseName = CURSE_NAMES[nextCurse];
     dungeonLog(this.context, `You invoke the Cursed Gem on ${target.displayName}; its curse becomes ${curseName}.`);

@@ -767,7 +767,6 @@ export class Scene0 extends Phaser.Scene {
     dungeon.log(this.context, `You fall to floor ${this.context.floor} and take ${damage} damage!`);
     player.takeDamage(damage);
     if (player.healthPoints <= 0) removeEntity(this.context, player);
-    else player.refreshUI();
   }
 
   private descend() {

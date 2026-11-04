@@ -56,7 +56,6 @@ export default class Chest extends Entity {
     dungeon.log(context, `You open the treasure chest. Inside: ${this.contents.map(item => item.displayName).join(', ')}.`);
     this.contents = [];
     player.spendTurn('use');
-    player.refreshUI();
     return true;
   }
 

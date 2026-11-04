@@ -41,7 +41,6 @@ export default class HolyPotion extends Entity {
     if (lastPotion) removeEntity(this.context, this);
     dungeon.log(this.context, `You cleanse ${target.displayName} with the Holy Potion.`);
     player.spendTurn('use');
-    player.refreshUI();
     return true;
   }
 

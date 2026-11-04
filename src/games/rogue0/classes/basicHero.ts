@@ -1,4 +1,3 @@
-// TypeScript errors after site migration - ignoring for game functionality
 import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
 import { isModalOpen, type GameContext } from "../context";
@@ -20,6 +19,10 @@ import {
 import type { DamageType, StatusEffect } from "../effects";
 import { resolveAttack } from "../combat";
 import { applyAttackResult } from '../combatApplication';
+import { heroInventory } from '../heroInventory';
+import { splitStackItem, type EquipSlotKey } from '../inventory';
+import { placeFloorItem } from '../itemPresentation';
+import { heroStatsText } from '../heroViewModel';
 
 // A friendly decoy (mirror image) is rendered/scheduled like an enemy, but is
 // never a valid attack target for the hero. Kept local so headless tests that
@@ -47,33 +50,9 @@ function pickupMessage(entity: Entity): string {
 import { spawnEntityFloatingText } from "../floatingText";
 import { actionCost, starvationDamageDuring, type ActionKind } from "../timing";
 
-// UI palette — kept in sync with the --r0-* variables in src/index.css and
-// the constants in src/games/rogue0/ui.ts. Hex strings are CSS colors, 0x
-// numbers are rectangle fills.
-const UI_HIGHLIGHT_BACKGROUND_COLOR = "#a29a8e";
-const UI_COL = {
-  text: "#e8e1d5",
-  muted: "#a29a8e",
-  dim: "#6e675f",
-  gold: "#f0b429"
-};
-
-const UI_C = {
-  cell: 0x16121c,
-  panel2: 0x1f1926,
-  border: 0x3a3342,
-  borderStrong: 0x5a5060,
-  gold: 0xf0b429
-};
-
-const UI_FONT_PIXEL = "Press Start 2P";
-const UI_FONT_MONO = "VT323";
-
 // A thrown Potion of Frost is especially dangerous to fire elementals: the
 // flask's cold payload hits them directly before the normal frozen splash.
 const FROST_POTION_FIRE_DAMAGE = 4;
-
-type EquipSlotKey = "weapon" | "armor" | "ring1" | "ring2" | "artifact";
 
 export const CLASS_TALENTS = {
   Warrior: [
@@ -133,7 +112,6 @@ export default class BasicHero extends Entity {
     this.talentRanks[id] = this.talentRank(id) + 1;
     const talent = this.availableTalents.find(t => t.id === id)!;
     dungeon.log(this.context, `Learned ${talent.name} (${this.talentRank(id)}/2).`);
-    this.refreshUI();
     return true;
   }
   baseAttack: number = 0;
@@ -177,17 +155,10 @@ export default class BasicHero extends Entity {
   }
   capacity: number = 20;
 
-  UIHeader?: Phaser.GameObjects.Text;
-  UIScene?: Phaser.Scene;
-  UISkillLabel?: Phaser.GameObjects.Text;
-  UIX: number = 0;
-  UIY: number = 0;
   inputBuffer: string[] = [];
   walkPath: Array<{ x: number; y: number }> = [];
   private acknowledgedWalkEnemies = new Set<Entity>();
   private walkTargetEntity?: Entity;
-  onBackpackToggle?: () => void;
-  onHeroIconTap?: () => void;
 
   // Per-class skills recharge in elapsed simulation time, not action count.
   skill: string = "";
@@ -255,8 +226,6 @@ export default class BasicHero extends Entity {
       this.sprite.clearTint();
     }
 
-    this.refreshUI();
-
     // Execute buffered input as soon as the player can act.
     this.drainInputBuffer();
 
@@ -286,261 +255,34 @@ export default class BasicHero extends Entity {
     }
   }
 
-  // Which equipment slot an item would prefer to fill. Returns undefined for
-  // items that go straight to the backpack (consumables, junk, or rings when
-  // both ring slots are already occupied).
+  // Compatibility facade: callers and saved fields stay on the hero, while
+  // storage/equipment rules live in the independently testable inventory core.
   slotFor(item: Entity): EquipSlotKey | undefined {
-    switch (item.equipSlot) {
-      case "weapon":
-        return "weapon";
-      case "armor":
-        return "armor";
-      case "ring":
-        if (this.ring1 === undefined) return "ring1";
-        if (this.ring2 === undefined) return "ring2";
-        return undefined;
-      case "artifact":
-        return "artifact";
-      default:
-        return undefined;
-    }
+    return heroInventory.slotFor(this, item);
   }
 
-  // Which equipment slot currently holds this item (if any).
   slotOf(item: Entity): EquipSlotKey | undefined {
-    if (this.weapon === item) return "weapon";
-    if (this.armor === item) return "armor";
-    if (this.ring1 === item) return "ring1";
-    if (this.ring2 === item) return "ring2";
-    if (this.artifact === item) return "artifact";
-    return undefined;
+    return heroInventory.slotOf(this, item);
   }
 
-  // Every item in the hero's possession (equipped slots + backpack).
   getAllItems(): Entity[] {
-    return [...this.equippedItems(), ...this.backpack];
+    return heroInventory.allItems(this);
   }
 
-  // Add an item, auto-equipping it if its slot is empty, otherwise stowing it
-  // in the backpack. Returns false (and leaves the item untouched on the
-  // ground) when there is no room.
   addItem(item: Entity): boolean {
-    if (item.isContainer) return false; // World containers cannot enter a backpack.
-    if (item.goldAmount > 0) {
-      // Only live floor piles can be collected; prevent duplicate credit.
-      const index = this.context.entities.indexOf(item);
-      if (index === -1 || item.x === undefined || item.y === undefined) return false;
-      this.gold += item.goldAmount;
-      this.context.entities.splice(index, 1);
-      this.refreshUI();
-      return true;
-    }
-    // Stack only equivalent consumables. Name alone would discard upgrades,
-    // identification and curse state. Timed effects retain independent phases,
-    // so affected items must remain separate even if their effects look alike.
-    if (item.equipSlot === "consumable") {
-      const existing = this.backpack.find(
-        (i) => i.equipSlot === "consumable" && i.name === item.name &&
-          i.constructor === item.constructor &&
-          i.identified === item.identified && i.level === item.level &&
-          i.tier === item.tier && i.cursed === item.cursed &&
-          i.blessed === item.blessed && i.charges === item.charges &&
-          i.effects.length === 0 && item.effects.length === 0
-      );
-      if (existing) {
-        existing.count += item.count;
-        const idx = this.context.entities.indexOf(item);
-        if (idx !== -1) this.context.entities.splice(idx, 1);
-        if (item.sprite) {
-          this.context.scene?.tweens.killTweensOf(item.sprite);
-          item.sprite.destroy();
-          item.sprite = undefined;
-        }
-        this.refreshUI();
-        return true;
-      }
-    }
-
-    if (this.backpack.length >= this.capacity) {
-      dungeon.log(this.context, "Your backpack is full.");
-      return false;
-    }
-
-    if (!this.context.entities.includes(item)) {
-      this.context.entities.push(item);
-    }
-    item.context = this.context;
-    item.x = undefined;
-    item.y = undefined;
-    if (item.sprite) {
-      this.context.scene?.tweens.killTweensOf(item.sprite);
-      item.sprite.destroy();
-    }
-    item.sprite = undefined;
-
-    this.backpack.push(item);
-    this.refreshUI();
-    return true;
-  }
-
-  private onEquip(item: Entity): void {
-    const wasIdentified = item.identified;
-    if (item.isPhysicalEquipment) item.identified = true;
-    item.equip(); // Rings/artifacts identify themselves here.
-    const detail = item.identified ? `: ${item.displayDescription}` : "";
-    dungeon.log(this.context, `You equip ${item.displayName}${detail}.`);
-    if (!wasIdentified && (item.isPhysicalEquipment || item.equipSlot === "ring" || item.equipSlot === "artifact")) {
-      dungeon.log(this.context, item.cursed
-        ? `${item.displayName} is cursed and cannot be removed until its curse is lifted.`
-        : `${item.displayName} is not cursed.`);
-    }
-    sfx.equip();
-  }
-
-  private onUnequip(item: Entity): void {
-    dungeon.log(this.context, `You unequip ${item.displayName}.`);
-    item.unequip?.();
+    return heroInventory.addItem(this, item);
   }
 
   equipItem(item: Entity): void {
-    if (this.sprite && !this.canAct()) return;
-    const slot = this.slotFor(item);
-    if (!slot) {
-      dungeon.log(this.context, `${item.displayName} cannot be equipped.`);
-      return;
-    }
-    if (!this.backpack.includes(item)) {
-      dungeon.log(this.context, `${item.displayName} is not in your backpack.`);
-      return;
-    }
-
-    const previous = this[slot];
-    if (previous?.cursed) {
-      dungeon.log(
-        this.context,
-        `${previous.displayName} is cursed and cannot be removed.`
-      );
-      return;
-    }
-
-    // Removing `item` frees exactly one backpack slot, so swapping the
-    // previously equipped item back into the backpack always fits.
-    this.backpack = this.backpack.filter((i) => i !== item);
-    if (previous) {
-      this[slot] = item;
-      this.backpack.push(previous);
-      this.onUnequip(previous);
-    } else {
-      this[slot] = item;
-    }
-
-    this.onEquip(item);
-    // Starting equipment is installed before the hero sprite exists.
-    if (this.sprite) this.spendTurn("equip");
-    this.refreshUI();
+    heroInventory.equipItem(this, item);
   }
 
   unequipItem(item: Entity): void {
-    if (!this.canAct()) return;
-    if (item.cursed) {
-      dungeon.log(
-        this.context,
-        `${item.displayName} is cursed and cannot be removed.`
-      );
-      return;
-    }
-    const slot = this.slotOf(item);
-    if (!slot) return;
-
-    if (this.backpack.length >= this.capacity) {
-      dungeon.log(this.context, "Your backpack is full.");
-      return;
-    }
-
-    this[slot] = undefined;
-    this.backpack.push(item);
-    this.onUnequip(item);
-    this.spendTurn("equip");
-    this.refreshUI();
+    heroInventory.unequipItem(this, item);
   }
 
-  // Drop an item from an equipped slot or the backpack back onto the map at
-  // the player's tile. Cursed items cannot be dropped while equipped.
   dropItem(item: Entity): void {
-    if (!this.canAct() || !this.getAllItems().includes(item)) return;
-    if (item.cursed && this.slotOf(item)) {
-      dungeon.log(
-        this.context,
-        `${item.displayName} is cursed and cannot be dropped.`
-      );
-      return;
-    }
-
-    if (this.x === undefined || this.y === undefined) {
-      dungeon.log(this.context, "There is nowhere to drop that here.");
-      return;
-    }
-
-    // Split without calling a constructor: rerolling an item would discard
-    // upgrades, curses and other state. The original keeps its inventory UI.
-    if (item.count > 1) {
-      item.count -= 1;
-      item = this.splitStackItem(item);
-    } else {
-      const slot = this.slotOf(item);
-      if (slot) {
-        this[slot] = undefined;
-        this.onUnequip(item);
-      } else {
-        this.backpack = this.backpack.filter((i) => i !== item);
-      }
-      this.clearItemUI(item);
-    }
-
-    // Put the item back on the map and recreate its sprite so it can be
-    // picked up again (matches the floor-item setup in entity.init()).
-    item.context = this.context;
-    item.x = this.x;
-    item.y = this.y;
-
-    if (!this.context.entities.includes(item)) {
-      this.context.entities.push(item);
-    }
-
-    const scene = this.context.scene;
-    const map = this.context.map;
-    if (scene && map) {
-      item.sprite?.destroy();
-      item.sprite = undefined;
-      const sprite = scene.add
-        .sprite(
-          map.tileToWorldX(this.x)!,
-          map.tileToWorldY(this.y)!,
-          item.spriteTextureKey,
-          item.spriteFrame
-        )
-        .setOrigin(0);
-      if (item.tint) {
-        sprite.tint = item.tint;
-      }
-      if (item.textureKey?.startsWith("potion-")) sprite.setScale(0.5);
-      item.sprite = sprite;
-
-      if (item.type === "item") {
-        scene.tweens.add({
-          targets: sprite,
-          alpha: { from: 0.7, to: 1 },
-          duration: 700,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.easeInOut"
-        });
-      }
-    }
-
-    dungeon.log(this.context, `You drop ${item.displayName}.`);
-    this.spendTurn("drop");
-    this.refreshUI();
+    heroInventory.dropItem(this, item);
   }
 
   // Use a consumable. Identifies it (if needed) and runs its consume effect.
@@ -603,78 +345,22 @@ export default class BasicHero extends Entity {
     } else {
       this.equipItem(item);
     }
-    this.refreshUI();
   }
 
   removeItem(item: Entity): void {
-    // Consuming from a stack only decrements the count.
-    if (item.count > 1) {
-      item.count -= 1;
-      this.refreshUI();
-      return;
-    }
-
-    const slot = this.slotOf(item);
-    if (slot) {
-      this[slot] = undefined;
-      this.onUnequip(item);
-    } else {
-      this.backpack = this.backpack.filter((i) => i !== item);
-    }
-    this.clearItemUI(item);
-    this.refreshUI();
+    heroInventory.removeItem(this, item);
   }
 
-  removeItemsByProperty(property: string, value: any) {
-    const removed = this.getAllItems().filter(
-      (item) => (item as any)[property] === value
-    );
-
-    for (const item of removed) {
-      const slot = this.slotOf(item);
-      if (slot) {
-        this[slot] = undefined;
-        item.unequip?.();
-      } else {
-        this.backpack = this.backpack.filter((i) => i !== item);
-      }
-      this.clearItemUI(item);
-      removeEntity(this.context, item);
-    }
-    this.refreshUI();
+  removeItemsByProperty<K extends keyof Entity>(property: K, value: Entity[K]): void {
+    heroInventory.removeItemsByProperty(this, property, value);
   }
 
-  // Holy Potion targets one item; the scroll retains its inventory-wide effect.
   removeCurse(target?: Entity): void {
-    let lifted = false;
-    const carried = this.getAllItems();
-    for (const item of target ? carried.filter(item => item === target) : carried) {
-      if (item.cursed) {
-        item.cursed = false;
-        item.curseLifted = true;
-        item.curseId = "";
-        item.onUncursed?.();
-        lifted = true;
-      }
-    }
-    // Cleansing one item must not suppress another equipped gem's curse.
-    if (!this.equippedItems().some(item => item.cursed && item.curseEffectId === 'cursed')) {
-      removeEffect(this, "cursed");
-    }
-    if (lifted) {
-      dungeon.log(this.context, "The curse is lifted from your equipment.");
-    } else {
-      dungeon.log(this.context, "Nothing is cursed.");
-    }
-    this.refreshUI();
+    heroInventory.removeCurse(this, target);
   }
 
-  equippedItems() {
-    const items: Entity[] = [];
-    for (const item of [this.weapon, this.armor, this.ring1, this.ring2, this.artifact]) {
-      if (item) items.push(item);
-    }
-    return items;
+  equippedItems(): Entity[] {
+    return heroInventory.equippedItems(this);
   }
 
   currentWeapon() {
@@ -1322,14 +1008,6 @@ export default class BasicHero extends Entity {
     this.throwAt(context.cursorX, context.cursorY);
   }
 
-  private splitStackItem(item: Entity): Entity {
-    return Object.assign(Object.create(Object.getPrototypeOf(item)), item, {
-      count: 1, x: undefined, y: undefined, sprite: undefined,
-      UISprite: undefined, UIText: undefined,
-      effects: item.effects.map(effect => ({ ...effect }))
-    });
-  }
-
   // Resolve a throw at a tile (reached from a pointer tap or the cursor).
   throwAt(tx: number, ty: number): void {
     const context = this.context;
@@ -1383,7 +1061,6 @@ export default class BasicHero extends Entity {
         context.throwItem = undefined;
         this.zapping = false;
         this.spendTurn("use");
-        this.refreshUI();
         return;
       }
       // Resolve the hit when the bolt head reaches the target, not the frame
@@ -1417,7 +1094,6 @@ export default class BasicHero extends Entity {
       context.throwItem = undefined;
       this.zapping = false;
       this.spendTurn("use");
-      this.refreshUI();
 
       if (context.onWandZap) {
         this.moving = true;
@@ -1439,7 +1115,7 @@ export default class BasicHero extends Entity {
     // Split a single projectile from a stack without reusing the inventory
     // entity. Preserve upgrades/identification, but never share sprites/UI.
     const thrown: Entity = item.count > 1
-      ? this.splitStackItem(item)
+      ? splitStackItem(item)
       : item;
     this.removeItem(item);
     if (!context.entities.includes(thrown)) context.entities.push(thrown);
@@ -1628,27 +1304,7 @@ export default class BasicHero extends Entity {
       context.entities.push(item);
     }
 
-    item.sprite?.destroy();
-    item.sprite = undefined;
-    const sprite = scene.add
-      .sprite(map.tileToWorldX(tx)!, map.tileToWorldY(ty)!, item.spriteTextureKey, item.spriteFrame)
-      .setOrigin(0);
-    if (item.tint) {
-      sprite.tint = item.tint;
-    }
-    if (item.textureKey?.startsWith("potion-")) sprite.setScale(0.5);
-    item.sprite = sprite;
-
-    if (item.type === "item") {
-      scene.tweens.add({
-        targets: sprite,
-        alpha: { from: 0.7, to: 1 },
-        duration: 700,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut"
-      });
-    }
+    placeFloorItem(item);
 
     dungeon.log(
       context,
@@ -1925,167 +1581,11 @@ export default class BasicHero extends Entity {
   }
 
   statsText(): string {
-    let text = `Lv ${this.level}  Xp ${this.xp}/${this.xpForNextLevel()}  Str ${this.strength}\nHp: ${this.healthPoints}/${this.maxHealthPoints}`;
-    const food = `Food: ${Math.ceil(this.hunger)}/${this.maxHunger} (${this.hungerState})`;
-    text += `\n${food}  Gold: ${this.gold}`;
-    if (this.skill !== "") {
-      const state =
-        this.skillCooldown > 0 ? `cd ${this.skillCooldown}` : "ready [f]";
-      text += `\n${this.skill}: ${state}`;
-    }
-    return text;
-  }
-
-  private skillLabel(): string {
-    if (this.skill === "") return "No skill";
-    return this.skillCooldown > 0
-      ? `${this.skill}  (cd ${this.skillCooldown})`
-      : `${this.skill}  [f]`;
-  }
-
-  updateUI() {
-    const over = !this.canAct();
-    if (this.UIHeader) {
-      this.UIHeader.setColor(over ? UI_HIGHLIGHT_BACKGROUND_COLOR : "#fff");
-    }
+    return heroStatsText(this);
   }
 
   onDestroy() {
     this.context.scene?.events.emit("player-died");
-  }
-
-  createUI({ scene, x, y, width }: {
-    scene: Phaser.Scene;
-    x: number;
-    y: number;
-    width?: number
-  }) {
-    this.UIScene = scene;
-    this.UIX = x;
-    this.UIY = y;
-
-    const w = width ?? 160;
-    let yy = y;
-
-    // Hero icon + name (tap to open the hero stats modal).
-    this.UISprite = scene.add.sprite(x, yy, this.spriteTextureKey, this.spriteFrame).setOrigin(0);
-    this.UIHeader = scene.add.text(x + 20, yy + 4, this.name, {
-      fontFamily: `"${UI_FONT_PIXEL}", monospace`,
-      fontSize: 10,
-      color: UI_COL.gold
-    });
-    scene.add
-      .zone(x, yy, w, 22)
-      .setOrigin(0)
-      .setInteractive({ useHandCursor: true })
-      .on("pointerup", () => this.onHeroIconTap?.());
-    yy += 24;
-
-    // Backpack button opens/closes the inventory window (i/b toggles too).
-    const button = scene.add
-      .rectangle(x, yy, w, 22, UI_C.panel2, 1)
-      .setOrigin(0)
-      .setStrokeStyle(1, UI_C.borderStrong, 1);
-    const backpackLabel = scene.add
-      .text(x + w / 2, yy + 11, "Backpack  [i/b]", {
-        fontFamily: `${UI_FONT_MONO}, monospace`,
-        fontSize: 16,
-        color: UI_COL.muted
-      })
-      .setOrigin(0.5);
-    button.setInteractive({ useHandCursor: true });
-    button.on("pointerover", () => {
-      button.setStrokeStyle(1, UI_C.gold, 1);
-      backpackLabel.setColor(UI_COL.gold);
-    });
-    button.on("pointerout", () => {
-      button.setStrokeStyle(1, UI_C.borderStrong, 1);
-      backpackLabel.setColor(UI_COL.muted);
-    });
-    button.on("pointerup", () => this.onBackpackToggle?.());
-    yy += 22;
-
-    // Search (magnifying glass) button — reveals hidden traps around the hero.
-    const searchBtn = scene.add
-      .rectangle(x, yy, w, 22, UI_C.panel2, 1)
-      .setOrigin(0)
-      .setStrokeStyle(1, UI_C.borderStrong, 1);
-
-    const magnifier = scene.add.graphics();
-    magnifier.lineStyle(2, 0xa29a8e, 1);
-    magnifier.strokeCircle(x + 15, yy + 11, 5);
-    magnifier.lineBetween(x + 19, yy + 15, x + 25, yy + 21);
-
-    const searchLabel = scene.add
-      .text(x + w / 2 + 4, yy + 11, "Search  [s]", {
-        fontFamily: `${UI_FONT_MONO}, monospace`,
-        fontSize: 16,
-        color: UI_COL.muted
-      })
-      .setOrigin(0.5);
-
-    searchBtn.setInteractive({ useHandCursor: true });
-    searchBtn.on("pointerover", () => {
-      searchBtn.setStrokeStyle(1, UI_C.gold, 1);
-      searchLabel.setColor(UI_COL.gold);
-    });
-    searchBtn.on("pointerout", () => {
-      searchBtn.setStrokeStyle(1, UI_C.borderStrong, 1);
-      searchLabel.setColor(UI_COL.muted);
-    });
-    searchBtn.on("pointerup", () => this.search());
-    yy += 22;
-
-    // Skill button — activates the class skill (same as pressing f).
-    const skillBtn = scene.add
-      .rectangle(x, yy, w, 22, UI_C.panel2, 1)
-      .setOrigin(0)
-      .setStrokeStyle(1, UI_C.borderStrong, 1);
-    this.UISkillLabel = scene.add
-      .text(x + w / 2, yy + 11, this.skillLabel(), {
-        fontFamily: `${UI_FONT_MONO}, monospace`,
-        fontSize: 16,
-        color: UI_COL.muted
-      })
-      .setOrigin(0.5);
-    skillBtn.setInteractive({ useHandCursor: true });
-    skillBtn.on("pointerover", () => {
-      skillBtn.setStrokeStyle(1, UI_C.gold, 1);
-      this.UISkillLabel?.setColor(UI_COL.gold);
-    });
-    skillBtn.on("pointerout", () => {
-      skillBtn.setStrokeStyle(1, UI_C.borderStrong, 1);
-      this.UISkillLabel?.setColor(
-        this.skillCooldown > 0 ? UI_COL.muted : UI_COL.gold
-      );
-    });
-    skillBtn.on("pointerup", () => this.tryUseSkill());
-    yy += 22;
-
-    this.refreshUI();
-    return yy - y;
-  }
-
-  refreshUI() {
-    if (!this.UIScene) return;
-    this.UIHeader?.setColor(
-      !this.canAct() ? UI_COL.muted : UI_COL.gold
-    );
-
-    // Skill button label: gold when ready, muted while on cooldown.
-    if (this.UISkillLabel) {
-      this.UISkillLabel.setText(this.skillLabel());
-      this.UISkillLabel.setColor(
-        this.skillCooldown > 0 ? UI_COL.muted : UI_COL.gold
-      );
-    }
-  }
-
-  private clearItemUI(item: Entity): void {
-    item.UISprite?.destroy();
-    item.UISprite = undefined;
-    item.UIText?.destroy();
-    item.UIText = undefined;
   }
 
   damage(): number {

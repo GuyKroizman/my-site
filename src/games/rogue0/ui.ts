@@ -6,6 +6,7 @@ import { ConfirmationWindow } from "./confirmationWindow";
 import { QuickslotPane } from "./quickslotPane";
 import { attachTooltip } from "./tooltip";
 import { describeEffect } from "./effects";
+import { heroHudView } from './heroViewModel';
 
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
@@ -556,11 +557,11 @@ export class UI extends Phaser.Scene {
     this.log.setText(hint ?? this.context.messages.join("\n"));
     const player = this.context.player;
     if (player) {
-      const fraction = Phaser.Math.Clamp(player.healthPoints / Math.max(1, player.maxHealthPoints), 0, 1);
-      this.healthFill?.setSize((this.healthWidth - 2) * fraction, 14).setVisible(fraction > 0);
-      this.healthText?.setText(`${player.healthPoints}/${player.maxHealthPoints}`);
-      this.heroStatus?.setText(`Lv ${player.level} · Food ${Math.ceil(player.hunger)} · ${player.hungerState}`);
-      this.floorStatus?.setText(`Floor ${this.context.floor}`);
+      const view = heroHudView(player, this.context.floor);
+      this.healthFill?.setSize((this.healthWidth - 2) * view.healthFraction, 14).setVisible(view.healthFraction > 0);
+      this.healthText?.setText(view.healthText);
+      this.heroStatus?.setText(view.heroStatus);
+      this.floorStatus?.setText(view.floorStatus);
     }
     this.updateStatusIcons();
     this.updateHeroModal();

@@ -45,7 +45,6 @@ export default class ScrollOfUpgrade extends Entity {
     player.removeItem(this);
     if (lastScroll) removeEntity(this.context, this);
     player.spendTurn("use");
-    player.refreshUI();
     return true;
   }
 

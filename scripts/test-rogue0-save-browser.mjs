@@ -117,6 +117,45 @@ try {
   assert.deepEqual(actual.artifact, [5, 5, 7, 'function']);
   assert.deepEqual([actual.hp, actual.hunger, actual.gold, actual.upgrade, actual.talent, actual.wand, actual.charges],
     [24, 63.5, 77, 2, 1, true, 2]);
+
+  // The live HUD and inventory must work without the retired hero-owned sidebar
+  // or refreshUI calls, including immediately after restoring flat save fields.
+  await page.waitForFunction(() => {
+    const ui = window.testGame.scene.getScene('ui-scene');
+    const p = window.testScene.context.player;
+    return ui.healthText?.text === `${p.healthPoints}/${p.maxHealthPoints}`;
+  });
+  assert.deepEqual(await page.evaluate(() => {
+    const ui = window.testGame.scene.getScene('ui-scene');
+    const p = window.testScene.context.player;
+    return [ui.healthText.text, ui.heroStatus.text, ui.floorStatus.text,
+      typeof p.createUI, typeof p.refreshUI];
+  }), ['24/30', 'Lv 3 · Food 64 · Fed', 'Floor 6', 'undefined', 'undefined']);
+  const uiTime = await page.evaluate(() => window.testScene.context.simulationTime);
+  await page.keyboard.press('i');
+  await page.waitForFunction(() => window.testScene.context.inventoryOpen);
+  assert.ok(await page.evaluate(() => {
+    const inventory = window.testGame.scene.getScene('ui-scene').inventoryWindow;
+    return inventory.winRoot.list.some(child => child.text === 'Gold: 77');
+  }), 'restored inventory renders current wallet state');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !window.testScene.context.inventoryOpen);
+  const heroButton = await page.evaluate(() => {
+    const ui = window.testGame.scene.getScene('ui-scene');
+    const button = ui.toolbar[0].bg;
+    const rect = window.testGame.canvas.getBoundingClientRect();
+    return { x: rect.x + button.x * rect.width / ui.scale.width,
+      y: rect.y + button.y * rect.height / ui.scale.height };
+  });
+  await page.mouse.click(heroButton.x, heroButton.y);
+  await page.waitForFunction(() => window.testScene.context.heroModalOpen);
+  assert.match(await page.evaluate(() => window.testGame.scene.getScene('ui-scene').heroModalText.text),
+    /Food: 64\/100 \(Fed\).*Gold: 77/);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !window.testScene.context.heroModalOpen);
+  assert.equal(await page.evaluate(() => window.testScene.context.simulationTime), uiTime,
+    'opening and closing the actual inventory/hero HUD spends no world time');
+
   await page.evaluate(async () => {
     const s = window.testScene, p = s.context.player;
     const { removeEffect } = await import('/src/games/rogue0/effects.ts');
@@ -141,7 +180,7 @@ try {
   await page.getByRole('heading', { name: 'You died' }).waitFor();
   assert.equal(await page.evaluate(() => localStorage.getItem('rogue0.run.v1')), null);
   assert.deepEqual(errors, [], 'no save or load errors');
-  console.log('Rogue0 browser resume: floors, maps, stats, talents, shared quickslots, effects, knowledge, enemies, autosave, replacement cancellation and permadeath passed');
+  console.log('Rogue0 browser resume: floors, maps, stats, talents, shared quickslots, effects, knowledge, enemies, live inventory/HUD, autosave, replacement cancellation and permadeath passed');
 } finally {
   await browser.close();
 }

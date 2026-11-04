@@ -12,6 +12,16 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
   this extraction does not change which attack kinds trigger weapon curses or
   physical-hit reactions. Damage overrides and skill bonuses are parameters,
   not temporary replacements of hero methods/stats.
+- `inventory.ts` owns pickup/stacking, equipment, dropping, removal and curse
+  cleansing. It imports only types; `heroInventory.ts` supplies runtime effects,
+  logging and presentation. `BasicHero` delegates through its existing methods,
+  while equipment/backpack/quickslot fields stay on the hero so v1 save layout
+  and reference identity are unchanged. No controller is stored in saves.
+- `itemPresentation.ts` handles shared dropped/thrown-item sprites and cleanup.
+  `heroViewModel.ts` formats status/health displays without Phaser or mutation.
+  The active `ui.ts` HUD reads current state each frame; the uncalled legacy
+  sidebar and its `createUI`/`refreshUI` machinery have been removed from heroes.
+  Item changes no longer call into hero-owned UI objects.
 - `runPersistence.ts` owns typed floor/run snapshots, decoding, validation and
   v1 compatibility repairs. `Scene0` still owns Phaser lifecycle, checkpoint
   timing, rendering and floor transitions. Restoring actors must not rerun
@@ -29,15 +39,17 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
   These tests use native TypeScript imports (Node 22.18+ or Node 24+).
 
 Run `npm run test:rogue0` for all headless suites, or
-`npm run test:rogue0:combat` for the shared combat pipeline. See below for the
-optional Chromium suite. Test history is appended automatically.
+`npm run test:rogue0:combat` for the shared combat pipeline and
+`npm run test:rogue0:inventory` for the inventory, item presentation and HUD view
+boundaries. These new suites import the extracted modules directly. The
+Chromium suite also checks the live HUD and inventory after resume, including
+free modal opening/closing. Test history is appended automatically.
 
-Further incremental work: extract hero inventory/input/HUD and scene rendering
-responsibilities, replace the remaining isolated source loaders, then move the
-terrain/dungeon/scheduler singletons to run-owned state. The current refactor
-intentionally does not combine those larger lifecycle changes with combat/save
-compatibility work. Save field selection also remains graph-based; changes to
-persisted fields still need compatibility handling.
+Further incremental work: extract hero input/navigation/targeting and scene
+rendering responsibilities, replace the remaining isolated source loaders,
+then move the terrain/dungeon/scheduler singletons to run-owned state. Save
+field selection also remains graph-based; changes to persisted fields still
+need compatibility handling.
 
 ## Browser saves
 
