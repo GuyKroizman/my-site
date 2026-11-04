@@ -1,16 +1,8 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('vision');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
 
-function load(path, bindings = {}) {
-  const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-  const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
-  const exports = {};
-  new Function('exports', ...Object.keys(bindings), js)(exports, ...Object.values(bindings));
-  return exports;
-}
+import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 const tiles = load('src/games/rogue0/tiles.ts');
 const { computeFOV, hasLineOfSight, resolveVision } = load('src/games/rogue0/fov.ts', tiles);
 const map = Array.from({ length: 31 }, () => Array(31).fill(0));

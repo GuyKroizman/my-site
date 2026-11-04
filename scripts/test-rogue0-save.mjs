@@ -1,15 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('save');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
-function load(path, bindings = {}) {
-  const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-  const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
-  const exports = {};
-  new Function('exports', ...Object.keys(bindings), js)(exports, ...Object.values(bindings));
-  return exports;
-}
+import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 const { encodeGraph, decodeGraph } = load('src/games/rogue0/saveCodec.ts');
 const { Entity, saveConsumableKnowledge, restoreConsumableKnowledge } = load('src/games/rogue0/entity.ts');
 Entity.prototype.init = function(context, x, y) { Object.assign(this, { context, x, y }); };
@@ -86,7 +78,9 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
 
 // Upgrade scrolls already in a browser save must acquire the new picker flags.
 {
-  class SavedHero extends Entity {}
+  class SavedHero extends Entity {
+    resetTransientState() { this.inputBuffer = []; this.walkPath = []; }
+  }
   const ScrollOfUpgrade = load('src/games/rogue0/items/ScrollOfUpgrade.ts', { Entity, Wand: class {} }).default;
   const savedContext = { messages: [] };
   const hero = new SavedHero();
@@ -101,15 +95,17 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
       map: [[0]], seen: [[true]], features: [], entities: [], savedAt: 0,
       up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
     }]]) }, registry);
-  const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
-  const method = source.slice(source.indexOf('  private decodeRun()'), source.indexOf('  private installAutosave()'));
-  const js = ts.transpile(`class TestScene { ${method} }; exports.Scene = TestScene;`, { target: ts.ScriptTarget.ES2022 });
-  const out = {};
-  new Function('exports', 'decodeGraph', 'saveRegistry', 'restoreEffects', 'ScrollOfUpgrade', 'classes', js)(
-    out, decodeGraph, registry, restoreEffects, ScrollOfUpgrade, { Warrior: SavedHero });
-  const scene = new out.Scene();
-  scene.context = { savedRun: { heroClass: 'Warrior', floor: 1, graph } };
-  const restored = scene.decodeRun().player.backpack[0];
+  const { decodeRunSave } = load('src/games/rogue0/runPersistence.ts', {
+    decodeGraph, saveRegistry: registry, restoreEffects, ScrollOfUpgrade,
+    BasicHero: SavedHero, classes: { Warrior: SavedHero },
+    Mimic: class {}, SwarmOfFlies: class {},
+  });
+  const save = { version: 1, heroClass: 'Warrior', floor: 1, graph };
+  const run = decodeRunSave(save, {});
+  const restored = run.player.backpack[0];
+  assert.deepEqual(run.player.inputBuffer, []);
+  assert.throws(() => decodeRunSave({ ...save, heroClass: 'unknown' }, {}), /Invalid saved run/);
+  assert.throws(() => decodeRunSave({ ...save, version: 999 }, {}), /Invalid saved run/);
   assert.equal(restored.requiresItemTarget, true);
   assert.equal(restored.itemTargetTitle, 'UPGRADE: CHOOSE ITEM');
   assert.match(restored.description, /Choose/);

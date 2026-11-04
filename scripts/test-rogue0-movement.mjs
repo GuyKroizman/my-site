@@ -1,20 +1,14 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('movement');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
 import PF from 'pathfinding';
 
-// Load real TS logic with rendering/audio imports replaced by small fakes.
+import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 function load(path, bindings = {}) {
   if (bindings.dungeon && !bindings.dungeon.canEnterChasm) {
     bindings.dungeon.canEnterChasm = () => false;
   }
-  const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-  const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
-  const exports = {};
-  new Function('exports', ...Object.keys(bindings), js)(exports, ...Object.values(bindings));
-  return exports;
+  return loadLogic(path, bindings);
 }
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const rendering = load('src/games/rogue0/rendering.ts');

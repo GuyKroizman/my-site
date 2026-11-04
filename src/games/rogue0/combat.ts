@@ -1,9 +1,8 @@
 // Centralised combat model.
 //
-// `resolveAttack` owns the pure number math (accuracy/evasion, crits, armor,
-// resistances/vulnerabilities, surprise attacks and on-hit status effects).
-// `dungeon.attackEntity` keeps the tweens/animation and calls this for the
-// numbers, then applies the returned status effects to the victim.
+// `resolveAttack` rolls damage and handles attack-attempt behavior (awareness,
+// provocation and cover). combatApplication.ts applies successful results;
+// callers retain their animations and attack-specific presentation.
 
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
@@ -19,6 +18,10 @@ export type CombatOptions = {
   damageType?: DamageType;
   isRanged?: boolean;
   onHitEffects?: StatusEffect[];
+  // A lazy roll preserves thrown-item RNG timing: misses do not roll damage.
+  // Wands pass their already-rolled damage (and spend a charge even on a miss).
+  baseDamage?: number | (() => number);
+  bonusDamage?: number;
 };
 
 export type CombatResult = {
@@ -134,9 +137,10 @@ export function resolveAttack(
   // use the entity's primary attack; close-quarters strikes use its melee
   // damage, which is weaker for archers that switch to a sidearm. Plain-object
   // test doubles may omit the optional accessor.
-  let damage = opts.isRanged
-    ? attacker.attack()
-    : (attacker.meleeAttack?.() ?? attacker.attack());
+  let damage = opts.baseDamage !== undefined
+    ? (typeof opts.baseDamage === 'function' ? opts.baseDamage() : opts.baseDamage)
+    : opts.isRanged ? attacker.attack() : (attacker.meleeAttack?.() ?? attacker.attack());
+  damage += opts.bonusDamage ?? 0;
   if (hasEffect(attacker, "weakened")) {
     damage = Math.max(0, damage - WEAKENED_ATTACK_PENALTY);
   }

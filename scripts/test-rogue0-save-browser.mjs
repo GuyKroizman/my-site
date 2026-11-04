@@ -4,6 +4,11 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('save-browser');
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const legacyIds = JSON.parse(fs.readFileSync(new URL('./fixtures/rogue0-v1-save-ids.json', import.meta.url), 'utf8'));
+const classModules = ['items', 'monsters', 'classes'].flatMap(dir =>
+  fs.readdirSync(new URL(`../src/games/rogue0/${dir}/`, import.meta.url))
+    .filter(name => name.endsWith('.ts')).map(name => `/src/games/rogue0/${dir}/${name}`));
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
   headless: true, args: ['--no-sandbox'] });
@@ -38,6 +43,28 @@ try {
   await captureScene();
   await page.getByRole('button', { name: 'Warrior sword & steel' }).click();
   await page.waitForFunction(() => window.testScene?.context.saveNow);
+  await page.evaluate(async ({ legacyIds, classModules }) => {
+    const { saveRegistry } = await window.testImport('/src/games/rogue0/saveRegistry.ts');
+    const { encodeGraph, decodeGraph } = await window.testImport('/src/games/rogue0/saveCodec.ts');
+    const { Entity } = await window.testImport('/src/games/rogue0/entity.ts');
+    for (const id of legacyIds) {
+      const Type = saveRegistry[id];
+      if (!Type || !(Type.prototype instanceof Entity)) throw Error(`Missing historical save class: ${id}`);
+      const decoded = decodeGraph({ root: { ref: 0 }, nodes: [{ kind: 'entity', type: id,
+        data: [['lootClass', { constructorId: id }]] }] }, saveRegistry);
+      if (!(decoded instanceof Type) || decoded.lootClass !== Type) throw Error(`Bad legacy decode: ${id}`);
+      const roundTrip = decodeGraph(encodeGraph([decoded, decoded], saveRegistry), saveRegistry);
+      if (roundTrip[0] !== roundTrip[1] || !(roundTrip[0] instanceof Type)) throw Error(`Bad round trip: ${id}`);
+    }
+    for (const path of classModules) {
+      const exports = await window.testImport(path);
+      for (const Type of Object.values(exports)) {
+        if (typeof Type === 'function' && Type.prototype instanceof Entity && !Object.values(saveRegistry).includes(Type)) {
+          throw Error(`Unregistered save class in ${path}`);
+        }
+      }
+    }
+  }, { legacyIds, classModules });
   const expected = await page.evaluate(async () => {
     const scene = window.testScene;
     const ctx = scene.context;

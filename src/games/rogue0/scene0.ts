@@ -25,19 +25,8 @@ import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
-import type { PoisonCloud } from "./context";
-import { removeEntity, type Entity } from './entity';
-
-type SavedFloor = {
-  savedAt: number;
-  poisonClouds?: PoisonCloud[];
-  map: number[][];
-  seen: boolean[][];
-  features: FeaturePlacement[];
-  entities: Entity[];
-  up: { x: number; y: number };
-  down: { x: number; y: number };
-};
+import { removeEntity } from './entity';
+import { decodeRunSave, restoreRunState, type RunState, type SavedFloor } from './runPersistence';
 import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects } from './rendering';
 import dungeon from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
@@ -70,8 +59,6 @@ import ScrollOfRecharging from "./items/ScrollOfRecharging";
 import WandOfFirebolt from "./items/WandOfFirebolt";
 import WandOfFrost from "./items/WandOfFrost";
 import WandOfLightning from "./items/WandOfLightning";
-import Wand from "./items/wand";
-import Ring from "./items/ring";
 import RingOfAccuracy from "./items/RingOfAccuracy";
 import RingOfEvasion from "./items/RingOfEvasion";
 import RingOfElements from "./items/RingOfElements";
@@ -104,11 +91,10 @@ import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
-import { resetConsumableAppearances, saveConsumableKnowledge, restoreConsumableKnowledge, rememberIdentifiedWandTypes } from "./entity";
+import { resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
 import { maybeCurse } from "./curses";
-import { encodeGraph, decodeGraph } from './saveCodec';
+import { encodeGraph } from './saveCodec';
 import { saveRegistry } from './saveRegistry';
-import { restoreEffects } from './saveEffects';
 import { writeRunSave, clearRunSave } from './saveStorage';
 import { generateFireElementalTexture } from './monsters/fireElementalTexture';
 import { generateLightningElementalTexture } from './monsters/lightningElementalTexture';
@@ -300,7 +286,7 @@ export class Scene0 extends Phaser.Scene {
     generateWaterTexture(this);
 
     // Restoring must not generate a floor or construct a hero: both reroll loot.
-    let resumed: any;
+    let resumed: RunState | undefined;
     if (this.context.savedRun) {
       try {
         resumed = this.decodeRun();
@@ -313,10 +299,10 @@ export class Scene0 extends Phaser.Scene {
     }
     const active: SavedFloor | undefined = resumed?.floors.get(resumed.floor);
     const { levelArray, spawn, stairs } = active
-      ? { levelArray: active.map, spawn: { x: resumed.player.x, y: resumed.player.y }, stairs: active.down }
+      ? { levelArray: active.map, spawn: { x: resumed!.player.x!, y: resumed!.player.y! }, stairs: active.down }
       : this.generateLevel();
     if (active) {
-      this.context.floor = resumed.floor;
+      this.context.floor = resumed!.floor;
       this.applyFeatures(active.features);
     }
 
@@ -338,33 +324,12 @@ export class Scene0 extends Phaser.Scene {
     this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);
     this.context.onWandZap = (zap, onImpact) => showWandZap(this, this.context, zap, onImpact);
 
-    const HeroClass = (classes as any)[this.context.heroClass] ?? classes.Wizard;
+    const HeroClass = classes[this.context.heroClass as keyof typeof classes] ?? classes.Wizard;
     const player = resumed?.player ?? new HeroClass(this.context, spawn.x, spawn.y);
     this.context.player = player;
     if (resumed) {
       this.floors = resumed.floors;
-      this.context.floor = resumed.floor;
-      this.context.kills = resumed.kills;
-      this.context.messages = resumed.messages;
-      this.context.simulationTime = resumed.time;
-      restoreConsumableKnowledge(this.context, resumed.knowledge);
-      rememberIdentifiedWandTypes(this.context, [
-        ...player.getAllItems(),
-        ...[...this.floors.values()].flatMap(floor => floor.entities),
-      ]);
-      // Reconcile equipped ring bonuses after loading, including legacy saves
-      // where the displayed upgrade level never changed the applied passive.
-      for (const ring of [player.ring1, player.ring2]) {
-        if (ring instanceof Ring) ring.onUpgrade();
-      }
-      // Charge capacity now scales with wand upgrades; older saves recorded
-      // maxCharges as the base value and need the same reconciliation.
-      for (const item of [
-        ...player.getAllItems(),
-        ...[...this.floors.values()].flatMap(floor => floor.entities),
-      ]) {
-        if (item instanceof Wand) item.reconcileChargeScaling();
-      }
+      restoreRunState(this.context, resumed);
       generateFireElementalTexture(this);
       generateLightningElementalTexture(this);
       generateFlySwarmTexture(this);
@@ -591,53 +556,8 @@ export class Scene0 extends Phaser.Scene {
     this.autosave();
   }
 
-  private decodeRun() {
-    const save = this.context.savedRun!;
-    const run = decodeGraph(save.graph, saveRegistry, entity => {
-      entity.context = this.context;
-      // Older saves stored the scroll's former auto-use flags and description.
-      // Refresh behavior metadata without changing its count or identification.
-      if (entity instanceof ScrollOfUpgrade) {
-        const defaults = new ScrollOfUpgrade(this.context);
-        Object.assign(entity, {
-          requiresItemTarget: defaults.requiresItemTarget,
-          itemTargetTitle: defaults.itemTargetTitle,
-          noItemTargetsMessage: defaults.noItemTargetsMessage,
-          description: defaults.description,
-        });
-      }
-      entity.effects = restoreEffects(entity.effects ?? [], entity.artifact);
-      entity.moving = false;
-      entity.tweens = 0;
-      if (entity.type === 'player') {
-        entity.inputBuffer = [];
-        entity.walkPath = [];
-        entity.acknowledgedWalkEnemies = new Set();
-        entity.zapping = false;
-      }
-    });
-    const Hero = (classes as any)[save.heroClass];
-    if (!run || !(run.player instanceof Hero) || run.player.healthPoints <= 0 ||
-        !(run.floors instanceof Map) || !run.floors.has(save.floor) || run.floor !== save.floor ||
-        !Number.isFinite(run.time) || run.time < 0 || !Number.isFinite(run.nextTick) ||
-        !Array.isArray(run.messages) || !Array.isArray(run.knowledge?.appearances) ||
-        !Array.isArray(run.knowledge?.known)) throw new Error('Invalid saved run');
-    for (const [floor, data] of run.floors) {
-      if (!Number.isInteger(floor) || floor < 1 || floor > 25 ||
-          !Array.isArray(data.map) || !data.map.length || data.map.length > 256 ||
-          !data.map.every((row: unknown) => Array.isArray(row) && row.length === data.map[0].length && row.length <= 256 && row.every(Number.isFinite)) ||
-          !Array.isArray(data.features) || !Array.isArray(data.entities) || !Array.isArray(data.seen) ||
-          !Number.isFinite(data.savedAt) || !data.up || !data.down) throw new Error('Invalid saved floor');
-      for (const entity of data.entities) {
-        if (entity instanceof Mimic) entity.restoreLegacyStrength(floor);
-        // Pre-flight saves lack the `flying` field; swarms always fly.
-        if (entity instanceof SwarmOfFlies) entity.flying = true;
-      }
-    }
-    const active = run.floors.get(run.floor);
-    if (!Number.isInteger(run.player.x) || !Number.isInteger(run.player.y) ||
-        active.map[run.player.y]?.[run.player.x] === undefined) throw new Error('Invalid saved position');
-    return run;
+  private decodeRun(): RunState {
+    return decodeRunSave(this.context.savedRun!, this.context);
   }
 
   private installAutosave() {

@@ -1,16 +1,9 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('terrain-pressure');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
 import PF from 'pathfinding';
-function load(name, bindings = {}) {
-  const source = fs.readFileSync(`src/games/rogue0/${name}.ts`, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-  const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
-  const exports = {};
-  new Function('exports', ...Object.keys(bindings), js)(exports, ...Object.values(bindings));
-  return exports;
-}
+import { loadLogic } from './lib/rogue0-logic-loader.mjs';
+const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 const tiles = load('tiles');
 const fov = load('fov', tiles);
 const { generateMap, findFarthestWalkable, floorHasSecretRoom } = load('mapgen', tiles);

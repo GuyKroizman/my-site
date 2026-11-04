@@ -19,6 +19,7 @@ import {
 } from "../effects";
 import type { DamageType, StatusEffect } from "../effects";
 import { resolveAttack } from "../combat";
+import { applyAttackResult } from '../combatApplication';
 
 // A friendly decoy (mirror image) is rendered/scheduled like an enemy, but is
 // never a valid attack target for the hero. Kept local so headless tests that
@@ -208,6 +209,15 @@ export default class BasicHero extends Entity {
     this.context = context;
 
     this.bindInput();
+  }
+
+  /** Runtime-only control state is never resumed from a browser checkpoint. */
+  resetTransientState(): void {
+    this.inputBuffer = [];
+    this.walkPath = [];
+    this.acknowledgedWalkEnemies = new Set();
+    this.walkTargetEntity = undefined;
+    this.zapping = false;
   }
 
   /** Also used after restoring the hero without rerolling its starting gear. */
@@ -1382,31 +1392,23 @@ export default class BasicHero extends Entity {
       // the turn scheduler waits for the projectile, exactly like a thrown item.
       const applyImpact = () => {
         if (enemy && isHostile(enemy)) {
-          const attack = this.attack;
-          this.attack = () => damage;
-          try {
-            const result = resolveAttack(context, this, enemy, {
-              damageType: item.damageType, isRanged: true, onHitEffects: item.wandEffects()
-            });
-            if (result.hit) {
-              enemy.takeDamage(result.damage);
-              if (result.damage > 0 && this.type === "player" && hasEffect(this, "invisible")) {
-                removeEffect(this, "invisible");
-              }
-              if (result.damageType === "shock" && result.damage > 0) context.onShockWater?.(enemy, result.damage);
+          const result = resolveAttack(context, this, enemy, {
+            baseDamage: damage, damageType: item.damageType,
+            isRanged: true, onHitEffects: item.wandEffects()
+          });
+          applyAttackResult(context, this, enemy, result, {
+            applyEffect: (target, effect) => applyEffect(target, effect),
+            removeEffect: (target, id) => removeEffect(target, id),
+            removeEntity: (ctx, target) => removeEntity(ctx, target),
+            notifyVictim: false, applyZeroDamage: true,
+            onHit: () => {
               if (result.damageType === "shock" && result.damage > 0 && item.arcsToAdjacent()) {
                 dungeon.conductShockAdjacent(context, enemy, result.damage);
               }
-              for (const effect of result.appliedEffects) {
-                if (enemy.healthPoints > 0) applyEffect(enemy, effect);
-              }
-              dungeon.applyHitEffects(context, enemy, result.surprise);
-              if (enemy.healthPoints <= 0) removeEntity(context, enemy);
-            }
-            dungeon.log(context, `${item.displayName}: ${result.surprise ? "surprise, " : ""}${result.crit ? "critical, " : ""}${result.hit ? `${result.damage} damage` : "miss"}.`);
-          } finally {
-            this.attack = attack;
-          }
+            },
+            afterEffects: () => dungeon.applyHitEffects(context, enemy, result.surprise)
+          });
+          dungeon.log(context, `${item.displayName}: ${result.surprise ? "surprise, " : ""}${result.crit ? "critical, " : ""}${result.hit ? `${result.damage} damage` : "miss"}.`);
         }
         this.moving = false;
       };
@@ -1541,51 +1543,24 @@ export default class BasicHero extends Entity {
     // Weapons (and ranged weapon-like items such as fireball scrolls) deal
     // their own damage through the normal combat math.
     if (item.equipSlot === "weapon" || item.damage() > 0) {
-      const originalAttack = (this as unknown as { attack: () => number }).attack;
-      (this as unknown as { attack: () => number }).attack = () => item.damage();
-
-      let result: ReturnType<typeof resolveAttack>;
-      try {
-        result = resolveAttack(context, this, enemy, {
-          damageType: item.damageType ?? "physical",
-          isRanged: true,
-          onHitEffects: []
-        });
-      } finally {
-        (this as unknown as { attack: () => number }).attack = originalAttack;
-      }
-
-      if (!result.hit) return;
-
-      if (result.damage > 0) {
-        enemy.takeDamage(result.damage);
-        if (this.type === "player" && hasEffect(this, "invisible")) {
-          removeEffect(this, "invisible");
+      const result = resolveAttack(context, this, enemy, {
+        baseDamage: () => item.damage(), damageType: item.damageType ?? "physical",
+        isRanged: true, onHitEffects: []
+      });
+      applyAttackResult(context, this, enemy, result, {
+        applyEffect: (target, effect) => applyEffect(target, effect),
+        removeEffect: (target, id) => removeEffect(target, id),
+        removeEntity: (ctx, target) => removeEntity(ctx, target),
+        onHit: () => {
+          if (result.damage > 0) {
+            dungeon.log(context,
+              `You throw ${item.displayName} at ${enemy.name} for ${result.damage} ${result.damageType} damage.`);
+            dungeon.applyHitEffects(context, enemy, result.surprise);
+          } else {
+            dungeon.log(context, `You throw ${item.displayName} at ${enemy.name} but deals no damage.`);
+          }
         }
-        if (result.damageType === "shock") context.onShockWater?.(enemy, result.damage);
-        dungeon.log(
-          context,
-          `You throw ${item.displayName} at ${enemy.name} for ${result.damage} ${result.damageType} damage.`
-        );
-        dungeon.applyHitEffects(context, enemy, result.surprise);
-      } else {
-        dungeon.log(
-          context,
-          `You throw ${item.displayName} at ${enemy.name} but deals no damage.`
-        );
-      }
-
-      for (const effect of result.appliedEffects) {
-        if (enemy.healthPoints > 0) {
-          applyEffect(enemy, effect);
-        }
-      }
-
-      enemy.onHitBy?.(this, result.damageType, result.damage);
-
-      if (enemy.healthPoints <= 0) {
-        removeEntity(context, enemy);
-      }
+      });
       return;
     }
 
@@ -1706,8 +1681,8 @@ export default class BasicHero extends Entity {
   }
 
   // Resolve a skill attack synchronously (no tween) and apply the result:
-  // damage, on-hit status effects and death cleanup. Bonus damage is applied
-  // by temporarily raising baseAttack while resolveAttack reads attack().
+  // damage, on-hit status effects and death cleanup. Bonus damage is passed
+  // explicitly, so callbacks never observe temporarily modified hero stats.
   protected resolveSkillAttack(
     victim: Entity,
     opts: {
@@ -1716,50 +1691,23 @@ export default class BasicHero extends Entity {
       onHitEffects?: StatusEffect[];
     } = {}
   ): void {
-    const previous = this.baseAttack;
-    this.baseAttack += opts.bonusDamage ?? 0;
-
-    let result: ReturnType<typeof resolveAttack>;
-    try {
-      result = resolveAttack(this.context, this, victim, {
-        damageType: opts.damageType ?? "physical",
-        onHitEffects: opts.onHitEffects ?? []
-      });
-    } finally {
-      this.baseAttack = previous;
-    }
-
-    if (!result.hit) return;
-
-    if (result.damage > 0) {
-      victim.takeDamage(result.damage);
-      if (this.type === "player" && hasEffect(this, "invisible")) {
-        removeEffect(this, "invisible");
+    const result = resolveAttack(this.context, this, victim, {
+      bonusDamage: opts.bonusDamage, damageType: opts.damageType ?? "physical",
+      onHitEffects: opts.onHitEffects ?? []
+    });
+    applyAttackResult(this.context, this, victim, result, {
+      applyEffect: (target, effect) => applyEffect(target, effect),
+      removeEffect: (target, id) => removeEffect(target, id),
+      removeEntity: (ctx, target) => removeEntity(ctx, target),
+      onHit: () => {
+        if (result.damage > 0) {
+          dungeon.log(this.context, `You hit ${victim.name} for ${result.damage} ${result.damageType} damage.`);
+          dungeon.applyHitEffects(this.context, victim, result.surprise);
+        } else {
+          dungeon.log(this.context, `You hit ${victim.name} but deals no damage.`);
+        }
       }
-      if (result.damageType === "shock") this.context.onShockWater?.(victim, result.damage);
-      dungeon.log(
-        this.context,
-        `You hit ${victim.name} for ${result.damage} ${result.damageType} damage.`
-      );
-      dungeon.applyHitEffects(this.context, victim, result.surprise);
-    } else {
-      dungeon.log(
-        this.context,
-        `You hit ${victim.name} but deals no damage.`
-      );
-    }
-
-    for (const effect of result.appliedEffects) {
-      if (victim.healthPoints > 0) {
-        applyEffect(victim, effect);
-      }
-    }
-
-    victim.onHitBy?.(this, result.damageType, result.damage);
-
-    if (victim.healthPoints <= 0) {
-      removeEntity(this.context, victim);
-    }
+    });
   }
 
   // Nearest visible enemy within `maxRange` tiles (chebyshev distance).

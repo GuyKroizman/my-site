@@ -1,18 +1,10 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('frost-effects');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
 import PF from 'pathfinding';
 
-// Load real TS logic with rendering/audio imports replaced by small fakes.
-function load(path, bindings = {}) {
-  const source = fs.readFileSync(`src/games/rogue0/${path}`, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-  const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
-  const exports = {};
-  new Function('exports', ...Object.keys(bindings), js)(exports, ...Object.values(bindings));
-  return exports;
-}
+import { loadLogic } from './lib/rogue0-logic-loader.mjs';
+const load = (path, bindings) => loadLogic(`src/games/rogue0/${path}`, bindings);
 
 const tiles = load('tiles.ts');
 const fov = load('fov.ts', tiles);

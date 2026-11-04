@@ -1,17 +1,9 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('invisibility');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
 
-function load(name, bindings = {}) {
-  const source = fs.readFileSync(`src/games/rogue0/${name}.ts`, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-  const exports = {};
-  new Function('exports', ...Object.keys(bindings), ts.transpile(source, {
-    target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS
-  }))(exports, ...Object.values(bindings));
-  return exports;
-}
+import { loadLogic } from './lib/rogue0-logic-loader.mjs';
+const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 
 const tiles = load('tiles');
 const { Entity } = load('entity');

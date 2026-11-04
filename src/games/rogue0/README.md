@@ -3,6 +3,42 @@ Implementation of the game from the book [Roguelike Development with JavaScript]
 
 Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
 
+## Development boundaries
+
+- `combat.ts` resolves attack attempts and rolls damage. `combatApplication.ts`
+  owns successful-hit application: damage, invisibility, shock-water contact,
+  statuses, victim reactions and death cleanup. Normal attacks, skills, thrown
+  weapons and wands use it. Presentation/curse/arc hooks remain explicit;
+  this extraction does not change which attack kinds trigger weapon curses or
+  physical-hit reactions. Damage overrides and skill bonuses are parameters,
+  not temporary replacements of hero methods/stats.
+- `runPersistence.ts` owns typed floor/run snapshots, decoding, validation and
+  v1 compatibility repairs. `Scene0` still owns Phaser lifecycle, checkpoint
+  timing, rendering and floor transitions. Restoring actors must not rerun
+  constructors or reapply status bonuses.
+- `saveRegistry.ts` is an explicit table of **permanent wire IDs**. Existing
+  path-looking IDs are historical constants, not computed filenames. Moving a
+  class changes its import, never its ID. Keep aliases for older saves; give new
+  classes semantic IDs. The browser suite checks the historical ID fixture and
+  detects unregistered entity classes.
+- `scripts/lib/rogue0-logic-loader.mjs` is the shared compatibility harness for
+  isolated suites that still inject fakes. It parses imports with TypeScript
+  rather than deleting them with a regex. It is not an integration test.
+  New renderer-independent boundary tests import complete modules normally;
+  the Chromium suite exercises real game-module wiring and save/resume.
+  These tests use native TypeScript imports (Node 22.18+ or Node 24+).
+
+Run `npm run test:rogue0` for all headless suites, or
+`npm run test:rogue0:combat` for the shared combat pipeline. See below for the
+optional Chromium suite. Test history is appended automatically.
+
+Further incremental work: extract hero inventory/input/HUD and scene rendering
+responsibilities, replace the remaining isolated source loaders, then move the
+terrain/dungeon/scheduler singletons to run-owned state. The current refactor
+intentionally does not combine those larger lifecycle changes with combat/save
+compatibility work. Save field selection also remains graph-based; changes to
+persisted fields still need compatibility handling.
+
 ## Browser saves
 
 One run is autosaved in this browser's local storage (`rogue0.run.v1`). The title
@@ -19,8 +55,8 @@ and buffered movement are deliberately not resumed.
 The scene checkpoints completed actions, checks free inventory/UI changes every
 250ms, and flushes on page hide, backgrounding and navigation. If a browser is
 closed mid-animation, the last complete checkpoint is used rather than a partial
-attack or item drop. Save data uses versioned, stable file/export class IDs, not
-minified class names or executable code. Effects restore their local callbacks
+attack or item drop. Save data uses versioned, permanent class IDs (retaining all historical
+file/export IDs), not minified class names or executable code. Effects restore their local callbacks
 without reapplying stat bonuses. Storage failures display a warning and retain
 the previous save; invalid/incompatible saves offer a new-game recovery path.
 Clearing site data removes the save. Saves are local, not account/cloud synced;

@@ -8,6 +8,7 @@ import MirrorImage from "./monsters/mirrorImage";
 import { CURSE_PROC_CHANCE } from "./curseData";
 import { sfx } from "./audio";
 import { resolveAttack } from "./combat";
+import { applyAttackResult } from './combatApplication';
 import { spawnEntityFloatingText } from "./floatingText";
 import * as tiles from "./tiles";
 import {
@@ -1011,48 +1012,27 @@ const dungeon = {
       onHitEffects: attacker.onHitEffects(!!rangedAttack)
     });
 
-    if (!result.hit) {
-      return;
-    }
-
-    const attackNote = [result.surprise ? "Surprise" : "", result.crit ? "Critical" : ""].filter(Boolean).join(", ");
-    const prefix = attackNote ? `${attackNote}! ` : "";
-    if (result.damage > 0) {
-      victim.takeDamage(result.damage);
-      // Landing real damage on an enemy breaks the player's invisibility.
-      if (attacker.type === "player" && hasEffect(attacker, "invisible")) {
-        removeEffect(attacker, "invisible");
+    applyAttackResult(context, attacker, victim, result, {
+      applyEffect: (target, effect) => applyEffect(target, effect),
+      removeEffect: (target, id) => removeEffect(target, id),
+      removeEntity: (ctx, target) => removeEntity(ctx, target),
+      onHit: () => {
+        const attackNote = [result.surprise ? "Surprise" : "", result.crit ? "Critical" : ""].filter(Boolean).join(", ");
+        const prefix = attackNote ? `${attackNote}! ` : "";
+        if (result.damage > 0) {
+          spawnEntityFloatingText(victim, `-${result.damage}`);
+          this.log(context,
+            `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for ${result.damage} ${result.damageType} damage.`);
+          this.applyHitEffects(context, victim, result.surprise);
+        } else {
+          this.log(context,
+            `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for no damage.`);
+        }
+        // Ordinary weapon attacks retain curse procs; skills/throws/wands do not.
+        if (victim.type === "player") this.procArmorCurse(context, victim);
+        if (attacker.type === "player") this.procWeaponCurse(context, attacker, victim, result.damage);
       }
-      if (result.damageType === "shock") context.onShockWater?.(victim, result.damage);
-      spawnEntityFloatingText(victim, `-${result.damage}`);
-      this.log(
-        context,
-        `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for ${result.damage} ${result.damageType} damage.`
-      );
-      this.applyHitEffects(context, victim, result.surprise);
-    } else {
-      this.log(
-        context,
-        `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for no damage.`
-      );
-    }
-
-    // Cursed armor reacts to being struck; cursed weapons react to landing
-    // a hit (Sacrificial/Displacing/Annoying/Friendly/Exhausting).
-    if (victim.type === "player") this.procArmorCurse(context, victim);
-    if (attacker.type === "player") this.procWeaponCurse(context, attacker, victim, result.damage);
-
-    for (const effect of result.appliedEffects) {
-      if (victim.healthPoints > 0) {
-        applyEffect(victim, effect);
-      }
-    }
-
-    victim.onHitBy?.(attacker, result.damageType, result.damage);
-
-    if (victim.healthPoints <= 0) {
-      removeEntity(context, victim);
-    }
+    });
   },
 
   log: function (context: GameContext, text: string): void {
