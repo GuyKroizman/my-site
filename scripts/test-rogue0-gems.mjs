@@ -345,4 +345,43 @@ assert.equal(context.scene.input.enabled, true);
     assert.equal(uses2, 2);
   }
 }
+// Gem supply regression: gems are the permanent-upgrade currency, so they must
+// stay rare. Common enemies used to make them drop several times per floor.
+{
+  class ConfigMonster { constructor(_context, config) { this.loot = config.loot ?? []; } }
+  const stub = {
+    Monster: ConfigMonster, Gem, HolyPotion: class {}, BerserkPotion: class {},
+    dungeon: { log() {} }, createBleedingEffect: () => [], createRegenerationEffect: () => ({}),
+    applyEffect() {}, hasEffect: () => false, createStrengthenedEffect: () => ({}),
+    GOBLIN_ARROW_TEXTURE: 'goblin-arrow', generateGoblinArrowTexture() {},
+    CULTIST_BOLT_TEXTURE: 'cultist-bolt', generateCultistBoltTexture() {},
+  };
+  const kinds = {
+    Skeleton: load('src/games/rogue0/monsters/skelaton.ts', stub).default,
+    Goblin: load('src/games/rogue0/monsters/goblin.ts', stub).default,
+    Ghoul: load('src/games/rogue0/monsters/ghoul.ts', stub).default,
+    Brute: load('src/games/rogue0/monsters/brute.ts', stub).default,
+    Cultist: load('src/games/rogue0/monsters/cultist.ts', stub).default,
+    Mimic: load('src/games/rogue0/monsters/mimic.ts', stub).default,
+  };
+  const gemShare = Kind => {
+    const loot = new Kind({ floor: 5 }).loot;
+    return loot.filter(entry => entry === Gem).length / loot.length;
+  };
+  // Deepest-floor spawn counts from scene0's density cap (density = 5), plus
+  // two chests (gem on 1 of 6 outcomes) and one secret-room gem per five-floor
+  // band. Kept as a budget check rather than an exact generator replica.
+  const spawnCounts = {
+    Skeleton: 7, Goblin: 4, Ghoul: 1, Brute: 1, Cultist: 1, Mimic: 1,
+  };
+  const expectedPerFloor = Object.entries(spawnCounts)
+    .reduce((sum, [name, count]) => sum + gemShare(kinds[name]) * count, 2 / 6) + 0.2;
+  assert.ok(expectedPerFloor < 2,
+    `deep-floor gem loot stays rare (expected ${expectedPerFloor.toFixed(2)} gems/floor)`);
+  assert.ok(expectedPerFloor > 0.5, 'gems still drop often enough to matter');
+  // The most numerous enemies must not be gem pinatas.
+  assert.equal(gemShare(kinds.Skeleton), 0, 'skeletons drop no gems');
+  assert.equal(gemShare(kinds.Goblin), 0, 'goblins drop no gems');
+  assert.ok(gemShare(kinds.Mimic) <= 0.5, 'a mimic gem is a bonus, not a guarantee');
+}
 console.log('Rogue0 gem and Holy Potion target selection, cancellation, stacking, cleansing descriptions and turn costs passed');

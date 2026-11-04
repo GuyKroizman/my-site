@@ -1,6 +1,5 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
-import Gem from "../items/gem";
 import HolyPotion from "../items/holyPotion";
 import BerserkPotion from "../items/berserkPotion";
 
@@ -18,7 +17,9 @@ export default class Skeleton extends Monster {
       protection: 0,
       xp: 2,
       range: 0,
-      loot: [false, false, false, false, Gem, HolyPotion, BerserkPotion]
+      // No gems: skeletons are the most common enemy, so their loot is
+      // potions only. Gems come from rare treasures (see scene0/chest/mimic).
+      loot: [false, false, false, false, false, HolyPotion, BerserkPotion]
     }, x, y);
   }
 }

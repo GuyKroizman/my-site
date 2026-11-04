@@ -1,6 +1,5 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
-import Gem from "../items/gem";
 import HolyPotion from "../items/holyPotion";
 import { createBleedingEffect } from "../effects";
 import { GOBLIN_ARROW_TEXTURE, generateGoblinArrowTexture } from "../projectileTextures";
@@ -25,7 +24,7 @@ export default class Goblin extends Monster {
       meleeDamage: 2,
       attackTile: 10 * 49 + 15,
       projectileTexture: GOBLIN_ARROW_TEXTURE,
-      loot: [false, Gem, HolyPotion]
+      loot: [false, false, HolyPotion]
     }, x, y);
   }
 

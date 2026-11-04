@@ -27,7 +27,7 @@ export default class Cultist extends Monster {
       range: 5,
       meleeDamage: 2,
       projectileTexture: CULTIST_BOLT_TEXTURE,
-      loot: [false, false, Gem]
+      loot: [false, false, false, Gem]
     }, x, y);
   }
 

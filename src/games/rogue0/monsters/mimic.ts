@@ -55,7 +55,10 @@ export default class Mimic extends Monster {
       protection: 1 + Math.floor(tier / 2),
       xp: 8 + tier * 4,
       range: 0,
-      loot: [Gem, Gem]
+      // A mimic is a treasure, but a coin-flip gem from the one mimic per
+      // floor was the single biggest gem source. Keep it a bonus, not a
+      // guaranteed upgrade every floor.
+      loot: [false, Gem]
     }, x, y);
   }
 }
