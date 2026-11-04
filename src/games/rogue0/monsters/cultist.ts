@@ -15,17 +15,17 @@ export default class Cultist extends Monster {
       description: "A robed cultist who hurls necromantic bolts and raises skeletons to fight for it.",
       tile: 0,
       textureKey: "cultist", // Original violet-robed summoner with a bone staff.
-      healthPoints: 8,
+      healthPoints: 16,
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 7,
-      attackDamage: 2,
+      attackDamage: 4,
       protection: 0,
       xp: 8,
       // A truthy attackTile routes the AI through the ranged branch; the
       // projectile texture supplies the visible bolt, not this tilesheet frame.
       range: 5,
-      meleeDamage: 1,
+      meleeDamage: 2,
       projectileTexture: CULTIST_BOLT_TEXTURE,
       loot: [false, false, Gem]
     }, x, y);

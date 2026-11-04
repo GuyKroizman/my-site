@@ -16,7 +16,7 @@ const HEALING_POTION_DROP_CHANCE = 0.2;
 export default class SwarmOfFlies extends Monster {
   constructor(context: GameContext, x?: number, y?: number, offspring = false, splitHealth?: number) {
     if (context.scene) generateFlySwarmTexture(context.scene);
-    const health = offspring ? (splitHealth ?? 4) : 8;
+    const health = offspring ? (splitHealth ?? 8) : 16;
     super(context, {
       name: "Swarm of Flies",
       description: "A buzzing cloud that splits apart when struck with a physical blow.",
@@ -27,7 +27,7 @@ export default class SwarmOfFlies extends Monster {
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 6,
-      attackDamage: 1,
+      attackDamage: 2,
       protection: 0,
       xp: offspring ? 2 : 5,
       range: 0,

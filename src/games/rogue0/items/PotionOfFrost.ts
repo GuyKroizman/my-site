@@ -14,7 +14,7 @@ export default class PotionOfFrost extends Entity {
     this.tile = 13 * 49 + 43;
     this.textureKey = "potion-blue";
     this.name = "Potion of Frost";
-    this.description = "The potionnn bottle is cold to the touch.";
+    this.description = "The potion bottle is cold to the touch.";
     this.consumable = true;
     this.damageType = "ice";
 

@@ -44,7 +44,7 @@ Contents and opened state persist through travel and browser saves. Previously
 visited floors are not repopulated with new chests.
 
 Mimics stay dormant until attacked or damaged. Their stats now scale across the
-five dungeon regions: 16–32 HP, 7–15 damage, 1–3 protection, and 6-tile vision.
+five dungeon regions: 32–64 HP, 14–30 damage, 1–3 protection, and 6-tile vision.
 Legacy 4-HP mimics in browser saves are upgraded once while preserving existing
 damage and provocation state.
 
@@ -196,10 +196,10 @@ balance values, not an exact reproduction of SPD. Entering a floor does not heal
 ## Ranged monsters and melee fallback
 
 Goblins and cultists are ranged. Goblins fire barbed arrows up to 5 tiles for
-2 damage plus 3 turns of bleeding. Cultists hurl necromantic bolts up to 5
-tiles for 2 damage (no bleeding) and still raise skeletons. When a target is
+4 damage plus 3 turns of bleeding. Cultists hurl necromantic bolts up to 5
+tiles for 4 damage (no bleeding) and still raise skeletons. When a target is
 **adjacent** (Chebyshev distance 1, including diagonals) they cannot use their
-ranged attack and switch to a sidearm: 1 damage, a normal melee lunge animation,
+ranged attack and switch to a sidearm: 2 damage, a normal melee lunge animation,
 no arrow bleeding and no bolt. Closing the distance therefore cuts the damage
 the ranged attacker deals in half and stops the goblin's typed bleeding.
 
