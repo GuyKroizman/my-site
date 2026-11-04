@@ -868,6 +868,46 @@ hero.stepAutoWalk();
 assert.equal(touchAttack, true, 'auto-walk attacks a diagonally adjacent enemy');
 assert.deepEqual([hero.x, hero.y], [2, 2], 'attack does not overlap the enemy');
 
+// Tapping a moving enemy chases its current tile each step, not the stale tile
+// it occupied when tapped.
+{
+  const chaseHero = Object.assign(Object.create(Hero.prototype), {
+    context: { entities: [], visibleTiles: new Set(), simulationTime: 0 },
+    x: 0, y: 0, actionReady: true, moving: false,
+    hunger: 100, healthPoints: 10, movementSpeed: 1, attackDelay: 1,
+    currentWeapon: () => undefined, effects: [],
+    acknowledgedWalkEnemies: new Set(),
+    walkPath: [{ x: 5, y: 5 }], // stale tap tile
+    spendTurn() { this.actionReady = false; },
+  });
+  const chased = Object.assign(new Entity(), {
+    type: 'enemy', healthPoints: 5, x: 3, y: 3, isDecoy: false, sprite: {},
+  });
+  chaseHero.walkTargetEntity = chased;
+  chaseHero.acknowledgedWalkEnemies.add(chased);
+  chaseHero.context.entities = [chased];
+  chaseHero.context.visibleTiles = new Set(['3,3']);
+
+  const findPathCalls = [];
+  dungeon.findPath = (sx, sy, tx, ty) => {
+    findPathCalls.push([tx, ty]);
+    return [[sx, sy], [tx, ty]];
+  };
+  chaseHero.nextStepToward = () => null; // stop after one inspection
+
+  // The monster advances after the tap, before the next auto-walk step.
+  chased.x = 4;
+  chased.y = 4;
+  chaseHero.context.visibleTiles = new Set(['4,4']);
+  chaseHero.stepAutoWalk();
+
+  assert.ok(findPathCalls.some(([tx, ty]) => tx === 4 && ty === 4),
+    "chase re-paths toward the monster's current tile, not the tap tile");
+  assert.ok(!findPathCalls.some(([tx, ty]) => tx === 5 && ty === 5),
+    'chase does not keep walking to the original tap tile');
+  dungeon.findPath = realDungeon.findPath.bind(realDungeon);
+}
+
 monster.effects = [];
 monster.x = 1; monster.y = 1;
 enemyTurn(monster);

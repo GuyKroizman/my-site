@@ -183,6 +183,7 @@ export default class BasicHero extends Entity {
   inputBuffer: string[] = [];
   walkPath: Array<{ x: number; y: number }> = [];
   private acknowledgedWalkEnemies = new Set<Entity>();
+  private walkTargetEntity?: Entity;
   onBackpackToggle?: () => void;
   onHeroIconTap?: () => void;
 
@@ -877,8 +878,8 @@ export default class BasicHero extends Entity {
         );
         this.spendTurn("attack");
       } else {
-        // No ranged attack: walk toward the enemy to attack it.
-        this.setWalkTarget(entity.x!, entity.y!);
+        // No ranged attack: chase the enemy and attack when adjacent.
+        this.setWalkTarget(entity.x!, entity.y!, entity);
       }
       return;
     }
@@ -995,8 +996,12 @@ export default class BasicHero extends Entity {
     return null;
   }
 
-  private setWalkTarget(tx: number, ty: number): void {
+  private setWalkTarget(tx: number, ty: number, target?: Entity): void {
     if (this.x === undefined || this.y === undefined) return;
+    // Chasing a hostile entity re-targets each step (see stepAutoWalk) so a
+    // moving monster is pursued, not the tile it occupied when tapped.
+    this.walkTargetEntity =
+      target && isHostile(target) ? target : undefined;
     if (this.tryStepIntoChasm(tx, ty)) return;
     this.context.onResumeFollow?.();
     // A fresh command acknowledges current threats, but not other monsters
@@ -1023,14 +1028,51 @@ export default class BasicHero extends Entity {
       !isGrassConcealed(entity.x, entity.y, this.x, this.y)
     )) {
       this.walkPath = [];
+      this.walkTargetEntity = undefined;
       return;
     }
     if (!this.canAct()) return;
 
-    const target = this.walkPath[this.walkPath.length - 1];
-    const step = this.nextStepToward(target.x, target.y);
+    // A moving enemy is chased by re-pathing toward its current tile every
+    // step. If it dies, stop; if it leaves sight, fall back to its last known
+    // position (already stored as the end of the current walkPath).
+    if (this.walkTargetEntity) {
+      const target = this.walkTargetEntity;
+      const alive =
+        isHostile(target) &&
+        target.healthPoints > 0 &&
+        target.x !== undefined &&
+        target.y !== undefined &&
+        this.context.entities.includes(target);
+      if (!alive || this.x === undefined || this.y === undefined) {
+        this.walkTargetEntity = undefined;
+        this.walkPath = [];
+        return;
+      }
+      if (!this.context.visibleTiles.has(`${target.x},${target.y}`) ||
+          isGrassConcealed(target.x, target.y, this.x, this.y)) {
+        this.walkTargetEntity = undefined;
+      } else {
+        const path = dungeon.findPath(this.x!, this.y!, target.x!, target.y!, true, true, this);
+        this.walkPath =
+          path.length > 1 ? path.slice(1).map(([x, y]) => ({ x, y })) : [];
+        if (this.walkPath.length === 0) {
+          this.walkTargetEntity = undefined;
+          return;
+        }
+      }
+    }
+
+    const destination = this.walkPath[this.walkPath.length - 1];
+    if (!destination) {
+      this.walkPath = [];
+      this.walkTargetEntity = undefined;
+      return;
+    }
+    const step = this.nextStepToward(destination.x, destination.y);
     if (!step) {
       this.walkPath = [];
+      this.walkTargetEntity = undefined;
       return;
     }
 
@@ -1043,6 +1085,7 @@ export default class BasicHero extends Entity {
       const duration = actionCost(this, action, this.currentWeapon()?.attackDelay ?? this.attackDelay);
       if (starvationDamageDuring(this.context.simulationTime ?? 0, duration) >= this.healthPoints) {
         this.walkPath = [];
+        this.walkTargetEntity = undefined;
         dungeon.log(this.context, 'Auto-walk stopped: starvation would kill you. Eat or heal before continuing.');
         return;
       }
@@ -1050,6 +1093,7 @@ export default class BasicHero extends Entity {
 
     if (entity && isHostile(entity)) {
       this.walkPath = [];
+      this.walkTargetEntity = undefined;
       if (this.canAct()) {
         const weapon = this.currentWeapon();
         if (weapon) {
@@ -1070,6 +1114,7 @@ export default class BasicHero extends Entity {
 
     if (hasEffect(this, "rooted")) {
       this.walkPath = [];
+      this.walkTargetEntity = undefined;
       return;
     }
 
@@ -1103,6 +1148,7 @@ export default class BasicHero extends Entity {
       dungeon.moveEntityTo(this.context, this, step.x, step.y);
     } else {
       this.walkPath = [];
+      this.walkTargetEntity = undefined;
     }
   }
 
