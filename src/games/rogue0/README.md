@@ -298,6 +298,24 @@ is missing (e.g. an older browser save restored without the field) the melee
 strike derives `max(1, round(attackDamage / 2))`. Monsters with `range = 0`
 are untouched: `meleeAttack()` returns their full primary damage.
 
+## Floor population and reinforcements
+
+A floor is never allowed to become empty of hostile monsters. When a death
+removes the last living monster (items, corpses and friendly mirror images do
+not count), the scene immediately draws a small wave — two to four monsters,
+weighted from the regular roster for the current depth but never the Bone Lord.
+The wave joins the current action timeline and is always placed outside the
+hero's field of view, on free walkable tiles at least 8 tiles away when such
+unseen space exists. Floors are far larger than the view radius, so the full
+wave fits out of sight; within unseen space, distant tiles are chosen first.
+Only a degenerate map with no unseen walkable tile falls back to visible tiles,
+so the floor still cannot stay empty. This means the floor is repopulated in
+some other part of the map rather than on top of the corpse, the stairs or the
+hero's view. Reinforcements are ordinary
+saved entities: descending, ascending or reloading preserves them, and a
+restored floor that was already empty (for example from an older save) is
+refilled on arrival.
+
 ## Run length and equipment progression
 
 A run has **25 floors**, with the unchanged Bone Lord on floor **25**. The old

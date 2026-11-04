@@ -452,6 +452,13 @@ export function removeEntity(context: GameContext, entity: Entity) {
     sfx.death();
   }
 
+  // The scene checks whether this was the floor's last monster and, if so,
+  // sends reinforcements elsewhere. Run after loot/XP so the wave cannot
+  // replace the dead monster's drops.
+  if (entity.type === "enemy" && !entity.isDecoy) {
+    context.onMonsterRemoved?.(entity);
+  }
+
   entity.x = undefined;
   entity.y = undefined;
 

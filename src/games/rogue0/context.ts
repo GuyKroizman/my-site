@@ -53,6 +53,9 @@ export type GameContext = {
   onAscend?: () => void;
   // Scene owns monster construction; terrain requests one bounded reinforcement.
   onSummonTrap?: (x: number, y: number) => boolean;
+  // Fires after a real monster (never an item or decoy) is removed. The scene
+  // uses it to keep every floor populated; called after death rewards/loot.
+  onMonsterRemoved?: (entity: Entity) => void;
   // Frost effects notify terrain without coupling effect scheduling to rendering.
   onFrostTerrain?: (x: number, y: number) => number;
   // Called only after a successful shock hit has applied its primary damage.

@@ -80,6 +80,8 @@ import SwarmOfFlies from "./monsters/swarmOfFlies";
 import { updateMonsterSleepVisuals, clearMonsterSleepVisuals } from "./monsters/monsterSleepVisuals";
 import Wraith from "./monsters/wraith";
 import classes from "./classes";
+import type Monster from "./monsters/monster";
+import { reinforceFloor, type ReinforcementKind } from "./monsterReinforcements";
 import {
   generateMap,
   findFarthestWalkable,
@@ -257,6 +259,7 @@ export class Scene0 extends Phaser.Scene {
       clearWandZaps(this);
       this.context.onGrassBurn = undefined;
       this.context.onWandZap = undefined;
+      this.context.onMonsterRemoved = undefined;
     });
     this.context.scene = this;
     resetConsumableAppearances(this.context);
@@ -375,6 +378,7 @@ export class Scene0 extends Phaser.Scene {
     this.context.onDescend = () => this.tryDescend();
     this.context.onAscend = () => this.tryAscend();
     this.context.onSummonTrap = (x, y) => this.summonFromTrap(x, y);
+    this.context.onMonsterRemoved = () => this.reinforceEmptyFloor();
     this.context.onFrostTerrain = (x, y) => dungeon.freezeWater(this.context, x, y);
     this.context.onShockWater = (target, damage) => dungeon.conductShock(this.context, target, damage);
     this.context.onCreatePoisonGas = (x, y) => createPoisonGas(this.context, dungeon.getCurrentLevel(), x, y);
@@ -720,6 +724,9 @@ export class Scene0 extends Phaser.Scene {
 
     turnManager.reset(this.context.entities, !!restored || floor > 1);
     this.recomputeFOV();
+    // Older saves and saves from before this guard can contain a cleared floor.
+    // Refill it on arrival rather than leaving the player with nothing to fight.
+    if (restored) this.reinforceEmptyFloor();
     this.events.emit("floor-changed", { floor });
   }
 
@@ -818,6 +825,68 @@ export class Scene0 extends Phaser.Scene {
       return true;
     }
     return false;
+  }
+
+  private reinforcementActor(kind: ReinforcementKind, x: number, y: number): Monster {
+    const context = this.context;
+    switch (kind) {
+      case "goblin": return new Goblin(context, x, y);
+      case "swarm": return new SwarmOfFlies(context, x, y);
+      case "quloptsh": return new Quloptsh(context, x, y);
+      case "ghoul": return new Ghoul(context, x, y);
+      case "brute": return new Brute(context, x, y);
+      case "cultist": return new Cultist(context, x, y);
+      case "wraith": return new Wraith(context, x, y);
+      case "elemental": {
+        const Elemental = [FireElemental, IceElemental, ShockElemental][
+          Math.floor(Math.random() * 3)
+        ];
+        return new Elemental(context, x, y);
+      }
+      default: return new Skeleton(context, x, y);
+    }
+  }
+
+  // A floor never stays empty. The death that removes the last monster draws a
+  // small wave onto distant walkable tiles, preferably outside the hero's view.
+  private reinforceEmptyFloor(): void {
+    const context = this.context;
+    if (this.ended || !context.player) return;
+    const level = dungeon.getCurrentLevel();
+    if (!level?.length) return;
+
+    const exclude = new Set<string>();
+    for (const entity of context.entities) {
+      if (entity.x !== undefined && entity.y !== undefined) exclude.add(`${entity.x},${entity.y}`);
+    }
+    if (context.stairsX !== undefined && context.stairsY !== undefined) {
+      exclude.add(`${context.stairsX},${context.stairsY}`);
+    }
+    if (context.upstairsX !== undefined && context.upstairsY !== undefined) {
+      exclude.add(`${context.upstairsX},${context.upstairsY}`);
+    }
+
+    const candidates = randomWalkableTiles(
+      level,
+      Number.MAX_SAFE_INTEGER,
+      exclude,
+      MAX_VISIBLE_X
+    );
+    // Do not drop a wave into an active gas cloud: exposure deaths would just
+    // trigger another wave and could keep the scheduler cycling.
+    const gasTiles = new Set((context.poisonClouds ?? []).map(cloud => `${cloud.x},${cloud.y}`));
+    const spawned = reinforceFloor(context, candidates, (kind, x, y) => {
+      const monster = this.reinforcementActor(kind, x, y);
+      // Join the current timeline instead of arriving with overdue actions.
+      monster.nextActionTime = context.simulationTime ?? 0;
+      context.entities.push(monster);
+    }, { floor: context.floor, blocked: (x, y) => gasTiles.has(`${x},${y}`) });
+
+    if (spawned > 0) {
+      dungeon.log(context, spawned === 1
+        ? "Something stirs in the darkness elsewhere on this floor."
+        : "Distant movement echoes through the dungeon — more monsters arrive.");
+    }
   }
 
   private saveFloor() {
