@@ -20,6 +20,7 @@ import grass1Url from './assets/tall-grass-1.png';
 import grass2Url from './assets/tall-grass-2.png';
 import { updateHeroAnimation } from './heroAnimation';
 import { updateHeroBurning, clearHeroBurning } from './heroBurningVisuals';
+import { updateHeroChilled, clearHeroChilled } from './heroChilledVisuals';
 import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
@@ -265,6 +266,7 @@ export class Scene0 extends Phaser.Scene {
       clearSurpriseVisuals(this);
       clearGrassBurns(this);
       clearHeroBurning(this);
+      clearHeroChilled(this);
       clearWandZaps(this);
       this.context.onGrassBurn = undefined;
       this.context.onWandZap = undefined;
@@ -556,6 +558,7 @@ export class Scene0 extends Phaser.Scene {
     }
     updateHeroAnimation(this.context.player, this.time.now);
     updateHeroBurning(this, this.context.player, this.time.now);
+    updateHeroChilled(this, this.context.player, this.time.now);
     if (isModalOpen(this.context)) {
       this.autosave();
       if (this.context.player) {
@@ -720,6 +723,7 @@ export class Scene0 extends Phaser.Scene {
     clearSurpriseVisuals(this);
     clearGrassBurns(this);
     clearHeroBurning(this);
+    clearHeroChilled(this);
     clearWandZaps(this);
     this.context.floor = floor;
     this.context.poisonClouds = restoreGas(restored?.poisonClouds,

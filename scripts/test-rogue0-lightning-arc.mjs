@@ -31,6 +31,7 @@ class Wand {
   range() { return 5; }
   damage() { this.charges--; return 5; }
   wandEffect() { return {}; }
+  wandEffects() { return [this.wandEffect()]; }
   wandDamageMultiplier() { return 1; }
   arcsToAdjacent() { return false; }
 }

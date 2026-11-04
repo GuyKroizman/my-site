@@ -96,6 +96,18 @@ assert.equal(actionCost(player, 'search'), 2);
 assert.equal(actionCost(player, 'attack', 1.5), 1.5);
 assert.equal(actionCost(player, 'attack', 0), 1, 'invalid delays cannot loop');
 
+// Chilled halves both move and attack rate, and leaves non-physical actions alone.
+player.effects = [{ id: 'chilled' }];
+assert.equal(actionCost(player, 'move'), 2, 'chilled doubles movement time');
+assert.equal(actionCost(player, 'attack', 1.5), 3, 'chilled doubles attack delay');
+assert.equal(actionCost(player, 'wait'), 1, 'chilled does not slow waiting');
+assert.equal(actionCost(player, 'search'), 2, 'chilled does not slow searching');
+player.effects.push({ id: 'haste' });
+assert.equal(actionCost(player, 'move'), 1, 'haste and chilled cancel exactly');
+player.effects = [{ id: 'chilled' }, { id: 'crippled' }];
+assert.equal(actionCost(player, 'move'), 4, 'chilled stacks with cripple');
+player.effects = [];
+
 ({ player, enemy, entities } = setup());
 player.spendTime('attack', 1.5);
 player.moving = true;

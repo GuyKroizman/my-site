@@ -423,6 +423,7 @@ const flightDungeon = load('dungeon', { PF, tiles, ...fov,
   createPoisonedEffect: () => flightEffects.createPoisonedEffect(),
   createBurningEffect: () => flightEffects.createBurningEffect(),
   createFrozenEffect: () => flightEffects.createFrozenEffect(),
+  createChilledEffect: duration => flightEffects.createChilledEffect(duration),
   createCrippledEffect: duration => flightEffects.createCrippledEffect(duration),
   createConfusedEffect: () => flightEffects.createConfusedEffect(),
   sfx: { step() {} }
@@ -893,12 +894,24 @@ for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 
         'explicitly selecting the trap permits entry');
     }
     if (trapKind === 'teleport') assert.equal(flyer.x, 4);
-    if (trapKind === 'frost') assert.equal(flightEffects.hasEffect(flyer, 'frozen'), true);
+    if (trapKind === 'frost') {
+      assert.equal(flightEffects.hasEffect(flyer, 'frozen'), true);
+      // The skip alone is situational; the slow is the trap's real cost.
+      assert.equal(flightEffects.hasEffect(flyer, 'chilled'), true, 'frost trap also chills');
+      assert.equal(flyer.effects.find(e => e.id === 'chilled').duration, 10);
+    }
     flightDungeon.moveEntityTo(ctx, flyer, flyer.x, flyer.y);
     assert.equal(activations, 1, 'standing on the tile is not another entry');
+    const chilled = flyer.effects.find(e => e.id === 'chilled');
+    if (chilled) chilled.duration = 3;
     flightDungeon.moveEntityTo(ctx, flyer, 1, 2);
     flightDungeon.moveEntityTo(ctx, flyer, 2, 2);
     assert.equal(activations, trapReusable ? 2 : 1, 'only reusable traps reactivate');
+    if (chilled) {
+      assert.equal(flyer.effects.filter(e => e.id === 'chilled').length, 1, 'the slow never stacks');
+      assert.equal(chilled.duration, trapReusable ? 10 : 3,
+        trapReusable ? 're-entry refreshes the slow to full duration' : 'a single-use trap never refreshes it');
+    }
     assert.equal(ctx.simulationTime, 0.5, 'no rearming timer or extra action cost');
     assert.equal(summons, trapKind === 'summon' ? (trapReusable ? 2 : 1) : 0);
     if (trapKind === 'alarm') {

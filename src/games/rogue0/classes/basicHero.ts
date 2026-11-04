@@ -11,6 +11,7 @@ import { sfx } from "../audio";
 import {
   applyEffect,
   createBurningEffect,
+  createChilledEffect,
   createFrozenEffect,
   createPoisonedEffect,
   removeEffect,
@@ -1385,7 +1386,7 @@ export default class BasicHero extends Entity {
           this.attack = () => damage;
           try {
             const result = resolveAttack(context, this, enemy, {
-              damageType: item.damageType, isRanged: true, onHitEffects: [item.wandEffect()]
+              damageType: item.damageType, isRanged: true, onHitEffects: item.wandEffects()
             });
             if (result.hit) {
               enemy.takeDamage(result.damage);
@@ -1608,7 +1609,8 @@ export default class BasicHero extends Entity {
     } else if (name.includes("frost")) {
       // Fire elementals are critically weak to cold: a frost potion deals
       // direct ice damage (respecting ice resistance/vulnerability) before
-      // the usual frozen splash. Other targets are merely frozen.
+      // the usual frozen splash. Other targets are merely frozen. Either way
+      // the splash chills, exactly like a frost trap or a frost wand.
       if (enemy.damageType === "fire") {
         const damage = Math.max(
           0,
@@ -1623,9 +1625,11 @@ export default class BasicHero extends Entity {
           removeEntity(context, enemy);
         } else {
           applyEffect(enemy, createFrozenEffect(1));
+          applyEffect(enemy, createChilledEffect());
         }
       } else {
         applyEffect(enemy, createFrozenEffect(1));
+        applyEffect(enemy, createChilledEffect());
       }
     } else {
       dungeon.log(context, "It splashes harmlessly.");

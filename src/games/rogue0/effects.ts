@@ -180,6 +180,19 @@ export function createFrozenEffect(duration = 1): StatusEffect {
   };
 }
 
+// Frost trap's lasting bite: every move and attack costs twice as long (see
+// timing.actionCost). Ticks per world-time unit like other buffs, so 10 units
+// cover roughly five slowed moves. Applied by the trap independently of
+// `frozen`, so the recovery window above never blocks the slow.
+export function createChilledEffect(duration = 10): StatusEffect {
+  return {
+    id: "chilled",
+    name: "Chilled",
+    iconTile: 13 * 49 + 47,
+    duration
+  };
+}
+
 export function createWeakenedEffect(duration = 3): StatusEffect {
   return {
     id: "weakened",
@@ -346,6 +359,7 @@ const EFFECT_DESCRIPTIONS: Record<string, string> = {
   bleeding: "Takes 1 physical damage per turn.",
   regeneration: "Restores 1 health per turn.",
   frozen: "Loses one scheduled action.",
+  chilled: "Moves and attacks at half speed.",
   weakened: "Deals 1 less attack damage.",
   crippled: "Moves at half speed.",
   strengthened: "Deals 2 bonus attack damage.",

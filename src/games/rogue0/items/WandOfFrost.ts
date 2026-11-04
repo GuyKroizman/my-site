@@ -1,6 +1,6 @@
 import Wand from "./wand";
 import type { GameContext } from "../context";
-import { createFrozenEffect } from "../effects";
+import { createChilledEffect, createFrozenEffect } from "../effects";
 
 export default class WandOfFrost extends Wand {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -23,7 +23,14 @@ export default class WandOfFrost extends Wand {
     return [2, 5];
   }
 
+  // Single-effect callers still get the freeze; a zap carries both halves.
   wandEffect() {
     return createFrozenEffect(1);
+  }
+
+  // Frost magic always carries both halves: the skipped action (which the
+  // victim's recovery window may block) and the lasting slow.
+  wandEffects() {
+    return [this.wandEffect(), createChilledEffect()];
   }
 }

@@ -36,12 +36,14 @@ const dungeon = {
 const removeEntity = (_context, entity) => { removed.push(entity); };
 const applyEffect = (entity, effect) => { applied.push({ entity, effect }); };
 const createFrozenEffect = (duration = 1) => ({ id: 'frozen', duration });
+const createChilledEffect = (duration = 10) => ({ id: 'chilled', duration });
 const Hero = load('classes/basicHero', {
   Entity: EntityStub,
   dungeon,
   removeEntity,
   applyEffect,
   createFrozenEffect,
+  createChilledEffect,
   resolveAttack: () => { throw new Error('potion splash must not roll a combat attack'); },
   Wand: class Wand {},
   hasLineOfSight: () => true,
@@ -79,8 +81,9 @@ function fireElemental(healthPoints = 8) {
   assert.equal(enemy.healthPoints, 3, '4 base damage + 1 ice vulnerability');
   assert.equal(enemy.lastDamage, 5);
   assert.equal(enemy.damageCalls, 1);
-  assert.equal(applied.length, 1, 'survivors are still frozen');
-  assert.equal(applied[0].effect.id, 'frozen');
+  assert.deepEqual(applied.map(a => a.effect.id), ['frozen', 'chilled'],
+    'survivors are frozen and chilled, like every other frost source');
+  assert.equal(applied[1].effect.duration, 10, 'the slow keeps its full duration');
   assert.ok(logs.some(line => line.includes('Fire Elemental for 5 ice damage')),
     'damage is reported as ice damage');
   assert.equal(removed.length, 0);
@@ -120,8 +123,9 @@ function fireElemental(healthPoints = 8) {
   };
   hero.applyThrownPotion({ name: 'Potion of Frost' }, enemy);
   assert.equal(enemy.damageCalls, 0, 'non-fire targets take no direct damage');
-  assert.equal(applied.length, 1, 'non-fire targets are only frozen');
-  assert.equal(applied.at(-1).effect.id, 'frozen');
+  assert.deepEqual(applied.map(a => a.effect.id), ['frozen', 'chilled'],
+    'non-fire targets are frozen and chilled');
+  assert.equal(applied.at(-1).effect.id, 'chilled');
   assert.ok(!logs.some(line => line.includes('ice damage')), 'no ice damage log for a normal freeze');
 }
 

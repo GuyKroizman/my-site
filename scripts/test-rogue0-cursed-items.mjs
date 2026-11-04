@@ -232,6 +232,7 @@ const effects = {
   removeEffect() {},
   createBurningEffect: () => ({ id: 'burning' }),
   createFrozenEffect: () => ({ id: 'frozen' }),
+  createChilledEffect: () => ({ id: 'chilled' }),
   createCrippledEffect: () => ({ id: 'crippled' }),
   createConfusedEffect: () => ({ id: 'confused' }),
   createPoisonedEffect: () => ({ id: 'poisoned' }),

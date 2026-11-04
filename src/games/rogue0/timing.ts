@@ -27,6 +27,12 @@ export function actionCost(actor: TimedActor, action: ActionKind, weaponDelay = 
   } else if (action === "search") {
     cost = 2;
   }
+  // Chilled halves the rate of deliberate actions: each one costs double time.
+  // Haste/cripple stay independent, so haste (x0.5) and chilled (x2) cancel.
+  if ((action === "move" || action === "attack") &&
+      actor.effects.some(e => e.id === "chilled")) {
+    cost *= 2;
+  }
   // Bad content must not create zero-time loops or stall the simulation.
   return Number.isFinite(cost) && cost > 0 ? Math.max(0.05, cost) : 1;
 }

@@ -165,11 +165,29 @@ traps affect grounded players and monsters and share the existing trap budget;
 levitation bypasses them and search reveals without disarming.
 
 Normal actors move at speed 1. Ghouls move at speed 2 but attack at normal speed.
-Haste doubles movement speed only; cripple halves it. Rooting prevents movement
+Haste doubles movement speed only; cripple halves it; chilled halves both the
+movement and the attack rate (each move/attack costs double time, and haste
+cancels it exactly). Rooting prevents movement
 but permits attacks and other actions. Frozen actors lose one scheduled action;
 terrified monsters flee on their own scheduled actions, not in buff tick callbacks.
 Weapons default to attack delay 1; axes take 1.25 and war hammers 1.5. These are
 Rogue0 balance values, not a claim to reproduce SPD's entire item/balance table.
+
+Frost traps are reusable and now hit twice: one skipped action (Frozen) plus
+**Chilled** for 10 world-time units (roughly five slowed moves), applied even
+when the frozen-recovery window blocks a second freeze. **Frost affects
+monsters too**: a monster zapped by the Wand of Frost, splashed by a thrown
+frost potion, or stepping onto a frost plate (including a confused stumble) is
+frozen *and* chilled, so it moves and attacks at half rate through the same
+action-cost path the AI uses. Frost plates stay armed after a monster triggers
+them; fire, dart, teleport, summon and alarm plates remain player-only, and
+levitation still bypasses all pressure plates. Re-entry refreshes the slow
+rather than stacking it. Chilled shows an ice icon in the top-left status
+row, is described in the character modal ("Moves and attacks at half speed"),
+and covers the hero sprite in a translucent ice sheen with frost crystals —
+drawn as a separate overlay so low-health red, hit-flash white and invisibility
+alpha still work. The overlay follows movement, the walking bob and scaling,
+and it clears on expiry, death, floor change and scene shutdown.
 
 Hunger and regeneration tick per elapsed world-time unit. Buffs keep their own
 tick phase (a two-time-unit buff applied at 0.5 expires at 2.5), and skill cooldowns

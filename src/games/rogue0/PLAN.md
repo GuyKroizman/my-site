@@ -543,6 +543,32 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       Terrain regressions cover frost sources/reapplication, splash bounds,
       movement costs, fractional expiry, flight, melting and persistence.
       Visual playtesting remains deferred.
+- [x] Frost traps chill as well as freeze: the single skipped action is
+      situational in an empty room, so the trap also applies Chilled for 10
+      world-time units. Chilled doubles the time cost of moves and attacks
+      (halving both rates) and cancels haste exactly; waiting, searching, item
+      use and other actions keep their normal cost, and cripple stacks with it.
+      It is applied independently of Frozen, so the one-action freeze-recovery
+      window never blocks the slow; re-entry refreshes it to full duration and
+      it never stacks. The hero gets a translucent ice sheen with frost crystals
+      drawn in a separate overlay (health tint, hit flash and invisibility alpha
+      stay untouched), the top-left status row shows its icon, and the character
+      modal describes it. Regression coverage: cost math and cancellations,
+      trap application/refresh/single-use behaviour, and overlay geometry,
+      pulse, movement/bob/scale tracking, expiry, death and cleanup. Balance
+      playtesting remains deferred.
+- [x] Frost reaches monsters: the Wand of Frost zap now applies Frozen *and*
+      Chilled (`wandEffects()` returns both; `wandEffect()` still yields the
+      freeze for single-effect callers), thrown frost potion splashes chill as
+      well, and frost plates are no longer player-only — a monster (confused or
+      not) that enters one is frozen and slowed, so its `actionCost` doubles for
+      moves and attacks and it takes half as many turns. Fire, dart, teleport,
+      summon and alarm plates stay player-only; levitation still skips plates;
+      a monster's re-entry refreshes the slow without stacking. Ice-elemental
+      touch is left as freeze-only on purpose. Regression coverage: wand effect
+      lists per wand type, chilled monster tempo through the real scheduler,
+      monster/player trap parity, player-only hazards, levitation, refresh and
+      potion splash effects.
 - [x] Fire spreads through grass: a grounded burning actor's movement ignites
       grass underfoot/cardinally adjacent, immediately consuming every connected
       cardinal grass patch. Water, bare floor, walls and diagonal-only contact

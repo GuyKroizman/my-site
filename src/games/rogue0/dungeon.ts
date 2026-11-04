@@ -13,6 +13,7 @@ import * as tiles from "./tiles";
 import {
   applyEffect,
   createBurningEffect,
+  createChilledEffect,
   createFrozenEffect,
   createCrippledEffect,
   createConfusedEffect,
@@ -463,8 +464,11 @@ const dungeon = {
       this.log(context, `${entity.type === "player" ? "You step" : `${entity.name} steps`} into water and the flames go out.`);
     }
 
-    // Confusion plates affect either side; other ordinary traps remain player-only.
-    if ((entity.type === "player" || (entity.type === "enemy" && entryTrap?.trapKind === "confusion")) && !flying && entering) {
+    // Confusion and frost plates affect either side; other ordinary traps
+    // (darts, fire, teleport, summon, alarm) remain player-only.
+    if ((entity.type === "player" || (entity.type === "enemy" &&
+        (entryTrap?.trapKind === "confusion" || entryTrap?.trapKind === "frost"))) &&
+        !flying && entering) {
       const state = tiles.getTileState(destX, destY);
       if (state && state.feature === "trap" && state.trapKind !== "arrow" && state.trap !== "triggered") {
         tiles.activateTrap(destX, destY);
@@ -504,6 +508,9 @@ const dungeon = {
             break;
           case "frost":
             applyEffect(entity, createFrozenEffect());
+            // The skip alone is easy to shrug off in an empty room; the slow
+            // makes the trap a real tempo cost wherever it sits.
+            applyEffect(entity, createChilledEffect());
             break;
           case "teleport": {
             const tile = this.randomWalkableTile(context, destX, destY);
@@ -756,8 +763,12 @@ const dungeon = {
   procWandCurse: function (context: GameContext, caster: Entity, wand: Entity): boolean {
     if (!wand?.cursed || wand.curseId !== "backfiring") return false;
     if (Math.random() >= CURSE_PROC_CHANCE) return false;
-    const effect = (wand as unknown as { wandEffect?: () => StatusEffect }).wandEffect?.();
-    if (effect) applyEffect(caster, effect);
+    const source = wand as unknown as {
+      wandEffects?: () => StatusEffect[];
+      wandEffect?: () => StatusEffect;
+    };
+    const effects = source.wandEffects?.() ?? (source.wandEffect ? [source.wandEffect()] : []);
+    for (const effect of effects) applyEffect(caster, effect);
     this.log(context, "Your cursed wand backfires!");
     return true;
   },

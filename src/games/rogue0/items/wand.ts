@@ -59,6 +59,12 @@ export default abstract class Wand extends Entity {
   abstract get damageBounds(): readonly [number, number];
   abstract wandEffect(): StatusEffect;
 
+  // Most wands apply one status; frost applies the freeze and the slow.
+  // Zap impact uses this list, single-effect callers use `wandEffect`.
+  wandEffects(): StatusEffect[] {
+    return [this.wandEffect()];
+  }
+
   wandDamage(): number {
     const [min, max] = this.damageBounds;
     return Phaser.Math.Between(min, max);
