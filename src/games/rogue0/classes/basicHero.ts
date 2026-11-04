@@ -242,20 +242,19 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
   // Use a consumable. Identifies it (if needed) and runs its consume effect.
   useItem(item: Entity): boolean {
-    if (!this.canAct() || !this.getAllItems().includes(item)) return false;
+    if (!this.getAllItems().includes(item)) return false;
+    // Tapping the wand that is already aiming cancels target selection
+    // instead of firing. Only the target tile (or Enter) confirms the shot,
+    // so a stray second tap never spends a charge or a turn.
+    if (item instanceof Wand && this.zapping && this.context.throwMode &&
+        this.context.throwItem === item) {
+      this.cancelThrow();
+      return false;
+    }
+    if (!this.canAct()) return false;
     if (item instanceof Wand) {
       if (item.charges <= 0) {
         dungeon.log(this.context, "The wand is spent.");
-        return false;
-      }
-      // A second tap on the same wand fires at the selected target (the
-      // auto-targeted closest enemy or the last enemy tapped) instead of
-      // re-opening target selection. Never fire at the hero's own tile when
-      // no target could be auto-selected.
-      if (this.zapping && this.context.throwMode && this.context.throwItem === item &&
-          this.context.cursorX !== undefined && this.context.cursorY !== undefined &&
-          (this.context.cursorX !== this.x || this.context.cursorY !== this.y)) {
-        this.throwAtCursor();
         return false;
       }
       this.beginThrow(item, true);

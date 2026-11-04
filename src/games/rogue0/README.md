@@ -142,7 +142,9 @@ All wands have no distance cap, including wands in older browser saves. Zaps
 still require an in-bounds, non-wall destination and a clear line of sight;
 the first actor in the projectile path intercepts the shot. Ordinary thrown
 items also have no distance cap; they only need an in-bounds, non-wall
-destination in line of sight. Charges and action costs are unchanged.
+destination in line of sight. Tapping the aiming wand again cancels target
+selection instead of firing; only the target tile (or Enter) fires. Charges
+and action costs are unchanged.
 
 ## Lightning wand arcs
 
