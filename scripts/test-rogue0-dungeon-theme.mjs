@@ -24,7 +24,10 @@ for (const floor of [...floors, ...floors.toReversed(), 0, 26]) {
 const dungeon = fs.readFileSync('src/games/rogue0/dungeon.ts', 'utf8');
 const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 assert.ok(dungeon.includes('dungeonTheme(context.floor).tiles'));
-assert.ok(scene.includes('dungeonTheme(this.context.floor).wall'));
+// scene0 derives one theme per sync and uses it for raised wall faces + decals.
+assert.ok(scene.includes('const theme = dungeonThemeName(this.context.floor)'));
+assert.ok(scene.includes('`${theme}-wall`'));
+assert.ok(scene.includes('this.syncWallDecal(key, x, y, theme, raised)'));
 for (const theme of ['crypt', 'sandstone', 'crystal', 'volcanic']) {
   assert.ok(scene.includes(`this.load.image('${theme}-tiles', ${theme}TilesUrl)`));
   assert.ok(scene.includes(`this.load.image('${theme}-wall', ${theme}WallUrl)`));

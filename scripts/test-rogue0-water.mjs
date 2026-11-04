@@ -56,6 +56,10 @@ const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
     forEachFeature(fn) { if (state) fn(0, 0, state); } },
   dungeon: { getCurrentLevel: () => [[0]] }, wallOverhang: () => false,
   worldDepth: () => 0, actorOriginY: () => 0,
+  // Raised wall faces (and their decals) are inactive here; the entry points
+  // must still resolve because syncFeatures is exercised verbatim.
+  dungeonThemeName: () => 'stone', decalFrameFor: () => undefined,
+  flatDecalFrameFor: () => undefined, DECAL_TEXTURE: 'wall-decals', UPRIGHT_LIFT: 5,
 });
 const s = new TestScene();
 const sprite = { visible: true, frame: 0, texture: '',

@@ -11,7 +11,7 @@ import crystalTilesUrl from './assets/crystal-tiles.png';
 import crystalWallUrl from './assets/crystal-wall.png';
 import volcanicTilesUrl from './assets/volcanic-tiles.png';
 import volcanicWallUrl from './assets/volcanic-wall.png';
-import { dungeonTheme } from './dungeonTheme';
+import { dungeonThemeName } from './dungeonTheme';
 import heroArtUrl from './assets/hero-color.png';
 import cultistArtUrl from './assets/monsters/cultist.png';
 import goblinArtUrl from './assets/monsters/goblin.png';
@@ -101,6 +101,7 @@ import { computeFOV, resolveVision } from "./fov";
 import { hasEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
+import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
 import { resetConsumableAppearances, saveConsumableKnowledge, restoreConsumableKnowledge, rememberIdentifiedWandTypes } from "./entity";
 import { maybeCurse } from "./curses";
@@ -206,6 +207,10 @@ export class Scene0 extends Phaser.Scene {
   private waterSprites = new Map<string, { sprite: Phaser.GameObjects.Sprite; x: number; y: number; mask: number }>();
   private lastWaterStep = -1;
   private wallSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  // Sparse wall decoration, keyed like the raised wall sprites above. Raised
+  // faces (corridor side) and flat wall tops share the map; the flag keeps
+  // their different anchoring and depth in sync when terrain changes.
+  private wallDecals = new Map<string, { sprite: Phaser.GameObjects.Sprite; raised: boolean }>();
   private secretRoom?: Room;
   private cursor!: Phaser.GameObjects.Graphics;
   private zoom = 2;
@@ -288,6 +293,7 @@ export class Scene0 extends Phaser.Scene {
     generatePotionTextures(this);
     generateArmorTextures(this);
     generateDoorThresholdTexture(this);
+    generateWallDecalTextures(this);
     generateUnknownItemTextures(this);
     generateWaterTexture(this);
 
@@ -1047,6 +1053,11 @@ export class Scene0 extends Phaser.Scene {
       const [x, y] = key.split(',').map(Number);
       sprite.setVisible(this.seen[y]?.[x] === true);
     }
+    // Decals follow their wall: remembered walls keep theirs, unknowns hide.
+    for (const [key, decal] of this.wallDecals ?? []) {
+      const [x, y] = key.split(',').map(Number);
+      decal.sprite.setVisible(this.seen[y]?.[x] === true);
+    }
     this.gasOverlay?.clear();
     const now = this.context.simulationTime ?? 0;
     for (const cloud of this.context.poisonClouds ?? []) {
@@ -1143,12 +1154,17 @@ export class Scene0 extends Phaser.Scene {
 
   private clearFeatureSprites() {
     this.waterSprites?.clear();
+    // Scene instances built through the prototype (tests, save restore) skip
+    // field initializers, so allocate lazily like waterSprites above.
+    this.wallDecals ??= new Map();
     for (const sprite of this.featureSprites.values()) {
       sprite.destroy();
     }
     this.featureSprites.clear();
     for (const sprite of this.wallSprites.values()) sprite.destroy();
     this.wallSprites.clear();
+    for (const decal of this.wallDecals.values()) decal.sprite.destroy();
+    this.wallDecals.clear();
   }
 
   private featureVisual(state: tiles.TileState): {
@@ -1189,23 +1205,34 @@ export class Scene0 extends Phaser.Scene {
     // north edge into the corridor and sorts in front of actors behind it.
     // Reconcile on terrain changes too (e.g. a secret wall becoming a door).
     const level = dungeon.getCurrentLevel();
+    const theme = dungeonThemeName(this.context.floor);
+    this.wallDecals ??= new Map();
     const wallKeys = new Set<string>();
+    const raisedKeys = new Set<string>();
     for (let y = 0; y < level.length; y++) {
       for (let x = 0; x < level[y].length; x++) {
-        if (!wallOverhang(level, x, y)) continue;
+        if (level[y][x] !== 1) continue;
         const key = `${x},${y}`;
         wallKeys.add(key);
-        if (!this.wallSprites.has(key)) {
-          const sprite = this.add.sprite(x * 16, y * 16, dungeonTheme(this.context.floor).wall)
-            .setOrigin(0, UPRIGHT_LIFT / 16)
-            .setDepth(worldDepth(y * 16, 'terrain'));
-          this.wallSprites.set(key, sprite);
+        const raised = wallOverhang(level, x, y);
+        if (raised) {
+          raisedKeys.add(key);
+          if (!this.wallSprites.has(key)) {
+            const sprite = this.add.sprite(x * 16, y * 16, `${theme}-wall`)
+              .setOrigin(0, UPRIGHT_LIFT / 16)
+              .setDepth(worldDepth(y * 16, 'terrain'));
+            this.wallSprites.set(key, sprite);
+          }
+          this.wallSprites.get(key)!.setVisible(this.seen[y]?.[x] === true);
         }
-        this.wallSprites.get(key)!.setVisible(this.seen[y]?.[x] === true);
+        this.syncWallDecal(key, x, y, theme, raised);
       }
     }
     for (const [key, sprite] of this.wallSprites) {
-      if (!wallKeys.has(key)) { sprite.destroy(); this.wallSprites.delete(key); }
+      if (!raisedKeys.has(key)) { sprite.destroy(); this.wallSprites.delete(key); }
+    }
+    for (const [key, decal] of this.wallDecals) {
+      if (!wallKeys.has(key)) { decal.sprite.destroy(); this.wallDecals.delete(key); }
     }
 
     const seen = new Set<string>();
@@ -1263,6 +1290,30 @@ export class Scene0 extends Phaser.Scene {
         this.featureSprites.delete(key);
       }
     }
+  }
+
+  /** One decal sprite per decorated wall cell. Raised faces share the wall
+   * copy's lift and sit just above it (below actors north of it). Flat wall
+   * tops sit just above the tilemap layer, under every actor and prop. */
+  private syncWallDecal(key: string, x: number, y: number, theme: string, raised: boolean): void {
+    this.wallDecals ??= new Map();
+    const frame = raised ? decalFrameFor(theme, x, y) : flatDecalFrameFor(theme, x, y);
+    const existing = this.wallDecals.get(key);
+    if (frame === undefined) {
+      if (existing) { existing.sprite.destroy(); this.wallDecals.delete(key); }
+      return;
+    }
+    if (existing && existing.raised === raised) {
+      // Theme swaps rebuild the wall sprites; keep the decal frame in step.
+      if (existing.sprite.frame.name !== String(frame)) existing.sprite.setFrame(frame);
+      return;
+    }
+    if (existing) { existing.sprite.destroy(); this.wallDecals.delete(key); }
+    const sprite = this.add.sprite(x * 16, y * 16, DECAL_TEXTURE, frame)
+      .setOrigin(0, raised ? UPRIGHT_LIFT / 16 : 0)
+      .setDepth(raised ? worldDepth(y * 16, 'terrain') + 0.02 : 0.3)
+      .setVisible(this.seen[y]?.[x] === true);
+    this.wallDecals.set(key, { sprite, raised });
   }
 
   private updateWater(time: number): void {
