@@ -104,6 +104,12 @@ export const sfx = {
     tone(150, 0.16, 'sawtooth', 0.11, 0, 65);
     noise(0.1, 0.08);
   },
+  // Armour turned the blow: a short metallic clink with no pain under it.
+  deflect(): void {
+    tone(1046, 0.04, 'square', 0.05, 0, 1568);
+    tone(1568, 0.05, 'square', 0.035, 0.02);
+    noise(0.03, 0.04);
+  },
   death(): void {
     tone(320, 0.28, 'square', 0.1, 0, 55);
     noise(0.18, 0.08);

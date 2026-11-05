@@ -23,6 +23,7 @@ import { updateHeroBurning, clearHeroBurning } from './heroBurningVisuals';
 import { updateHeroChilled, clearHeroChilled } from './heroChilledVisuals';
 import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
+import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
 import { TRAP_TEXTURE, generateTrapTextures, trapFrame } from './trapVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
@@ -264,8 +265,10 @@ export class Scene0 extends Phaser.Scene {
       clearHeroBurning(this);
       clearHeroChilled(this);
       clearWandZaps(this);
+      clearWandFusionVisuals(this);
       this.context.onGrassBurn = undefined;
       this.context.onWandZap = undefined;
+      this.context.onLiquidFlameShatter = undefined;
       this.context.onMonsterRemoved = undefined;
     });
     this.context.scene = this;
@@ -336,6 +339,7 @@ export class Scene0 extends Phaser.Scene {
     this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
     this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);
     this.context.onWandZap = (zap, onImpact) => showWandZap(this, this.context, zap, onImpact);
+    this.context.onLiquidFlameShatter = event => showLiquidFlameShatter(this, this.context, event);
 
     const HeroClass = classes[this.context.heroClass as keyof typeof classes] ?? classes.Wizard;
     const player = resumed?.player ?? new HeroClass(this.context, spawn.x, spawn.y);
@@ -664,6 +668,7 @@ export class Scene0 extends Phaser.Scene {
     clearHeroBurning(this);
     clearHeroChilled(this);
     clearWandZaps(this);
+    clearWandFusionVisuals(this);
     this.context.floor = floor;
     this.context.poisonClouds = restoreGas(restored?.poisonClouds,
       restored ? (this.context.simulationTime ?? 0) - restored.savedAt : 0);

@@ -26,14 +26,24 @@ export default abstract class Wand extends Entity {
   maxCharges: number = 0;
   // Pre-scaling charge capacity; maxCharges is derived from this plus level.
   baseMaxCharges: number = 0;
+  // Ordinary wands are 1. Fire-fusing two identical wands produces 2, and a
+  // later fusion of two power-2 copies produces 4. Damage and charge capacity
+  // are multiplied by this value; missing values in older saves mean 1.
+  fusionCount: number = 1;
   // Stored with the item so partial recharge survives saves and floor travel.
   private rechargeProgress = 0;
   readonly rechargeInterval = 20;
 
   // Category is intrinsic, not derived from the equipment slot: wands are
   // backpack tools, but remain recognizable before their magic is identified.
+  get fusionPower(): number {
+    const count = Number(this.fusionCount);
+    return Number.isFinite(count) && count > 1 ? Math.floor(count) : 1;
+  }
+
   get displayName(): string {
-    return this.identified ? super.displayName : `Wand “${this.unidentifiedName}”`;
+    const base = this.identified ? super.displayName : `Wand “${this.unidentifiedName}”`;
+    return this.fusionPower > 1 ? `${base} ×${this.fusionPower}` : base;
   }
 
   get unidentifiedTextureKey(): string {
@@ -67,7 +77,7 @@ export default abstract class Wand extends Entity {
 
   wandDamage(): number {
     const [min, max] = this.damageBounds;
-    return Phaser.Math.Between(min, max);
+    return Math.round(Phaser.Math.Between(min, max) * this.fusionPower);
   }
 
   // Wands may specialise against particular foes; the fire wand is super
@@ -84,7 +94,11 @@ export default abstract class Wand extends Entity {
 
   get baseDescription(): string {
     const [min, max] = this.damageBounds;
-    return `${this.description} Causes between ${min + this.level} and ${max + this.level} damage. No distance limit; walls and blocked lines of sight stop zaps. Charges: ${this.charges}/${this.maxCharges}. Upgrades add +1 to current and maximum charges. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.`;
+    const power = this.fusionPower;
+    const fusion = power > 1
+      ? ` Fused from ${power} wands: damage and charge capacity are multiplied by ${power}.`
+      : "";
+    return `${this.description} Causes between ${(min + this.level) * power} and ${(max + this.level) * power} damage. No distance limit; walls and blocked lines of sight stop zaps. Charges: ${this.charges}/${this.maxCharges}. Upgrades add +1 current charge and +1 per fusion level to maximum charges. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.${fusion}`;
   }
 
   equip() {}
@@ -98,7 +112,7 @@ export default abstract class Wand extends Entity {
     if (this.baseMaxCharges == null || Number.isNaN(this.baseMaxCharges)) {
       this.baseMaxCharges = this.maxCharges ?? 3;
     }
-    this.maxCharges = this.baseMaxCharges + this.level;
+    this.maxCharges = (this.baseMaxCharges + this.level) * this.fusionPower;
     if (this.charges > this.maxCharges) this.charges = this.maxCharges;
   }
 
@@ -132,7 +146,7 @@ export default abstract class Wand extends Entity {
       dungeon.log(this.context, "The wand is spent.");
     }
 
-    return this.wandDamage() + this.level;
+    return this.wandDamage() + this.level * this.fusionPower;
   }
 
   range() {

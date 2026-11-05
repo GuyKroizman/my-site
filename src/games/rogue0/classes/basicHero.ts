@@ -22,6 +22,7 @@ import { heroInventory } from '../heroInventory';
 import { splitStackItem, type EquipSlotKey } from '../inventory';
 import { placeFloorItem } from '../itemPresentation';
 import { stashChasmFallen } from '../chasmDrops';
+import { tryFuseWands } from '../wandFusion';
 import { heroStatsText } from '../heroViewModel';
 
 import { heroControlsFor } from '../heroControls';
@@ -729,6 +730,16 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
     if (item.consumable && item.name === "Potion of Toxic Gas" && context.onCreatePoisonGas?.(tx, ty)) {
       removeEntity(context, item);
+      dungeon.triggerArrowTrap(context, tx, ty);
+      return;
+    }
+    // Liquid Flame shatters on impact. A flask to the right of two matching
+    // horizontal wands burns them together before the flame dies out.
+    if (item.consumable && item.name === "Potion of Liquid Flame") {
+      const fusion = tryFuseWands(context, tx, ty);
+      removeEntity(context, item);
+      context.onLiquidFlameShatter?.({ x: tx, y: ty, fusion });
+      if (!fusion) dungeon.log(context, `${item.displayName} shatters on the floor.`);
       dungeon.triggerArrowTrap(context, tx, ty);
       return;
     }

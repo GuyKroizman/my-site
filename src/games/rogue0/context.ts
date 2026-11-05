@@ -74,6 +74,13 @@ export type GameContext = {
   // `onImpact`, when provided, fires once the bolt head visually reaches its
   // destination so a wand kill lands on impact instead of on the firing frame.
   onWandZap?: (zap: WandZap, onImpact?: () => void) => void;
+  // A shattered Liquid Flame flask may fuse two adjacent floor wands. Called
+  // after the logical merge, for the flame/merge presentation only.
+  onLiquidFlameShatter?: (event: {
+    x: number;
+    y: number;
+    fusion?: import('./wandFusion').WandFusionResult;
+  }) => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   onChooseItemTarget?: (item: Entity) => void;

@@ -133,4 +133,23 @@ for (const id of Object.keys(registry)) {
   assert.equal(state[0], state[1]);
   assert.equal(state[0].count, 3);
 }
-console.log('Rogue0 combat pipeline: hook order, misses, absorption, invisibility, death, explicit wand policy, damage overrides, bonus damage and stable save aliases passed');
+// Impact audio: a landed hit that damages the player sounds like a wound,
+// while a fully absorbed hit sounds like armour turning the blow.
+{
+  const calls = [];
+  const sfx = {
+    hurt: () => calls.push('hurt'), deflect: () => calls.push('deflect'),
+    hit: () => calls.push('hit'), surpriseHit: () => calls.push('surpriseHit'),
+  };
+  const dungeon = loadLogic('src/games/rogue0/dungeon.ts', { sfx }).default;
+  const context = { scene: {} };
+  const player = { type: 'player' };
+  dungeon.applyHitEffects(context, player);
+  assert.deepEqual(calls, ['hurt'], 'damaging player hits play the hurt sound');
+  dungeon.applyHitEffects(context, player, false, false);
+  assert.deepEqual(calls, ['hurt', 'deflect'], 'absorbed player hits play the deflect sound instead');
+  dungeon.applyHitEffects(context, { type: 'enemy' });
+  assert.deepEqual(calls, ['hurt', 'deflect', 'hit'], 'monster hits keep their existing impact sound');
+}
+
+console.log('Rogue0 combat pipeline: hook order, misses, absorption, invisibility, death, explicit wand policy, damage overrides, bonus damage, hit audio and stable save aliases passed');

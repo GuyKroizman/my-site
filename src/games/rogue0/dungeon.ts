@@ -1060,6 +1060,9 @@ const dungeon = {
         } else {
           this.log(context,
             `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for no damage.`);
+          // A hit that lands but deals no damage still needs impact audio, just
+          // a different one from a wound.
+          this.applyHitEffects(context, victim, result.surprise, false);
         }
         // Ordinary weapon attacks retain curse procs; throws/wands do not.
         if (victim.type === "player") this.procArmorCurse(context, victim);
@@ -1073,16 +1076,20 @@ const dungeon = {
     context.messages = context.messages.slice(0, 20);
   },
 
-  applyHitEffects: function (context: GameContext, victim: Entity, surprise = false): void {
+  applyHitEffects: function (context: GameContext, victim: Entity, surprise = false, damaged = true): void {
     if (!context.scene) return;
 
     if (victim.type === "player") {
-      sfx.hurt();
+      if (damaged) sfx.hurt();
+      else sfx.deflect();
     } else if (surprise) {
       sfx.surpriseHit();
     } else {
       sfx.hit();
     }
+
+    // A fully absorbed hit only carries sound; no wound visuals are shown.
+    if (!damaged) return;
 
     // White flash on the victim's sprite.
     if (victim.sprite) {

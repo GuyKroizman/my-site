@@ -185,6 +185,22 @@ damage / 2)`, reduced by shock resistance and increased by shock vulnerability;
 physical armor does not apply. Arcs do not chain recursively, never hit the
 primary target a second time, and add no extra action cost or charge use.
 
+## Wand fusion
+
+Throwing a Potion of Liquid Flame onto the floor immediately to the **right** of
+two wands laid horizontally fuses them into one double-strength wand. The pair
+must be adjacent, on the floor, the same wand type and the same fusion power;
+the splash does not reach through a gap, across a diagonal, or combine ordinary
+and already-fused wands. A failed attempt only shatters the flask.
+
+The surviving (right-hand) wand keeps the higher upgrade level, combines both
+wands' remaining charges, and doubles its damage range and maximum charges.
+Two full three-charge wands therefore become one six-charge wand at ×2 damage;
+fusing two ×2 wands makes a ×4 wand. Its name and description show the multiplier.
+The merge plays a short fire/slide/pop animation, but animation never advances
+world time or changes action deadlines. Fusion power is stored in browser saves.
+An ordinary single wand remains the default when loading older saves.
+
 ## Passive wand recharge
 
 Every carried wand recovers one charge per 20 elapsed world-time units, up to
