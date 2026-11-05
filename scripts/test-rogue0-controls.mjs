@@ -106,8 +106,10 @@ for (const [key, dx, dy] of [
   ['h', -1, 0], ['l', 1, 0], ['k', 0, -1], ['j', 0, 1],
   ['ArrowLeft', -1, 0], ['ArrowRight', 1, 0], ['ArrowUp', 0, -1], ['ArrowDown', 0, 1],
   ['Home', -1, -1], ['PageUp', 1, -1], ['End', -1, 1], ['PageDown', 1, 1],
+  ['u', -1, -1], ['i', 1, -1], ['n', -1, 1], ['m', 1, 1],
 ]) assert.deepEqual(cursorDirection(key), { dx, dy });
 assert.equal(cursorDirection('H'), undefined, 'uppercase vi keys retain their existing behavior');
+assert.equal(cursorDirection('I'), undefined, 'uppercase diagonals retain their existing behavior');
 
 // Binding twice never duplicates commands; shutdown removes only our listeners.
 {

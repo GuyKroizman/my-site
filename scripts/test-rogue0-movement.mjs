@@ -794,7 +794,8 @@ assert.deepEqual(diagonalAI.nextStepToward({ x: 1, y: 1 }, 3, 3), { x: 2, y: 2 }
 // All four keyboard diagonals move and bump-attack, without extra time cost.
 hero.effects = [];
 hero.x = 3; hero.y = 3;
-for (const [key, dx, dy] of [['Home', -1, -1], ['PageUp', 1, -1], ['End', -1, 1], ['PageDown', 1, 1]]) {
+for (const [key, dx, dy] of [['Home', -1, -1], ['PageUp', 1, -1], ['End', -1, 1], ['PageDown', 1, 1],
+  ['u', -1, -1], ['i', 1, -1], ['n', -1, 1], ['m', 1, 1]]) {
   hero.actionReady = true;
   dungeon.isWalkableTile = () => true;
   dungeon.moveEntityTo = (ctx, e, x, y) => assert.deepEqual([x, y], [3 + dx, 3 + dy]);

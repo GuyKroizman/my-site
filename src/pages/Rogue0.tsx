@@ -14,18 +14,19 @@ import { readRunSave, clearRunSave, type RunSave } from '../games/rogue0/saveSto
 import { DEFAULT_HERO_CLASS } from '../games/rogue0/classes'
 
 const CONTROLS = [
-  ['Move', 'Arrows / HJKL; diagonals: Home / PgUp / End / PgDn'],
+  ['Move', 'Arrows / HJKL; diagonals: Home / PgUp / End / PgDn (or u / i / n / m)'],
   ['Melee attack', 'Walk into enemy'],
   ['Ranged attack', 'Equip bow/scroll, then click/tap enemy'],
   ['Inspect / Search', 'Magnifying glass, then a tile to inspect; tap the button again to search (x: inspect, s: search)'],
   ['Throw', 'Inventory → item → Throw → tap tile'],
   ['Wait', 'Space'],
+  ['Inventory', 'b'],
 ] as const
 
 const HELP_PAGES = [
   {
     title: 'Basics',
-    body: `• Move with the Arrow keys or HJKL. Diagonals: Home (↖), Page Up (↗), End (↙), Page Down (↘). Click/tap a destination to walk the shortest available route.\n• Walk into an enemy to attack it (melee).\n• Space waits one turn.\n• Press i or b to open your backpack.\n• Press the magnifying-glass button or x, then tap/click a tile to inspect it. Tap the button again instead to search nearby (or press s).`,
+    body: `• Move with the Arrow keys or HJKL. Diagonals: Home (↖), Page Up (↗), End (↙), Page Down (↘) — or u (↖), i (↗), n (↙), m (↘). Click/tap a destination to walk the shortest available route.\n• Walk into an enemy to attack it (melee).\n• Space waits one turn.\n• Press b to open your backpack.\n• Press the magnifying-glass button or x, then tap/click a tile to inspect it. Tap the button again instead to search nearby (or press s).`,
   },
   {
     title: 'Combat',
@@ -129,7 +130,9 @@ export default function Rogue0() {
       if (event.key === 'Escape') {
         event.preventDefault()
         setMenuOpen(false)
-        menuButtonRef.current?.focus()
+        // Drop focus: a focused button would re-open the menu on the next Space,
+        // which the game also uses to wait a turn.
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
       }
     }
     document.addEventListener('pointerdown', onPointerDown)
@@ -382,7 +385,18 @@ export default function Rogue0() {
             aria-label="Game menu"
             aria-expanded={menuOpen}
             aria-controls="rogue0-game-controls"
-            onClick={() => setMenuOpen((open) => !open)}
+            onKeyDown={(event) => {
+              // Space belongs to the game (wait a turn). Enter still opens the
+              // menu for keyboard users.
+              if (event.key === ' ') event.preventDefault()
+            }}
+            onClick={(event) => {
+              const next = !menuOpen
+              setMenuOpen(next)
+              // Only a deliberate keyboard activation keeps focus on the toggle;
+              // after a pointer click Space must go back to waiting a turn.
+              if (!next && event.detail > 0) event.currentTarget.blur()
+            }}
           >
             <span className="rogue0-menu-icon" aria-hidden="true"><span /><span /><span /></span>
           </button>
@@ -390,9 +404,11 @@ export default function Rogue0() {
             <div
               id="rogue0-game-controls"
               className="rogue0-game-actions"
-              onClick={() => {
+              onClick={(event) => {
                 setMenuOpen(false)
-                menuButtonRef.current?.focus()
+                // Restore focus only for keyboard users; otherwise Space would
+                // re-open the menu instead of waiting a turn.
+                if (event.detail === 0) menuButtonRef.current?.focus()
               }}
             >
               <button className="rogue0-game-btn" onClick={openHelp}>Help</button>

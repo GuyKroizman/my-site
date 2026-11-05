@@ -213,7 +213,7 @@ try {
       typeof p.createUI, typeof p.refreshUI];
   }), ['24/30', 'Lv 3 · Food 64 · Fed', 'Floor 6', 'undefined', 'undefined']);
   const uiTime = await page.evaluate(() => window.testScene.context.simulationTime);
-  await page.keyboard.press('i');
+  await page.keyboard.press('b');
   await page.waitForFunction(() => window.testScene.context.inventoryOpen);
   assert.ok(await page.evaluate(() => {
     const inventory = window.testGame.scene.getScene('ui-scene').inventoryWindow;

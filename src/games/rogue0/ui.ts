@@ -115,7 +115,8 @@ export class UI extends Phaser.Scene {
     // The React game menu opens the knowledge modal through the context.
     this.context.onOpenKnowledge = () => this.knowledgeWindow?.openWindow();
 
-    // i / b toggle the inventory window; Esc dismisses its topmost dialog.
+    // b toggles the inventory window; i is a movement key (up-right diagonal).
+    // Esc dismisses the topmost dialog.
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
       if (this.context.helpOpen) return;
       const key = event.key;
@@ -143,7 +144,7 @@ export class UI extends Phaser.Scene {
           return;
         }
       }
-      if (key === "i" || key === "I" || key === "b" || key === "B") {
+      if (key === "b" || key === "B") {
         this.closeHeroModal();
         this.inventoryWindow?.toggle();
       } else if (key === "Escape") {
@@ -227,7 +228,7 @@ export class UI extends Phaser.Scene {
       g.lineStyle(2, iconColor, 1);
       g.strokeRect(-6, -3, 12, 9);
       g.strokeCircle(0, -4, 2);
-    }, "Backpack  [i/b]"));
+    }, "Backpack  [b]"));
 
   }
 

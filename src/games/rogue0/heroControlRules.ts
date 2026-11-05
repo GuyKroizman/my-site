@@ -21,10 +21,10 @@ export function pickupMessage(entity: Entity): string {
 
 export function cursorDirection(key: string): Direction | undefined {
   switch (key) {
-    case 'Home': return { dx: -1, dy: -1 };
-    case 'PageUp': return { dx: 1, dy: -1 };
-    case 'End': return { dx: -1, dy: 1 };
-    case 'PageDown': return { dx: 1, dy: 1 };
+    case 'Home': case 'u': return { dx: -1, dy: -1 };
+    case 'PageUp': case 'i': return { dx: 1, dy: -1 };
+    case 'End': case 'n': return { dx: -1, dy: 1 };
+    case 'PageDown': case 'm': return { dx: 1, dy: 1 };
     case 'ArrowLeft': case 'h': return { dx: -1, dy: 0 };
     case 'ArrowRight': case 'l': return { dx: 1, dy: 0 };
     case 'ArrowUp': case 'k': return { dx: 0, dy: -1 };
