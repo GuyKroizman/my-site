@@ -2,7 +2,10 @@
 // `map` is a 2D array where 0 = walkable, 1 = wall.
 //
 // Closed doors hide tiles beyond them, but the door itself stays visible.
-import { getDoorState, getTileState, isGrassConcealed } from "./tiles";
+import type { Terrain } from './terrain';
+
+export type SightTerrain = Pick<Terrain, 'getDoorState' | 'getTileState' | 'isGrassConcealed'>;
+// Omitted terrain means a bare base map, never an implicit active run.
 
 export type VisionParameters = {
   baseRadius?: number;
@@ -22,11 +25,11 @@ export function resolveVision(parameters: VisionParameters = {}) {
   };
 }
 
-export function blocksSight(map: number[][], x: number, y: number): boolean {
+export function blocksSight(map: number[][], x: number, y: number, terrain?: SightTerrain): boolean {
   if (map[y]?.[x] === undefined) return true;
-  const state = getTileState(x, y);
+  const state = terrain?.getTileState(x, y);
   if (state?.blocksSight !== undefined) return state.blocksSight;
-  return map[y][x] === 1 || getDoorState(x, y) === "closed" || state?.feature === "grass";
+  return map[y][x] === 1 || terrain?.getDoorState(x, y) === "closed" || state?.feature === "grass";
 }
 
 export function bresenhamLine(
@@ -66,10 +69,11 @@ export function hasLineOfSight(
   x0: number,
   y0: number,
   x1: number,
-  y1: number
+  y1: number,
+  terrain?: SightTerrain
 ): boolean {
   if (map[y0]?.[x0] === undefined || map[y1]?.[x1] === undefined) return false;
-  return computeFOV(map, x0, y0, Math.ceil(Math.hypot(x1 - x0, y1 - y0))).has(`${x1},${y1}`);
+  return computeFOV(map, x0, y0, Math.ceil(Math.hypot(x1 - x0, y1 - y0)), false, terrain).has(`${x1},${y1}`);
 }
 
 export function canSee(
@@ -78,13 +82,14 @@ export function canSee(
   y0: number,
   x1: number,
   y1: number,
-  radius: number
+  radius: number,
+  terrain?: SightTerrain
 ): boolean {
   const dx = x1 - x0;
   const dy = y1 - y0;
   if (dx * dx + dy * dy > radius * radius) return false;
-  if (isGrassConcealed(x1, y1, x0, y0)) return false;
-  return hasLineOfSight(map, x0, y0, x1, y1);
+  if (terrain?.isGrassConcealed(x1, y1, x0, y0)) return false;
+  return hasLineOfSight(map, x0, y0, x1, y1, terrain);
 }
 
 export function computeFOV(
@@ -92,7 +97,8 @@ export function computeFOV(
   px: number,
   py: number,
   radius: number = 8,
-  ignoreObstacles = false
+  ignoreObstacles = false,
+  terrain?: SightTerrain
 ): Set<string> {
   const visible = new Set<string>();
   const r = Number.isFinite(radius) ? Math.max(0, Math.floor(radius)) : 0;
@@ -126,7 +132,7 @@ export function computeFOV(
       const last = Math.ceil(depth * end - 0.5);
       for (let column = first; column <= last; column++) {
         const [x, y] = transform(depth, column);
-        const wall = blocksSight(map, x, y);
+        const wall = blocksSight(map, x, y, terrain);
         if (map[y]?.[x] !== undefined && depth * depth + column * column <= r * r &&
             (wall || (column >= depth * start && column <= depth * end))) {
           visible.add(`${x},${y}`);

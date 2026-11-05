@@ -38,9 +38,8 @@ const door = { feature: 'door', door: 'open' };
 const trap = { feature: 'trap', trap: 'visible', trapKind: 'frost', trapReusable: true };
 const applied = [];
 const tiles = {
-  forEachFeature: fn => { fn(0, 1, door); fn(1, 1, trap); },
-  clearAllFeatures() { applied.length = 0; },
-  setFeature(x, y, feature, opts) { applied.push({ x, y, feature, ...opts }); }
+  snapshot: () => [{ ...door, x: 0, y: 1 }, { ...trap, x: 1, y: 1 }],
+  restore(features) { applied.splice(0, applied.length, ...features.map(tile => ({ ...tile }))); }
 };
 const dungeon = { getCurrentLevel: () => map, log() {} };
 let deaths = 0;
@@ -48,8 +47,8 @@ class TrapSkeleton {
   constructor(context, x, y) { Object.assign(this, { context, x, y, type: 'enemy' }); }
   hearNoise(x, y) { this.noise = [x, y]; }
 }
-new Function('exports', 'Phaser', 'tiles', 'dungeon', 'isModalOpen', 'sfx', 'removeEntity', 'Skeleton', js)(
-  exports, { Scene: class {} }, tiles, dungeon, () => false, { stairs() {} },
+new Function('exports', 'Phaser', 'terrainFor', 'dungeon', 'isModalOpen', 'sfx', 'removeEntity', 'Skeleton', js)(
+  exports, { Scene: class {} }, () => tiles, dungeon, () => false, { stairs() {} },
   () => { deaths++; }, TrapSkeleton);
 const scene = Object.create(exports.Scene0.prototype);
 const gear = { name: 'carried potion' };

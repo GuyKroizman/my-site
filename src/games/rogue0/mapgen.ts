@@ -1,4 +1,5 @@
-import { isBlocking, type FeaturePlacement, type TrapKind } from "./tiles";
+import type { FeaturePlacement, TrapKind } from './tiles';
+import type { Terrain } from './terrain';
 
 export const MAP_WIDTH = 80;
 export const MAP_HEIGHT = 50;
@@ -981,7 +982,8 @@ export function randomWalkableTiles(
   map: number[][],
   count: number,
   exclude: Set<string>,
-  maxX: number = MAP_WIDTH
+  maxX: number = MAP_WIDTH,
+  terrain?: Pick<Terrain, 'isBlocking'>
 ): Array<{ x: number; y: number }> {
   const cells: Array<{ x: number; y: number }> = [];
 
@@ -990,7 +992,7 @@ export function randomWalkableTiles(
       if (x >= maxX) continue;
       if (map[y][x] !== 0) continue;
       if (exclude.has(`${x},${y}`)) continue;
-      if (isBlocking(x, y)) continue;
+      if (terrain?.isBlocking(x, y)) continue;
       cells.push({ x, y });
     }
   }

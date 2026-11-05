@@ -8,7 +8,7 @@
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import { spawnEntityFloatingText } from "./floatingText";
-import { isBlocking } from "./tiles";
+import { terrainFor } from './terrain';
 import dungeon from "./dungeon";
 
 export type DamageType =
@@ -386,6 +386,7 @@ export function describeEffect(effect: StatusEffect): string {
 // Moves an entity one walkable tile directly away from the player without
 // pathfinding. Returns true when a legal flee tile was found.
 export function fleeStep(entity: Entity, context: GameContext): boolean {
+  const { isBlocking } = terrainFor(context);
   const player = context.player;
   const map = context.currentLevel;
   if (!player || !map) return false;

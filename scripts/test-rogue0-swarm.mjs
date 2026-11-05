@@ -1,18 +1,8 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('swarm');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
+import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { forgetInspectedEntity } from '../src/games/rogue0/context.ts';
-
-function load(path, bindings = {}) {
-  const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-  const exports = {};
-  new Function('exports', ...Object.keys(bindings), ts.transpile(source, {
-    target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
-  }))(exports, ...Object.values(bindings));
-  return exports;
-}
 
 const tiles = load('src/games/rogue0/tiles.ts');
 const { Entity } = load('src/games/rogue0/entity.ts', { actionCost: () => 1 });

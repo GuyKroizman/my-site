@@ -103,8 +103,8 @@ try {
     for (const cloud of ctx.poisonClouds) {
       cloud.nextTick += clockDelta; cloud.expiresAt += clockDelta;
     }
-    // Construct a second run scene without booting its renderer (dungeon and
-    // terrain are still shared). Its scheduler must be completely independent.
+    // Construct a second run scene without booting its renderer (dungeon is
+    // still shared). Its scheduler and terrain must be completely independent.
     const { Scene0 } = await window.testImport('/src/games/rogue0/scene0.ts');
     const { createGameContext } = await window.testImport('/src/games/rogue0/context.ts');
     const other = new Scene0(createGameContext());
@@ -116,6 +116,33 @@ try {
     if (scene.turnManager.time !== 12.375 || scene.turnManager.nextTick !== 13 || !scene.turnManager.known.has(p)) {
       throw Error('Resetting another run altered the live scheduler');
     }
+    const { terrainFor } = await window.testImport('/src/games/rogue0/terrain.ts');
+    const liveTerrain = terrainFor(ctx), beforeTerrain = JSON.stringify(liveTerrain.snapshot());
+    const otherTerrain = terrainFor(other.context);
+    if (otherTerrain === liveTerrain) throw Error('Run contexts share terrain');
+    other.context.currentLevel = [[0, 0, 0]];
+    otherTerrain.setFeature(1, 0, 'door');
+    const peer = createGameContext(); peer.currentLevel = other.context.currentLevel;
+    terrainFor(peer).setFeature(1, 0, 'door', { door: 'open' });
+    const { hasLineOfSight } = await window.testImport('/src/games/rogue0/fov.ts');
+    if (hasLineOfSight(peer.currentLevel, 0, 0, 2, 0, otherTerrain) ||
+        !hasLineOfSight(peer.currentLevel, 0, 0, 2, 0, terrainFor(peer))) throw Error('Sight read another run terrain');
+    const { isSurpriseAttack } = await window.testImport('/src/games/rogue0/combat.ts');
+    const attacker = { type: 'player', x: 0, y: 0, effects: [] };
+    const defender = { type: 'enemy', x: 2, y: 0, visionRadius: 8, awareOfPlayer: true };
+    if (!isSurpriseAttack(other.context, attacker, defender) || isSurpriseAttack(peer, attacker, defender)) {
+      throw Error('Combat cover read another run terrain');
+    }
+    const { createPoisonGas, tickGas } = await window.testImport('/src/games/rogue0/gas.ts');
+    for (const owner of [other.context, peer]) {
+      createPoisonGas(owner, owner.currentLevel, 0, 0);
+      owner.simulationTime = 1; tickGas(owner);
+    }
+    if (other.context.poisonClouds.length !== 1 || peer.poisonClouds.length !== 2) {
+      throw Error('Gas expansion read another run terrain');
+    }
+    otherTerrain.restore([]); terrainFor(peer).clearAllFeatures();
+    if (JSON.stringify(liveTerrain.snapshot()) !== beforeTerrain) throw Error('Another run mutated live terrain');
     p.inputBuffer = ['ArrowRight'];
     p.walkPath = [{ x: p.x + 1, y: p.y }];
     p.walkTargetEntity = ctx.entities.find(entity => entity.type === 'enemy');
@@ -124,7 +151,7 @@ try {
     ctx.throwMode = true;
     ctx.throwItem = wand;
     ctx.saveNow();
-    return { scheduler: [scene.turnManager.time, scene.turnManager.nextTick, ctx.simulationTime],
+    return { terrain: liveTerrain.snapshot(), scheduler: [scene.turnManager.time, scene.turnManager.nextTick, ctx.simulationTime],
       deadlines: ctx.entities.filter(entity => entity.type !== 'item').map(entity =>
         [entity.name, entity.nextActionTime, entity.actionReady]),
       firstMap, gas: ctx.poisonClouds, map: JSON.stringify(dungeon.getCurrentLevel()), knowledge: saveConsumableKnowledge(ctx),
@@ -139,6 +166,7 @@ try {
   await page.waitForFunction(() => window.testScene?.context.saveNow);
   const actual = await page.evaluate(async () => {
     const s = window.testScene, c = s.context, p = c.player;
+    const { terrainFor } = await window.testImport('/src/games/rogue0/terrain.ts');
     const { default: dungeon } = await import('/src/games/rogue0/dungeon.ts');
     const { default: Wand } = await import('/src/games/rogue0/items/WandOfFrost.ts');
     const { saveConsumableKnowledge } = await import('/src/games/rogue0/entity.ts');
@@ -149,7 +177,7 @@ try {
     p.bindInput(); p.bindInput();
     const after = [keyboard.listenerCount('keydown'), input.listenerCount('pointerup'),
       c.scene.events.listenerCount('shutdown')];
-    return { scheduler: [s.turnManager.time, s.turnManager.nextTick, c.simulationTime],
+    return { terrain: terrainFor(c).snapshot(), scheduler: [s.turnManager.time, s.turnManager.nextTick, c.simulationTime],
       deadlines: c.entities.filter(entity => entity.type !== 'item').map(entity =>
         [entity.name, entity.nextActionTime, entity.actionReady]),
       controls: [p.inputBuffer.length, p.walkPath.length, p.acknowledgedWalkEnemies.size,
@@ -221,7 +249,11 @@ try {
   await page.waitForTimeout(300);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('rogue0.run.v1')));
   assert.equal(saved.floor, 1, 'revisited floor autosaves');
-  await page.evaluate(() => { window.previousScheduler = window.testScene.turnManager; });
+  await page.evaluate(async () => {
+    window.previousScheduler = window.testScene.turnManager;
+    const { terrainFor } = await window.testImport('/src/games/rogue0/terrain.ts');
+    window.previousTerrain = terrainFor(window.testScene.context);
+  });
   await page.getByRole('button', { name: 'Game menu' }).click();
   await page.getByRole('button', { name: 'Save & title' }).click();
   if (process.env.ROGUE0_SCREENSHOT) await page.screenshot({ path: process.env.ROGUE0_SCREENSHOT });
@@ -230,7 +262,9 @@ try {
   assert.ok(await page.getByRole('button', { name: /Continue/ }).isVisible());
   await page.getByRole('button', { name: /Continue/ }).click();
   await page.waitForFunction(() => window.testScene?.context.saveNow);
-  assert.deepEqual(await page.evaluate(() => {
+  assert.deepEqual(await page.evaluate(async () => {
+    const { terrainFor } = await window.testImport('/src/games/rogue0/terrain.ts');
+    if (terrainFor(window.testScene.context) === window.previousTerrain) throw Error('Resumed run reused old terrain');
     const old = window.previousScheduler, current = window.testScene.turnManager;
     return [old !== current, old.known !== current.known,
       [...current.known].every(entity => !old.known.has(entity)),
@@ -240,7 +274,7 @@ try {
   await page.getByRole('heading', { name: 'You died' }).waitFor();
   assert.equal(await page.evaluate(() => localStorage.getItem('rogue0.run.v1')), null);
   assert.deepEqual(errors, [], 'no save or load errors');
-  console.log('Rogue0 browser resume: floors, maps, stats, talents, shared quickslots, effects, knowledge, enemies, live inventory/HUD, clean control state, idempotent input binding, independent scene schedulers, fractional clock/deadline restore, autosave, replacement cancellation and permadeath passed');
+  console.log('Rogue0 browser resume: floors, maps, stats, talents, shared quickslots, effects, knowledge, enemies, live inventory/HUD, clean control state, idempotent input binding, independent scene schedulers and terrain, isolated sight/combat/gas, terrain snapshots, fractional clock/deadline restore, autosave, replacement cancellation and permadeath passed');
 } finally {
   await browser.close();
 }

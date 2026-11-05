@@ -7,7 +7,7 @@
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import { canSee } from "./fov";
-import * as tiles from "./tiles";
+import { terrainFor } from './terrain';
 import {
   hasEffect,
   createBleedingEffect
@@ -50,6 +50,7 @@ export function isSurpriseAttack(
   attacker: Entity,
   defender: Entity
 ): boolean {
+  const tiles = terrainFor(context);
   if (
     attacker.x === undefined ||
     attacker.y === undefined ||
@@ -80,7 +81,8 @@ export function isSurpriseAttack(
     defender.y,
     attacker.x,
     attacker.y,
-    defender.visionRadius
+    defender.visionRadius,
+    tiles
   );
 }
 
@@ -90,6 +92,7 @@ export function resolveAttack(
   defender: Entity,
   opts: CombatOptions = {}
 ): CombatResult {
+  const tiles = terrainFor(context);
   const damageType = opts.damageType ?? "physical";
   const appliedEffects: StatusEffect[] = [];
   const surprise = isSurpriseAttack(context, attacker, defender);

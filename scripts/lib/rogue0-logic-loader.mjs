@@ -9,11 +9,26 @@ import { createHeroNavigation } from '../../src/games/rogue0/heroNavigation.ts';
 import { createHeroTargeting } from '../../src/games/rogue0/heroTargeting.ts';
 import { createHeroInput } from '../../src/games/rogue0/heroInput.ts';
 import { hostileAtTile, isHostile } from '../../src/games/rogue0/heroControlRules.ts';
+import { createTerrain } from '../../src/games/rogue0/terrain.ts';
+import * as tilePresentation from '../../src/games/rogue0/tiles.ts';
+import * as sight from '../../src/games/rogue0/fov.ts';
 
 // Compatibility harness for existing isolated-method suites. Parse imports as
 // TypeScript rather than deleting them with a regex. New boundary/integration
 // tests should use normal module imports; this intentionally retains old fakes.
 export function loadLogic(path, bindings = {}) {
+  // Legacy fixtures previously got a fresh overlay by evaluating tiles.ts.
+  // Keep that fixture ownership, but execute the complete extracted modules.
+  if (path.endsWith('/tiles.ts')) return { ...tilePresentation, ...createTerrain() };
+  // Keep these fixtures' explicitly injected vision boundary, even where the
+  // combat/AI fixture supplies a different, partial movement-terrain fake.
+  if (path.endsWith('/fov.ts')) return { ...sight,
+    blocksSight: (map, x, y) => sight.blocksSight(map, x, y, bindings),
+    hasLineOfSight: (map, x, y, tx, ty) => sight.hasLineOfSight(map, x, y, tx, ty, bindings),
+    canSee: (map, x, y, tx, ty, radius) => sight.canSee(map, x, y, tx, ty, radius, bindings),
+    computeFOV: (map, x, y, radius, ignoreObstacles) =>
+      sight.computeFOV(map, x, y, radius, ignoreObstacles, bindings),
+  };
   const parsed = ts.createSourceFile(path, fs.readFileSync(path, 'utf8'),
     ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
   const stripped = ts.factory.updateSourceFile(parsed,
@@ -36,7 +51,8 @@ export function loadLogic(path, bindings = {}) {
     ...createHeroTargeting(bindings),
     ...createHeroInput(bindings),
   };
-  const dependencies = { applyAttackResult, heroInventory, heroControls, isHostile, hostileAtTile,
+  const dependencies = { applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
+    terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation,
     forgetInspectedEntity, splitStackItem, placeFloorItem, heroStatsText, heroHudView, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));

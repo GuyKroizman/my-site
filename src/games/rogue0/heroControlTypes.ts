@@ -4,7 +4,7 @@ import type { ActionKind, actionCost, starvationDamageDuring } from './timing';
 import type dungeon from './dungeon';
 import type { hasEffect } from './effects';
 import type { hasLineOfSight } from './fov';
-import type { getTrapState, isGrassConcealed } from './tiles';
+import type { Terrain } from './terrain';
 import type { isModalOpen } from './context';
 
 export type Direction = { dx: number; dy: number };
@@ -56,8 +56,8 @@ export type HeroControlServices = {
     'openDoor' | 'isWalkableTile' | 'canEnterChasm' | 'stepIntoChasm' | 'canStepBetween' |
     'inspectTile' | 'inspectTileInfo' | 'searchAround'>;
   hasEffect: typeof hasEffect;
-  isGrassConcealed: typeof isGrassConcealed;
-  getTrapState: typeof getTrapState;
+  isGrassConcealed: Terrain['isGrassConcealed'];
+  getTrapState: Terrain['getTrapState'];
   hasLineOfSight: typeof hasLineOfSight;
   isModalOpen: typeof isModalOpen;
   actionCost: typeof actionCost;

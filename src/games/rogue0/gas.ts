@@ -1,7 +1,7 @@
 import type { Entity } from "./entity";
 import type { GameContext, PoisonCloud } from "./context";
 import { applyEffect, createPoisonedEffect } from "./effects";
-import { getDoorState, getFeature } from "./tiles";
+import { terrainFor } from './terrain';
 
 const EPSILON = 1e-9;
 
@@ -26,7 +26,8 @@ export function exposeToGas(context: GameContext, actor: Entity): void {
   }
 }
 
-function isOpen(map: number[][], x: number, y: number): boolean {
+function isOpen(context: GameContext, map: number[][], x: number, y: number): boolean {
+  const { getDoorState, getFeature } = terrainFor(context);
   return map[y]?.[x] === 0 &&
     getDoorState(x, y) !== "closed" && getFeature(x, y) !== "secretDoor";
 }
@@ -49,7 +50,7 @@ function makeCloud(x: number, y: number, birth: number, radius: number): PoisonC
 
 export function createPoisonGas(context: GameContext, map: number[][], x: number, y: number): number {
   const now = context.simulationTime ?? 0;
-  if (!isOpen(map, x, y)) return 0;
+  if (!isOpen(context, map, x, y)) return 0;
 
   context.poisonClouds ??= [];
   const existing = context.poisonClouds.find(c => c.x === x && c.y === y);
@@ -96,7 +97,7 @@ export function tickGas(context: GameContext): void {
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
         const nx = cloud.x + dx;
         const ny = cloud.y + dy;
-        if (!map || !isOpen(map, nx, ny)) continue;
+        if (!map || !isOpen(context, map, nx, ny)) continue;
 
         const existing = clouds.find(c => c.x === nx && c.y === ny);
         if (existing) {

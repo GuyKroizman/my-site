@@ -4,7 +4,7 @@ import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import Gem from "../items/gem";
 import Wand from "../items/wand";
-import { getFeature, isGrassConcealed } from "../tiles";
+import { terrainFor } from '../terrain';
 import { hasLineOfSight } from "../fov";
 import { sfx } from "../audio";
 import {
@@ -24,7 +24,7 @@ import { splitStackItem, type EquipSlotKey } from '../inventory';
 import { placeFloorItem } from '../itemPresentation';
 import { heroStatsText } from '../heroViewModel';
 
-import { heroControls } from '../heroControls';
+import { heroControlsFor } from '../heroControls';
 import { hostileAtTile, isHostile } from '../heroControlRules';
 import type { HeroControlHost, PointerPosition } from '../heroControlTypes';
 import { spawnEntityFloatingText } from "../floatingText";
@@ -58,6 +58,8 @@ export const CLASS_TALENTS = {
 } as const;
 
 export default class BasicHero extends Entity implements HeroControlHost {
+  private get controls() { return heroControlsFor(this.context); }
+
   name: string = "The Hero";
   description: string = "A brave adventurer";
   actionReady: boolean = true;
@@ -174,7 +176,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
   /** Also used after restoring the hero without rerolling its starting gear. */
   bindInput(): void {
-    heroControls.bindInput(this);
+    this.controls.bindInput(this);
   }
 
   turn() {
@@ -203,11 +205,11 @@ export default class BasicHero extends Entity implements HeroControlHost {
   }
 
   bufferKey(key: string): void {
-    heroControls.bufferKey(this, key);
+    this.controls.bufferKey(this, key);
   }
 
   drainInputBuffer(): void {
-    heroControls.drainInputBuffer(this);
+    this.controls.drainInputBuffer(this);
   }
 
   // Compatibility facade: callers and saved fields stay on the hero, while
@@ -445,27 +447,27 @@ export default class BasicHero extends Entity implements HeroControlHost {
   // Control facade: public for the explicit HeroControlHost contract. The
   // factories own policy; actor methods/state and existing callers stay stable.
   processTouchInput(context: GameContext, event: PointerPosition): void {
-    heroControls.processTouchInput(this, context, event);
+    this.controls.processTouchInput(this, context, event);
   }
 
   cursorActive(): boolean {
-    return heroControls.cursorActive(this);
+    return this.controls.cursorActive(this);
   }
 
   isCursorKey(key: string): boolean {
-    return heroControls.isCursorKey(this, key);
+    return this.controls.isCursorKey(this, key);
   }
 
   cursorDir(key: string): { dx: number; dy: number } | undefined {
-    return heroControls.cursorDir(this, key);
+    return this.controls.cursorDir(this, key);
   }
 
   inspectOrSearch(): void {
-    heroControls.inspectOrSearch(this);
+    this.controls.inspectOrSearch(this);
   }
 
   toggleInspectMode(): void {
-    heroControls.toggleInspectMode(this);
+    this.controls.toggleInspectMode(this);
   }
 
   // SPD-style search (looking glass): reveal hidden traps around the hero.
@@ -497,51 +499,51 @@ export default class BasicHero extends Entity implements HeroControlHost {
   }
 
   nextStepToward(tx: number, ty: number): { x: number; y: number } | null {
-    return heroControls.nextStepToward(this, tx, ty);
+    return this.controls.nextStepToward(this, tx, ty);
   }
 
   setWalkTarget(tx: number, ty: number, target?: Entity): void {
-    heroControls.setWalkTarget(this, tx, ty, target);
+    this.controls.setWalkTarget(this, tx, ty, target);
   }
 
   stepAutoWalk(): void {
-    heroControls.stepAutoWalk(this);
+    this.controls.stepAutoWalk(this);
   }
 
   tryStepIntoChasm(x: number, y: number): boolean {
-    return heroControls.tryStepIntoChasm(this, x, y);
+    return this.controls.tryStepIntoChasm(this, x, y);
   }
 
   exitCursorModes(): void {
-    heroControls.exitCursorModes(this);
+    this.controls.exitCursorModes(this);
   }
 
   moveCursor(dx: number, dy: number): void {
-    heroControls.moveCursor(this, dx, dy);
+    this.controls.moveCursor(this, dx, dy);
   }
 
   updateInspectedFromCursor(): void {
-    heroControls.updateInspectedFromCursor(this);
+    this.controls.updateInspectedFromCursor(this);
   }
 
   inspectTile(x: number, y: number): void {
-    heroControls.inspectTile(this, x, y);
+    this.controls.inspectTile(this, x, y);
   }
 
   closestZapTarget(): Entity | undefined {
-    return heroControls.closestZapTarget(this);
+    return this.controls.closestZapTarget(this);
   }
 
   beginThrow(item: Entity, zap = false): void {
-    heroControls.beginThrow(this, item, zap);
+    this.controls.beginThrow(this, item, zap);
   }
 
   cancelThrow(): void {
-    heroControls.cancelThrow(this);
+    this.controls.cancelThrow(this);
   }
 
   throwAtCursor(): void {
-    heroControls.throwAtCursor(this);
+    this.controls.throwAtCursor(this);
   }
 
   // Resolve a throw at a tile (reached from a pointer tap or the cursor).
@@ -566,7 +568,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
       ty >= 0 && tx >= 0 && ty < level.length && tx < level[0].length;
     const distance = Math.max(Math.abs(tx - this.x), Math.abs(ty - this.y));
     const isWall = inBounds && level[ty][tx] === 1;
-    const hasLOS = inBounds && hasLineOfSight(level, this.x, this.y, tx, ty);
+    const hasLOS = inBounds && hasLineOfSight(level, this.x, this.y, tx, ty, terrainFor(this.context));
 
     // Thrown items have no distance cap; only wands keep their own range
     // (which is already unlimited for every wand currently in the game).
@@ -666,7 +668,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
     const targetX = map.tileToWorldX(tx)!;
     const targetY = map.tileToWorldY(ty)!;
-    const landsInChasm = getFeature(tx, ty) === "chasm";
+    const landsInChasm = terrainFor(this.context).getFeature(tx, ty) === "chasm";
 
     const finishThrow = () => {
       projectile.destroy();
@@ -728,7 +730,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
     // Items that land in a chasm fall in and are lost. Checked before the
     // terrain potions so a flask can't splash the void from the rim.
-    if (getFeature(tx, ty) === "chasm") {
+    if (terrainFor(this.context).getFeature(tx, ty) === "chasm") {
       removeEntity(context, item);
       dungeon.log(context, `${item.displayName} falls into the chasm and is lost.`);
       return;
@@ -904,6 +906,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
   // Nearest visible enemy within `maxRange` tiles (chebyshev distance).
   protected nearestVisibleEnemy(maxRange: number): Entity | undefined {
+    const { isGrassConcealed } = terrainFor(this.context);
     if (this.x === undefined || this.y === undefined) return undefined;
 
     let best: Entity | undefined;
@@ -948,6 +951,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
   // Visible enemies within `radius` tiles (chebyshev distance).
   protected visibleEnemiesInRadius(radius: number): Entity[] {
+    const { isGrassConcealed } = terrainFor(this.context);
     if (this.x === undefined || this.y === undefined) return [];
 
     const enemies: Entity[] = [];
@@ -968,11 +972,11 @@ export default class BasicHero extends Entity implements HeroControlHost {
   }
 
   processInput(key: string): void {
-    heroControls.processInput(this, key);
+    this.controls.processInput(this, key);
   }
 
   stepManually(dx: number, dy: number): void {
-    heroControls.stepManually(this, dx, dy);
+    this.controls.stepManually(this, dx, dy);
   }
 
   isOver() {

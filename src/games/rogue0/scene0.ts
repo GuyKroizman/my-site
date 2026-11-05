@@ -105,6 +105,7 @@ import { generateFlySwarmTexture } from './monsters/flySwarmTexture';
 import { generateWraithTexture } from './monsters/wraithTexture';
 import { generateCultistBoltTexture, generateGoblinArrowTexture, generateTrapArrowTexture } from './projectileTextures';
 import * as tiles from "./tiles";
+import { terrainFor } from './terrain';
 import type { FeaturePlacement } from "./tiles";
 
 // Keep the player spawn, stairs and procedural content out of the right-hand
@@ -647,6 +648,7 @@ export class Scene0 extends Phaser.Scene {
     stairs?: { x: number; y: number },
     restored?: SavedFloor
   ) {
+    const tiles = terrainFor(this.context);
     clearMonsterSleepVisuals(this);
     clearSurpriseVisuals(this);
     clearGrassBurns(this);
@@ -737,6 +739,7 @@ export class Scene0 extends Phaser.Scene {
     spawn: { x: number; y: number };
     stairs: { x: number; y: number };
   } {
+    const tiles = terrainFor(this.context);
     const generated = generateMap(floor);
     this.secretRoom = generated.secretRoom;
     const levelArray = generated.map;
@@ -810,6 +813,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private summonFromTrap(x: number, y: number): boolean {
+    const tiles = terrainFor(this.context);
     const context = this.context;
     const map = dungeon.getCurrentLevel();
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -872,7 +876,8 @@ export class Scene0 extends Phaser.Scene {
       level,
       Number.MAX_SAFE_INTEGER,
       exclude,
-      MAX_VISIBLE_X
+      MAX_VISIBLE_X,
+      terrainFor(context)
     );
     // Do not drop a wave into an active gas cloud: exposure deaths would just
     // trigger another wave and could keep the scheduler cycling.
@@ -894,8 +899,7 @@ export class Scene0 extends Phaser.Scene {
   private saveFloor() {
     const player = this.context.player!;
     const carried = new Set([player, ...player.getAllItems()]);
-    const features: FeaturePlacement[] = [];
-    tiles.forEachFeature((x, y, state) => features.push({ ...state, x, y }));
+    const features = terrainFor(this.context).snapshot();
     this.floors.set(this.context.floor, {
       savedAt: this.context.simulationTime ?? 0,
       poisonClouds: (this.context.poisonClouds ?? []).map(cloud => ({ ...cloud })),
@@ -969,6 +973,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private refreshFovIfNeeded() {
+    const tiles = terrainFor(this.context);
     const p = this.context.player;
     if (!p || p.x === undefined || p.y === undefined) return;
 
@@ -990,7 +995,7 @@ export class Scene0 extends Phaser.Scene {
 
     const map = dungeon.getCurrentLevel();
     const vision = this.getVision();
-    this.visible = computeFOV(map, p.x, p.y, vision.radius, vision.ignoreObstacles);
+    this.visible = computeFOV(map, p.x, p.y, vision.radius, vision.ignoreObstacles, terrainFor(this.context));
     this.context.visibleTiles = this.visible;
 
     for (const key of this.visible) {
@@ -1042,6 +1047,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private applyEntityVisibility() {
+    const tiles = terrainFor(this.context);
     const player = this.context.player;
     const mindVision = this.getVision().mindVision;
     this.mindMarkers.clear();
@@ -1136,16 +1142,7 @@ export class Scene0 extends Phaser.Scene {
     // display list after the freshly-built tilemap layer.
     this.clearFeatureSprites();
 
-    tiles.clearAllFeatures();
-    for (const f of features) {
-      tiles.setFeature(f.x, f.y, f.feature, {
-        door: f.door,
-        blocksSight: f.blocksSight,
-        trap: f.trap,
-        trapKind: f.trapKind,
-        trapReusable: f.trapReusable
-      });
-    }
+    terrainFor(this.context).restore(features);
   }
 
   private clearFeatureSprites() {
@@ -1194,6 +1191,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private syncFeatures() {
+    const tiles = terrainFor(this.context);
     const map = this.context.map;
     if (!map) return;
 
@@ -1417,7 +1415,8 @@ export class Scene0 extends Phaser.Scene {
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
         cursedGemCount + foodCount + itemCount + progressionCount + chestCount,
       exclude,
-      MAX_VISIBLE_X
+      MAX_VISIBLE_X,
+      terrainFor(this.context)
     );
 
     let i = 0;

@@ -1,6 +1,6 @@
 import dungeon from "./dungeon";
 import { canSee } from "./fov";
-import * as tiles from "./tiles";
+import { terrainFor } from './terrain';
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import type { ActionKind } from "./timing";
@@ -8,8 +8,8 @@ import { hasEffect, fleeStep } from "./effects";
 
 // Enemies avoid stepping on traps they can perceive (revealed/armed plates).
 // Hidden traps stay invisible, and confusion overrides avoidance entirely.
-function isVisibleTrap(x: number, y: number): boolean {
-  return tiles.getTileState(x, y)?.trap === "visible";
+function isVisibleTrap(context: GameContext, x: number, y: number): boolean {
+  return terrainFor(context).getTileState(x, y)?.trap === "visible";
 }
 
 export function enemyCanSeePlayer(entity: Entity): boolean {
@@ -32,7 +32,8 @@ export function enemyCanSeePlayer(entity: Entity): boolean {
     entity.y,
     player.x,
     player.y,
-    entity.visionRadius
+    entity.visionRadius,
+    terrainFor(entity.context)
   );
 }
 
@@ -71,7 +72,7 @@ function visibleDecoy(entity: Entity): Entity | undefined {
   for (const other of context.entities) {
     if (other === entity || !other.isDecoy || other.type !== "enemy" ||
         other.healthPoints <= 0 || other.x === undefined || other.y === undefined) continue;
-    if (canSee(dungeon.getCurrentLevel(), entity.x, entity.y, other.x, other.y, entity.visionRadius)) {
+    if (canSee(dungeon.getCurrentLevel(), entity.x, entity.y, other.x, other.y, entity.visionRadius, terrainFor(context))) {
       return other;
     }
   }
@@ -222,7 +223,7 @@ function wanderStep(entity: Entity): boolean {
     const ny = entity.y + heading.y;
     if (dungeon.canStepBetween(entity.x, entity.y, nx, ny) &&
         dungeon.isWalkableTile(entity.context, nx, ny, entity) &&
-        (entity.isFlying || !isVisibleTrap(nx, ny))) step = { x: nx, y: ny };
+        (entity.isFlying || !isVisibleTrap(entity.context, nx, ny))) step = { x: nx, y: ny };
   }
   step ??= randomAdjacentStep(entity.context, entity);
   if (!step) return false;
@@ -235,6 +236,7 @@ function wanderStep(entity: Entity): boolean {
 // Ring tiles around a target that a swarm can step onto (chasms are open to
 // flying swarms; items do not block, matching moveEntityTo occupancy rules).
 function isOpenSwarmTile(entity: Entity, x: number, y: number): boolean {
+  const tiles = terrainFor(entity.context);
   const level = dungeon.getCurrentLevel();
   if (!level || y < 0 || x < 0 || y >= level.length || x >= level[0].length) return false;
   if (level[y][x] !== 0) return false;
@@ -390,9 +392,10 @@ export function nextStepToward(
 // before entering its tile. Do not overlap another actor or forget the target
 // just because a corridor is busy.
 function followStep(entity: Entity, step: { x: number; y: number }): ActionKind | null {
+  const tiles = terrainFor(entity.context);
   // Never step onto a revealed trap, even when it is the navigation target.
   // Flying actors ignore ground pressure plates entirely.
-  if (!entity.isFlying && isVisibleTrap(step.x, step.y)) return null;
+  if (!entity.isFlying && isVisibleTrap(entity.context, step.x, step.y)) return null;
   if (entity.context.entities.some(e =>
     e !== entity && (e.type === "player" || e.type === "enemy") &&
     e.healthPoints > 0 && e.x === step.x && e.y === step.y
@@ -440,7 +443,7 @@ export function randomAdjacentStep(
     if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
     if (dungeon.canStepBetween(entity.x, entity.y, nx, ny) &&
         dungeon.isWalkableTile(context, nx, ny, entity) &&
-        (entity.isFlying || !isVisibleTrap(nx, ny))) {
+        (entity.isFlying || !isVisibleTrap(context, nx, ny))) {
       return { x: nx, y: ny };
     }
   }

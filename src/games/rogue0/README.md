@@ -28,9 +28,10 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
   policy, threat interruption, starvation checks and chasm confirmations.
   `heroTargeting.ts` owns inspect/aim modes and visible wand-target selection.
   These modules take explicit services/actors and import no Phaser runtime.
-  `heroControls.ts` supplies runtime wiring, and `HeroControlHost` defines the
-  hero facade. Queues, pursuit and aiming state are still reset on browser load;
-  no new controller object or save ID is introduced. Projectile impact and
+  `heroControls.ts` caches runtime wiring by run context, including its terrain
+  readers, and `HeroControlHost` defines the hero facade. Queues, pursuit and
+  aiming state are still reset on browser load; no controller object is saved
+  and no new save ID is introduced. Projectile impact and
   terrain/scheduler execution remain outside these input modules.
 - `turnManager.ts` exports a renderer-independent `TurnManager` class with
   explicit effect/logging services. Each `Scene0` owns its own scheduler clock,
@@ -38,8 +39,16 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
   Floor travel preserves that scene's clock. Resume installs saved time/tick,
   rebuilds actor membership, then restores exact deadlines/readiness. The v1
   save fields stay unchanged; scheduler instances and services are not saved.
-  Dungeon and terrain are still singletons, so this is scheduler isolation,
-  not yet support for running two complete rendered games side by side.
+- `terrain.ts` owns independent active-floor overlays. `terrainFor(context)`
+  associates a stable store with each run through a weak runtime-only registry;
+  there is no active-run pointer or shared feature map. `tiles.ts` now contains
+  only types and presentation. Floor snapshots copy feature records both ways
+  and retain the v1 format, including legacy reusable teleport traps.
+  Visibility helpers take an explicit optional terrain argument (omitting it
+  means a bare map). AI, combat, gas, hero controls, movement and scene rendering
+  use the owner's overlay; spawn selection also takes terrain explicitly.
+  Dungeon maps, path grids, layers and callbacks are still singleton-owned, so
+  this is not yet support for two complete rendered games side by side.
 - `runPersistence.ts` owns typed floor/run snapshots, decoding, validation and
   v1 compatibility repairs. `Scene0` still owns Phaser lifecycle, checkpoint
   timing, rendering and floor transitions. Restoring actors must not rerun
@@ -65,15 +74,20 @@ movement costs, pursuit, starvation/chasm safety and targeting.
 actor membership, fractional terrain/effect events, item upkeep, pauses and the
 per-frame event budget. All scheduler tests (including the legacy movement,
 monster, item, gas and frost suites) now import the complete module directly.
-These new boundary suites import the extracted modules directly. The Chromium suite also checks
+`npm run test:rogue0:terrain-core` covers independent overlays over the same base
+map, FOV/LOS, grass cover, optical overrides, grid/spawn filtering, trap policies,
+and detached save snapshots. It imports complete production modules directly.
+Legacy terrain/FOV fixtures also use those modules through the compatibility
+adapter; the log, monster, swarm and progression suites now share its AST loader.
+The Chromium suite also checks
 the live HUD/inventory after resume, free modal opening/closing, cleared pending
 controls, repeated input binding with real Phaser listeners, separate scene
-schedulers, fractional clock/deadline restoration, and fresh scheduler membership
-on same-page resume. Test history is appended automatically.
+schedulers/terrain, isolated sight/combat/gas, terrain snapshots, fractional
+clock/deadline restoration, and fresh runtime state on same-page resume. Test history is appended automatically.
 
 Further incremental work: separate projectile resolution and scene rendering,
-replace the remaining isolated source loaders, and move the remaining
-terrain/dungeon singletons to run-owned state. Save
+replace the remaining isolated source loaders, and move dungeon map/grid/layer
+and terrain-change callbacks to run-owned state. Save
 field selection also remains graph-based; changes to persisted fields still
 need compatibility handling.
 

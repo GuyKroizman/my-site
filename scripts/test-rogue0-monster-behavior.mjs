@@ -3,16 +3,9 @@ recordTestRun('monster-behavior');
 import assert from 'node:assert/strict';
 import { TurnManager } from '../src/games/rogue0/turnManager.ts';
 import fs from 'node:fs';
-import ts from 'typescript';
+import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { forgetInspectedEntity } from '../src/games/rogue0/context.ts';
 
-function load(path, bindings = {}) {
-  const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-  const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
-  const exports = {};
-  new Function('exports', ...Object.keys(bindings), js)(exports, ...Object.values(bindings));
-  return exports;
-}
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const { Entity } = load('src/games/rogue0/entity.ts', { actionCost });
 const hasEffect = (e, id) => e.effects.some(effect => effect.id === id);

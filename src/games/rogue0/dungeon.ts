@@ -10,7 +10,8 @@ import { sfx } from "./audio";
 import { resolveAttack } from "./combat";
 import { applyAttackResult } from './combatApplication';
 import { spawnEntityFloatingText } from "./floatingText";
-import * as tiles from "./tiles";
+import { describeTile, describeTileLabel } from './tiles';
+import { terrainFor } from './terrain';
 import {
   applyEffect,
   createBurningEffect,
@@ -41,6 +42,7 @@ const dungeon = {
   onTerrainChanged: null as (() => void) | null,
 
   initialize: function (context: GameContext, levelArray: number[][]) {
+    const tiles = terrainFor(context);
     this.currentLevel = levelArray;
     context.currentLevel = levelArray;
     this.context = context;
@@ -110,6 +112,7 @@ const dungeon = {
   // `throughDoors` lets players and pursuing enemies plan routes through
   // closed doors; movement must open the door before entering.
   findPath: function (sx: number, sy: number, tx: number, ty: number, throughDoors = false, avoidTraps = false, actor?: Entity): number[][] {
+    const tiles = terrainFor(this.context!);
     const grid = this.pathGrid!.clone();
     const flying = !!actor && actor.isFlying;
     if (flying) {
@@ -143,6 +146,7 @@ const dungeon = {
   },
 
   isWalkableTile: function (context: GameContext, x: number, y: number, actor?: Entity): boolean {
+    const tiles = terrainFor(context);
     const level = this.currentLevel;
     if (!level || y < 0 || x < 0 || y >= level.length || x >= level[0].length) {
       return false;
@@ -164,6 +168,7 @@ const dungeon = {
   },
 
   openDoor: function (x: number, y: number): boolean {
+    const tiles = terrainFor(this.context!);
     if (tiles.getFeature(x, y) !== "door") return false;
     if (tiles.getDoorState(x, y) !== "closed") return false;
 
@@ -182,14 +187,15 @@ const dungeon = {
   // `label` is a short name for the shared-tile choice list; it is undefined
   // when the terrain is ordinary, so item-only tiles need no extra step.
   inspectTileInfo: function (x: number, y: number): { label?: string; description: string } {
+    const tiles = terrainFor(this.context!);
     const state = tiles.getTileState(x, y);
     const map = this.currentLevel;
     const isWall = !!map && map[y]?.[x] === 1;
     const gas = this.context?.poisonClouds?.some(c => c.x === x && c.y === y &&
       c.expiresAt > (this.context?.simulationTime ?? 0) + 1e-9);
-    const description = tiles.describeTile(state, isWall) +
+    const description = describeTile(state, isWall) +
       (gas ? " Poison gas: poisons on entry and while you remain here, even when levitating." : "");
-    const featureLabel = tiles.describeTileLabel(state, isWall);
+    const featureLabel = describeTileLabel(state, isWall);
     const label = featureLabel
       ? (gas ? `${featureLabel} (poison gas)` : featureLabel)
       : (gas ? "Poison gas" : undefined);
@@ -203,6 +209,7 @@ const dungeon = {
   // Reveal hidden traps and secret end walls in the surrounding 3x3 area.
   // Returns the total discoveries; terrain callbacks refresh FOV and visuals.
   searchAround: function (x: number, y: number): number {
+    const tiles = terrainFor(this.context!);
     const map = this.currentLevel;
     if (!map) return 0;
 
@@ -234,6 +241,7 @@ const dungeon = {
   // A pressure plate fires once, choosing the nearest living actor of either
   // faction. Walls/closed doors stop the arrow, not the targeting mechanism.
   triggerArrowTrap: function (context: GameContext, x: number, y: number): boolean {
+    const tiles = terrainFor(context);
     const state = tiles.getTileState(x, y);
     if (state?.feature !== "trap" || state.trapKind !== "arrow" || state.trap === "triggered") return false;
     if (!tiles.activateTrap(x, y)) return false;
@@ -321,6 +329,7 @@ const dungeon = {
   // Returns true when a movement attempt was consumed, even if the random
   // step hits a blocker. Never retries until a safe direction is found.
   confusedMove: function (context: GameContext, actor: Entity): boolean {
+    const tiles = terrainFor(context);
     if (!hasEffect(actor, "confused") || hasEffect(actor, "rooted") || actor.moving ||
         actor.healthPoints <= 0 || actor.x === undefined || actor.y === undefined) return false;
     if (actor === context.player) {
@@ -348,6 +357,7 @@ const dungeon = {
   // supplies a cardinal unit vector; it owns its action cost. The victim gets
   // no free action and loses no scheduled action. Shared path grids stay intact.
   knockback: function (context: GameContext, target: Entity, dx: number, dy: number): boolean {
+    const tiles = terrainFor(context);
     if (target.healthPoints <= 0 || (target.type !== "enemy" && target.type !== "player") ||
         !context.entities.includes(target) || target.x === undefined || target.y === undefined ||
         target.moving || hasEffect(target, "rooted")) return false;
@@ -371,6 +381,7 @@ const dungeon = {
   },
 
   canEnterChasm: function (context: GameContext, actor: Entity, x: number, y: number): boolean {
+    const tiles = terrainFor(context);
     if (actor.type !== "player" || actor.healthPoints <= 0 || actor.x === undefined || actor.y === undefined ||
         hasEffect(actor, "rooted") || actor.isFlying ||
         Math.max(Math.abs(actor.x - x), Math.abs(actor.y - y)) !== 1 ||
@@ -393,6 +404,7 @@ const dungeon = {
   },
 
   fallIntoChasm: function (context: GameContext, entity: Entity): void {
+    const tiles = terrainFor(context);
     if (entity.x === undefined || entity.y === undefined || entity.healthPoints <= 0 ||
         tiles.getFeature(entity.x, entity.y) !== "chasm") return;
     if (entity.type === "player") {
@@ -405,6 +417,7 @@ const dungeon = {
   },
 
   moveEntityTo: function (context: GameContext, entity: Entity, x: number, y: number, instant = false): void {
+    const tiles = terrainFor(context);
     if (context.map == undefined || context.scene == undefined) {
       throw new Error("context.map is undefined");
     }
@@ -593,6 +606,7 @@ const dungeon = {
     excludeX: number,
     excludeY: number
   ): { x: number; y: number } | null {
+    const tiles = terrainFor(context);
     const level = this.currentLevel;
     if (!level) return null;
 
@@ -624,6 +638,7 @@ const dungeon = {
     x: number,
     y: number
   ): { x: number; y: number } | null {
+    const tiles = terrainFor(context);
     const level = this.currentLevel;
     if (!level) return null;
     const dirs: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -645,6 +660,7 @@ const dungeon = {
   // Armor curse proc: fires once per successful enemy hit against the hero.
   // Passive armor curses (Metabolism, Bulk) are handled by basicHero.
   procArmorCurse: function (context: GameContext, victim: Entity): void {
+    const tiles = terrainFor(context);
     const armor = (victim as any).armor as Entity | undefined;
     if (!armor?.cursed || !armor.curseId) return;
     const id = armor.curseId;
@@ -787,6 +803,7 @@ const dungeon = {
   },
 
   conductShock: function (context: GameContext, target: Entity, primaryDamage: number): void {
+    const tiles = terrainFor(context);
     if (!Number.isFinite(primaryDamage) || primaryDamage <= 0 ||
         target.x === undefined || target.y === undefined || target.isFlying ||
         tiles.getFeature(target.x, target.y) !== "water") return;
@@ -845,6 +862,7 @@ const dungeon = {
   },
 
   freezeWater: function (context: GameContext, x: number, y: number): number {
+    const tiles = terrainFor(context);
     // A cardinal splash cannot freeze through corners, doors or walls.
     let count = 0;
     for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -867,6 +885,7 @@ const dungeon = {
     x: number,
     y: number
   ): void {
+    const tiles = terrainFor(context);
     const level = this.currentLevel;
     if (!level) return;
 

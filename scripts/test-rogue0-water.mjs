@@ -52,8 +52,9 @@ let state = { feature: 'water' };
 const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 const methods = source.slice(source.indexOf('  private featureVisual('), source.indexOf('  private makeArrowTexture()'));
 const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
-  ...water, tiles: { FeatureTiles: { water: 206 }, getFeature: () => state?.feature,
-    forEachFeature(fn) { if (state) fn(0, 0, state); } },
+  ...water, tiles: { FeatureTiles: { water: 206 } },
+  terrainFor: () => ({ getFeature: () => state?.feature,
+    forEachFeature(fn) { if (state) fn(0, 0, state); } }),
   dungeon: { getCurrentLevel: () => [[0]] }, wallOverhang: () => false,
   worldDepth: () => 0, actorOriginY: () => 0,
   // Raised wall faces (and their decals) are inactive here; the entry points

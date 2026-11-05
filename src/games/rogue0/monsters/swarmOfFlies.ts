@@ -5,7 +5,7 @@ import { forgetInspectedEntity } from "../context.ts";
 import type { Entity } from "../entity";
 import type { DamageType } from "../effects";
 import dungeon from "../dungeon";
-import * as tiles from "../tiles";
+import { terrainFor } from '../terrain';
 import { swarmTurn } from "../ai";
 import Gold from "../items/gold";
 import PotionOfHealing from "../items/PotionOfHealing";
@@ -129,6 +129,7 @@ export default class SwarmOfFlies extends Monster {
     const y = this.y;
     if (x === undefined || y === undefined) return null;
 
+    const tiles = terrainFor(this.context);
     const level = dungeon.getCurrentLevel();
     const dirs: Array<[number, number]> = [
       [1, 0], [-1, 0], [0, 1], [0, -1], [-1, -1], [1, -1], [-1, 1], [1, 1]
