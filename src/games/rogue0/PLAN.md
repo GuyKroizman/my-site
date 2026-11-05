@@ -36,9 +36,18 @@ has been playtested. Checked boxes mean the described implementation exists.
   map—not the originally proposed tile enum. Doors, searchable hidden traps,
   burning grass, water extinguishing fire, blocking chasms and searchable
   secret doors exist; advanced elemental combinations remain outstanding.
-- Monster roster includes cultists, splitting swarms, mimics, three elementals
-  and wraiths. Several proposed signature abilities remain unimplemented;
-  the Bone Lord still lacks phases/telegraphs/arena mechanics.
+- Monster roster includes cultists, splitting swarms, mimics, three elementals,
+  goblin archers and wraiths. The goblin archer fires bleeding arrows at range
+  5 and switches to a weaker melee sidearm when adjacent; wraiths deal magic
+  damage with physical resistance. The Bone Lord still lacks
+  phases/telegraphs/arena mechanics.
+- Monsters start **asleep** for 4–12 world-time units and wake on damage, noise,
+  or a visible hero within 2 tiles; sleepers spend time waiting and show a
+  visual sleep marker. Awareness/membership is rebuilt from saves without
+  rerolling sleep.
+- A floor-population guard (`monsterReinforcements.ts`) tops up a floor when its
+  last living monster dies: a small wave spawns at least 8 tiles away and
+  outside the hero's field of view, scaling with floor depth.
 - Hunger, starvation, well-fed regeneration, rations and monster gold rewards
   exist. Shops, trading and revival items do not.
 - `context.ts` defaults to **25 floors**. Five floors was a testing limit.
@@ -54,14 +63,27 @@ has been playtested. Checked boxes mean the described implementation exists.
   Holy Potions let the player choose a target.
 - Equipped ring bonuses scale with upgrade level; treasure chests generate two
   per floor and mimics scale across the five region bands.
-- Bottom toolbar, hero/inspect panels, inventory modal and generated potion
-  textures exist. Full HUD polish and the custom-art overhaul remain open.
+- Bottom HUD with portrait, HP, hunger, four assignable quickslots, backpack
+  button (`i`/`b`) and a message strip whose history opens a paginated log
+  window. HUD status icons show remaining duration and a tooltip. Inventory
+  modal, confirmation dialogs and hover tooltips all pause or gate world input.
+- Presentation layer: hero idle/walk animation and facing, burning and chilled
+  overlays, water animation, grass-fire flames/smoke, wall decals, projectile
+  and wand-zap art, monster sleep markers, surprise markers and floating damage
+  text. Potions, scrolls, goblin, wraith, elementals and chests use generated
+  textures. The full custom-art overhaul (Phase 16) is still open.
+- `combatApplication.ts` applies successful hits (damage, invisibility,
+  shock-water contact, statuses, reactions, death) and is shared by normal
+  attacks, skills, thrown weapons and wands; `combat.ts` only resolves the roll.
 - The turn engine is now a **discrete-event action-time scheduler**:
   movement speed and weapon delay are independent; hunger/regeneration tick
   with elapsed world time, effects retain their own tick phase, and skill
   cooldowns use absolute timestamps. See `README.md`, `timing.ts` and
   `turnManager.ts`; do not reintroduce per-action status/hunger ticking.
-- Regression entry point: `node scripts/test-rogue0-movement.mjs`.
+- Regression: `npm run test:rogue0` runs **41** headless suites (42 files,
+  including the separate browser `test-rogue0-save-browser.mjs`). The last full
+  run and the production build passed at the time of this update. Results append
+  to `logs/rogue0-tests.jsonl`; query with `npm run test:rogue0:history`.
 
 ### Original baseline (historical, not current)
 
@@ -261,7 +283,7 @@ weapon accuracy / armor evasion by **1.2**. Bonuses are computed from current
 equipment, so drinking/upgrading/swapping updates them immediately. Hero UI
 shows Strength; identified inventory details show tier, requirement and warnings.
 Regression coverage lives in the item-upgrades and progression suites (part of
-the 26 headless suites); all pass, as does the production build. Visual
+the 41 headless suites); all pass, as does the production build. Visual
 verification and balance playtesting remain deferred.
 
 **Tier roster:** Dagger / Shortsword / Broadsword / Greatsword / Greataxe and
@@ -283,7 +305,8 @@ revisits never regenerate supplies. Food remains guaranteed each floor.
 Ordinary encounter density stops increasing after floor 5; later regional
 monster scaling is still future work. The Bone Lord is unchanged on floor 25.
 
-**Not yet complete:** talents, same-tier weapon variety and full-run balancing.
+**Not yet complete:** later talent tiers/subclasses, same-tier weapon variety
+and full-run balancing. First-tier talents *are* implemented (Phase 9).
 XP still grants +5 max HP / +1 ATK pending balance.
 
 Keep three separate progression tracks, rather than treating all growth as ATK:
@@ -329,7 +352,7 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
 - [x] Rings (Accuracy, Evasion, Elements, Haste, Might) and two artifacts; ring
       bonuses now scale with upgrade level and update immediately when equipped.
 - [ ] Audit identification leaks and curse handling across every inventory action.
-  - Stabilisation pass: all 26 headless regression suites pass, including
+  - Stabilisation pass: all 41 headless regression suites pass, including
     scheduling and
     equipped-curse removal guards. Fixed upgrade logs revealing unidentified
     equipment names/levels (including the upgrade-cap path), with regression
@@ -626,22 +649,34 @@ Implemented foundations: Skeleton stays dead; Quloptsh has on-hit effects;
 Ghoul has fast movement, regeneration and on-hit effects; Brute enrages;
 cultists summon and snipe with necromantic bolts, swarms split on death, and
 elementals have typed effects.
-Mimic/wraith classes exist, but that alone does not complete their intended AI.
-Archer currently attacks in range rather than kiting. Door-aware pursuit exists.
+Goblin archers fire bleeding arrows at range 5 and switch to a weaker melee
+sidearm when adjacent. Wraiths deal magic damage with physical resistance.
+Door-aware pursuit exists and monsters can open doors, but nothing avoids
+burning terrain.
 Two treasure chests generate per floor (separate from the mimic encounter);
 opening them is a use action and rewards scale to floor tier. Mimics stay
 dormant until damaged and scale across the five region bands.
 
+Signature-ability status: Skeleton ✅, Quloptsh ⚠️ (evasion + weakened, no
+short-FOV/backstab), Ghoul ⚠️ (regeneration + bleed, no lifesteal), Brute ✅,
+swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅.
+
 - [ ] Finish every monster's intended signature ability (SPD-style):
-  - Skeleton → basic brittle melee enemy; stays dead when killed (no reanimation).
-  - Quloptsh → hard to see (short FOV for player) / backstabs.
-  - Archer → kites, retreats when you close.
-  - Ghoul → lifesteal on hit; fast but frail.
-  - Brute → enrages below 50% HP (ATK up, DEF down).
-  - New: swarm (splits), cultist (summons), mimic (chest trap), elemental
-    (fire/ice/shock), wraith (phase through walls).
-- [ ] Faction/alert: some monsters wake and call nearby allies on sight.
-- [ ] AI: monsters open doors, avoid burning terrain, chase through paths.
+  - [x] Skeleton → basic brittle melee enemy; stays dead when killed (no reanimation).
+  - [ ] Quloptsh → hard to see (short FOV for player) / backstabs.
+        Partial: high evasion (40) and on-hit `weakened` only; no concealment or
+        backstab bonus.
+  - [x] Archer → goblin archer: fires bleeding arrows at range 5 and switches
+        to a weaker melee sidearm when adjacent.
+  - [ ] Ghoul → lifesteal on hit; fast but frail.
+        Partial: movement speed 2, self-applied `regeneration`, on-hit bleeding
+        and fire vulnerability; hits do **not** heal it.
+  - [x] Brute → enrages below 50% HP (ATK up, DEF down).
+  - [x] New: swarm (splits), cultist (summons), mimic (chest trap), elemental
+        (fire/ice/shock).
+  - [x] Wraith → magic damage with physical resistance; ordinary movement.
+- [x] AI: monsters open doors and chase through paths.
+- [ ] AI: avoid burning terrain and other self-damaging hazards.
 - [ ] Bosses: multi-phase, telegraphed attack, summons, arena hazard. Each
       region boss gets a signature mechanic (not a stat sponge).
 - **Acceptance:** each fight has a "correct" tactic that differs per enemy.
@@ -690,8 +725,10 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
 *Depends on G5, G7.*
 
 - [x] Hunger, starvation, well-fed regeneration and ration drops.
-- [x] Monster kills award gold.
-- [ ] Shop stock (Identify/Upgrade/Remove Curse, food, Ankh); cooking later.
+- [x] Monster kills award gold (kills and chests drop piles; the wallet is
+      displayed in the HUD).
+- [ ] Shop room + stock (Identify/Upgrade/Remove Curse, food, Ankh); no shop
+      room is generated yet and **gold currently has no sink**. Cooking later.
 - [ ] Sell unwanted items; buy back sold items.
 - [ ] Ankh (revival) + blessed Ankh (full heal on death).
 - **Acceptance:** the player budgets food/gold across a region, not just HP.
@@ -751,27 +788,34 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
 20-slot four-column backpack, unknown-item icons, item action dialog, throwing
 and modal input gating. The window scales to the viewport rather than paging.
 Item details are displayed in the dialog; a separate Inspect action is not
-implemented. Remaining boxes below describe the full original UX targets,
-not absence of the inventory system. Verify HUD buffs, tooltips, quick-key
-coverage and small-screen readability before marking this phase complete.
+implemented. The HUD backpack button, `i`/`b`/`Esc` keys, HUD status icons with
+durations, hover tooltips and the bottom message strip are also in place. What
+remains is quick-key paging over the backpack, a true per-item Inspect action,
+and small-screen/visual verification of the whole HUD.
 
-- [ ] Add the **Backpack button** (bag icon) to the HUD; open/close the
+- [x] Add the **Backpack button** (bag icon) to the HUD; open/close the
       inventory window with the button or `i`/`Esc`.
-- [ ] Build the **inventory window**: equipped slots row on top
+- [x] Build the **inventory window**: equipped slots row on top
       (weapon / armor / ring / ring / artifact), then the backpack as a
-      scrollable or paged grid (4 columns), each cell showing the item icon
-      (or a `?` placeholder if unidentified).
-- [ ] Item selection → action menu: **Use / Equip / Unequip / Drop / Throw /
-      Inspect** (replaces the current "toggle on pick" flow).
-- [ ] Enforce a real **backpack capacity** (e.g. 20 slots) with an
-      "inventory full" message + drop prompt; remove the auto-growing sidebar
-      slot hack in `basicHero.createUI`.
+      4-column grid, each cell showing the item icon (or a `?` placeholder if
+      unidentified). It scales to the viewport instead of paging.
+- [x] Item selection → action menu: **Use / Equip / Unequip / Drop /
+      Throw** (replaces the old "toggle on pick" flow).
+      **Inspect** as a separate action remains open — details live in the action
+      dialog and hover tooltips.
+- [x] Enforce a real **backpack capacity** (20 slots) with an "inventory full"
+      message + drop prompt; the auto-growing sidebar slot grid is gone.
 - [ ] Numbered quick keys `1–0` act on the currently visible backpack page;
       hovering an item shows its tooltip (name, stats, status effects).
-- [ ] Show **buff/debuff status icons + turn counts** under the HUD portrait
-      (from G1).
-- [ ] Move the **message log** to a bottom strip (SPD-style) and keep
-      hover-inspect on the map.
+      Hover tooltips exist; instead of `1–0` paging there is a **four-slot
+      assignable quickslot pane** beside the backpack (hold a slot, then pick an
+      item; assignment costs no world time). Decide whether to keep that or add
+      page-wide number keys.
+- [x] Show **buff/debuff status icons + remaining duration** in the HUD, with a
+      hover tooltip describing the effect (from G1).
+- [x] Move the **message log** to a bottom strip (SPD-style) and keep
+      hover-inspect on the map; the strip opens a paginated log window that
+      pauses input while open.
 - **Acceptance:** the player opens the inventory with a button or key, sees
   equipped + carried items clearly, and can perform any item action without
   consulting hidden slots; nothing renders off-screen.
@@ -779,15 +823,26 @@ coverage and small-screen readability before marking this phase complete.
 ### Phase 16 — Graphics & art overhaul (16×16, Astra-generated)
 *Deferred — implement later. Replaces the Kenney sheet + magic-number lookups.*
 
+Progress so far: region floor/wall atlases for five palettes (stone, crypt,
+sandstone, crystal, volcanic), tall grass, and original art for the cultist and
+goblin are checked-in PNGs; potions, scrolls, wand projectiles, elementals, fly
+swarms, wraith, chest, wall decals and water are generated at runtime. Several
+monsters (skeleton, ghoul, brute, Quloptsh, Bone Lord) and most items still read
+Kenney frames through `tile = row * 49 + col`, so the overhaul is not close.
+
 - [x] Fix the mimic sprite: replaced the sword frame with the existing closed
       wooden chest (row 6, column 8). Implemented and visually verified in a
       mobile browser viewport using **Astra via Pi routing**.
 - [ ] Choose a cohesive 16×16 palette (dark SPD-like dungeon, warm light, one
       gold accent) and keep it consistent across all sprites.
+      Partial: the five region palettes and original monster/item art move in
+      this direction, but Kenney frames are still in use beside them.
 - [ ] Have **Astra** generate sprites procedurally (Python/PIL or Phaser
       Graphics), iterating with its vision: floor, wall, doors, stairs, traps,
       water, grass, chasm, the 5 hero classes, every monster, and every item
       (red heal potion, wands, rings, food, scrolls, …).
+      Landed: floors/walls (5 regions), tall grass, cultist, goblin, potions,
+      scrolls, wand projectiles, elementals, swarm, wraith, chest, decals.
 - [ ] Replace the `tile = row*49 + col` magic numbers with named `textureKey`s
       (already started for the generated potions); store art as generated
       textures or a new atlas.
@@ -802,20 +857,29 @@ coverage and small-screen readability before marking this phase complete.
 
 ### Next implementation priorities
 
-1. **Phase 9 first-tier XP/talents landed:** levels 2–4 award three points for
-   two rank-2 class talents, selected in the Hero panel. Separate XP, Strength
-   and equipment-upgrade tracks are preserved. Later tiers/subclasses remain
-   open; terrain work continues. All 26 headless regression suites and the
-   production build pass; visual and five-class balance playtesting remain
-   deferred.
-2. **Phase 7 terrain is implemented** (doors, traps, water/ice, fire/grass,
-   chasms, gas, shock, confusion); remaining work is balance/visual playtesting.
-3. **Finish Phase 8:** archer kiting and remaining signatures. The Bone Lord
-   now lives on floor 25; boss balance/redesign is deferred at user request.
-4. **Phase 9 choices + Phase 10 shops:** make class builds and gold meaningful.
-5. **Phase 15 polish and Phase 13 remaining meta** (seeds, challenges,
-   bestiary, run stats, achievements), then deepen region identities beyond
-   the existing palettes. Keep Phase 16 deferred unless prioritised.
+State at this update: 41 headless suites (`npm run test:rogue0`) and the
+production build pass; visual and five-class balance playtesting stay deferred
+at user request.
+
+1. **Shops and a gold sink (Phase 10).** This is the biggest live gap: gold is
+awarded by kills and chests but has **no use at all**. A single shop room per
+region selling Identify / Upgrade / Remove Curse / food / Ankh would convert
+three already-built systems (identification, curses, hunger) into decisions.
+Add buy/sell with a real price curve and an Ankh revival item.
+2. **Finish Phase 8 signatures.** Remaining: monsters avoiding burning terrain,
+   then Quloptsh concealment/backstab and ghoul lifesteal. Boss redesign
+   (multi-phase Bone Lord) stays deferred.
+3. **Phase 9 build breadth:** later talent bands, then subclasses. First-tier
+talents already give a real level-up choice.
+4. **Phase 14 region identity:** per-region enemy/trap sets and scaling on top
+of the five existing palettes. Today difficulty scales by floor number, not by
+region, so floors 5→6 and 10→11 feel the same apart from colour.
+5. **Phase 13 meta** (seeds, challenges, bestiary, run stats, achievements) and
+the remaining Phase 15 polish (backpack quick-key paging, Inspect action,
+small-screen verification).
+6. **Phase 12 NPCs** last; **Phase 16 art** only if prioritised — the mixing of
+Kenney frames with generated art is currently the most visible rough edge, but
+it does not affect depth.
 
 ### Original dependency order (reference)
 
@@ -860,8 +924,17 @@ coverage and small-screen readability before marking this phase complete.
 - **Inventory moves out of the sidebar into a modal window** opened by a
   backpack button (`i`/`b`) and closed with `Esc`; the sidebar's auto-growing
   `UIItems` grid is removed.
-- **Backpack capacity is explicit (e.g. 20 slots)**; exceeding it prompts a
-  drop decision rather than silently overflowing off-screen.
+- **Backpack capacity is explicit (20 slots)**; exceeding it prompts a drop
+  decision rather than silently overflowing off-screen.
+- **Quick access is four assignable quickslots**, not `1–0` acting on the
+  backpack page. Assignment costs no world time. Changing this is a deliberate
+  UX decision, not a leftover bug.
+- **Monsters are dormant at spawn**, not permanently awake: they wait 4–12
+  world-time units and wake on damage, noise or a visible hero within 2 tiles.
+  Do not reroll sleep when restoring a saved floor.
 - **Scope guard:** SPD has a decade of content. Prioritise the systems above
   over raw item/monster count; 8 well-designed enemies with abilities beat 30
   stat clones.
+- **Out of scope by decision:** goblin archers do **not** kite/retreat, wraiths
+  do **not** phase through walls, and monsters do **not** call allies. Do not
+  re-propose these or implement them as extras.

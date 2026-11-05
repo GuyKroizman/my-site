@@ -41,7 +41,7 @@ try {
   }
   await page.goto(url);
   await captureScene();
-  await page.getByRole('button', { name: 'Warrior sword & steel' }).click();
+  await page.getByRole('button', { name: /^Start/ }).click();
   await page.waitForFunction(() => window.testScene?.context.saveNow);
   await page.evaluate(async ({ legacyIds, classModules }) => {
     const { saveRegistry } = await window.testImport('/src/games/rogue0/saveRegistry.ts');

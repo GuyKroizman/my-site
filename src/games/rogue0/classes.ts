@@ -13,4 +13,8 @@ const classes = {
   Wizard
 };
 
+// The class catalogue is kept intact so classes can be offered again later.
+// While the picker is disabled, every new run uses this one hero.
+export const DEFAULT_HERO_CLASS = "Wizard";
+
 export default classes;

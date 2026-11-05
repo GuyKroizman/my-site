@@ -11,14 +11,7 @@ import {
 } from '../games/rogue0/context'
 import { toggleMuted, unlockAudio } from '../games/rogue0/audio'
 import { readRunSave, clearRunSave, type RunSave } from '../games/rogue0/saveStorage'
-
-const HERO_CLASSES = [
-  { name: 'Warrior', desc: 'sword & steel' },
-  { name: 'Dwarf', desc: 'axe & shield' },
-  { name: 'Cleric', desc: 'heals over time' },
-  { name: 'Elf', desc: 'swift archer' },
-  { name: 'Wizard', desc: 'fire & lightning' },
-] as const
+import { DEFAULT_HERO_CLASS } from '../games/rogue0/classes'
 
 const CONTROLS = [
   ['Move', 'Arrows / HJKL; diagonals: Home / PgUp / End / PgDn'],
@@ -48,7 +41,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Skills',
-    body: `• Each class has a passive and one active skill.\n• Press f to use your active skill.\n• Skills have a cooldown shown in your stats.\n• Warrior: Power Strike · Dwarf: Shield Bash · Cleric: Heal.\n• Elf: Double Strike · Wizard: Nova.`,
+    body: `• You have an innate passive and one active skill.\n• Press f to use Nova.\n• Skills have a cooldown shown in your stats.\n• Elemental Mastery (passive): +1 damage with fire, shock and magic attacks.\n• Nova (active): burn every visible enemy within 4 tiles.`,
   },
   {
     title: 'Terrain',
@@ -201,14 +194,14 @@ export default function Rogue0() {
     }
   }, [heroClass])
 
-  const startGame = (name: string) => {
+  const startGame = () => {
     unlockAudio()
     pendingSave.current = undefined
     if (!clearRunSave()) setSaveStatus('Browser storage is blocked; this run may not be saved.')
     setSaveInfo({})
     setChoosingNew(false)
     setInspectMode(false)
-    setHeroClass(name)
+    setHeroClass(DEFAULT_HERO_CLASS)
   }
 
   const continueGame = () => {
@@ -320,36 +313,32 @@ export default function Rogue0() {
       <div className="rogue0-shell">
         <div className="rogue0-panel">
           <h1 className="rogue0-title">Rogue0</h1>
-          <p className="rogue0-subtitle">{saveInfo.save && !choosingNew ? 'Your adventure awaits' : 'New Game — choose your hero'}</p>
+          <p className="rogue0-subtitle">{saveInfo.save && !choosingNew ? 'Your adventure awaits' : 'New Game'}</p>
           {saveInfo.error && <p className="rogue0-foot" role="alert">{saveInfo.error}</p>}
           {saveInfo.save && !choosingNew && (
             <div className="rogue0-actions">
               <button className="rogue0-btn" onClick={continueGame}>
                 <span className="rogue0-btn-name">Continue</span>
-                <span className="rogue0-btn-desc">{saveInfo.save.heroClass} · Floor {saveInfo.save.floor}</span>
+                <span className="rogue0-btn-desc">Floor {saveInfo.save.floor}</span>
               </button>
               <button className="rogue0-btn" onClick={() => setChoosingNew(true)}>New Game</button>
             </div>
           )}
           {saveInfo.save && choosingNew && (
-            <p className="rogue0-foot">Choosing a hero replaces your saved run.{' '}
+            <p className="rogue0-foot">Starting a new game replaces your saved run.{' '}
               <button className="rogue0-link-btn" onClick={() => setChoosingNew(false)}>Cancel</button>
             </p>
           )}
           <button className="rogue0-link-btn" onClick={openHelp}>Help</button>
 
-          {(!saveInfo.save || choosingNew) && <div className="rogue0-classes">
-            {HERO_CLASSES.map((c) => (
-              <button
-                key={c.name}
-                className="rogue0-btn"
-                onClick={() => startGame(c.name)}
-              >
-                <span className="rogue0-btn-name">{c.name}</span>
-                <span className="rogue0-btn-desc">{c.desc}</span>
+          {(!saveInfo.save || choosingNew) && (
+            <div className="rogue0-actions">
+              <button className="rogue0-btn" onClick={startGame}>
+                <span className="rogue0-btn-name">Start</span>
+                <span className="rogue0-btn-desc">enter the dungeon</span>
               </button>
-            ))}
-          </div>}
+            </div>
+          )}
           <p className="rogue0-foot">Autosaved on this browser after completed actions. Death or victory ends the saved run. Clearing browser data removes your save.</p>
 
           <div className="rogue0-instructions">
