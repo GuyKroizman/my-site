@@ -345,7 +345,7 @@ export class Scene0 extends Phaser.Scene {
     this.context.onWandZap = (zap, onImpact) => showWandZap(this, this.context, zap, onImpact);
     this.context.onLiquidFlameShatter = event => showLiquidFlameShatter(this, this.context, event);
 
-    const HeroClass = classes[this.context.heroClass as keyof typeof classes] ?? classes.Wizard;
+    const HeroClass = classes[this.context.heroClass as keyof typeof classes] ?? classes.Warrior;
     const player = resumed?.player ?? new HeroClass(this.context, spawn.x, spawn.y);
     this.context.player = player;
     if (resumed) {

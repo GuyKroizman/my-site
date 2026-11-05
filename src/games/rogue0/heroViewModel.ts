@@ -19,3 +19,16 @@ export function heroHudView(hero: Pick<HeroStats, 'healthPoints' | 'maxHealthPoi
     floorStatus: `Floor ${floor}`,
   };
 }
+
+// The HUD portrait must show the hero's own sprite, not a legacy atlas tile:
+// actors render `spriteTextureKey`/`spriteFrame` (e.g. the custom hero art),
+// while the old icon used the raw 16×16 "tiles" frame `tile`, which is a
+// different character entirely.
+type HeroSprite = Pick<BasicHero, 'spriteTextureKey' | 'spriteFrame'>;
+
+export function heroPortrait(hero: HeroSprite | undefined): { textureKey: string; frame: number } {
+  return {
+    textureKey: hero?.spriteTextureKey ?? 'tiles',
+    frame: hero?.spriteFrame ?? 26,
+  };
+}

@@ -7,7 +7,7 @@ import { ConfirmationWindow } from "./confirmationWindow";
 import { QuickslotPane } from "./quickslotPane";
 import { attachTooltip } from "./tooltip";
 import { describeEffect } from "./effects";
-import { heroHudView } from './heroViewModel';
+import { heroHudView, heroPortrait } from './heroViewModel';
 
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
@@ -77,6 +77,7 @@ export class UI extends Phaser.Scene {
   private logWindow: LogWindow | undefined;
   private confirmationWindow: ConfirmationWindow | undefined;
   private toolbar: ToolbarButton[] = [];
+  private heroIcon: Phaser.GameObjects.Sprite | undefined;
   private quickslotPane: QuickslotPane | undefined;
   private healthTrack: Phaser.GameObjects.Rectangle | undefined;
   private healthFill: Phaser.GameObjects.Rectangle | undefined;
@@ -188,13 +189,15 @@ export class UI extends Phaser.Scene {
   private buildToolbar() {
     const iconColor = 0xa29a8e;
 
-    // Hero (character info) — the player's own tile sprite.
+    // Hero (character info) — drawn from the hero's own sprite, so the button
+    // always matches the character standing in the dungeon.
     const heroBg = this.add
       .rectangle(0, 0, 46, 46, C.panel, 1)
       .setStrokeStyle(2, C.borderStrong, 1)
       .setInteractive({ useHandCursor: true });
-    const p = this.context.player;
-    const heroIcon = this.add.sprite(0, 0, "tiles", p ? p.tile : 26).setScale(1.5);
+    const portrait = heroPortrait(this.context.player);
+    const heroIcon = this.add.sprite(0, 0, portrait.textureKey, portrait.frame).setScale(1.5);
+    this.heroIcon = heroIcon;
     heroBg.on("pointerover", () => heroBg.setStrokeStyle(2, 0xf0b429, 1));
     heroBg.on("pointerout", () => heroBg.setStrokeStyle(2, C.borderStrong, 1));
     heroBg.on("pointerup", () => this.toggleHeroModal());
@@ -494,9 +497,14 @@ export class UI extends Phaser.Scene {
       const [x, top] = positions[i];
       b.bg.setPosition(x + size / 2, top + size / 2).setSize(size, size);
       b.icon.setPosition(x + size / 2, top + size / 2);
-      if (i === 0) b.icon.setScale(size / 32);
       b.label?.setVisible(false);
     });
+    // Fit the portrait inside the button with a small margin; hero art is not
+    // square (16×22), so scale by its tallest side.
+    if (this.heroIcon) {
+      const fit = Math.max(this.heroIcon.width, this.heroIcon.height) || 16;
+      this.heroIcon.setScale((size - 8) / fit);
+    }
     const healthX = edge + size + 6;
     this.healthWidth = Math.max(60, Math.min(160, w - healthX - 64));
     this.healthTrack?.setPosition(healthX, edge).setSize(this.healthWidth, 16);

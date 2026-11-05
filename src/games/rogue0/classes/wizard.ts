@@ -4,6 +4,7 @@ import type { GameContext } from "../context";
 import scrollofFireball from "../items/scrolloffireball";
 import scrollofLightning from "../items/scrolloflightning";
 import MinorHealPotion from "../items/minorHealPotion";
+import { TieredWeapon } from "../items/tieredEquipment";
 
 export default class Wizard extends BasicHero {
   constructor(context : GameContext, x: number, y: number) {
@@ -17,13 +18,17 @@ export default class Wizard extends BasicHero {
     this.maxHealthPoints = 20;
     this.tile = 49 + 24;
 
+    // The hero always starts armed: a tier-1 Dagger fills the weapon slot,
+    // while the scrolls stay in the backpack as swappable ranged weapons.
+    const dagger = new TieredWeapon(context, undefined, undefined, 1);
     const fireball = new scrollofFireball(context);
     const lightning = new scrollofLightning(context);
+    this.addItem(dagger);
     this.addItem(fireball);
     this.addItem(lightning);
     this.addItem(new MinorHealPotion(context));
     this.addItem(new MinorHealPotion(context));
-    this.equipItem(lightning);
+    this.equipItem(dagger);
 
     this.vulnerability = { physical: 1 };
 

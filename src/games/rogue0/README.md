@@ -386,8 +386,12 @@ Wands and utility items are exempt. Status/hunger clocks remain world-time based
 Dungeon equipment spans tiers 1–5: Dagger through Greataxe and Cloth through
 Plate Armor. Tier and upgrade level are independent. Weapon damage at tier `t`,
 upgrade `u` ranges from `t + u` to `5t + (t + 1)u`; armor absorbs `2t + tu`.
-Class starting gear retains its previous stats. Armor replaces a shield in the
-same slot. Both gems and upgrade scrolls support the new gear. Armor now has
+The playable hero is the **Warrior**, who starts with a basic Sword equipped;
+the disabled class picker's Wizard starts with a tier-1 Dagger plus two scrolls
+(Fireball, Lightning) and two Minor Heal Potions in the backpack; the scrolls
+are weapon-slot items, so equipping one swaps it in for the dagger. Class
+starting gear otherwise retains its previous stats. Armor replaces a shield in
+the same slot. Both gems and upgrade scrolls support the new gear. Armor now has
 distinct generated textures for each tier; weapon art remains a placeholder
 using the existing sword silhouette.
 

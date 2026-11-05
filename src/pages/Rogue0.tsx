@@ -41,7 +41,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Talents',
-    body: `• Every class has an innate passive ability plus one passive talent.\n• Elemental Mastery (Wizard, innate): +1 damage with fire, shock and magic attacks.\n• You gain a talent point at levels 2–4. Open the character panel, switch to Talents, and tap a talent to rank it up (max 2).`,
+    body: `• You have an innate passive plus one passive talent.\n• Blood Fury (Warrior, innate): +2 damage while below half health.\n• You gain a talent point at levels 2–4. Open the character panel, switch to Talents, and tap a talent to rank it up (max 2).`,
   },
   {
     title: 'Terrain',

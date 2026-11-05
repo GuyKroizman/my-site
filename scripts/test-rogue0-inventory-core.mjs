@@ -1,9 +1,10 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('inventory-core');
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createInventoryActions, canStackItems, splitStackItem } from '../src/games/rogue0/inventory.ts';
 import { clearFloorSprite, clearItemUI, placeFloorItem } from '../src/games/rogue0/itemPresentation.ts';
-import { heroStatsText, heroHudView } from '../src/games/rogue0/heroViewModel.ts';
+import { heroStatsText, heroHudView, heroPortrait } from '../src/games/rogue0/heroViewModel.ts';
 import { encodeGraph, decodeGraph } from '../src/games/rogue0/saveCodec.ts';
 
 // No source stripping, injected class bodies, Phaser, DOM, or global dungeon.
@@ -335,5 +336,20 @@ function gear(slot = 'weapon', overrides = {}) {
   assert.equal(heroHudView({ ...hero, healthPoints: -1 }, 1).healthFraction, 0);
   assert.equal(heroHudView({ ...hero, healthPoints: 50 }, 1).healthFraction, 1);
   assert.equal(heroHudView({ ...hero, healthPoints: 0, maxHealthPoints: 0 }, 1).healthFraction, 0);
+}
+
+// The character-info button must draw the hero's real sprite (custom hero art),
+// not the legacy "tiles" atlas frame that shows a different character.
+{
+  const heroSprite = Object.freeze({ spriteTextureKey: 'hero-color', spriteFrame: 0 });
+  assert.deepEqual(heroPortrait(heroSprite), { textureKey: 'hero-color', frame: 0 });
+  assert.deepEqual(heroPortrait(undefined), { textureKey: 'tiles', frame: 26 });
+  // A frame-carrying atlas hero keeps its frame rather than collapsing to 0.
+  assert.deepEqual(heroPortrait({ spriteTextureKey: 'tiles', spriteFrame: 49 + 24 }),
+    { textureKey: 'tiles', frame: 73 });
+  const ui = fs.readFileSync(new URL('../src/games/rogue0/ui.ts', import.meta.url), 'utf8');
+  assert.match(ui, /heroPortrait\(this\.context\.player\)/, 'toolbar portrait uses heroPortrait');
+  assert.doesNotMatch(ui, /add\.sprite\(0, 0, "tiles", p \? p\.tile : 26\)/,
+    'toolbar portrait must not use the legacy atlas tile');
 }
 console.log('Rogue0 inventory core: storage, stacking, gold, equipment/passive order, curse guards, costs, drops, consumption, cleansing, save identity, owner isolation, presentation and HUD passed');

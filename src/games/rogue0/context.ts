@@ -170,7 +170,7 @@ export function createGameContext(): GameContext {
     floor: 1,
     maxFloor: 25,
     kills: 0,
-    heroClass: "Wizard",
+    heroClass: "Warrior",
     stairsX: undefined,
     stairsY: undefined
   };
