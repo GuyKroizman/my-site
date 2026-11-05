@@ -86,6 +86,10 @@ export type GameContext = {
   onChooseItemTarget?: (item: Entity) => void;
   heroModalOpen?: boolean;
   logModalOpen?: boolean;
+  // Open while the potions/scrolls knowledge modal is showing.
+  knowledgeOpen?: boolean;
+  // Set by the UI scene; the React game menu uses it to open that modal.
+  onOpenKnowledge?: () => void;
   confirmationOpen?: boolean;
   onConfirmChasm?: (warning: string, onConfirm: () => void) => void;
   helpOpen?: boolean;
@@ -123,6 +127,7 @@ export type GameContext = {
 
 export function isModalOpen(context: GameContext): boolean {
   return !!(context.inventoryOpen || context.heroModalOpen || context.logModalOpen || context.confirmationOpen || context.helpOpen ||
+    context.knowledgeOpen ||
     context.inspectChoices?.length || context.inspectedEntity || context.inspectedTerrain);
 }
 

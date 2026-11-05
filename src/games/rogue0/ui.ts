@@ -1,5 +1,6 @@
 import { applyInspectChoice, isModalOpen, type GameContext } from "./context";
 import { InventoryWindow } from "./inventoryWindow";
+import { KnowledgeWindow } from "./knowledgeWindow";
 import Wand from "./items/wand";
 import { LogWindow } from "./logWindow";
 import { ConfirmationWindow } from "./confirmationWindow";
@@ -49,6 +50,7 @@ export class UI extends Phaser.Scene {
   context: GameContext;
   private log: Phaser.GameObjects.Text | undefined;
   private inventoryWindow: InventoryWindow | undefined;
+  private knowledgeWindow: KnowledgeWindow | undefined;
 
   private heroModal: Phaser.GameObjects.Container | undefined;
   private heroModalBg: Phaser.GameObjects.Rectangle | undefined;
@@ -108,6 +110,9 @@ export class UI extends Phaser.Scene {
     this.inventoryWindow = new InventoryWindow(this, this.context);
     this.logWindow = new LogWindow(this, this.context);
     this.confirmationWindow = new ConfirmationWindow(this, this.context);
+    this.knowledgeWindow = new KnowledgeWindow(this, this.context);
+    // The React game menu opens the knowledge modal through the context.
+    this.context.onOpenKnowledge = () => this.knowledgeWindow?.openWindow();
 
     // i / b toggle the inventory window; Esc dismisses its topmost dialog.
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
@@ -119,6 +124,11 @@ export class UI extends Phaser.Scene {
       }
       if (this.context.logModalOpen) {
         if (key === "Escape") this.logWindow?.close();
+        return;
+      }
+      if (this.context.knowledgeOpen) {
+        // The knowledge pages are read-only, so only Esc (or Close) dismisses.
+        if (key === "Escape") this.knowledgeWindow?.close();
         return;
       }
       // Pick from the shared-tile inspect list; taps work too.
@@ -509,6 +519,7 @@ export class UI extends Phaser.Scene {
     this.logClip?.clear().fillStyle(0xffffff).fillRect(logX + 4, logY + 4, logW - 8, logH - 8);
     this.logWindow?.layout();
     this.confirmationWindow?.layout();
+    this.knowledgeWindow?.layout();
 
     // Hero modal: clamp to the viewport and center it.
     const heroW = Math.min(320, w - 16);
@@ -589,6 +600,7 @@ export class UI extends Phaser.Scene {
     this.updateHeroModal();
     this.updateInspectModal();
     this.inventoryWindow?.refresh();
+    this.knowledgeWindow?.refresh();
     this.quickslotPane?.refresh();
   }
 

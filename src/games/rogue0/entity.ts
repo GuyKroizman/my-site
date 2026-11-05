@@ -53,6 +53,67 @@ export function rememberIdentifiedWandTypes(context: GameContext, items: Iterabl
   }
 }
 const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror', 'recharging'];
+
+export type ConsumableCategory = 'potion' | 'scroll';
+
+// One entry per potion/scroll kind the hero has encountered this run. The
+// alias is derived from the shuffled appearance, never from the real name, so
+// an unidentified entry cannot leak what the item is.
+export type ConsumableKnowledgeEntry = {
+  category: ConsumableCategory;
+  // Texture key of the appearance shown on the floor and in the backpack.
+  appearance: string;
+  // The item's real name (only meaningful once `identified`).
+  name: string;
+  identified: boolean;
+  alias: string;
+};
+
+// Scrambled, stable label for a shuffled appearance (or any identity string).
+// Potions, scrolls and legacy wands all derive their unknown names here so the
+// label never changes when the same item is seen again.
+export function appearanceLabel(identity: string): string {
+  let hash = 2166136261;
+  for (const char of identity) {
+    hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
+  }
+  const syllables = ['ba', 'zu', 'kir', 'vo', 'nel', 'sha', 'dor', 'mi',
+    'fen', 'ra', 'tol', 'xi', 'gub', 'po', 'vek', 'lun'];
+  let label = '';
+  for (let i = 0; i < 5; i++) {
+    label += syllables[hash & 15];
+    hash >>>= 4;
+  }
+  return label[0].toUpperCase() + label.slice(1);
+}
+
+// Potions and scrolls seen this run, split by category. Kinds become known by
+// being generated (floor loot, chests, monster drops); each is listed by its
+// real name once identified and by its appearance alias until then.
+export function consumableKnowledge(context: GameContext, category: ConsumableCategory): ConsumableKnowledgeEntry[] {
+  const assignments = consumableAppearances.get(context);
+  if (!assignments) return [];
+  const known = knownConsumables.get(context);
+  const entries: ConsumableKnowledgeEntry[] = [];
+  for (const [kind, appearance] of assignments) {
+    const separator = kind.indexOf(':');
+    if (separator < 0 || kind.slice(0, separator) !== category) continue;
+    entries.push({
+      category,
+      appearance,
+      name: kind.slice(separator + 1),
+      identified: !!known?.has(kind),
+      alias: appearanceLabel(appearance)
+    });
+  }
+  // Real names sort alphabetically; unknown labels sort among themselves so
+  // their position never hints at the alphabetical order of the true names.
+  const identified = entries.filter(entry => entry.identified)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const unknown = entries.filter(entry => !entry.identified)
+    .sort((a, b) => a.alias.localeCompare(b.alias));
+  return [...identified, ...unknown];
+}
 function consumableAppearance(item: Entity): string | undefined {
   const category = item.textureKey?.startsWith('potion-') ? 'potion'
     : item.textureKey?.startsWith('scroll-') ? 'scroll' : undefined;
@@ -241,23 +302,12 @@ export abstract class Entity {
   // Consumable labels follow their shuffled appearance, not their true identity.
   // Copies, floor changes and stack splits retain the same label within a run.
   get unidentifiedName(): string {
-    let hash = 2166136261;
     // Wands keep their existing type-based aliases, independent of charges,
     // upgrades, location or equipment slot. Do not assign them potion artwork.
     const identity = this.textureKey?.startsWith('wand-') ? `junk:${this.name}`
       : consumableKind(this) && this.context ? consumableAppearance(this)!
       : `${this.equipSlot}:${this.name}`;
-    for (const char of identity) {
-      hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
-    }
-    const syllables = ['ba', 'zu', 'kir', 'vo', 'nel', 'sha', 'dor', 'mi',
-      'fen', 'ra', 'tol', 'xi', 'gub', 'po', 'vek', 'lun'];
-    let label = '';
-    for (let i = 0; i < 5; i++) {
-      label += syllables[hash & 15];
-      hash >>>= 4;
-    }
-    return label[0].toUpperCase() + label.slice(1);
+    return appearanceLabel(identity);
   }
 
   // Physical equipment is recognizable; identification reveals its curse state,
