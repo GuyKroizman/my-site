@@ -34,15 +34,14 @@ export type FeaturePlacement = {
   trapReusable?: boolean;
 };
 
-// Placeholder tile indices picked from colored.png. These are intentionally
-// arbitrary visual stand-ins; scene0.ts applies tints to tell features apart.
+// Placeholder tile indices picked from colored.png for the remaining flat
+// features. Traps have their own generated plate atlas (trapVisuals.ts).
 export const FeatureTiles = {
   doorClosed: 150,
   doorOpen: 301,
   grass: 7, // Grass blades (row 0, column 7), not a tree.
   water: 206,
-  chasm: 5,
-  trap: 593
+  chasm: 5
 } as const;
 
 const TRAP_LABELS: Record<TrapKind, string> = {

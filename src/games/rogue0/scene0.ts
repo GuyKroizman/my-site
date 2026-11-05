@@ -24,6 +24,7 @@ import { updateHeroChilled, clearHeroChilled } from './heroChilledVisuals';
 import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
+import { TRAP_TEXTURE, generateTrapTextures, trapFrame } from './trapVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
 import { removeEntity } from './entity';
 import { decodeRunSave, restoreRunState, type RunState, type SavedFloor } from './runPersistence';
@@ -293,6 +294,7 @@ export class Scene0 extends Phaser.Scene {
     generateWallDecalTextures(this);
     generateUnknownItemTextures(this);
     generateWaterTexture(this);
+    generateTrapTextures(this);
 
     // Restoring must not generate a floor or construct a hero: both reroll loot.
     let resumed: RunState | undefined;
@@ -1181,6 +1183,7 @@ export class Scene0 extends Phaser.Scene {
   private featureVisual(state: tiles.TileState): {
     tile?: number;
     textureKey?: string;
+    frame?: number;
     tint?: number;
   } {
     switch (state.feature) {
@@ -1199,9 +1202,12 @@ export class Scene0 extends Phaser.Scene {
       case "chasm":
         return { tile: tiles.FeatureTiles.chasm, tint: 0x111111 };
       case "trap":
+        // One shared pressure plate; the glyph and its accent colour say which
+        // kind it is, and a spent plate keeps the same silhouette drained of
+        // colour. Hidden traps are simply not drawn (see syncFeatures).
         return {
-          tile: tiles.FeatureTiles.trap,
-          tint: state.trap === "triggered" ? 0x666666 : state.trapKind === "arrow" ? 0xe8b34d : 0xff4444
+          textureKey: TRAP_TEXTURE,
+          frame: trapFrame(state.trapKind ?? 'dart', state.trap === 'triggered')
         };
       default:
         throw new Error(`Unknown terrain feature: ${state.feature}`);
@@ -1268,7 +1274,7 @@ export class Scene0 extends Phaser.Scene {
       const mask = state.feature === 'water'
         ? waterShoreMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'water') : 0;
       const frame = state.feature === 'water' ? waterFrame(mask, x, y, this.time.now)
-        : visual.textureKey ? 0 : (visual.tile ?? 0);
+        : visual.frame ?? (visual.textureKey ? 0 : (visual.tile ?? 0));
 
       if (!sprite) {
         sprite = this.add
