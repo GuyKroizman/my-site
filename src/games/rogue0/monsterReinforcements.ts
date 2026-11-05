@@ -22,7 +22,8 @@ export type ReinforcementKind =
   | "brute"
   | "cultist"
   | "wraith"
-  | "elemental";
+  | "elemental"
+  | "frog";
 
 // Far enough that a fresh wave cannot surround or ambush a hero standing on
 // the corpse of the previous last monster.
@@ -56,7 +57,8 @@ export function pickReinforcementKind(
     ["brute", floor >= 3 ? 1 : 0],
     ["cultist", floor >= 3 ? 1 : 0],
     ["wraith", floor >= 3 ? 1 : 0],
-    ["elemental", floor >= 3 ? 2 : 0]
+    ["elemental", floor >= 3 ? 2 : 0],
+    ["frog", floor >= 4 ? 1 : 0]
   ];
   const total = table.reduce((sum, [, weight]) => sum + weight, 0);
   let roll = random() * total;

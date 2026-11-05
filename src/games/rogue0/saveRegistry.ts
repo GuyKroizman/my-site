@@ -53,6 +53,7 @@ import WandOfLightning from './items/WandOfLightning';
 import Boss from './monsters/boss';
 import Brute from './monsters/brute';
 import Cultist from './monsters/cultist';
+import DeadlyFrog from './monsters/deadlyFrog';
 import { FireElemental, IceElemental, ShockElemental } from './monsters/elemental';
 import Ghoul from './monsters/ghoul';
 import Goblin from './monsters/goblin';
@@ -125,6 +126,7 @@ export const saveRegistry: Registry = {
   './monsters/boss.ts:default': Boss,
   './monsters/brute.ts:default': Brute,
   './monsters/cultist.ts:default': Cultist,
+  './monsters/deadlyFrog.ts:default': DeadlyFrog,
   './monsters/elemental.ts:FireElemental': FireElemental,
   './monsters/elemental.ts:IceElemental': IceElemental,
   './monsters/elemental.ts:ShockElemental': ShockElemental,

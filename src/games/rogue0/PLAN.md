@@ -37,9 +37,11 @@ has been playtested. Checked boxes mean the described implementation exists.
   burning grass, water extinguishing fire, blocking chasms and searchable
   secret doors exist; advanced elemental combinations remain outstanding.
 - Monster roster includes cultists, splitting swarms, mimics, three elementals,
-  goblin archers and wraiths. The goblin archer fires bleeding arrows at range
+  goblin archers, wraiths and poison-gas Deadly Frogs. The goblin archer fires
+  bleeding arrows at range
   5 and switches to a weaker melee sidearm when adjacent; wraiths deal magic
-  damage with physical resistance. The Bone Lord still lacks
+  damage with physical resistance. The Deadly Frog vents gas on every damage
+  event and on death, and is immune to poison. The Bone Lord still lacks
   phases/telegraphs/arena mechanics.
 - Monsters start **asleep** for 8–24 world-time units and wake on damage, noise,
   or a visible hero within 2 tiles; sleepers spend time waiting and show a
@@ -659,7 +661,7 @@ dormant until damaged and scale across the five region bands.
 
 Signature-ability status: Skeleton ✅, Quloptsh ⚠️ (evasion + weakened, no
 short-FOV/backstab), Ghoul ⚠️ (regeneration + bleed, no lifesteal), Brute ✅,
-swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅.
+swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅, Deadly Frog ✅.
 
 - [ ] Finish every monster's intended signature ability (SPD-style):
   - [x] Skeleton → basic brittle melee enemy; stays dead when killed (no reanimation).
@@ -674,6 +676,8 @@ swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅.
   - [x] Brute → enrages below 50% HP (ATK up, DEF down).
   - [x] New: swarm (splits), cultist (summons), mimic (chest trap), elemental
         (fire/ice/shock).
+  - [x] Deadly Frog → vents poison gas when damaged and again on death; immune
+        to poison. Appears from floor 4.
   - [x] Wraith → magic damage with physical resistance; ordinary movement.
 - [x] AI: monsters open doors and chase through paths.
 - [ ] AI: avoid burning terrain and other self-damaging hazards.

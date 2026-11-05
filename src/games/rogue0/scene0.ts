@@ -78,6 +78,7 @@ import FireElemental, { IceElemental, ShockElemental } from "./monsters/elementa
 import Mimic from "./monsters/mimic";
 import Chest from "./items/chest";
 import SwarmOfFlies from "./monsters/swarmOfFlies";
+import DeadlyFrog from "./monsters/deadlyFrog";
 import { updateMonsterSleepVisuals, clearMonsterSleepVisuals } from "./monsters/monsterSleepVisuals";
 import Wraith from "./monsters/wraith";
 import classes from "./classes";
@@ -103,6 +104,7 @@ import { generateFireElementalTexture } from './monsters/fireElementalTexture';
 import { generateLightningElementalTexture } from './monsters/lightningElementalTexture';
 import { generateIceElementalTexture } from './monsters/iceElementalTexture';
 import { generateFlySwarmTexture } from './monsters/flySwarmTexture';
+import { generateDeadlyFrogTexture } from './monsters/deadlyFrogTexture';
 import { generateWraithTexture } from './monsters/wraithTexture';
 import { generateCultistBoltTexture, generateGoblinArrowTexture, generateTrapArrowTexture } from './projectileTextures';
 import * as tiles from "./tiles";
@@ -346,6 +348,7 @@ export class Scene0 extends Phaser.Scene {
       generateIceElementalTexture(this);
       generateFlySwarmTexture(this);
       generateWraithTexture(this);
+      generateDeadlyFrogTexture(this);
       player.bindInput();
       player.init(this.context, spawn.x, spawn.y);
       this.turnManager.time = resumed.time;
@@ -858,6 +861,7 @@ export class Scene0 extends Phaser.Scene {
     switch (kind) {
       case "goblin": return new Goblin(context, x, y);
       case "swarm": return new SwarmOfFlies(context, x, y);
+      case "frog": return new DeadlyFrog(context, x, y);
       case "quloptsh": return new Quloptsh(context, x, y);
       case "ghoul": return new Ghoul(context, x, y);
       case "brute": return new Brute(context, x, y);
@@ -1429,6 +1433,7 @@ export class Scene0 extends Phaser.Scene {
     const cultistCount = floor >= 3 ? 1 : 0;
     const elementalCount = floor >= 3 ? 1 : 0;
     const wraithCount = floor >= 3 ? 1 : 0;
+    const frogCount = floor >= 4 ? 1 : 0;
     const itemCount = 3;
     const cursedGemCount = Math.random() < 0.2 ? 1 : 0;
     const foodCount = 1;
@@ -1437,6 +1442,7 @@ export class Scene0 extends Phaser.Scene {
       levelArray,
       skeletonCount + goblinCount + ghoulCount + bruteCount + bossCount + quloptshCount +
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
+        frogCount +
         cursedGemCount + foodCount + itemCount + progressionCount + chestCount,
       exclude,
       MAX_VISIBLE_X,
@@ -1474,6 +1480,7 @@ export class Scene0 extends Phaser.Scene {
     spawnGroup(Mimic, mimicCount);
     spawnGroup(Cultist, cultistCount);
     spawnGroup(Wraith, wraithCount);
+    spawnGroup(DeadlyFrog, frogCount);
 
     // Elementals: pick a random variant per spawn.
     for (let n = 0; n < elementalCount && i < tiles.length; n++, i++) {

@@ -25,6 +25,8 @@ export type MonsterConfig = {
   scale?: number;
   textureKey?: string;
   initiallyAwake?: boolean;
+  // Immune to every poison source (clouds, darts and thrown flasks).
+  poisonImmune?: boolean;
   loot?: any[];
   xp?: number;
   gold?: number;
@@ -94,6 +96,7 @@ export default class Monster extends Entity {
     this.evasion = config.evasion ?? 0;
     this.resistance = config.resistance ?? {};
     this.vulnerability = config.vulnerability ?? {};
+    this.poisonImmune = config.poisonImmune ?? false;
 
     this.init(context, x, y);
 

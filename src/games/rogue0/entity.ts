@@ -81,6 +81,8 @@ export abstract class Entity {
   // Naturally airborne actors (e.g. swarm of flies) ignore ground hazards and
   // cross chasms. The levitating status effect grants the same temporarily.
   flying: boolean = false;
+  // Poison-immune creatures (e.g. the Deadly Frog) ignore the poisoned status.
+  poisonImmune: boolean = false;
   // Time required for an attack; weapons override this independently of walking.
   attackDelay: number = 1;
   nextActionTime: number = 0;

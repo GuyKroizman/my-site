@@ -70,6 +70,9 @@ Run `npm run test:rogue0` for all headless suites, or
 `npm run test:rogue0:inventory` for the inventory, item presentation and HUD view
 boundaries. `npm run test:rogue0:controls` covers input lifecycle, buffering,
 movement costs, pursuit, starvation/chasm safety and targeting.
+`npm run test:rogue0:monsters` covers the full monster roster, and
+`npm run test:rogue0:deadly-frog` covers its damage/death gas, poison immunity,
+art, depth-gated spawns and save wiring.
 `npm run test:rogue0:scheduler` covers interleaved runs, reset/resume deadlines,
 actor membership, fractional terrain/effect events, item upkeep, pauses and the
 per-frame event budget. All scheduler tests (including the legacy movement,
@@ -302,6 +305,10 @@ Poisoned for at least 2 units without postponing its damage phase; expiry wins
 ties with a cloud pulse. Clouds are separate from ground features, affect
 levitating actors too, and pause with inactive floors. Rendering only displays
 visible clouds; it never advances their lifetime.
+The **Deadly Frog** (floor 4 onward) uses this system as its signature
+ability: every damaging hit it survives vents a cloud on its tile, and its
+death releases one final cloud. The frog is immune to poison but not to fire
+or steel, so killing it from range still leaves gas where it died.
 Animation durations and frame rate never determine logical action costs.
 
 Food drops by 0.25 per world-time unit. Fed (30–100 Food) heroes naturally

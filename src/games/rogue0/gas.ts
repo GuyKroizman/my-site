@@ -18,6 +18,8 @@ export const GAS_FADE_STEP = 2;
 export function exposeToGas(context: GameContext, actor: Entity): void {
   const now = context.simulationTime ?? 0;
   if ((actor.type !== "player" && actor.type !== "enemy") || actor.healthPoints <= 0) return;
+  // Poison-immune creatures (e.g. the Deadly Frog) breathe their own gas safely.
+  if (actor.poisonImmune) return;
   if (context.poisonClouds?.some(c => c.x === actor.x && c.y === actor.y && c.expiresAt > now + EPSILON)) {
     // Gas is airborne: levitation does not protect against it.
     const poison = actor.effects.find(e => e.id === "poisoned");
