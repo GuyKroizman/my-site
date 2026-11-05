@@ -89,6 +89,33 @@ try {
     // A checkpoint must not resume queued movement, pursuit or targeting. Pause
     // world input so this fixture cannot execute commands before the reload.
     ctx.helpOpen = true;
+    // Resume a genuinely fractional checkpoint, not just a fresh time-zero run.
+    const clockDelta = 12.375 - scene.turnManager.time;
+    scene.turnManager.time = ctx.simulationTime = 12.375;
+    scene.turnManager.nextTick = 13;
+    for (const entity of ctx.entities.filter(entity => entity.type !== 'item')) {
+      entity.nextActionTime = entity === p ? 12.375 : 13.125;
+      entity.actionReady = entity === p;
+      for (const effect of entity.effects) {
+        if (effect.nextTick !== undefined) effect.nextTick += clockDelta;
+      }
+    }
+    for (const cloud of ctx.poisonClouds) {
+      cloud.nextTick += clockDelta; cloud.expiresAt += clockDelta;
+    }
+    // Construct a second run scene without booting its renderer (dungeon and
+    // terrain are still shared). Its scheduler must be completely independent.
+    const { Scene0 } = await window.testImport('/src/games/rogue0/scene0.ts');
+    const { createGameContext } = await window.testImport('/src/games/rogue0/context.ts');
+    const other = new Scene0(createGameContext());
+    if (other.turnManager === scene.turnManager || other.turnManager.known === scene.turnManager.known) {
+      throw Error('Run scenes share scheduler state');
+    }
+    other.turnManager.time = 99.25; other.turnManager.nextTick = 100;
+    other.turnManager.reset([]);
+    if (scene.turnManager.time !== 12.375 || scene.turnManager.nextTick !== 13 || !scene.turnManager.known.has(p)) {
+      throw Error('Resetting another run altered the live scheduler');
+    }
     p.inputBuffer = ['ArrowRight'];
     p.walkPath = [{ x: p.x + 1, y: p.y }];
     p.walkTargetEntity = ctx.entities.find(entity => entity.type === 'enemy');
@@ -97,7 +124,10 @@ try {
     ctx.throwMode = true;
     ctx.throwItem = wand;
     ctx.saveNow();
-    return { firstMap, gas: ctx.poisonClouds, map: JSON.stringify(dungeon.getCurrentLevel()), knowledge: saveConsumableKnowledge(ctx),
+    return { scheduler: [scene.turnManager.time, scene.turnManager.nextTick, ctx.simulationTime],
+      deadlines: ctx.entities.filter(entity => entity.type !== 'item').map(entity =>
+        [entity.name, entity.nextActionTime, entity.actionReady]),
+      firstMap, gas: ctx.poisonClouds, map: JSON.stringify(dungeon.getCurrentLevel()), knowledge: saveConsumableKnowledge(ctx),
       x: p.x, y: p.y, floor: ctx.floor, accuracy: p.accuracy,
       effects: p.effects.map(({id, duration, nextTick}) => ({id, duration, nextTick})),
       enemies: ctx.entities.filter(e => e.type === 'enemy').map(e => [e.name, e.x, e.y, e.healthPoints, e.sleepTurnsRemaining]),
@@ -119,7 +149,10 @@ try {
     p.bindInput(); p.bindInput();
     const after = [keyboard.listenerCount('keydown'), input.listenerCount('pointerup'),
       c.scene.events.listenerCount('shutdown')];
-    return { controls: [p.inputBuffer.length, p.walkPath.length, p.acknowledgedWalkEnemies.size,
+    return { scheduler: [s.turnManager.time, s.turnManager.nextTick, c.simulationTime],
+      deadlines: c.entities.filter(entity => entity.type !== 'item').map(entity =>
+        [entity.name, entity.nextActionTime, entity.actionReady]),
+      controls: [p.inputBuffer.length, p.walkPath.length, p.acknowledgedWalkEnemies.size,
         p.walkTargetEntity === undefined, p.zapping, c.throwMode, c.inspectMode],
       bindings: { before, after }, firstMap: JSON.stringify(s.floors.get(1).map), gas: c.poisonClouds, map: JSON.stringify(dungeon.getCurrentLevel()),
       knowledge: saveConsumableKnowledge(c), x: p.x, y: p.y, floor: c.floor, accuracy: p.accuracy,
@@ -188,6 +221,7 @@ try {
   await page.waitForTimeout(300);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('rogue0.run.v1')));
   assert.equal(saved.floor, 1, 'revisited floor autosaves');
+  await page.evaluate(() => { window.previousScheduler = window.testScene.turnManager; });
   await page.getByRole('button', { name: 'Game menu' }).click();
   await page.getByRole('button', { name: 'Save & title' }).click();
   if (process.env.ROGUE0_SCREENSHOT) await page.screenshot({ path: process.env.ROGUE0_SCREENSHOT });
@@ -196,11 +230,17 @@ try {
   assert.ok(await page.getByRole('button', { name: /Continue/ }).isVisible());
   await page.getByRole('button', { name: /Continue/ }).click();
   await page.waitForFunction(() => window.testScene?.context.saveNow);
+  assert.deepEqual(await page.evaluate(() => {
+    const old = window.previousScheduler, current = window.testScene.turnManager;
+    return [old !== current, old.known !== current.known,
+      [...current.known].every(entity => !old.known.has(entity)),
+      current.time, current.nextTick];
+  }), [true, true, true, 12.375, 13], 'same-page resume owns fresh scheduler membership and keeps saved clock');
   await page.evaluate(() => window.testScene.endGame(false));
   await page.getByRole('heading', { name: 'You died' }).waitFor();
   assert.equal(await page.evaluate(() => localStorage.getItem('rogue0.run.v1')), null);
   assert.deepEqual(errors, [], 'no save or load errors');
-  console.log('Rogue0 browser resume: floors, maps, stats, talents, shared quickslots, effects, knowledge, enemies, live inventory/HUD, clean control state, idempotent input binding, autosave, replacement cancellation and permadeath passed');
+  console.log('Rogue0 browser resume: floors, maps, stats, talents, shared quickslots, effects, knowledge, enemies, live inventory/HUD, clean control state, idempotent input binding, independent scene schedulers, fractional clock/deadline restore, autosave, replacement cancellation and permadeath passed');
 } finally {
   await browser.close();
 }

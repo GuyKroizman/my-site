@@ -32,6 +32,14 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
   hero facade. Queues, pursuit and aiming state are still reset on browser load;
   no new controller object or save ID is introduced. Projectile impact and
   terrain/scheduler execution remain outside these input modules.
+- `turnManager.ts` exports a renderer-independent `TurnManager` class with
+  explicit effect/logging services. Each `Scene0` owns its own scheduler clock,
+  next upkeep tick and known-actor set; there is no active scheduler singleton.
+  Floor travel preserves that scene's clock. Resume installs saved time/tick,
+  rebuilds actor membership, then restores exact deadlines/readiness. The v1
+  save fields stay unchanged; scheduler instances and services are not saved.
+  Dungeon and terrain are still singletons, so this is scheduler isolation,
+  not yet support for running two complete rendered games side by side.
 - `runPersistence.ts` owns typed floor/run snapshots, decoding, validation and
   v1 compatibility repairs. `Scene0` still owns Phaser lifecycle, checkpoint
   timing, rendering and floor transitions. Restoring actors must not rerun
@@ -52,15 +60,20 @@ Run `npm run test:rogue0` for all headless suites, or
 `npm run test:rogue0:combat` for the shared combat pipeline and
 `npm run test:rogue0:inventory` for the inventory, item presentation and HUD view
 boundaries. `npm run test:rogue0:controls` covers input lifecycle, buffering,
-movement costs, pursuit, starvation/chasm safety and targeting. These new
-suites import the extracted modules directly. The Chromium suite also checks
+movement costs, pursuit, starvation/chasm safety and targeting.
+`npm run test:rogue0:scheduler` covers interleaved runs, reset/resume deadlines,
+actor membership, fractional terrain/effect events, item upkeep, pauses and the
+per-frame event budget. All scheduler tests (including the legacy movement,
+monster, item, gas and frost suites) now import the complete module directly.
+These new boundary suites import the extracted modules directly. The Chromium suite also checks
 the live HUD/inventory after resume, free modal opening/closing, cleared pending
-controls, and repeated input binding with real Phaser listeners. Test history
-is appended automatically.
+controls, repeated input binding with real Phaser listeners, separate scene
+schedulers, fractional clock/deadline restoration, and fresh scheduler membership
+on same-page resume. Test history is appended automatically.
 
 Further incremental work: separate projectile resolution and scene rendering,
-replace the remaining isolated source loaders, then move the terrain/dungeon/
-scheduler singletons to run-owned state. Save
+replace the remaining isolated source loaders, and move the remaining
+terrain/dungeon singletons to run-owned state. Save
 field selection also remains graph-based; changes to persisted fields still
 need compatibility handling.
 

@@ -1,6 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('monster-behavior');
 import assert from 'node:assert/strict';
+import { TurnManager } from '../src/games/rogue0/turnManager.ts';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { forgetInspectedEntity } from '../src/games/rogue0/context.ts';
@@ -39,7 +40,7 @@ const dungeon = {
   },
 };
 const ai = load('src/games/rogue0/ai.ts', { dungeon, tiles, ...sight, hasEffect, fleeStep: () => false });
-const manager = load('src/games/rogue0/turnManager.ts', { dungeon, hasEffect, removeEffect }).default;
+const manager = new TurnManager({ log: dungeon.log, hasEffect, removeEffect });
 function sprite(x = 32, y = 32) {
   return { x, y, visible: true, displayWidth: 16, depth: 2,
     setScale(scale) { this.scale = scale; return this; } };

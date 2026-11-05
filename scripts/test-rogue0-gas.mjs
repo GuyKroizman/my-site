@@ -1,6 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('gas');
 import assert from 'node:assert/strict';
+import { TurnManager } from '../src/games/rogue0/turnManager.ts';
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 const tiles = load('tiles');
@@ -8,7 +9,7 @@ const effects = load('effects', { spawnEntityFloatingText() {} });
 const gas = load('gas', { ...tiles, ...effects });
 const { actionCost } = load('timing');
 const dungeon = load('dungeon', { tiles, ...effects, sfx: { step() {} } }).default;
-const manager = load('turnManager', { dungeon, ...effects }).default;
+const manager = new TurnManager({ log: dungeon.log, ...effects });
 const map = Array.from({ length: 7 }, () => Array(7).fill(0));
 function setup() {
   tiles.clearAllFeatures(); dungeon.currentLevel = map.map(row => [...row]);

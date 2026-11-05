@@ -30,7 +30,7 @@ import { decodeRunSave, restoreRunState, type RunState, type SavedFloor } from '
 import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects } from './rendering';
 import dungeon from "./dungeon";
 import { isModalOpen, type GameContext } from "./context";
-import turnManager from "./turnManager";
+import { TurnManager } from "./turnManager";
 import Skeleton from "./monsters/skelaton";
 import { TieredWeapon, TieredArmor } from "./items/tieredEquipment";
 import { floorProgression, lootTier } from "./progression";
@@ -88,7 +88,7 @@ import {
   randomWalkableTiles
 } from "./mapgen";
 import { computeFOV, resolveVision } from "./fov";
-import { hasEffect } from "./effects";
+import { hasEffect, removeEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
@@ -172,6 +172,8 @@ export class Scene0 extends Phaser.Scene {
   private stairsLabel?: Phaser.GameObjects.Graphics;
   private upstairsLabel?: Phaser.GameObjects.Graphics;
   private floors = new Map<number, SavedFloor>();
+  private readonly turnManager = new TurnManager({ hasEffect, removeEffect,
+    log: (context, message) => dungeon.log(context, message) });
   private fog!: Phaser.GameObjects.Graphics;
   private seen: boolean[][] = [];
   private visible: Set<string> = new Set();
@@ -341,8 +343,8 @@ export class Scene0 extends Phaser.Scene {
       generateWraithTexture(this);
       player.bindInput();
       player.init(this.context, spawn.x, spawn.y);
-      turnManager.time = resumed.time;
-      turnManager.nextTick = resumed.nextTick;
+      this.turnManager.time = resumed.time;
+      this.turnManager.nextTick = resumed.nextTick;
     }
     player.sprite!.setDepth(worldDepth(player.sprite!.y, 'actor'));
     // setupFloor resets scheduler readiness for stair travel; a browser resume
@@ -544,7 +546,7 @@ export class Scene0 extends Phaser.Scene {
       return;
     }
 
-    turnManager.update(this.context.entities);
+    this.turnManager.update(this.context.entities);
     if (this.context.pendingFall) {
       this.resolveFall();
       return;
@@ -595,7 +597,7 @@ export class Scene0 extends Phaser.Scene {
       this.saveFloor();
       const graph = encodeGraph({ player: context.player, floors: this.floors,
         floor: context.floor, kills: context.kills, messages: context.messages,
-        time: turnManager.time, nextTick: turnManager.nextTick,
+        time: this.turnManager.time, nextTick: this.turnManager.nextTick,
         knowledge: saveConsumableKnowledge(context) }, saveRegistry);
       const serialized = JSON.stringify(graph);
       if (serialized === this.lastSaveGraph) return;
@@ -722,7 +724,7 @@ export class Scene0 extends Phaser.Scene {
       this.spawnFloorContent(floor, levelArray, spawn);
     }
 
-    turnManager.reset(this.context.entities, !!restored || floor > 1);
+    this.turnManager.reset(this.context.entities, !!restored || floor > 1);
     this.recomputeFOV();
     // Older saves and saves from before this guard can contain a cleared floor.
     // Refill it on arrival rather than leaving the player with nothing to fight.

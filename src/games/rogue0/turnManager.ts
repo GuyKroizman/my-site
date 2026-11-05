@@ -1,14 +1,26 @@
 import type { Entity } from "./entity";
-import dungeon from "./dungeon";
-import { hasEffect, removeEffect } from "./effects";
+import type { GameContext } from "./context";
+
+export type TurnManagerServices = {
+  hasEffect(entity: Entity, id: string): boolean;
+  removeEffect(entity: Entity, id: string): void;
+  log(context: GameContext, message: string): void;
+};
 
 // Discrete-event scheduler. Rendering may delay an event, but never changes its
 // simulation timestamp. Equal timestamps give the player priority, then preserve
 // entity order. Items do not participate in scheduling.
-const turnManager = {
-  time: 0,
-  nextTick: 1,
-  known: new Set<Entity>(),
+// Each run scene owns an instance. Only time/nextTick and actor deadlines are
+// persisted; the services and known-actor set are rebuilt on resume.
+export class TurnManager {
+  time = 0;
+  nextTick = 1;
+  known = new Set<Entity>();
+  private readonly services: TurnManagerServices;
+
+  constructor(services: TurnManagerServices) {
+    this.services = services;
+  }
 
   reset(entities: Entity[] = [], preserveClock = false) {
     if (!preserveClock) {
@@ -22,9 +34,10 @@ const turnManager = {
       entity.actionReady = entity.type === "player";
       this.known.add(entity);
     }
-  },
+  }
 
   update(entities: Entity[]) {
+    const { hasEffect, removeEffect, log } = this.services;
     // Bound CPU work, not game time. Resume on the next frame if a large floor
     // needs more events; never advance time while the hero is awaiting input.
     for (let events = 0; events < 256; events++) {
@@ -88,7 +101,7 @@ const turnManager = {
       actor.nextActionTime = targetTime;
       actor.actionReady = true;
       if (hasEffect(actor, "frozen")) {
-        dungeon.log(actor.context, `${actor.type === "player" ? "You are frozen and miss" : `${actor.name} is frozen and misses`} an action.`);
+        log(actor.context, `${actor.type === "player" ? "You are frozen and miss" : `${actor.name} is frozen and misses`} an action.`);
         removeEffect(actor, "frozen");
         actor.spendTime("wait");
         actor.freezeRecovery = true;
@@ -99,6 +112,4 @@ const turnManager = {
       if (actor.actionReady || actor.moving) return;
     }
   }
-};
-
-export default turnManager;
+}

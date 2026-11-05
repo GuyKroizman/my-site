@@ -1,6 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('movement');
 import assert from 'node:assert/strict';
+import { TurnManager } from '../src/games/rogue0/turnManager.ts';
 import PF from 'pathfinding';
 
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
@@ -45,9 +46,7 @@ assert.ok(rendering.UPRIGHT_LIFT > 0 && rendering.UPRIGHT_LIFT < 16, 'upright si
 const { Entity } = load('src/games/rogue0/entity.ts', { actionCost, ...rendering });
 const hasEffect = (e, id) => e.effects.some(effect => effect.id === id);
 const removeEffect = (e, id) => { e.effects = e.effects.filter(effect => effect.id !== id); };
-const manager = load('src/games/rogue0/turnManager.ts', {
-  dungeon: { log() {} }, hasEffect, removeEffect
-}).default;
+const manager = new TurnManager({ log() {}, hasEffect, removeEffect });
 
 function actor(type, action = 'wait') {
   const e = new Entity();

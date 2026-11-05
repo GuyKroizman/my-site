@@ -1,6 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('frost-effects');
 import assert from 'node:assert/strict';
+import { TurnManager } from '../src/games/rogue0/turnManager.ts';
 import PF from 'pathfinding';
 
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
@@ -71,9 +72,9 @@ chilledGoblin.effects = [];
 assert.equal(actionCost(chilledGoblin, 'move'), 1, 'clearing the slow restores normal speed');
 
 // The scheduler, not just the cost helper, must give the monster half the turns.
-const manager = load('turnManager.ts', {
-  dungeon: { log() {} }, hasEffect: effects.hasEffect, removeEffect: effects.removeEffect
-}).default;
+const manager = new TurnManager({
+  log() {}, hasEffect: effects.hasEffect, removeEffect: effects.removeEffect
+});
 {
   const player = Object.assign(new Entity(), {
     type: 'player', healthPoints: 10, context: { simulationTime: 0, messages: [], visibleTiles: new Set() },

@@ -1,6 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('item-upgrades');
 import assert from 'node:assert/strict';
+import { TurnManager } from '../src/games/rogue0/turnManager.ts';
 import fs from 'node:fs';
 import { inflateSync } from 'node:zlib';
 
@@ -560,9 +561,7 @@ const Ration = itemClass('ration');
 assert.equal(new Ration({ messages: [] }).spriteTextureKey, 'ration');
 // Passive wand recharge follows world upkeep, not frames or actor speed.
 {
-  const manager = load('src/games/rogue0/turnManager.ts', {
-    dungeon, hasEffect: () => false, removeEffect() {},
-  }).default;
+  const manager = new TurnManager({ log: dungeon.log, hasEffect: () => false, removeEffect() {} });
   const Frost = itemClass('WandOfFrost', { Wand });
   const ctx = { messages: [], simulationTime: 0 };
   const first = new Frost(ctx), second = new Frost(ctx), ground = new Frost(ctx);
