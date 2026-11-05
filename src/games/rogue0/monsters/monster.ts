@@ -71,7 +71,8 @@ export default class Monster extends Entity {
     this.tint = config.tint;
     this.textureKey = config.textureKey;
     this.spriteScale = config.scale ?? 1;
-    this.sleepTurnsRemaining = config.initiallyAwake ? 0 : Phaser.Math.Between(4, 12);
+    // Long dormancy keeps most of a floor asleep until the hero intrudes.
+    this.sleepTurnsRemaining = config.initiallyAwake ? 0 : Phaser.Math.Between(8, 24);
 
     this.healthPoints = config.healthPoints;
     this.maxHealthPoints = config.healthPoints;

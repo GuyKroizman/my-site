@@ -41,7 +41,7 @@ has been playtested. Checked boxes mean the described implementation exists.
   5 and switches to a weaker melee sidearm when adjacent; wraiths deal magic
   damage with physical resistance. The Bone Lord still lacks
   phases/telegraphs/arena mechanics.
-- Monsters start **asleep** for 4–12 world-time units and wake on damage, noise,
+- Monsters start **asleep** for 8–24 world-time units and wake on damage, noise,
   or a visible hero within 2 tiles; sleepers spend time waiting and show a
   visual sleep marker. Awareness/membership is rebuilt from saves without
   rerolling sleep.
@@ -930,7 +930,7 @@ it does not affect depth.
 - **Quick access is four assignable quickslots**, not `1–0` acting on the
   backpack page. Assignment costs no world time. Changing this is a deliberate
   UX decision, not a leftover bug.
-- **Monsters are dormant at spawn**, not permanently awake: they wait 4–12
+- **Monsters are dormant at spawn**, not permanently awake: they wait 8–24
   world-time units and wake on damage, noise or a visible hero within 2 tiles.
   Do not reroll sleep when restoring a saved floor.
 - **Scope guard:** SPD has a decade of content. Prioritise the systems above

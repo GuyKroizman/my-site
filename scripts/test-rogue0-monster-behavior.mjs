@@ -42,10 +42,10 @@ function sprite(x = 32, y = 32) {
 Entity.prototype.init = function(context, x, y) {
   Object.assign(this, { context, x, y, sprite: sprite(x * 16, y * 16) });
 };
-let roll = 4;
+let roll = 8;
 const Monster = load('src/games/rogue0/monsters/monster.ts', {
   Entity, ...ai, dungeon, Gold: class {}, Phaser: { Math: { Between(min, max) {
-    assert.equal(min, 4); assert.equal(max, 12); return roll;
+    assert.equal(min, 8); assert.equal(max, 24); return roll;
   } } },
 }).default;
 const config = { name: 'Sleeper', description: '', tile: 0, healthPoints: 10,
@@ -187,19 +187,19 @@ function setup() {
 }
 let { context, player, monster } = setup();
 assert.equal(monster.sleeping, true);
-roll = 12;
-assert.equal(new Monster(context, config, 3, 2).sleepTurnsRemaining, 12, 'construction uses variable sleep roll');
-roll = 4;
+roll = 24;
+assert.equal(new Monster(context, config, 3, 2).sleepTurnsRemaining, 24, 'construction uses variable sleep roll');
+roll = 8;
 for (let i = 0; i < 200; i++) manager.update(context.entities);
-assert.equal(monster.sleepTurnsRemaining, 4, 'idle rendering never advances sleep');
+assert.equal(monster.sleepTurnsRemaining, 8, 'idle rendering never advances sleep');
 player.spendTime('wait'); manager.update(context.entities);
-assert.equal(monster.sleepTurnsRemaining, 3);
+assert.equal(monster.sleepTurnsRemaining, 7);
 assert.deepEqual([monster.x, monster.y], [2, 2], 'sleeping actors spend actions without moving');
 for (const speed of [0.5, 2]) {
   ({ context, player, monster } = setup());
   monster.movementSpeed = speed;
   player.spendTime('wait'); manager.update(context.entities);
-  assert.equal(monster.sleepTurnsRemaining, 3, 'sleep counts world ticks, not speed-dependent actions');
+  assert.equal(monster.sleepTurnsRemaining, 7, 'sleep counts world ticks, not speed-dependent actions');
 }
 // Revisits retain entity state, with no timestamp rebasing or reroll.
 monster.sleepTurnsRemaining = 2;
@@ -268,7 +268,7 @@ const savedRandom = Math.random;
 try {
   Math.random = () => 0;
   ({ context, player, monster } = setup());
-  for (let i = 0; i < 4; i++) { player.spendTime('wait'); manager.update(context.entities); }
+  for (let i = 0; i < 8; i++) { player.spendTime('wait'); manager.update(context.entities); }
   assert.equal(monster.sleeping, false, 'sleep expires in world time');
   player.spendTime('wait'); manager.update(context.entities);
   assert.notDeepEqual([monster.x, monster.y], [2, 2], 'awake monster roams offscreen');
@@ -555,7 +555,7 @@ assert.ok(texts.every(text => text.value === 'z' && text.depth < 100));
 const first = texts[0], y = first.y, alpha = first.alpha;
 updateMonsterSleepVisuals(visualScene, context.entities, 100);
 assert.ok(first.y < y && first.alpha < alpha, 'Z rises and fades');
-assert.equal(monster.sleepTurnsRemaining, 4, 'cosmetic clock does not affect sleep');
+assert.equal(monster.sleepTurnsRemaining, 8, 'cosmetic clock does not affect sleep');
 context.visibleTiles.delete('2,1');
 updateMonsterSleepVisuals(visualScene, context.entities, 200);
 assert.ok(texts.every(text => !text.visible), 'letters cannot spill into hidden tiles');
