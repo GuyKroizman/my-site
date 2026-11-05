@@ -106,6 +106,7 @@ import { generateWraithTexture } from './monsters/wraithTexture';
 import { generateCultistBoltTexture, generateGoblinArrowTexture, generateTrapArrowTexture } from './projectileTextures';
 import * as tiles from "./tiles";
 import { terrainFor } from './terrain';
+import { placeChasmFallen } from './chasmDrops';
 import type { FeaturePlacement } from "./tiles";
 
 // Keep the player spawn, stairs and procedural content out of the right-hand
@@ -268,6 +269,7 @@ export class Scene0 extends Phaser.Scene {
     resetConsumableAppearances(this.context);
     this.context.floor = 1;
     this.context.kills = 0;
+    this.context.chasmFallenItems = undefined;
     this.ended = false;
 
     if (!this.textures.exists("gold-pile")) {
@@ -599,7 +601,9 @@ export class Scene0 extends Phaser.Scene {
       const graph = encodeGraph({ player: context.player, floors: this.floors,
         floor: context.floor, kills: context.kills, messages: context.messages,
         time: this.turnManager.time, nextTick: this.turnManager.nextTick,
-        knowledge: saveConsumableKnowledge(context) }, saveRegistry);
+        knowledge: saveConsumableKnowledge(context),
+        // Items still falling toward a lower floor survive the checkpoint.
+        chasmFallen: context.chasmFallenItems ?? new Map() }, saveRegistry);
       const serialized = JSON.stringify(graph);
       if (serialized === this.lastSaveGraph) return;
       if (!writeRunSave({ version: 1, heroClass: context.heroClass, floor: context.floor,
@@ -724,6 +728,20 @@ export class Scene0 extends Phaser.Scene {
       }
     } else {
       this.spawnFloorContent(floor, levelArray, spawn);
+    }
+
+    // A chasm is a chute: anything that fell in on the floor above lands at a
+    // random walkable spot here, clear of the stairs and generated content.
+    const reserved = new Set<string>();
+    for (const entity of this.context.entities) {
+      if (entity.x !== undefined && entity.y !== undefined) reserved.add(`${entity.x},${entity.y}`);
+    }
+    for (const spot of [[this.context.stairsX, this.context.stairsY],
+      [this.context.upstairsX, this.context.upstairsY]]) {
+      if (spot[0] !== undefined && spot[1] !== undefined) reserved.add(`${spot[0]},${spot[1]}`);
+    }
+    for (const item of placeChasmFallen(this.context, levelArray, reserved, MAX_VISIBLE_X)) {
+      dungeon.log(this.context, `${item.displayName} lies on the floor, fallen from the chasm above.`);
     }
 
     this.turnManager.reset(this.context.entities, !!restored || floor > 1);

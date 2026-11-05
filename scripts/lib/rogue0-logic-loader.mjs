@@ -10,6 +10,7 @@ import { createHeroTargeting } from '../../src/games/rogue0/heroTargeting.ts';
 import { createHeroInput } from '../../src/games/rogue0/heroInput.ts';
 import { hostileAtTile, isHostile } from '../../src/games/rogue0/heroControlRules.ts';
 import { createTerrain } from '../../src/games/rogue0/terrain.ts';
+import { stashChasmFallen } from '../../src/games/rogue0/chasmDrops.ts';
 import * as tilePresentation from '../../src/games/rogue0/tiles.ts';
 import * as sight from '../../src/games/rogue0/fov.ts';
 
@@ -53,7 +54,7 @@ export function loadLogic(path, bindings = {}) {
   };
   const dependencies = { applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
     terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation,
-    forgetInspectedEntity, splitStackItem, placeFloorItem, heroStatsText, heroHudView, ...bindings };
+    forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, heroStatsText, heroHudView, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));
   return exports;

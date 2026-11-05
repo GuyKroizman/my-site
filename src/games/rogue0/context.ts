@@ -61,6 +61,9 @@ export type GameContext = {
   // Called only after a successful shock hit has applied its primary damage.
   onShockWater?: (target: Entity, damage: number) => void;
   poisonClouds?: PoisonCloud[];
+  // Items (or an enemy's loot) that fell into a chasm, keyed by the floor they
+  // will land on. The scene fills this queue when the receiving floor is built.
+  chasmFallenItems?: Map<number, Entity[]>;
   onCreatePoisonGas?: (x: number, y: number) => number;
   onGasContact?: (actor: Entity) => void;
   nextTerrainEvent?: () => number;

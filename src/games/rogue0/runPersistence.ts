@@ -37,6 +37,9 @@ export type RunState = {
   time: number;
   nextTick: number;
   knowledge: Parameters<typeof restoreConsumableKnowledge>[1];
+  // Items swallowed by a chasm, keyed by the floor they will land on. They are
+  // not on any floor yet, so they ride in the run save beside the floors.
+  chasmFallen?: Map<number, Entity[]>;
 };
 
 // v1 hydration and compatibility repairs live here, not in scene creation.
@@ -83,6 +86,19 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
       }
     }
   }
+  // Pending chasm drops are optional: saves written before the chasm chute
+  // existed simply have no queue.
+  if (run.chasmFallen !== undefined) {
+    if (!(run.chasmFallen instanceof Map)) throw new Error('Invalid saved run');
+    for (const [floor, items] of run.chasmFallen) {
+      if (!Number.isInteger(floor) || floor < 2 || floor > 25 || !Array.isArray(items)) {
+        throw new Error('Invalid saved chasm drop');
+      }
+      for (const item of items) {
+        if (!item || item.type !== 'item') throw new Error('Invalid saved chasm drop');
+      }
+    }
+  }
   const active = run.floors.get(run.floor)!;
   if (!Number.isInteger(run.player.x) || !Number.isInteger(run.player.y) ||
       active.map[run.player.y!]?.[run.player.x!] === undefined) throw new Error('Invalid saved position');
@@ -98,7 +114,9 @@ export function restoreRunState(context: GameContext, run: RunState): void {
   context.messages = run.messages;
   context.simulationTime = run.time;
   restoreConsumableKnowledge(context, run.knowledge);
-  const items = [...run.player.getAllItems(), ...[...run.floors.values()].flatMap(floor => floor.entities)];
+  context.chasmFallenItems = run.chasmFallen;
+  const items = [...run.player.getAllItems(), ...[...run.floors.values()].flatMap(floor => floor.entities),
+    ...(run.chasmFallen ? [...run.chasmFallen.values()].flat() : [])];
   rememberIdentifiedWandTypes(context, items);
   for (const ring of [run.player.ring1, run.player.ring2]) {
     if (ring instanceof Ring) ring.onUpgrade();

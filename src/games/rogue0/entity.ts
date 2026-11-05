@@ -121,6 +121,9 @@ export abstract class Entity {
   // Sight at the start of the last decision, not after moving into view.
   // Pursuit memory is separate: a hunting enemy can still be ambushed.
   awareOfPlayer: boolean = false;
+  // An actor that fell (or was dragged, or was killed while flying) over a
+  // chasm. Its loot goes down the hole instead of resting on the void tile.
+  fellIntoChasm: boolean = false;
   lastSeenX?: number;
   lastSeenY?: number;
 

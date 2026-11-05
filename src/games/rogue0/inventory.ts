@@ -1,6 +1,8 @@
 import type { Entity } from './entity';
 import type { GameContext } from './context';
 import type { ActionKind } from './timing';
+import { terrainFor } from './terrain.ts';
+import { stashChasmFallen } from './chasmDrops.ts';
 
 export type EquipSlotKey = 'weapon' | 'armor' | 'ring1' | 'ring2' | 'artifact';
 
@@ -206,6 +208,15 @@ export function createInventoryActions(services: InventoryServices) {
       item.context = owner.context;
       item.x = owner.x;
       item.y = owner.y;
+      if (terrainFor(owner.context).getFeature(owner.x, owner.y) === 'chasm') {
+        // Dropped in mid-air over a chasm (levitating): it falls to the floor below.
+        const landsBelow = stashChasmFallen(owner.context, item);
+        services.log(owner.context, landsBelow
+          ? `${item.displayName} drops into the chasm and falls toward the floor below.`
+          : `${item.displayName} drops into the chasm and is lost.`);
+        owner.spendTurn('drop');
+        return;
+      }
       if (!owner.context.entities.includes(item)) owner.context.entities.push(item);
       services.placeFloorItem(item);
       services.log(owner.context, `You drop ${item.displayName}.`);

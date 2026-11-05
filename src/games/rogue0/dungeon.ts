@@ -411,6 +411,8 @@ const dungeon = {
       context.pendingFall = true;
       entity.actionReady = false;
     } else if (entity.type === "enemy") {
+      // Killed by the fall: loot drops into the chasm, not onto the void tile.
+      entity.fellIntoChasm = true;
       entity.takeDamage(entity.healthPoints);
       removeEntity(context, entity);
     }

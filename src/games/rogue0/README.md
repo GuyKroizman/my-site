@@ -238,6 +238,10 @@ fatal. Cancelling is free. Rooted heroes cannot step into chasms; levitating
 heroes cross safely. Auto-walk routes still avoid chasms. There is no Jump
 button or `v` shortcut.
 
+Items also fall in: a thrown item, a stack dropped in mid-air, and the loot of a
+monster killed by the fall all land at a random walkable spot on the next floor
+down instead of being destroyed. Falls on the final floor are still permanent.
+
 There is **no player shove ability**. `dungeon.knockback(context, target, dx, dy)`
 is an effect-level primitive for one cardinal tile of forced movement, with no
 extra victim action cost. Grounded actors pushed into chasms fall; levitating

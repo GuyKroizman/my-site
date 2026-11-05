@@ -22,6 +22,7 @@ import { applyAttackResult } from '../combatApplication';
 import { heroInventory } from '../heroInventory';
 import { splitStackItem, type EquipSlotKey } from '../inventory';
 import { placeFloorItem } from '../itemPresentation';
+import { stashChasmFallen } from '../chasmDrops';
 import { heroStatsText } from '../heroViewModel';
 
 import { heroControlsFor } from '../heroControls';
@@ -728,11 +729,14 @@ export default class BasicHero extends Entity implements HeroControlHost {
       return;
     }
 
-    // Items that land in a chasm fall in and are lost. Checked before the
-    // terrain potions so a flask can't splash the void from the rim.
+    // Items that land in a chasm drop through to the floor below. Checked
+    // before the terrain potions so a flask can't splash the void from the rim.
     if (terrainFor(this.context).getFeature(tx, ty) === "chasm") {
+      const landsBelow = stashChasmFallen(context, item);
       removeEntity(context, item);
-      dungeon.log(context, `${item.displayName} falls into the chasm and is lost.`);
+      dungeon.log(context, landsBelow
+        ? `${item.displayName} falls into the chasm and drops toward the floor below.`
+        : `${item.displayName} falls into the chasm and is lost.`);
       return;
     }
 

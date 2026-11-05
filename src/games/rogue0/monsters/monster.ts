@@ -6,6 +6,7 @@ import type { DamageType } from "../effects";
 import dungeon from "../dungeon";
 import { enemyTurn, enemyCanSeePlayer } from "../ai";
 import Gold from "../items/gold";
+import { stashChasmFallen } from "../chasmDrops";
 
 export type MonsterConfig = {
   name: string;
@@ -189,13 +190,26 @@ export default class Monster extends Entity {
 
     const x = this.x;
     const y = this.y;
+    // A corpse dragged over the edge drops its loot into the void; the chasm
+    // then delivers it to the floor below instead of leaving it hovering over
+    // the hole. `fellIntoChasm` is set by dungeon.fallIntoChasm.
+    const drop = (instance: Entity): void => {
+      if (this.fellIntoChasm) {
+        const landsBelow = stashChasmFallen(this.context, instance);
+        dungeon.log(this.context, landsBelow
+          ? `${this.name} was killed, dropping ${instance.name} into the chasm.`
+          : `${this.name} was killed. ${instance.name} is lost in the abyss.`);
+        return;
+      }
+      this.context.entities.push(instance);
+      dungeon.log(this.context, `${this.name} was killed, dropping ${instance.name}.`);
+    };
+
     if (this.loot.length > 0) {
       const lootIndex = Phaser.Math.Between(0, this.loot.length - 1);
       const item = this.loot[lootIndex];
       if (item) {
-        const instance = new item(this.context, x, y);
-        this.context.entities.push(instance);
-        dungeon.log(this.context, `${this.name} was killed, dropping ${instance.name}.`);
+        drop(new item(this.context, x, y));
         return; // An item or gold, never both.
       }
     }
@@ -203,9 +217,7 @@ export default class Monster extends Entity {
     // If the item roll produced nothing, give a 25% chance of floor currency.
     // Death never credits the wallet; gold uses the normal floor pickup flow.
     if (this.gold > 0 && Phaser.Math.Between(1, 4) === 1) {
-      const pile = new Gold(this.context, x, y, this.gold);
-      this.context.entities.push(pile);
-      dungeon.log(this.context, `${this.name} was killed, dropping ${pile.name}.`);
+      drop(new Gold(this.context, x, y, this.gold));
     } else {
       dungeon.log(this.context, `${this.name} was killed.`);
     }
