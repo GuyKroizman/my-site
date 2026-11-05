@@ -2,16 +2,12 @@ import type BasicHero from './classes/basicHero';
 
 type HeroStats = Pick<BasicHero, 'level' | 'xp' | 'strength' | 'healthPoints' |
   'maxHealthPoints' | 'hunger' | 'maxHunger' | 'hungerState' | 'gold' |
-  'skill' | 'skillCooldown' | 'xpForNextLevel'>;
+  'xpForNextLevel'>;
 
 // Read-only presentation: no Phaser objects or simulation mutations on heroes.
 export function heroStatsText(hero: HeroStats): string {
   let text = `Lv ${hero.level}  Xp ${hero.xp}/${hero.xpForNextLevel()}  Str ${hero.strength}\nHp: ${hero.healthPoints}/${hero.maxHealthPoints}`;
   text += `\nFood: ${Math.ceil(hero.hunger)}/${hero.maxHunger} (${hero.hungerState})  Gold: ${hero.gold}`;
-  if (hero.skill !== '') {
-    const state = hero.skillCooldown > 0 ? `cd ${hero.skillCooldown}` : 'ready [f]';
-    text += `\n${hero.skill}: ${state}`;
-  }
   return text;
 }
 

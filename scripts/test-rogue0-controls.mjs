@@ -14,7 +14,7 @@ function fixture() {
   const context = createGameContext();
   const state = { door: false, wall: false, trap: undefined, chasm: false,
     hidden: new Set(), blockedLOS: new Set(), paths: [], moves: [], attacks: [],
-    pickups: [], found: 0, searches: 0, falls: 0, confirms: [], throws: [], skillUses: 0, stumbles: 0 };
+    pickups: [], found: 0, searches: 0, falls: 0, confirms: [], throws: [], stumbles: 0 };
   const level = Array.from({ length: 8 }, () => Array(8).fill(0));
   const keyboard = new EventEmitter(), input = new EventEmitter(), events = new EventEmitter();
   input.keyboard = keyboard;
@@ -37,7 +37,6 @@ function fixture() {
     getAllItems() { return this.items; },
     slotOf(item) { return this.weapon === item ? 'weapon' : undefined; },
     addItem(item) { if (!this.acceptPickup) return false; this.items.push(item); return true; },
-    tryUseSkill() { state.skillUses++; },
     throwAt(x, y) { state.throws.push([x, y]); },
     search() {
       if (!this.canAct()) return;
@@ -154,7 +153,7 @@ assert.equal(cursorDirection('H'), undefined, 'uppercase vi keys retain their ex
 // aiming/cancellation while animation or frozen state blocks physical actions.
 {
   const f = fixture(); f.hero.bindInput(); f.hero.actionReady = false;
-  for (const value of ['l', 'j', 'h', 'k', 's', 'f']) key(f, value);
+  for (const value of ['l', 'j', 'h', 'k', 's', 'x']) key(f, value);
   assert.deepEqual(f.hero.inputBuffer, ['l', 'j', 'h', 'k']);
   f.hero.drainInputBuffer(); assert.equal(f.hero.inputBuffer.length, 4);
   ready(f); f.hero.drainInputBuffer();
@@ -310,6 +309,16 @@ for (const stale of ['floor', 'position', 'death', 'readiness', 'modal', 'none']
   const cursed = { cursed: true, displayName: 'Sword' }; f.hero.items = [cursed]; f.hero.weapon = cursed;
   f.hero.beginThrow(cursed); assert.equal(f.context.throwMode, false);
   f.hero.beginThrow({}); assert.equal(f.context.throwMode, false);
+}
+
+// `f` no longer triggers a class special: the action and its binding are gone.
+{
+  const f = fixture(); f.hero.bindInput();
+  const before = f.hero.nextActionTime;
+  key(f, 'f'); key(f, 'F');
+  assert.equal(f.hero.nextActionTime, before, 'f spends no time');
+  assert.deepEqual(f.hero.inputBuffer, [], 'f is not even a buffered command');
+  assert.deepEqual([f.state.moves.length, f.state.attacks.length, f.state.searches], [0, 0, 0]);
 }
 
 // Inspect stays free and visibility-limited; a second inspect request searches.

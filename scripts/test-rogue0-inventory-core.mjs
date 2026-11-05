@@ -326,13 +326,12 @@ function gear(slot = 'weapon', overrides = {}) {
 // HUD strings/health clipping are pure and independent of the simulation clock.
 {
   const hero = Object.freeze({ level: 3, xp: 5, strength: 12, healthPoints: 24, maxHealthPoints: 30,
-    hunger: 29.25, maxHunger: 100, hungerState: 'Hungry', gold: 77, skill: 'Power Strike', skillCooldown: 2,
+    hunger: 29.25, maxHunger: 100, hungerState: 'Hungry', gold: 77,
     xpForNextLevel: () => 24 });
-  assert.equal(heroStatsText(hero), 'Lv 3  Xp 5/24  Str 12\nHp: 24/30\nFood: 30/100 (Hungry)  Gold: 77\nPower Strike: cd 2');
+  assert.equal(heroStatsText(hero), 'Lv 3  Xp 5/24  Str 12\nHp: 24/30\nFood: 30/100 (Hungry)  Gold: 77');
   assert.deepEqual(heroHudView(hero, 6), { healthFraction: 0.8, healthText: '24/30',
     heroStatus: 'Lv 3 · Food 30 · Hungry', floorStatus: 'Floor 6' });
-  assert.match(heroStatsText({ ...hero, skillCooldown: 0 }), /ready \[f\]/);
-  assert.ok(!heroStatsText({ ...hero, skill: '' }).includes('Power Strike'));
+  assert.doesNotMatch(heroStatsText(hero), /\[f\]|recharg|Power Strike/);
   assert.equal(heroHudView({ ...hero, healthPoints: -1 }, 1).healthFraction, 0);
   assert.equal(heroHudView({ ...hero, healthPoints: 50 }, 1).healthFraction, 1);
   assert.equal(heroHudView({ ...hero, healthPoints: 0, maxHealthPoints: 0 }, 1).healthFraction, 0);

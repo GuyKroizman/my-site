@@ -16,9 +16,9 @@ has been playtested. Checked boxes mean the described implementation exists.
 
 ### Implemented since the original roadmap
 
-- Five classes now have cooldown skills: Power Strike, Shield Bash, Heal,
-  Double Strike, and Nova. First-tier class talents are implemented; subclasses
-  and later talent tiers remain future work.
+- Five classes share one innate passive each; per-class active skills were
+  removed. First-tier (passive) class talents are implemented; subclasses and
+  later talent tiers remain future work.
 - `effects.ts` and `combat.ts` provide timed statuses, accuracy/evasion,
   physical armour, elemental resistance/vulnerability, crits and surprise
   attacks (auto-hit, bonus damage, possible bleed).
@@ -702,22 +702,23 @@ swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅.
 
 Each bonus below is **per rank** (maximum 2):
 
-| Class | Talent A | Talent B |
-|---|---|---|
-| Warrior | Crushing Strike: +2 Power Strike damage | Deep Fury: +1 damage at/below half HP |
-| Dwarf | Hamstring: +1 world-time duration to Bash cripple | Iron Skin: +1 physical armor |
-| Cleric | Greater Heal: +3 HP restored by Heal | Quick Prayer: −1 world-time Heal cooldown |
-| Elf | Twin Blades: +1 damage per Double Strike hit | Light Footwork: +5 evasion before armor penalties |
-| Wizard | Lingering Flame: +1 world-time Nova burn duration | Focused Nova: −1 world-time Nova cooldown |
+| Class | Talent |
+|---|---|
+| Warrior | Deep Fury: +1 damage at/below half HP |
+| Dwarf | Iron Skin: +1 physical armor |
+| Cleric | Greater Mending: +1 HP regenerated each turn |
+| Elf | Light Footwork: +5 evasion before armor penalties |
+| Wizard | Focused Mastery: +1 fire/shock/magic damage |
 
-Cooldown talents affect subsequent skill uses, not an already-running cooldown.
-Duration bonuses use the existing effect clock; no per-action ticking or extra
-skill actions. Other equipment, Strength and XP tracks are unchanged.
-`scripts/test-rogue0-talents.mjs` covers awards (including multi-level gains),
-rank/point/class guards, all ten bonuses, cooldown timing and Hero-panel actions.
+Talent capacity equals the number of ranks available to the class, so points
+never pile up unspendable. Other equipment, Strength and XP tracks are
+unchanged. `scripts/test-rogue0-talents.mjs` covers awards (including
+multi-level gains), rank/point/class guards, each passive bonus and Hero-panel
+actions.
 Visual verification and full-run/five-class balance playtesting remain deferred.
 
-- [x] Per-class active skill with a cooldown (elapsed-world-time timestamps).
+- [ ] Per-class active skill with a cooldown — removed from the game (see
+  "Current state"); the toolbar special-action button and `f` binding are gone.
 - **Acceptance:** two runs of the same class can diverge meaningfully by
   floor 5.
 

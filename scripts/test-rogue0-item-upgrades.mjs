@@ -504,20 +504,12 @@ class BasicHeroStub {
   addItem(item) { this.items.push(item); }
   equipItem(item) { this.weapon = item; }
   init() {}
-  nearestVisibleEnemy(range) { this.requestedRange = range; return this.enemyDistance <= range ? this.enemy : undefined; }
-  resolveSkillAttack(enemy) { this.hits++; enemy.healthPoints--; }
-  spendTurn(action) { assert.equal(action, 'attack'); this.turns++; }
 }
 const Elf = load('src/games/rogue0/classes/elf.ts', { BasicHero: BasicHeroStub, Sword, dungeon }).default;
 const elf = new Elf({ messages: [] }, 0, 0);
 assert.ok(elf.weapon instanceof Sword);
-assert.equal(elf.skill, 'Double Strike');
-elf.enemy = { name: 'Rat', healthPoints: 10 }; elf.enemyDistance = 2;
-elf.useSkill(); assert.equal(elf.hits, 0); assert.equal(elf.turns, 0);
-elf.enemyDistance = 1; elf.useSkill();
-assert.equal(elf.requestedRange, 1); assert.equal(elf.hits, 2); assert.equal(elf.turns, 1);
-assert.equal(elf.skillCooldown, 6);
-elf.hits = 0; elf.enemy.healthPoints = 1; elf.useSkill(); assert.equal(elf.hits, 1);
+assert.equal(elf.skill, undefined, 'Elf has no active special');
+assert.equal(typeof elf.useSkill, 'undefined');
 assert.equal(fs.existsSync('src/games/rogue0/items/bow.ts'), false);
 
 // Decode PNG using only Node's standard library; all food/goblet pixels must
@@ -614,4 +606,4 @@ assert.equal(new Ration({ messages: [] }).spriteTextureKey, 'ration');
   for (let i = 0; i < 20; i++) advance(1);
   assert.equal(restored.charges, 1, 'old saves without recharge fields work');
 }
-console.log('Rogue0 item upgrades: live weapon/armor/scroll/wand/artifact stats, gem and scroll upgrades, chalice pacing/cap/icons, opaque food, and Elf Double Strike passed');
+console.log('Rogue0 item upgrades: live weapon/armor/scroll/wand/artifact stats, gem and scroll upgrades, chalice pacing/cap/icons, opaque food, and class starting gear passed');

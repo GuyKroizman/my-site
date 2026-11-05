@@ -172,8 +172,6 @@ const hidden = { type: 'enemy', x: 4, y: 4, sprite: {} };
 const observer = Object.assign(Object.create(Hero.prototype), { x: 1, y: 4,
   context: { visibleTiles: new Set(['4,4']), entities: [hidden] } });
 tiles.setFeature(4, 4, 'grass');
-assert.equal(observer.nearestVisibleEnemy(8), undefined);
-assert.deepEqual(observer.visibleEnemiesInRadius(8), []);
 observer.inspectTile(4, 4);
 assert.equal(observer.context.inspectedEntity, undefined);
 assert.equal(observer.context.inspectedTerrain, 'Tall grass');
@@ -185,6 +183,5 @@ hidden.type = 'enemy';
 observer.x = 3;
 observer.inspectTile(4, 4);
 assert.equal(observer.context.inspectedEntity, hidden);
-assert.equal(observer.nearestVisibleEnemy(8), hidden);
 tiles.clearAllFeatures();
 console.log('Rogue0 vision geometry, terrain, grass concealment/ambush/targeting, modifiers and effect expiry passed');

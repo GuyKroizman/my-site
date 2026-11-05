@@ -26,7 +26,6 @@ export interface HeroControlHost extends Entity {
   getAllItems(): Entity[];
   slotOf(item: Entity): string | undefined;
   addItem(item: Entity): boolean;
-  tryUseSkill(): void;
   processInput(key: string): void;
   processTouchInput(context: GameContext, event: PointerPosition): void;
   bufferKey(key: string): void;

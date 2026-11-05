@@ -93,7 +93,7 @@ const target = { type: 'enemy', x: 2, y: 1, awareOfPlayer: true, visionRadius: 5
   evasion: 0, resistance: {}, vulnerability: {}, protection: () => 0,
   onAttacked() {
     assert.equal(attacker.attack, originalAttack);
-    assert.equal(attacker.baseAttack, 4, 'attack attempts never see temporary skill bonuses');
+    assert.equal(attacker.baseAttack, 4, 'attack attempts never see temporary bonuses');
   }
 };
 const context = { currentLevel: [[0]], messages: [], visibleTiles: new Set() };
@@ -116,7 +116,7 @@ try {
   assert.equal(resolveAttack(context, attacker, target, { baseDamage: 12, damageType: 'fire' }).damage, 9);
   Math.random = () => 0.05;
   assert.equal(resolveAttack(context, attacker, target, { bonusDamage: 3 }).damage, 9,
-    'skill bonus precedes weakened and critical multipliers');
+    'explicit bonus damage precedes weakened and critical multipliers');
 } finally { Math.random = random; }
 
 // Permanent IDs survive constructor renames; both entity and loot-constructor
@@ -133,4 +133,4 @@ for (const id of Object.keys(registry)) {
   assert.equal(state[0], state[1]);
   assert.equal(state[0].count, 3);
 }
-console.log('Rogue0 combat pipeline: hook order, misses, absorption, invisibility, death, explicit wand policy, damage overrides, skill bonuses and stable save aliases passed');
+console.log('Rogue0 combat pipeline: hook order, misses, absorption, invisibility, death, explicit wand policy, damage overrides, bonus damage and stable save aliases passed');

@@ -5,7 +5,7 @@
 export function starvationDamageDuring(now: number, duration: number): number {
   return Math.max(0, Math.floor(now + duration + 1e-9) - Math.floor(now + 1e-9));
 }
-export type ActionKind = "move" | "attack" | "use" | "equip" | "drop" | "throw" | "skill" | "search" | "wait" | "openDoor";
+export type ActionKind = "move" | "attack" | "use" | "equip" | "drop" | "throw" | "search" | "wait" | "openDoor";
 
 export interface TimedActor {
   movementSpeed: number;

@@ -7,10 +7,10 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
 
 - `combat.ts` resolves attack attempts and rolls damage. `combatApplication.ts`
   owns successful-hit application: damage, invisibility, shock-water contact,
-  statuses, victim reactions and death cleanup. Normal attacks, skills, thrown
+  statuses, victim reactions and death cleanup. Normal attacks, thrown
   weapons and wands use it. Presentation/curse/arc hooks remain explicit;
   this extraction does not change which attack kinds trigger weapon curses or
-  physical-hit reactions. Damage overrides and skill bonuses are parameters,
+  physical-hit reactions. Damage overrides and bonus damage are parameters,
   not temporary replacements of hero methods/stats.
 - `inventory.ts` owns pickup/stacking, equipment, dropping, removal and curse
   cleansing. It imports only types; `heroInventory.ts` supplies runtime effects,
@@ -207,8 +207,7 @@ Current Rogue0 action costs (normal action = 1 time unit):
 | --- | --- |
 | Move, including pickup on the destination tile | `armorStrengthPenalty / movementSpeed` |
 | Attack, hit or miss | Equipped weapon's `attackDelay × weaponStrengthPenalty` |
-| Weapon-based skill | Weapon's penalized attack delay |
-| Use item, throw, equip/unequip, drop, non-weapon skill, wait | 1 |
+| Use item, throw, equip/unequip, drop, wait | 1 |
 | Open a closed door (in place; step through next action) | 1 |
 | Search | 2 |
 | Invalid action, inspection, open backpack | 0 |
@@ -260,8 +259,8 @@ budget. Search only reveals them, and floor snapshots preserve spent state.
 random cardinal neighbor without rerolling unsafe choices. Walls, closed doors
 and actors block a stumble but still cost movement time; roots prevent attempts.
 Chasms can cause accidental falls unless the actor is levitating. Keyboard,
-auto-walk and enemy movement/fleeing use the same rule. Deliberate attacks,
-skills and aiming stay unchanged. Stumbles do not automatically pick up loot,
+auto-walk and enemy movement/fleeing use the same rule. Deliberate attacks
+and aiming stay unchanged. Stumbles do not automatically pick up loot,
 and player stumbles cancel auto-walk and buffered commands. Single-use confusion
 traps affect grounded players and monsters and share the existing trap budget;
 levitation bypasses them and search reveals without disarming.
@@ -292,9 +291,9 @@ alpha still work. The overlay follows movement, the walking bob and scaling,
 and it clears on expiry, death, floor change and scene shutdown.
 
 Hunger and regeneration tick per elapsed world-time unit. Buffs keep their own
-tick phase (a two-time-unit buff applied at 0.5 expires at 2.5), and skill cooldowns
-use absolute ready timestamps. Faster movement does not accelerate hunger,
-poison, or cooldowns. Floor changes preserve the clock and buff/cooldown timing.
+tick phase (a two-time-unit buff applied at 0.5 expires at 2.5). Faster movement
+does not accelerate hunger or poison. Floor changes preserve the clock and buff
+timing.
 
 Poison clouds add independent fractional terrain events to this same scheduler:
 a Toxic Gas cloud expands one cardinal ring per unit up to a radius-3 diamond,

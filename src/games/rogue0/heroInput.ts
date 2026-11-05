@@ -65,7 +65,6 @@ export function createHeroInput(services: HeroControlServices) {
       }
       if (key === 'x' || key === 'X') { hero.toggleInspectMode(); return; }
       if (!hero.canAct()) return;
-      if (key === 'f' || key === 'F') { hero.tryUseSkill(); return; }
       if (key === 's' || key === 'S') { hero.search(); return; }
       if (key === ' ') { hero.waitTurn(); return; }
       const dir = hero.cursorDir(key);

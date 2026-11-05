@@ -40,8 +40,8 @@ const HELP_PAGES = [
     body: `• Slots: weapon, armor, two rings, artifact — plus a 20-slot backpack.\n• Unidentified items show as ?potion, ?scroll, etc. Use them to learn what they are (or use a Scroll of Identify).\n• Cursed items cannot be unequipped until you Remove Curse (or use Holy Water).\n• Scrolls of Upgrade raise an item's level.\n• Wands have limited charges — a Scroll of Recharging refills them.\n• Rings grant passive bonuses.`,
   },
   {
-    title: 'Skills',
-    body: `• You have an innate passive and one active skill.\n• Press f to use Nova.\n• Skills have a cooldown shown in your stats.\n• Elemental Mastery (passive): +1 damage with fire, shock and magic attacks.\n• Nova (active): burn every visible enemy within 4 tiles.`,
+    title: 'Talents',
+    body: `• Every class has an innate passive ability plus one passive talent.\n• Elemental Mastery (Wizard, innate): +1 damage with fire, shock and magic attacks.\n• You gain a talent point at levels 2–4. Open the character panel, switch to Talents, and tap a talent to rank it up (max 2).`,
   },
   {
     title: 'Terrain',

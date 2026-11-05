@@ -432,16 +432,10 @@ assert.equal(manager.time, 2.5);
 assert.equal(effectTicks, 2);
 assert.equal(player.effects.length, 0);
 
-hero.context.simulationTime = 0.5;
-hero.skillCooldown = 3;
-hero.context.simulationTime = 3;
-assert.equal(hero.skillCooldown, 1, 'cooldown must not expire at an early integer boundary');
-hero.context.simulationTime = 3.5;
-assert.equal(hero.skillCooldown, 0);
 manager.reset(entities, true);
 assert.equal(manager.time, 2.5, 'floor transitions preserve the world clock');
 assert.equal(player.nextActionTime, 2.5);
-// Equal elapsed time must produce identical survival/effect/cooldown outcomes,
+// Equal elapsed time must produce identical survival/effect outcomes,
 // regardless of action count or extra render polling. Use real hero upkeep.
 function elapsedRun(action, count, delay = 1, polls = 0) {
   const p = new Entity();
@@ -453,20 +447,18 @@ function elapsedRun(action, count, delay = 1, polls = 0) {
     tickEffects() { effects.tickEffects(this, this.context); }
   });
   manager.reset([p]);
-  p.skillCooldown = 7;
   effects.applyEffect(p, effects.createPoisonedEffect(4));
   for (let i = 0; i < count; i++) {
     p.spendTime(action, delay);
     manager.update([p]);
-    const before = [manager.time, p.hunger, p.healthPoints, p.skillCooldown];
+    const before = [manager.time, p.hunger, p.healthPoints];
     for (let frame = 0; frame < polls; frame++) manager.update([p]);
-    assert.deepEqual([manager.time, p.hunger, p.healthPoints, p.skillCooldown], before,
-      'idle rendering cannot advance upkeep, effects or cooldowns');
+    assert.deepEqual([manager.time, p.hunger, p.healthPoints], before,
+      'idle rendering cannot advance upkeep or effects');
   }
-  return { time: manager.time, hunger: p.hunger, hp: p.healthPoints,
-    cooldown: p.skillCooldown, effects: p.effects.length };
+  return { time: manager.time, hunger: p.hunger, hp: p.healthPoints, effects: p.effects.length };
 }
-const elapsedExpected = { time: 6, hunger: 98.5, hp: 48, cooldown: 1, effects: 0 };
+const elapsedExpected = { time: 6, hunger: 98.5, hp: 48, effects: 0 };
 assert.deepEqual(elapsedRun('move', 24, 1, 10), elapsedExpected);
 assert.deepEqual(elapsedRun('attack', 4, 1.5), elapsedExpected);
 assert.deepEqual(elapsedRun('wait', 6), elapsedExpected);

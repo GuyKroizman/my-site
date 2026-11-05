@@ -206,12 +206,6 @@ export class UI extends Phaser.Scene {
       g.lineBetween(4, 4, 10, 10);
     }, "Inspect  [x] · Search  [s]"));
 
-    // Skill.
-    this.toolbar.push(this.makeButton(() => this.context.player?.tryUseSkill(), (g) => {
-      g.lineStyle(2, iconColor, 1);
-      g.strokeTriangle(0, -8, 7, 6, -7, 6);
-    }, "Character special  [f]"));
-
     // Backpack.
     this.toolbar.push(this.makeButton(() => {
       this.closeHeroModal();
@@ -484,7 +478,6 @@ export class UI extends Phaser.Scene {
     const positions = [
       [edge, edge], // portrait
       [edge, y], [edge + size + gap, y], // wait, inspect/search
-      [w - edge - size, y - size - gap], // special, directly above backpack
       [w - edge - size, y] // backpack
     ];
     this.toolbar.forEach((b, i) => {

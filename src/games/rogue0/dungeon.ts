@@ -1061,7 +1061,7 @@ const dungeon = {
           this.log(context,
             `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for no damage.`);
         }
-        // Ordinary weapon attacks retain curse procs; skills/throws/wands do not.
+        // Ordinary weapon attacks retain curse procs; throws/wands do not.
         if (victim.type === "player") this.procArmorCurse(context, victim);
         if (attacker.type === "player") this.procWeaponCurse(context, attacker, victim, result.damage);
       }

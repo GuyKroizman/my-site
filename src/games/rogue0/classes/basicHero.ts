@@ -16,7 +16,6 @@ import {
   removeEffect,
   hasEffect
 } from "../effects";
-import type { DamageType, StatusEffect } from "../effects";
 import { resolveAttack } from "../combat";
 import { applyAttackResult } from '../combatApplication';
 import { heroInventory } from '../heroInventory';
@@ -35,28 +34,27 @@ import type { ActionKind } from "../timing";
 // flask's cold payload hits them directly before the normal frozen splash.
 const FROST_POTION_FIRE_DAMAGE = 4;
 
+// Every talent is a passive: the game has no active class abilities.
 export const CLASS_TALENTS = {
   Warrior: [
-    { id: "power", name: "Crushing Strike", description: "+2 Power Strike damage per rank." },
     { id: "fury", name: "Deep Fury", description: "+1 damage at/below half HP per rank." }
   ],
   Dwarf: [
-    { id: "bash", name: "Hamstring", description: "+1 time of Shield Bash cripple per rank." },
     { id: "armor", name: "Iron Skin", description: "+1 physical armor per rank." }
   ],
   Cleric: [
-    { id: "heal", name: "Greater Heal", description: "+3 HP restored by Heal per rank." },
-    { id: "prayer", name: "Quick Prayer", description: "Heal cooldown reduced by 1 time per rank." }
+    { id: "mending", name: "Greater Mending", description: "+1 HP regenerated each turn per rank." }
   ],
   Elf: [
-    { id: "strike", name: "Twin Blades", description: "+1 damage to each Double Strike hit per rank." },
     { id: "grace", name: "Light Footwork", description: "+5 evasion per rank (before armor penalties)." }
   ],
   Wizard: [
-    { id: "nova", name: "Lingering Flame", description: "+1 time of Nova burning per rank." },
-    { id: "focus", name: "Focused Nova", description: "Nova cooldown reduced by 1 time per rank." }
+    { id: "mastery", name: "Focused Mastery", description: "+1 fire/shock/magic damage per rank." }
   ]
 } as const;
+
+/** Rank cap for every talent. */
+export const MAX_TALENT_RANK = 2;
 
 export default class BasicHero extends Entity implements HeroControlHost {
   private get controls() { return heroControlsFor(this.context); }
@@ -86,15 +84,16 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
   get talentPoints(): number {
     const spent = this.availableTalents.reduce((sum, t) => sum + this.talentRank(t.id), 0);
-    return Math.max(0, Math.min(3, this.level - 1) - spent);
+    const capacity = this.availableTalents.length * MAX_TALENT_RANK;
+    return Math.max(0, Math.min(capacity, this.level - 1) - spent);
   }
 
   learnTalent(id: string): boolean {
     if (this.healthPoints <= 0 || !this.availableTalents.some(t => t.id === id) ||
-        this.talentPoints <= 0 || this.talentRank(id) >= 2) return false;
+        this.talentPoints <= 0 || this.talentRank(id) >= MAX_TALENT_RANK) return false;
     this.talentRanks[id] = this.talentRank(id) + 1;
     const talent = this.availableTalents.find(t => t.id === id)!;
-    dungeon.log(this.context, `Learned ${talent.name} (${this.talentRank(id)}/2).`);
+    dungeon.log(this.context, `Learned ${talent.name} (${this.talentRank(id)}/${MAX_TALENT_RANK}).`);
     return true;
   }
   baseAttack: number = 0;
@@ -144,18 +143,6 @@ export default class BasicHero extends Entity implements HeroControlHost {
   acknowledgedWalkEnemies = new Set<Entity>();
   walkTargetEntity?: Entity;
 
-  // Per-class skills recharge in elapsed simulation time, not action count.
-  skill: string = "";
-  skillDescription: string = "";
-  private skillReadyAt: number = 0;
-  get skillCooldown(): number {
-    return Math.max(0, Math.ceil((this.skillReadyAt ?? 0) - (this.context?.simulationTime ?? 0) - 1e-9));
-  }
-  set skillCooldown(duration: number) {
-    this.skillReadyAt = (this.context?.simulationTime ?? 0) + Math.max(0, duration);
-  }
-  skillMaxCooldown: number = 0;
-
   constructor(context: GameContext) {
     super();
 
@@ -201,7 +188,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
     return this.actionReady && !this.moving && !hasEffect(this, "frozen");
   }
 
-  spendTurn(action: ActionKind = "skill"): void {
+  spendTurn(action: ActionKind = "wait"): void {
     this.spendTime(action, this.currentWeapon()?.attackDelay ?? this.attackDelay);
   }
 
@@ -852,127 +839,6 @@ export default class BasicHero extends Entity implements HeroControlHost {
       context,
       `You throw ${item.displayName} — it lands on the floor.`
     );
-  }
-
-  // --- Per-class active skill (Phase 9) ---
-
-  // `f` / `F` entry point. Guards cooldown + action points, then delegates to
-  // the per-class useSkill() override.
-  tryUseSkill(): void {
-    if (this.skill === "") return;
-
-    if (this.skillCooldown > 0) {
-      dungeon.log(
-        this.context,
-        `${this.skill} is recharging (${this.skillCooldown} time remaining).`
-      );
-      return;
-    }
-
-    if (!this.canAct()) return;
-
-    this.useSkill();
-  }
-
-  // Overridden by each class. The base hero has no active skill.
-  useSkill(): void {
-  }
-
-  // Resolve a skill attack synchronously (no tween) and apply the result:
-  // damage, on-hit status effects and death cleanup. Bonus damage is passed
-  // explicitly, so callbacks never observe temporarily modified hero stats.
-  protected resolveSkillAttack(
-    victim: Entity,
-    opts: {
-      bonusDamage?: number;
-      damageType?: DamageType;
-      onHitEffects?: StatusEffect[];
-    } = {}
-  ): void {
-    const result = resolveAttack(this.context, this, victim, {
-      bonusDamage: opts.bonusDamage, damageType: opts.damageType ?? "physical",
-      onHitEffects: opts.onHitEffects ?? []
-    });
-    applyAttackResult(this.context, this, victim, result, {
-      applyEffect: (target, effect) => applyEffect(target, effect),
-      removeEffect: (target, id) => removeEffect(target, id),
-      removeEntity: (ctx, target) => removeEntity(ctx, target),
-      onHit: () => {
-        if (result.damage > 0) {
-          dungeon.log(this.context, `You hit ${victim.name} for ${result.damage} ${result.damageType} damage.`);
-          dungeon.applyHitEffects(this.context, victim, result.surprise);
-        } else {
-          dungeon.log(this.context, `You hit ${victim.name} but deals no damage.`);
-        }
-      }
-    });
-  }
-
-  // Nearest visible enemy within `maxRange` tiles (chebyshev distance).
-  protected nearestVisibleEnemy(maxRange: number): Entity | undefined {
-    const { isGrassConcealed } = terrainFor(this.context);
-    if (this.x === undefined || this.y === undefined) return undefined;
-
-    let best: Entity | undefined;
-    let bestDistance = Infinity;
-
-    for (const entity of this.context.entities) {
-      if (!isHostile(entity) || !entity.sprite) continue;
-      if (entity.x === undefined || entity.y === undefined) continue;
-      if (!this.context.visibleTiles.has(`${entity.x},${entity.y}`)) continue;
-
-      const distance = Math.max(
-        Math.abs(entity.x - this.x),
-        Math.abs(entity.y - this.y)
-      );
-      if (isGrassConcealed(entity.x, entity.y, this.x, this.y)) continue;
-      if (distance <= maxRange && distance < bestDistance) {
-        best = entity;
-        bestDistance = distance;
-      }
-    }
-
-    return best;
-  }
-
-  // An enemy on one of the eight tiles adjacent to the hero.
-  protected adjacentEnemy(): Entity | undefined {
-    if (this.x === undefined || this.y === undefined) return undefined;
-
-    for (const entity of this.context.entities) {
-      if (!isHostile(entity) || !entity.sprite) continue;
-      if (entity.x === undefined || entity.y === undefined) continue;
-
-      const distance = Math.max(
-        Math.abs(entity.x - this.x),
-        Math.abs(entity.y - this.y)
-      );
-      if (distance === 1) return entity;
-    }
-
-    return undefined;
-  }
-
-  // Visible enemies within `radius` tiles (chebyshev distance).
-  protected visibleEnemiesInRadius(radius: number): Entity[] {
-    const { isGrassConcealed } = terrainFor(this.context);
-    if (this.x === undefined || this.y === undefined) return [];
-
-    const enemies: Entity[] = [];
-    for (const entity of this.context.entities) {
-      if (!isHostile(entity) || !entity.sprite) continue;
-      if (entity.x === undefined || entity.y === undefined) continue;
-      if (!this.context.visibleTiles.has(`${entity.x},${entity.y}`)) continue;
-
-      const distance = Math.max(
-        Math.abs(entity.x - this.x),
-        Math.abs(entity.y - this.y)
-      );
-      if (isGrassConcealed(entity.x, entity.y, this.x, this.y)) continue;
-      if (distance <= radius) enemies.push(entity);
-    }
-
-    return enemies;
   }
 
   processInput(key: string): void {
