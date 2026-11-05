@@ -25,7 +25,7 @@ import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
-import { TRAP_TEXTURE, generateTrapTextures, trapFrame } from './trapVisuals';
+import { TRAP_ALPHA, TRAP_TEXTURE, generateTrapTextures, trapFrame } from './trapVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
 import { removeEntity } from './entity';
 import { decodeRunSave, restoreRunState, type RunState, type SavedFloor } from './runPersistence';
@@ -1312,6 +1312,8 @@ export class Scene0 extends Phaser.Scene {
       } else {
         sprite.clearTint();
       }
+      // Traps sit mostly transparent in the floor; every other feature is opaque.
+      sprite.setAlpha(state.feature === 'trap' ? TRAP_ALPHA : 1);
       sprite.setVisible(visible);
     });
 

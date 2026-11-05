@@ -68,6 +68,7 @@ const sprite = { visible: true, frame: 0, texture: '',
   setTexture(texture, frame) { this.texture = texture; this.frame = frame; return this; },
   setFrame(frame) { this.frame = frame; return this; },
   setVisible(visible) { this.visible = visible; return this; },
+  setAlpha(alpha) { this.alpha = alpha; return this; },
   setTint() {}, clearTint() {}, destroy() { this.destroyed = true; },
 };
 Object.assign(s, { context: { map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 } },

@@ -16,6 +16,14 @@ import type { TrapKind } from './tiles';
 // Pure visuals: nothing here touches gameplay state, saved data or Math.random.
 
 export const TRAP_TEXTURE = 'trap-plates';
+/**
+ * Traps are inlaid into the floor, not props standing on it, so they are drawn
+ * at 80% transparency: the stone underneath reads clearly through the plate,
+ * and the hazard never competes with actors and items sharing the tile.
+ * The plate palette is dark by design, so a gentler alpha (0.5) still read as
+ * a solid slab over the equally dark stone floor.
+ */
+export const TRAP_ALPHA = 0.2;
 const SIZE = 16;
 /** Glyphs are drawn inside the plate face, one pixel clear of the rivets. */
 const GLYPH_ORIGIN = 3;

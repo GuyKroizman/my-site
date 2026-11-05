@@ -11,7 +11,7 @@ function evaluate(source, bindings = {}) {
 }
 const visuals = evaluate(fs.readFileSync('src/games/rogue0/trapVisuals.ts', 'utf8').replace(/^import.*;\n/gm, ''));
 const {
-  TRAP_TEXTURE, TRAP_KINDS, TRAP_GLYPHS, TRAP_ACCENTS, TRAP_FRAME_COUNT,
+  TRAP_ALPHA, TRAP_TEXTURE, TRAP_KINDS, TRAP_GLYPHS, TRAP_ACCENTS, TRAP_FRAME_COUNT,
   trapPixels, trapFrame, generateTrapTextures
 } = visuals;
 const SIZE = 16;
@@ -169,7 +169,7 @@ const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 const methods = source.slice(source.indexOf('  private featureVisual('), source.indexOf('  private makeArrowTexture()'));
 const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
   tiles: { FeatureTiles: { water: 206, chasm: 5 } },
-  TRAP_TEXTURE, trapFrame,
+  TRAP_TEXTURE, TRAP_ALPHA, trapFrame,
   terrainFor: () => ({ getFeature: () => state?.feature,
     forEachFeature(fn) { if (state) fn(0, 0, state); } }),
   dungeon: { getCurrentLevel: () => [[0]] }, wallOverhang: () => false,
@@ -183,6 +183,7 @@ const sprite = { visible: true, texture: '', frame: -1, tint: 0xffffff,
   setTexture(texture, frame) { this.texture = texture; this.frame = frame; return this; },
   setFrame(frame) { this.frame = frame; return this; },
   setVisible(visible) { this.visible = visible; return this; },
+  setAlpha(alpha) { this.alpha = alpha; return this; },
   setTint(tint) { this.tint = tint; return this; }, clearTint() { this.tint = 0xffffff; },
   destroy() { this.destroyed = true; } };
 Object.assign(s, { context: { map: { tileToWorldX: (x) => x * 16, tileToWorldY: (y) => y * 16 } },
@@ -194,6 +195,8 @@ assert.equal(sprite.texture, TRAP_TEXTURE, 'traps draw from the plate atlas');
 assert.equal(sprite.frame, trapFrame('fire', false), 'an armed fire trap shows its own glyph');
 assert.equal(sprite.tint, 0xffffff, 'kind identity no longer rides on a tint');
 assert.equal(sprite.visible, true);
+assert.equal(sprite.alpha, 0.2, 'traps are drawn at 80% transparency so the floor reads through');
+assert.equal(TRAP_ALPHA, 0.2);
 
 state = { feature: 'trap', trap: 'visible', trapKind: 'summon' };
 s.syncFeatures();
