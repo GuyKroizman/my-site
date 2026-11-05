@@ -56,9 +56,42 @@ const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remo
 
 export type ConsumableCategory = 'potion' | 'scroll';
 
-// One entry per potion/scroll kind the hero has encountered this run. The
-// alias is derived from the shuffled appearance, never from the real name, so
-// an unidentified entry cannot leak what the item is.
+// Every potion and scroll that can be generated, by true name. The knowledge
+// page lists all of them from the first turn (each with its run-specific
+// appearance alias), so a kind must be added here when a new consumable item
+// class is created. scripts/test-rogue0-consumable-knowledge.mjs keeps this
+// list in sync with items/.
+export const CONSUMABLE_NAMES: Record<ConsumableCategory, readonly string[]> = {
+  potion: [
+    'Berserk Potion',
+    'Full Heal Potion',
+    'Holy Potion',
+    'Minor Heal Potion',
+    'Potion of Experience',
+    'Potion of Frost',
+    'Potion of Healing',
+    'Potion of Invisibility',
+    'Potion of Levitation',
+    'Potion of Liquid Flame',
+    'Potion of Strength',
+    'Potion of Toxic Gas'
+  ],
+  scroll: [
+    'Scroll of Fireball',
+    'Scroll of Identify',
+    'Scroll of Lightning',
+    'Scroll of Rage',
+    'Scroll of Recharging',
+    'Scroll of Remove Curse',
+    'Scroll of Teleport',
+    'Scroll of Terror',
+    'Scroll of Upgrade'
+  ]
+};
+
+// One entry per potion/scroll kind in the dungeon. The alias is derived from
+// the shuffled appearance, never from the real name, so an unidentified entry
+// cannot leak what the item is.
 export type ConsumableKnowledgeEntry = {
   category: ConsumableCategory;
   // Texture key of the appearance shown on the floor and in the backpack.
@@ -87,52 +120,77 @@ export function appearanceLabel(identity: string): string {
   return label[0].toUpperCase() + label.slice(1);
 }
 
-// Potions and scrolls seen this run, split by category. Kinds become known by
-// being generated (floor loot, chests, monster drops); each is listed by its
-// real name once identified and by its appearance alias until then.
+// Every potion and scroll in the dungeon, split by category, in a fixed order
+// for the run so a row stays put when its real name is revealed. A kind is
+// shown by its real name once identified and by its appearance alias until
+// then; copies found later share the same row.
 export function consumableKnowledge(context: GameContext, category: ConsumableCategory): ConsumableKnowledgeEntry[] {
   const assignments = consumableAppearances.get(context);
-  if (!assignments) return [];
   const known = knownConsumables.get(context);
-  const entries: ConsumableKnowledgeEntry[] = [];
-  for (const [kind, appearance] of assignments) {
+  const kinds = new Set<string>();
+  for (const name of CONSUMABLE_NAMES[category]) kinds.add(`${category}:${name}`);
+  // Preserve extra kinds from older saves whose names left the catalogue.
+  for (const kind of assignments?.keys() ?? []) {
     const separator = kind.indexOf(':');
-    if (separator < 0 || kind.slice(0, separator) !== category) continue;
-    entries.push({
+    if (separator >= 0 && kind.slice(0, separator) === category) kinds.add(kind);
+  }
+  const entries = [...kinds].map(kind => {
+    const name = kind.slice(kind.indexOf(':') + 1);
+    const appearance = assignments?.get(kind) ?? assignConsumableAppearance(context, category, name);
+    return {
       category,
       appearance,
-      name: kind.slice(separator + 1),
+      name,
       identified: !!known?.has(kind),
       alias: appearanceLabel(appearance)
-    });
-  }
-  // Real names sort alphabetically; unknown labels sort among themselves so
-  // their position never hints at the alphabetical order of the true names.
-  const identified = entries.filter(entry => entry.identified)
-    .sort((a, b) => a.name.localeCompare(b.name));
-  const unknown = entries.filter(entry => !entry.identified)
-    .sort((a, b) => a.alias.localeCompare(b.alias));
-  return [...identified, ...unknown];
+    };
+  });
+  // Order by appearance, which is shuffled per run: stable while playing and
+  // no hint about the alphabetical order of the real names.
+  return entries.sort((a, b) => a.appearance.localeCompare(b.appearance));
 }
+
+// Give every catalogue kind its run-specific appearance up front, so the
+// labels seen in the dungeon always match the knowledge page and cannot be
+// rerolled by opening it.
+export function prewarmConsumableAppearances(context: GameContext): void {
+  for (const category of Object.keys(CONSUMABLE_NAMES) as ConsumableCategory[]) {
+    for (const name of CONSUMABLE_NAMES[category]) {
+      assignConsumableAppearance(context, category, name);
+    }
+  }
+}
+
 function consumableAppearance(item: Entity): string | undefined {
   const category = item.textureKey?.startsWith('potion-') ? 'potion'
     : item.textureKey?.startsWith('scroll-') ? 'scroll' : undefined;
   if (!category || !item.context) return item.textureKey;
-  let assignments = consumableAppearances.get(item.context);
+  return assignConsumableAppearance(item.context, category, item.name);
+}
+
+// One-to-one appearance assignment per run, shared by all copies of a kind.
+function assignConsumableAppearance(
+  context: GameContext,
+  category: ConsumableCategory,
+  name: string
+): string {
+  let assignments = consumableAppearances.get(context);
   if (!assignments) {
     assignments = new Map();
-    consumableAppearances.set(item.context, assignments);
+    consumableAppearances.set(context, assignments);
   }
-  const kind = `${category}:${item.name}`;
-  if (!assignments.has(kind)) {
-    const keys = category === 'potion'
-      ? Array.from({ length: 12 }, (_, i) => `potion-${i}`)
-      : scrollAppearances.map(glyph => `scroll-${glyph}`);
-    const available = keys.filter(key => ![...assignments.values()].includes(key));
-    if (!available.length) throw new Error(`No unused ${category} appearances`);
-    assignments.set(kind, available[Math.floor(Math.random() * available.length)]);
-  }
-  return assignments.get(kind);
+  const kind = `${category}:${name}`;
+  const assigned = assignments.get(kind);
+  if (assigned) return assigned;
+  const keys = category === 'potion'
+    ? Array.from({ length: 12 }, (_, i) => `potion-${i}`)
+    : scrollAppearances.map(glyph => `scroll-${glyph}`);
+  const used = new Set(assignments.values());
+  const available = keys.filter(key => !used.has(key));
+  if (!available.length) throw new Error(`No unused ${category} appearances`);
+  const key = available[Math.floor(Math.random() * available.length)];
+  assignments.set(kind, key);
+  return key;
 }
 
 export abstract class Entity {

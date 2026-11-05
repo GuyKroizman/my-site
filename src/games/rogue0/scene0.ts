@@ -96,7 +96,7 @@ import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
-import { resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
+import { prewarmConsumableAppearances, resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
 import { maybeCurse } from "./curses";
 import { encodeGraph } from './saveCodec';
 import { saveRegistry } from './saveRegistry';
@@ -273,6 +273,10 @@ export class Scene0 extends Phaser.Scene {
     });
     this.context.scene = this;
     resetConsumableAppearances(this.context);
+    // Fix every potion/scroll appearance before loot exists, so a found item's
+    // label always matches the knowledge page (a resumed run restores its own
+    // saved mapping over this).
+    prewarmConsumableAppearances(this.context);
     this.context.floor = 1;
     this.context.kills = 0;
     this.context.chasmFallenItems = undefined;

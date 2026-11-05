@@ -37,7 +37,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Items & Equipment',
-    body: `• Slots: weapon, armor, two rings, artifact — plus a 20-slot backpack.\n• Unidentified items show as ?potion, ?scroll, etc. Use them to learn what they are (or use a Scroll of Identify).\n• The game menu's Potions & scrolls page lists every potion and scroll you have found: identified kinds by name, the rest only by their appearance.\n• Cursed items cannot be unequipped until you Remove Curse (or use Holy Water).\n• Scrolls of Upgrade raise an item's level.\n• Wands have limited charges — a Scroll of Recharging refills them.\n• Rings grant passive bonuses.`,
+    body: `• Slots: weapon, armor, two rings, artifact — plus a 20-slot backpack.\n• Unidentified items show as ?potion, ?scroll, etc. Use them to learn what they are (or use a Scroll of Identify).\n• The game menu's Potions & scrolls page lists every potion and scroll in the dungeon: identified kinds by their real name, the rest only by their unknown appearance name.\n• Cursed items cannot be unequipped until you Remove Curse (or use Holy Water).\n• Scrolls of Upgrade raise an item's level.\n• Wands have limited charges — a Scroll of Recharging refills them.\n• Rings grant passive bonuses.`,
   },
   {
     title: 'Talents',

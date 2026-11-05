@@ -6,13 +6,16 @@ import ts from 'typescript';
 import { isModalOpen } from '../src/games/rogue0/context.ts';
 
 // entity.ts imports Phaser for types only, so load it with imports stripped
-// (the same harness the appearance suite uses) to test the discovery listing.
+// (the same harness the appearance suite uses) to test the knowledge listing.
 const source = fs.readFileSync('src/games/rogue0/entity.ts', 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
 const exports = {};
 const rendering = {};
 new Function('exports', ts.transpile(fs.readFileSync('src/games/rogue0/rendering.ts', 'utf8'), { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(rendering);
 new Function('exports', ...Object.keys(rendering), ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports, ...Object.values(rendering));
-const { Entity, identify, consumableKnowledge, appearanceLabel, resetConsumableAppearances } = exports;
+const {
+  Entity, identify, consumableKnowledge, appearanceLabel, resetConsumableAppearances,
+  prewarmConsumableAppearances, CONSUMABLE_NAMES,
+} = exports;
 
 const context = {
   messages: [],
@@ -29,58 +32,74 @@ const make = (name, category) => {
 };
 const page = category => consumableKnowledge(context, category);
 
-// An empty run has nothing to list.
-assert.deepEqual(page('potion'), []);
-assert.deepEqual(page('scroll'), []);
-
-const frost = make('Potion of Frost', 'potion');
-const healing = make('Potion of Healing', 'potion');
-const minor = make('Minor Heal Potion', 'potion');
-make('Scroll of Fireball', 'scroll');
-
-// Found kinds appear, unidentified, without leaking the real name.
-const unknownPotions = page('potion');
-assert.equal(unknownPotions.length, 3);
-for (const entry of unknownPotions) {
-  assert.equal(entry.category, 'potion');
-  assert.equal(entry.identified, false);
-  assert.ok(entry.alias.length > 0);
-  assert.ok(['Potion of Frost', 'Potion of Healing', 'Minor Heal Potion'].includes(entry.name));
-  // The icon shown on the page is the appearance the hero already sees.
-  const item = [frost, healing, minor].find(candidate => candidate.name === entry.name);
-  assert.equal(entry.appearance, item.spriteTextureKey);
-  assert.equal(entry.alias, item.unidentifiedName);
+// The catalogue must match the real item classes: every consumable in items/
+// has to be listed, and nothing may be listed that does not exist.
+const itemFiles = fs.readdirSync('src/games/rogue0/items').filter(name => name.endsWith('.ts'));
+const declared = { potion: new Set(), scroll: new Set() };
+for (const file of itemFiles) {
+  const text = fs.readFileSync(`src/games/rogue0/items/${file}`, 'utf8');
+  const category = /textureKey\s*=\s*["'](potion|scroll)-/.exec(text)?.[1];
+  if (!category) continue;
+  const name = /(?:this\.)?name(?:: string)?\s*=\s*["']([^"']+)["']/.exec(text)?.[1];
+  assert.ok(name, `${file} declares a name`);
+  declared[category].add(name);
 }
-// Categories never bleed into each other.
-assert.deepEqual(page('scroll').map(entry => entry.name), ['Scroll of Fireball']);
+for (const category of ['potion', 'scroll']) {
+  assert.deepEqual([...CONSUMABLE_NAMES[category]].sort(), [...declared[category]].sort(),
+    `${category} catalogue matches items/`);
+}
 
-// Identifying reveals the real name and moves the entry to the top group.
-identify(frost);
+// A fresh run lists every potion and every scroll, unidentified, by gibberish
+// name -- nothing is hidden until it is first found.
 const potions = page('potion');
-assert.equal(potions[0].name, 'Potion of Frost');
-assert.equal(potions[0].identified, true);
-assert.equal(potions[0].alias, frost.unidentifiedName, 'the alias stays stable after identification');
-// Identified names sort alphabetically among themselves.
-const identifiedNames = potions.filter(entry => entry.identified).map(entry => entry.name);
-assert.deepEqual(identifiedNames, [...identifiedNames].sort((a, b) => a.localeCompare(b)));
-// Unknown labels sort among themselves, so their order cannot hint at names.
-const unknownAliases = potions.filter(entry => !entry.identified).map(entry => entry.alias);
-assert.deepEqual(unknownAliases, [...unknownAliases].sort((a, b) => a.localeCompare(b)));
+assert.equal(potions.length, CONSUMABLE_NAMES.potion.length);
+assert.equal(page('scroll').length, CONSUMABLE_NAMES.scroll.length);
+for (const [category, entries] of [['potion', potions], ['scroll', page('scroll')]]) {
+  assert.deepEqual(entries.map(entry => entry.name).sort(), [...CONSUMABLE_NAMES[category]].sort());
+  assert.equal(new Set(entries.map(entry => entry.alias)).size, entries.length, 'unique aliases');
+  assert.equal(new Set(entries.map(entry => entry.appearance)).size, entries.length, 'unique appearances');
+  for (const entry of entries) {
+    assert.equal(entry.category, category);
+    assert.equal(entry.identified, false);
+    assert.match(entry.alias, /^[A-Z][a-z]+$/);
+    assert.equal(entry.alias, appearanceLabel(entry.appearance));
+  }
+}
 
-// Copies of an identified kind are known immediately, even when carried.
+// The listing is stable: opening it again changes neither order nor labels.
+const order = potions.map(entry => entry.appearance);
+prewarmConsumableAppearances(context);
+assert.deepEqual(page('potion').map(entry => entry.alias), potions.map(entry => entry.alias));
+assert.deepEqual(page('potion').map(entry => entry.appearance), order);
+
+// A found copy shows the same gibberish name the page already lists, and a
+// newly found kind never adds, removes or reorders a row.
+const frost = make('Potion of Frost', 'potion');
+const frostEntry = page('potion').find(entry => entry.name === 'Potion of Frost');
+assert.equal(frostEntry.appearance, frost.spriteTextureKey);
+assert.equal(frostEntry.alias, frost.unidentifiedName);
+assert.deepEqual(page('potion').map(entry => entry.appearance), order);
+
+// Identifying replaces the gibberish name with the true name in place.
+const index = page('potion').findIndex(entry => entry.name === 'Potion of Frost');
+identify(frost);
+const identified = page('potion');
+assert.equal(identified[index].name, 'Potion of Frost');
+assert.equal(identified[index].identified, true);
+assert.equal(identified[index].alias, frost.unidentifiedName, 'the alias stays stable after identification');
+assert.deepEqual(identified.map(entry => entry.appearance), order, 'rows never move');
+// Copies are known immediately and never duplicate an entry.
 const carried = Object.assign(new Entity(), { context, name: 'Potion of Frost', textureKey: 'potion-red' });
 assert.equal(carried.identified, true);
-assert.equal(page('potion').length, 3, 'copies never add duplicate entries');
+assert.equal(page('potion').length, CONSUMABLE_NAMES.potion.length);
+// Only the identified kind changes; every other potion keeps its alias.
+assert.equal(page('potion').filter(entry => entry.identified).length, 1);
+assert.equal(page('scroll').filter(entry => entry.identified).length, 0);
 
-// A new run forgets everything.
+// A new run forgets discoveries but still lists the whole catalogue.
 resetConsumableAppearances(context);
-assert.deepEqual(page('potion'), []);
-assert.deepEqual(page('scroll'), []);
-
-// The scrambled label helper is shared and stable.
-assert.equal(appearanceLabel('potion-3'), appearanceLabel('potion-3'));
-assert.notEqual(appearanceLabel('potion-3'), appearanceLabel('potion-4'));
-assert.match(appearanceLabel('scroll-fireball'), /^[A-Z][a-z]+$/);
+assert.equal(page('potion').length, CONSUMABLE_NAMES.potion.length);
+assert.equal(page('potion').filter(entry => entry.identified).length, 0);
 
 // Finding a kind never opens or closes anything by itself, but the knowledge
 // modal must pause the world while it is up.

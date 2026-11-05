@@ -85,8 +85,8 @@ export class KnowledgeWindow {
     if (this.open) this.render();
   }
 
-  // Rebuild only when the knowledge changed (a potion was identified, found
-  // or used since the last frame).
+  // Rebuild only when the knowledge changed (a kind was identified, or the
+  // scene was resized).
   refresh(): void {
     if (!this.open) return;
     if (this.describeKnowledge() === this.signature) return;
@@ -156,6 +156,8 @@ export class KnowledgeWindow {
         .rectangle(0, 0, WINDOW_W, windowH, C.panel, 0.98)
         .setOrigin(0)
         .setStrokeStyle(2, C.borderStrong, 1)
+        // Swallow taps on the window body so only the outside overlay closes it.
+        .setInteractive()
     );
     this.root.add(
       this.scene.add
@@ -229,7 +231,7 @@ export class KnowledgeWindow {
     // appears only once the kind has been identified.
     if (!entries.length) {
       this.root.add(
-        this.scene.add.text(PAD, rowsY + 4, `No ${this.page}s found yet.`, {
+        this.scene.add.text(PAD, rowsY + 4, `No ${this.page} appearances assigned.`, {
           fontFamily: `${FONT_MONO}, monospace`, fontSize: 18,
           color: COL.muted
         })
@@ -257,7 +259,7 @@ export class KnowledgeWindow {
     const known = entries.filter(entry => entry.identified).length;
     const footer = entries.length
       ? `${known}/${entries.length} identified — use unknown ones to learn`
-      : `Nothing found yet. Unidentified ${this.page}s will appear here.`;
+      : `Nothing to show for ${this.page}s.`;
     this.root.add(
       this.scene.add.text(PAD, rowsY + listH + 8, footer, {
         fontFamily: `${FONT_MONO}, monospace`, fontSize: 15,
