@@ -103,7 +103,7 @@ function wand(Type, context, x, y, level = 0) {
   assert.equal(right.charges, 4, 'remaining charges combine instead of resetting');
   assert.equal(right.damage(), before * 2, 'the fused wand deals twice the damage');
   assert.match(right.displayName, /×2$/);
-  assert.match(right.baseDescription, /multiplied by 2/);
+  assert.ok(!right.baseDescription.includes('Fused from'), 'fusion detail is not spelled out in the description');
   assert.ok(ctx.messages.some(line => /fuse the wands into Wand of Firebolt ×2/.test(line)));
   assert.equal(result.leftX, 5);
   assert.equal(result.rightX, 6);

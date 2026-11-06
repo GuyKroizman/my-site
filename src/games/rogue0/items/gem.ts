@@ -5,7 +5,7 @@ import type { GameContext } from "../context";
 
 export default class Gem extends Entity {
   name: string = "Gem";
-  description: string = "Use to choose a weapon or armor to permanently upgrade. Stat gains depend on the equipment. Consumes one gem and one turn only when you choose equipment.";
+  description: string = "Use to permanently upgrade a weapon or armor.";
   consumable = true;
   type: EntityType = "item";
   tile = 4 * 49 + 23;

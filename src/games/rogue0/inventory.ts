@@ -85,8 +85,7 @@ export function createInventoryActions(services: InventoryServices) {
     const wasIdentified = item.identified;
     if (item.isPhysicalEquipment) item.identified = true;
     item.equip();
-    const detail = item.identified ? `: ${item.displayDescription}` : '';
-    services.log(owner.context, `You equip ${item.displayName}${detail}.`);
+    services.log(owner.context, `You equip ${item.displayName}.`);
     if (!wasIdentified && (item.isPhysicalEquipment || item.equipSlot === 'ring' || item.equipSlot === 'artifact')) {
       services.log(owner.context, item.cursed
         ? `${item.displayName} is cursed and cannot be removed until its curse is lifted.`

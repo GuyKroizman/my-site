@@ -20,8 +20,8 @@ export default class RingOfElements extends Ring {
   get baseDescription(): string {
     const amount = ELEMENTAL_RESISTANCE + this.level;
     return this.cursed
-      ? `Makes you vulnerable to fire, ice and shock (${amount} each) while equipped. Each upgrade worsens it by 1.`
-      : `Resists fire, ice and shock (${amount} each) while equipped. Each upgrade adds +1 resistance to each element.`;
+      ? `Makes you vulnerable to fire, ice and shock (${amount} each) while equipped.`
+      : `Resists fire, ice and shock (${amount} each) while equipped.`;
   }
 
   applyPassive() {

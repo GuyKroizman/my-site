@@ -332,7 +332,7 @@ for (let tier = 1; tier <= 5; tier++) {
       assert.equal(item.level, level);
       maximum = false; assert.equal(item.damage(), min + level);
       maximum = true; assert.equal(item.damage(), max + (tier + 1) * level);
-      assert.ok(item.baseDescription.includes(`+${tier + 1} maximum damage`));
+      assert.ok(item.baseDescription.includes(`between ${min + level} and ${max + (tier + 1) * level} damage`));
       upgrade(item);
       assert.equal(item.tier, tier);
     }
@@ -341,7 +341,7 @@ for (let tier = 1; tier <= 5; tier++) {
   armor.tier = tier;
   for (let level = 0; level <= 5; level++) {
     assert.equal(armor.protection(), 1 + tier * level);
-    assert.ok(armor.baseDescription.includes(`Each upgrade adds ${tier} protection`));
+    assert.ok(armor.baseDescription.includes(`Gives +${1 + tier * level} protection`));
     upgrade(armor);
     assert.equal(armor.tier, tier);
   }
@@ -366,7 +366,8 @@ for (const [name, min, max] of [['WandOfFirebolt', 3, 6], ['WandOfFrost', 2, 5],
     const before = wand.charges;
     assert.ok(wand.displayDescription.includes(`between ${min + level} and ${max + level} damage`));
     assert.equal(wand.range(), Infinity);
-    assert.ok(wand.displayDescription.includes('No distance limit'));
+    assert.ok(!wand.displayDescription.includes('No distance limit'));
+    assert.ok(!/Upgrades add|Recovers|Fused from/.test(wand.displayDescription));
     assert.ok(!wand.displayDescription.includes('Infinity'));
     assert.equal(wand.charges, before, 'describing a wand must not consume charges');
     maximum = false; assert.equal(wand.damage(), min + level);
@@ -448,7 +449,7 @@ const monster = Object.assign(Object.create(Monster.prototype), {
 });
 context.player.gainXp = () => {};
 monster.onDestroy();
-assert.ok(chalice.displayDescription.includes('0/5 monster kills'), 'unequipped kills do not count');
+assert.ok(chalice.displayDescription.includes('Slowly regenerates health'), 'description stays short');
 context.player.artifact = chalice;
 for (let level = 1; level <= 10; level++) {
   assert.equal(chalice.level, level);
@@ -467,7 +468,7 @@ for (let level = 1; level <= 10; level++) {
   assert.equal(chalice.killsToNextLevel, threshold);
   for (let i = 0; i < threshold - 1; i++) monster.onDestroy();
   assert.equal(chalice.level, level, 'must not level early');
-  assert.ok(chalice.displayDescription.includes(`${threshold - 1}/${threshold} monster kills`));
+  assert.equal(chalice.displayDescription, 'Slowly regenerates health while equipped.', 'progress is not shown in the description');
   context.player.healthPoints = context.player.maxHealthPoints;
   monster.onDestroy(); // Kills count even at full health.
   assert.equal(chalice.level, level + 1);
@@ -475,7 +476,7 @@ for (let level = 1; level <= 10; level++) {
 for (let i = 0; i < 1000; i++) { monster.onDestroy(); healingTick(); }
 assert.equal(chalice.level, 10);
 assert.equal(context.player.healthPoints, 91);
-assert.match(chalice.displayDescription, /Level 10\/10.*1 health every 1 world turn.*Maximum level reached/);
+assert.equal(chalice.displayDescription, 'Slowly regenerates health while equipped.');
 upgrade(chalice);
 assert.equal(chalice.level, 10, 'generic upgrades must respect the artifact cap');
 healingTick(1);

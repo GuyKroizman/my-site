@@ -47,13 +47,9 @@ export default class ChaliceOfBlood extends Entity {
   }
 
   get baseDescription(): string {
-    const progress = this.level >= this.maxLevel
-      ? "Maximum level reached."
-      : `${this.bloodProgress}/${this.killsToNextLevel} monster kills while equipped toward the next level.`;
-    const pulse = this.cursed
-      ? `Drains 1 health every ${this.healingInterval} world turn${this.healingInterval === 1 ? "" : "s"} while equipped.`
-      : `Regenerates 1 health every ${this.healingInterval} world turn${this.healingInterval === 1 ? "" : "s"} while equipped.`;
-    return `Level ${this.level}/${this.maxLevel}. ${pulse} ${progress} At level 10: 1 health per turn.`;
+    return this.cursed
+      ? "Slowly drains health while equipped."
+      : "Slowly regenerates health while equipped.";
   }
 
   constructor(context: GameContext, x?: number, y?: number) {

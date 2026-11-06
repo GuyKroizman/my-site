@@ -113,7 +113,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.throws(() => decodeRunSave({ ...save, version: 999 }, {}), /Invalid saved run/);
   assert.equal(restored.requiresItemTarget, true);
   assert.equal(restored.itemTargetTitle, 'UPGRADE: CHOOSE ITEM');
-  assert.match(restored.description, /Choose/);
+  assert.match(restored.description, /choose/);
   assert.equal(restored.count, 3);
   assert.equal(restored.identified, true);
   const savedIce = run.floors.get(1).entities[0];

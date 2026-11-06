@@ -20,8 +20,8 @@ export default class RingOfAccuracy extends Ring {
   get baseDescription(): string {
     const amount = ACCURACY_BONUS * (1 + this.level);
     return this.cursed
-      ? `Reduces accuracy by ${amount} while equipped. Each upgrade worsens it by 5.`
-      : `Grants +${amount} accuracy while equipped. Each upgrade adds +5 accuracy.`;
+      ? `Reduces accuracy by ${amount} while equipped.`
+      : `Grants +${amount} accuracy while equipped.`;
   }
 
   private changeAccuracy(amount: number): void {

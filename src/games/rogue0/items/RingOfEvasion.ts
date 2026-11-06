@@ -20,8 +20,8 @@ export default class RingOfEvasion extends Ring {
   get baseDescription(): string {
     const amount = EVASION_BONUS * (1 + this.level);
     return this.cursed
-      ? `Reduces evasion by ${amount} while equipped. Each upgrade worsens it by 5.`
-      : `Grants +${amount} evasion while equipped. Each upgrade adds +5 evasion.`;
+      ? `Reduces evasion by ${amount} while equipped.`
+      : `Grants +${amount} evasion while equipped.`;
   }
 
   applyPassive() {

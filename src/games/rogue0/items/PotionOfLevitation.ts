@@ -14,7 +14,7 @@ export default class PotionOfLevitation extends Entity {
     this.tile = 13 * 49 + 44;
     this.textureKey = "potion-gold";
     this.name = "Potion of Levitation";
-    this.description = "Float for 20 world-time units: cross chasms and avoid ground traps, water and grass. If flight ends over a chasm, fall to the next floor and lose one-third of maximum HP (ignores armour, can be lethal). Falling on the final floor is fatal.";
+    this.description = "Float for 20 turns: cross chasms and avoid ground hazards. If it ends over a chasm, you fall.";
     this.consumable = true;
 
     this.init(context, x, y);

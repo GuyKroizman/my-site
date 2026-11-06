@@ -22,7 +22,7 @@ export default class Hammer extends Entity {
     }
 
     get baseDescription(): string {
-      return `A basic war hammer. Causes between ${3 + this.level} and ${8 + (this.tier + 1) * this.level} damage. Upgrades add +1 minimum and +${this.tier + 1} maximum damage. Slow attack (${this.attackDelay} time).`;
+      return `A basic war hammer. Causes between ${3 + this.level} and ${8 + (this.tier + 1) * this.level} damage. Slow attack (${this.attackDelay} time).`;
     }
 
     damage() {

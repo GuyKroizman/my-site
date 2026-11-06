@@ -7,7 +7,7 @@ import { removeEntity } from "../entity";
 
 export default class HolyPotion extends Entity {
   name: string = "Holy Potion";
-  description: string = "Choose one cursed item in your inventory to cleanse. The item is kept, and its curse is lifted.";
+  description: string = "Choose one cursed item in your inventory to lift its curse.";
   requiresItemTarget = true;
   moving: boolean = false;
   type: EntityType = "item";

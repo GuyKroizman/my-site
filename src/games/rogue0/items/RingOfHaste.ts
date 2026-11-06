@@ -19,8 +19,8 @@ export default class RingOfHaste extends Ring {
 
   get baseDescription(): string {
     return this.cursed
-      ? `Divides movement speed by ${this.speedMultiplier} while equipped. Each upgrade worsens the slow. Does not affect attacks. Stacks with another ring and temporary Haste.`
-      : `Multiplies movement speed by ${this.speedMultiplier} while equipped. Each upgrade adds 0.5 to this multiplier. Does not speed up attacks. Stacks with another ring and temporary Haste.`;
+      ? `Divides movement speed by ${this.speedMultiplier} while equipped. Does not affect attacks.`
+      : `Multiplies movement speed by ${this.speedMultiplier} while equipped. Does not affect attacks.`;
   }
 
   applyPassive() {

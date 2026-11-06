@@ -9,7 +9,7 @@ export default class Gold extends Entity {
     super();
     this.goldAmount = amount;
     this.name = `${amount} gold`;
-    this.description = "A pile of gold coins. Pick it up to add it to your gold balance; no backpack space needed.";
+    this.description = "A pile of gold coins.";
     this.init(context, x, y);
   }
 

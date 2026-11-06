@@ -7,7 +7,7 @@ import Wand from "./wand";
 export default class ScrollOfUpgrade extends Entity {
   name: string = "Scroll of Upgrade";
   description: string =
-    "Choose a weapon, armor, ring, or wand from your equipment or backpack to upgrade. Consumes one scroll and one turn only after you choose.";
+    "Use to choose a weapon, armor, ring, or wand to upgrade.";
   requiresItemTarget = true;
   itemTargetTitle = "UPGRADE: CHOOSE ITEM";
   noItemTargetsMessage = "You have no items that can be upgraded.";

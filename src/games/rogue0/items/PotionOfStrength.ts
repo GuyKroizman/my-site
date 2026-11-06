@@ -14,7 +14,7 @@ export default class PotionOfStrength extends Entity {
     this.tile = 13 * 49 + 39;
     this.textureKey = "potion-red";
     this.name = "Potion of Strength";
-    this.description = "Permanently grants +1 Strength, helping you wield heavier weapons and armor.";
+    this.description = "Permanently grants +1 Strength.";
     this.consumable = true;
 
     this.init(context, x, y);

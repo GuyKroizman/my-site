@@ -12,7 +12,7 @@ import { TieredWeapon, TieredArmor } from './tieredEquipment';
 export default class Chest extends Entity {
   type = 'item' as const;
   name = 'Treasure Chest';
-  description = 'A wooden treasure chest. Walk into it to open it and reveal gold, food, or an item. Opening costs one turn.';
+  description = 'A wooden treasure chest. Walk into it to open it.';
   tile = 6 * 49 + 8;
   isContainer = true;
   private opened = false;

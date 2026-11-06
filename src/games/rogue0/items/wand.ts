@@ -96,10 +96,7 @@ export default abstract class Wand extends Entity {
   get baseDescription(): string {
     const [min, max] = this.damageBounds;
     const power = this.fusionPower;
-    const fusion = power > 1
-      ? ` Fused from ${power} wands: damage and charge capacity are multiplied by ${power}.`
-      : "";
-    return `${this.description} Causes between ${(min + this.level) * power} and ${(max + this.level) * power} damage. No distance limit; walls and blocked lines of sight stop zaps. Charges: ${this.charges}/${this.maxCharges}. Upgrades add +1 current charge and +1 per fusion level to maximum charges. Recovers 1 charge every ${this.rechargeInterval ?? 20} world-time units while carried.${fusion}`;
+    return `${this.description} Causes between ${(min + this.level) * power} and ${(max + this.level) * power} damage. Charges: ${this.charges}/${this.maxCharges}.`;
   }
 
   equip() {}

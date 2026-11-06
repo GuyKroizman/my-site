@@ -7,7 +7,7 @@ export default class Sword extends Entity{
 
   name: string = "A Sword";
   get baseDescription(): string {
-    return `A basic sword. Causes between ${1 + this.level} and ${5 + (this.tier + 1) * this.level} damage. Upgrades add +1 minimum and +${this.tier + 1} maximum damage.`;
+    return `A basic sword. Causes between ${1 + this.level} and ${5 + (this.tier + 1) * this.level} damage.`;
   }
   type:EntityType =  "item";
   healthPoints: number = 0;

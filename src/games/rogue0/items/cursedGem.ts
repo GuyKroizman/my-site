@@ -8,7 +8,7 @@ import { CURSE_NAMES } from "../curseData";
 export default class CursedGem extends Entity {
   name: string = "Cursed Gem";
   description: string =
-    "Use to choose a cursed weapon or armor you carry. Its curse is replaced with a different random curse. The gem is consumed.";
+    "Use to replace the curse on a carried cursed weapon or armor.";
   moving: boolean = false;
   type: EntityType = "item";
   tile = 4 * 49 + 22;

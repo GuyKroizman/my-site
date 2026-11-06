@@ -32,10 +32,9 @@ export default class FangOfTheBeast extends Entity {
 
   get baseDescription(): string {
     const amount = 2 + this.level;
-    const effect = this.cursed
-      ? `Reduces damage by ${amount} while equipped`
-      : `Grants +${amount} damage while equipped`;
-    return `A fang that hungers for battle. ${effect}. Grows stronger every ${STRIKES_TO_LEVEL} strikes (${this.strikes}/${STRIKES_TO_LEVEL}).`;
+    return this.cursed
+      ? `A fang that hungers for battle. Reduces damage by ${amount} while equipped.`
+      : `A fang that hungers for battle. Grants +${amount} damage while equipped.`;
   }
 
   damage() {

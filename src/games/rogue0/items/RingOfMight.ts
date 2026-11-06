@@ -24,7 +24,7 @@ export default class RingOfMight extends Ring {
   get baseDescription(): string {
     const amount = 2 + this.level;
     return this.cursed
-      ? `Reduces damage by ${amount} while equipped. Each upgrade worsens it by 1.`
+      ? `Reduces damage by ${amount} while equipped.`
       : `Grants +${amount} damage while equipped.`;
   }
 

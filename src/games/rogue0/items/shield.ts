@@ -22,7 +22,7 @@ export default class Shield extends Entity {
 
 
   get baseDescription(): string {
-    return `A basic shield. Gives +${this.protection()} protection. Each upgrade adds ${this.tier} protection.`;
+    return `A basic shield. Gives +${this.protection()} protection.`;
   }
 
   damage() {
