@@ -27,6 +27,7 @@ import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisu
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
 import { TRAP_ALPHA, TRAP_TEXTURE, generateTrapTextures, trapFrame } from './trapVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
+import { updateGasVisuals, clearGasVisuals } from './gasVisuals';
 import { removeEntity } from './entity';
 import { decodeRunSave, restoreRunState, type RunState, type SavedFloor } from './runPersistence';
 import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects } from './rendering';
@@ -196,7 +197,6 @@ export class Scene0 extends Phaser.Scene {
 
   private lastVisionState = "";
   private mindMarkers!: Phaser.GameObjects.Graphics;
-  private gasOverlay?: Phaser.GameObjects.Graphics;
 
   private getVision() {
     const player = this.context.player;
@@ -274,6 +274,7 @@ export class Scene0 extends Phaser.Scene {
       clearHeroChilled(this);
       clearWandZaps(this);
       clearWandFusionVisuals(this);
+      clearGasVisuals(this);
       this.context.onGrassBurn = undefined;
       this.context.onWandZap = undefined;
       this.context.onLiquidFlameShatter = undefined;
@@ -346,7 +347,6 @@ export class Scene0 extends Phaser.Scene {
     // Fog-of-war overlay drawn above tiles and entities.
     this.fog = this.add.graphics().setDepth(100);
     this.mindMarkers = this.add.graphics().setDepth(101);
-    this.gasOverlay = this.add.graphics().setDepth(99);
 
     // Inspect/throw cursor, drawn above entities and fog.
     this.cursor = this.add.graphics().setDepth(300);
@@ -575,6 +575,7 @@ export class Scene0 extends Phaser.Scene {
     this.updateWater(this.time.now);
     updateWandZaps(this, this.context, this.time.now, isModalOpen(this.context));
     updateGrassBurns(this, this.context, this.time.now, isModalOpen(this.context));
+    updateGasVisuals(this, this.context, this.time.now, isModalOpen(this.context));
     // Use interpolated sprite positions so walking/lunging actors swap order
     // smoothly, including monsters and items spawned after floor creation.
     for (const entity of this.context.entities) {
@@ -1130,18 +1131,6 @@ export class Scene0 extends Phaser.Scene {
     for (const [key, decal] of this.wallDecals ?? []) {
       const [x, y] = key.split(',').map(Number);
       decal.sprite.setVisible(this.seen[y]?.[x] === true);
-    }
-    this.gasOverlay?.clear();
-    const now = this.context.simulationTime ?? 0;
-    for (const cloud of this.context.poisonClouds ?? []) {
-      if (cloud.expiresAt <= now + 1e-9 || !this.visible.has(`${cloud.x},${cloud.y}`)) continue;
-      // New clouds fade out over their remaining lifetime; legacy saves render
-      // at the old constant opacity.
-      const alpha = cloud.bornAt !== undefined && cloud.expiresAt > cloud.bornAt + 1e-9
-        ? 0.4 * Math.max(0, Math.min(1, (cloud.expiresAt - now) / (cloud.expiresAt - cloud.bornAt)))
-        : 0.4;
-      this.gasOverlay?.fillStyle(0x88bb44, alpha);
-      this.gasOverlay?.fillRect(cloud.x * 16, cloud.y * 16, 16, 16);
     }
     const foreground = foregroundEntities(this.context.entities, player);
 
