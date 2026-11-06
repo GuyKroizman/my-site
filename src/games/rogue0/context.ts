@@ -116,6 +116,9 @@ export type GameContext = {
   onDescend?: () => void;
   // Resolved by the scene after the current scheduler event, never mid-iteration.
   pendingFall?: boolean;
+  // Count of visible trap arrows still in flight. Their damage lands when the
+  // arrow arrives, so the scheduler holds every later event until then.
+  pendingTrapArrows?: number;
   // Re-centers the camera on the player after a free pan.
   onResumeFollow?: () => void;
   onEnd?: (result: EndResult) => void;

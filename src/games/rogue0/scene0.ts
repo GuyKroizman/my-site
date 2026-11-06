@@ -639,6 +639,7 @@ export class Scene0 extends Phaser.Scene {
     // Animation callbacks may still land attacks or drops. Keep the previous
     // complete checkpoint rather than persisting a half-applied action.
     if (this.ended || !context.player || context.player.healthPoints <= 0 || context.pendingFall ||
+        (context.pendingTrapArrows ?? 0) > 0 ||
         context.entities.some(entity => entity.moving)) return;
     const now = performance.now();
     if (!force && this.lastSaveTime === context.simulationTime && now - this.lastSaveCheck < 250) return;
@@ -1032,6 +1033,7 @@ export class Scene0 extends Phaser.Scene {
     if (this.ended || isModalOpen(this.context)) return;
     const p = this.context.player;
     if (!p || p.x === undefined || p.y === undefined || !p.canAct() ||
+        (this.context.pendingTrapArrows ?? 0) > 0 ||
         this.context.entities.some(entity => entity.moving)) return;
 
     if (p.x === this.context.stairsX && p.y === this.context.stairsY) {

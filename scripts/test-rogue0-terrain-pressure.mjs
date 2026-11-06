@@ -7,8 +7,11 @@ const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindin
 const tiles = load('tiles');
 const fov = load('fov', tiles);
 const { generateMap, findFarthestWalkable, floorHasSecretRoom } = load('mapgen', tiles);
+// The shared hit presentation (impact sound, flash, sparks) now also runs for
+// landed trap arrows, so every fixture provides the same audio surface.
+const sfxStub = { step() {}, hit() {}, hurt() {}, deflect() {}, surpriseHit() {}, death() {} };
 const dungeon = load('dungeon', { PF, tiles, ...fov,
-  hasEffect: () => false, sfx: { step() {} },
+  hasEffect: () => false, sfx: sfxStub,
   removeEntity: (ctx, e) => { ctx.entities = ctx.entities.filter(v => v !== e); }
 }).default;
 let changes = 0;
@@ -177,7 +180,7 @@ assert.equal(ctx.entities[0].healthPoints, 5);
 const walker = actor('enemy', 2, 3);
 ctx = setup([walker]);
 ctx.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
-ctx.scene = {};
+ctx.scene = sceneStub();
 dungeon.moveEntityTo(ctx, walker, 3, 3);
 assert.equal(walker.healthPoints, 5, 'monster stepping triggers plate at new position');
 // Search reveals traps but never disables them, even on repeated use.
@@ -213,16 +216,70 @@ tiles.setFeature(4, 3, 'door');
 dungeon.triggerArrowTrap(ctx, 3, 3);
 assert.equal(ctx.entities[0].healthPoints, 10);
 
+// A visible arrow lands its damage only when the arrow arrives. Resolving it on
+// the firing frame let the victim take the hit and then move away while the
+// projectile was still in the air, which reads as a miss.
+{
+  const flights = [];
+  ctx = setup([actor('enemy', 4, 3)]);
+  renderContext(ctx);
+  ctx.scene.tweens = { add(opts) { flights.push(opts); }, killTweensOf() {} };
+  ctx.visibleTiles.add('3,3');
+  ctx.visibleTiles.add('4,3');
+  dungeon.triggerArrowTrap(ctx, 3, 3);
+  assert.equal(flights.length, 1, 'a visible arrow flies at the victim');
+  assert.equal(flights[0].x, 4 * 16 + 8, 'the arrow flies to the victim tile');
+  assert.equal(ctx.entities[0].healthPoints, 10, 'the hit waits for the arrow');
+  assert.equal(ctx.pendingTrapArrows, 1);
+  assert.equal(ctx.messages[0], 'The arrow trap fires!');
+  assert.equal(ctx.messages.length, 1, 'the hit is not logged on the firing frame');
+  // Nobody may take a turn through a flying arrow.
+  const { TurnManager } = load('turnManager');
+  const turns = [];
+  const manager = new TurnManager({ hasEffect: () => false, removeEffect() {}, log() {} });
+  const skeleton = ctx.entities[0];
+  skeleton.context = ctx;
+  skeleton.effects = [];
+  skeleton.turn = () => turns.push('skeleton');
+  const hero = actor('player', 1, 3);
+  hero.context = ctx;
+  hero.effects = [];
+  hero.turn = () => turns.push('hero');
+  ctx.entities.push(hero);
+  manager.reset(ctx.entities);
+  manager.update(ctx.entities);
+  assert.deepEqual(turns, [], 'no turn resolves while the arrow is in flight');
+  flights.shift().onComplete();
+  assert.equal(skeleton.healthPoints, 5, 'the arrow hits when it arrives');
+  assert.equal(ctx.pendingTrapArrows, 0);
+  assert.equal(ctx.messages[0], 'The arrow hits enemy for 5 damage.');
+  manager.update(ctx.entities);
+  assert.deepEqual(turns, ['hero'], 'the next turn resolves once the arrow lands');
+}
+// An unseen hit has no projectile to watch, so it resolves immediately.
+ctx = setup([actor('enemy', 4, 3)]);
+renderContext(ctx);
+dungeon.triggerArrowTrap(ctx, 3, 3);
+assert.equal(ctx.entities[0].healthPoints, 5, 'an unseen hit resolves at once');
+assert.equal(ctx.pendingTrapArrows, undefined, 'nothing waits on an unseen arrow');
+
 function sprite() {
-  return { setOrigin() { return this; }, setDepth() { return this; },
+  return { tint: 0xffffff, setTint(tint) { this.tint = tint; return this; },
+    setOrigin() { return this; }, setDepth() { return this; },
     setScale(scale) { this.scale = scale; return this; },
     setRotation() { return this; }, setPosition() { return this; }, destroy() {} };
 }
+// A landed hit flashes its sprite, throws sparks and plays a sound, so a fake
+// scene carries the pieces the shared presentation touches.
+function fakeParticles() { return { explode() {}, destroy() {} }; }
+function sceneStub(tweens) {
+  return { add: { sprite, particles: () => fakeParticles() },
+    tweens: tweens ?? { add(opts) { opts.onComplete?.(); }, killTweensOf() {} },
+    time: { delayedCall() {} } };
+}
 function renderContext(ctx) {
   ctx.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
-  ctx.scene = { add: { sprite }, tweens: {
-    add(opts) { opts.onComplete?.(); }, killTweensOf() {}
-  } };
+  ctx.scene = sceneStub();
   return ctx;
 }
 function throwingHero(count = 3, Item) {
@@ -384,9 +441,9 @@ for (const Item of [undefined, Potion, Gem]) {
 
 // Exercise actual shared death cleanup: onDestroy sees landing coordinates,
 // coordinates/sprites are then cleared, and no movement tween revives it.
-const realRemove = load('entity', { sfx: { death() {} } }).removeEntity;
+const realRemove = load('entity', { sfx: sfxStub }).removeEntity;
 const deathDungeon = load('dungeon', { PF, tiles, ...fov, hasEffect: () => false,
-  sfx: { step() {} }, removeEntity: realRemove }).default;
+  sfx: sfxStub, removeEntity: realRemove }).default;
 for (const type of ['player', 'enemy']) {
   for (const visible of [false, true]) {
     const victim = actor(type, 2, 3, 4);
@@ -409,7 +466,7 @@ assert.ok(changes > 0);
 // Exercise real levitation effects and terrain together, including fractional
 // expiry timing. Rendering is synchronous; logical time advances only explicitly.
 const flightDungeon = load('dungeon', { PF, tiles, ...fov,
-  removeEntity: load('entity', { sfx: { death() {} } }).removeEntity,
+  removeEntity: load('entity', { sfx: sfxStub }).removeEntity,
   hasEffect: (e, id) => e.effects.some(effect => effect.id === id),
   removeEffect: (e, id) => flightEffects.removeEffect(e, id),
   applyEffect: (e, effect) => flightEffects.applyEffect(e, effect),
@@ -419,7 +476,7 @@ const flightDungeon = load('dungeon', { PF, tiles, ...fov,
   createChilledEffect: duration => flightEffects.createChilledEffect(duration),
   createCrippledEffect: duration => flightEffects.createCrippledEffect(duration),
   createConfusedEffect: () => flightEffects.createConfusedEffect(),
-  sfx: { step() {} }
+  sfx: sfxStub
 }).default;
 const flightEffects = load('effects', { dungeon: flightDungeon, spawnEntityFloatingText() {} });
 // A chasm beside a diagonal is empty space, not a solid corner. Reproduce

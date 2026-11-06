@@ -33,6 +33,12 @@ export const Sprites = {
 
 const tileSize = 16;
 
+// Short hops stay snappy, long shots stay readable. The simulation waits out
+// this flight, so it is capped well below a single action's worth of time.
+function arrowFlightDuration(fromX: number, fromY: number, toX: number, toY: number): number {
+  return Math.min(240, 90 + Math.hypot(toX - fromX, toY - fromY) * 22);
+}
+
 const dungeon = {
   currentLevel: [] as number[][],
   layer: null as Phaser.Tilemaps.TilemapLayer | null,
@@ -240,6 +246,10 @@ const dungeon = {
 
   // A pressure plate fires once, choosing the nearest living actor of either
   // faction. Walls/closed doors stop the arrow, not the targeting mechanism.
+  // The hit lands when the arrow's head reaches its target, never on the
+  // firing frame: applying it early let a wounded monster take the damage and
+  // walk away while the arrow was still crossing the room, which reads as a
+  // miss. While an arrow flies the scheduler waits for it, like a thrown item.
   triggerArrowTrap: function (context: GameContext, x: number, y: number): boolean {
     const tiles = terrainFor(context);
     const state = tiles.getTileState(x, y);
@@ -267,22 +277,38 @@ const dungeon = {
       victim = actors.find(e => e.x === px && e.y === py);
       if (victim) break;
     }
+    // The victim is only seen walking away from an arrow the player can watch
+    // reach it, so the hit waits for a visible impact. A shot into the dark
+    // resolves at once: there is no flight to sync with.
+    const deferred = !!context.scene && !!context.map &&
+      context.visibleTiles.has(`${x},${y}`) && context.visibleTiles.has(`${endX},${endY}`);
+    let landed = false;
+    const land = () => {
+      // Tweens and their callers must never apply one arrow's hit twice.
+      if (landed) return;
+      landed = true;
+      if (deferred) context.pendingTrapArrows = Math.max(0, (context.pendingTrapArrows ?? 1) - 1);
+      if (victim && victim.healthPoints > 0) {
+        const damage = Math.max(1, 5 - victim.protection());
+        victim.takeDamage(damage);
+        this.log(context, `The arrow hits ${victim.type === "player" ? "you" : victim.name} for ${damage} damage.`);
+        this.applyHitEffects(context, victim);
+        if (victim.healthPoints <= 0) removeEntity(context, victim);
+      }
+    };
     if (context.scene && context.map && context.visibleTiles.has(`${x},${y}`)) {
-      const arrow = context.scene.add.sprite(
-        context.map.tileToWorldX(x)! + 8, context.map.tileToWorldY(y)! + 8, "bow-arrow"
+      const scene = context.scene, map = context.map;
+      const arrow = scene.add.sprite(
+        map.tileToWorldX(x)! + 8, map.tileToWorldY(y)! + 8, "bow-arrow"
       ).setOrigin(0.5).setDepth(250).setRotation(Math.atan2(endY - y, endX - x));
-      context.scene.tweens.add({ targets: arrow,
-        x: context.map.tileToWorldX(endX)! + 8, y: context.map.tileToWorldY(endY)! + 8,
-        duration: 120, onComplete: () => arrow.destroy() });
+      if (deferred) context.pendingTrapArrows = (context.pendingTrapArrows ?? 0) + 1;
+      scene.tweens.add({ targets: arrow,
+        x: map.tileToWorldX(endX)! + 8, y: map.tileToWorldY(endY)! + 8,
+        ease: "Linear", duration: arrowFlightDuration(x, y, endX, endY),
+        onComplete: () => { arrow.destroy(); land(); } });
+      return true;
     }
-    // Damage resolves immediately so subsequent simulation events cannot
-    // outrun the cosmetic projectile or target a dead actor.
-    if (victim) {
-      const damage = Math.max(1, 5 - victim.protection());
-      victim.takeDamage(damage);
-      this.log(context, `The arrow hits ${victim.type === "player" ? "you" : victim.name} for ${damage} damage.`);
-      if (victim.healthPoints <= 0) removeEntity(context, victim);
-    }
+    land();
     return true;
   },
 

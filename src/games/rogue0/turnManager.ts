@@ -42,6 +42,9 @@ export class TurnManager {
     // needs more events; never advance time while the hero is awaiting input.
     for (let events = 0; events < 256; events++) {
       if (entities.some(e => e.context.pendingFall)) return;
+      // A visible trap arrow is a hit waiting to land. Resolving anything else
+      // first lets the victim walk away while the arrow is still in the air.
+      if (entities.some(e => (e.context.pendingTrapArrows ?? 0) > 0)) return;
       const actors = entities.filter(e => e.type !== "item" && e.healthPoints > 0);
       if (!actors.some(e => e.type === "player")) return;
       for (const entity of this.known) {
