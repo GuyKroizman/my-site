@@ -26,9 +26,10 @@ export default abstract class Wand extends Entity {
   maxCharges: number = 0;
   // Pre-scaling charge capacity; maxCharges is derived from this plus level.
   baseMaxCharges: number = 0;
-  // Ordinary wands are 1. Fire-fusing two identical wands produces 2, and a
-  // later fusion of two power-2 copies produces 4. Damage and charge capacity
-  // are multiplied by this value; missing values in older saves mean 1.
+  // Ordinary wands are 1. Fire-fusing two wands adds their values, so two
+  // singles make 2 and a ×2 fused with a single makes 3. Damage and charge
+  // capacity are multiplied by this value; missing values in older saves
+  // mean 1.
   fusionCount: number = 1;
   // Stored with the item so partial recharge survives saves and floor travel.
   private rechargeProgress = 0;

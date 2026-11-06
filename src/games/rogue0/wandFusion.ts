@@ -4,10 +4,11 @@ import Wand from "./items/wand";
 import { clearFloorSprite, placeFloorItem } from "./itemPresentation";
 import dungeon from "./dungeon";
 
-// A flask of Liquid Flame shattering immediately to the right of two identical
-// floor wands burns them together. The pair must be horizontal, adjacent, and
-// already at the same fusion power, so ordinary wands cannot be used to top up
-// an already-fused wand (or vice versa).
+// A flask of Liquid Flame shattering immediately to the right of two floor
+// wands of the same type burns them together. The pair must be horizontal and
+// adjacent, but the two wands may differ in upgrade level and in fusion power:
+// a ×2 wand fused with an ordinary ×1 wand becomes ×3, the sum of both tiers.
+// Upgrade levels never need to match either; the higher one survives.
 export type WandFusionResult = {
   wand: Wand;
   impactX: number;
@@ -33,7 +34,6 @@ function fusionPower(wand: Wand): number {
 export function canFuseWands(left: Wand, right: Wand): boolean {
   return left instanceof Wand && right instanceof Wand &&
     left.constructor === right.constructor &&
-    fusionPower(left) === fusionPower(right) &&
     left.x !== undefined && left.y !== undefined &&
     right.x !== undefined && right.y !== undefined &&
     right.x === left.x + 1 && right.y === left.y;
@@ -50,6 +50,8 @@ export function tryFuseWands(context: GameContext, impactX: number, impactY: num
 
   const leftX = left.x!, leftY = left.y!;
   const rightX = right.x!, rightY = right.y!;
+  // Fusion power is additive, so mixed tiers combine instead of dead-ending:
+  // ×2 + ×1 makes ×3, and ×4 + ×2 makes ×6.
   const power = fusionPower(left) + fusionPower(right);
   // Keep the best upgrade investment and both wands' remaining charges.
   const level = Math.max(left.level, right.level);
@@ -75,7 +77,7 @@ export function tryFuseWands(context: GameContext, impactX: number, impactY: num
   placeFloorItem(right);
 
   dungeon.log(context,
-    `The flames fuse the wands into ${right.displayName} — twice as powerful.`);
+    `The flames fuse the wands into ${right.displayName} — as strong as ${power} wands.`);
 
   return { wand: right, impactX, impactY, leftX, leftY, rightX, rightY, power };
 }

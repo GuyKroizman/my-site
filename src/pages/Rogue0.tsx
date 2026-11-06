@@ -12,6 +12,13 @@ import {
 import { toggleMuted, unlockAudio } from '../games/rogue0/audio'
 import { readRunSave, clearRunSave, type RunSave } from '../games/rogue0/saveStorage'
 import { DEFAULT_HERO_CLASS } from '../games/rogue0/classes'
+import { isLocalViteDev } from '../utils/runtime'
+import ScenarioSetupPanel from '../components/rogue0/ScenarioSetupPanel'
+import { readScenarioDraft, writeScenarioDraft, type Scenario } from '../games/rogue0/scenario'
+
+// Module scope on purpose: the dev-only scenario panel is gated on this, and a
+// per-render value would make every effect that reads it a fresh dependency.
+const DEV_TOOLS = isLocalViteDev()
 
 const CONTROLS = [
   ['Move', 'Arrows / HJKL; diagonals: Home / PgUp / End / PgDn (or u / i / n / m)'],
@@ -100,10 +107,13 @@ export default function Rogue0() {
   const phaserRef = useRef<Game | null>(null)
   const contextRef = useRef<GameContext | null>(null)
   const [heroClass, setHeroClass] = useState<string | null>(null)
+  const [scenarioOpen, setScenarioOpen] = useState(false)
   const [saveInfo, setSaveInfo] = useState(readRunSave)
   const [choosingNew, setChoosingNew] = useState(false)
   const [saveStatus, setSaveStatus] = useState('Progress is saved automatically on this browser.')
   const pendingSave = useRef<RunSave | undefined>(undefined)
+  // Phase 17 dev tooling: an authored start state for the next scene boot.
+  const pendingScenario = useRef<Scenario | undefined>(undefined)
   const [result, setResult] = useState<EndResult | null>(null)
   const [inspectMode, setInspectMode] = useState(false)
   const inspectModeRef = useRef(inspectMode)
@@ -149,6 +159,8 @@ export default function Rogue0() {
     const context = createGameContext()
     context.heroClass = heroClass
     context.savedRun = pendingSave.current
+    // Local dev only: the scenario panel is the sole writer of this field.
+    context.scenario = DEV_TOOLS ? pendingScenario.current : undefined
     context.onSaveStatus = setSaveStatus
     context.onLoadError = () => {
       pendingSave.current = undefined
@@ -200,6 +212,7 @@ export default function Rogue0() {
   const startGame = () => {
     unlockAudio()
     pendingSave.current = undefined
+    pendingScenario.current = undefined
     if (!clearRunSave()) setSaveStatus('Browser storage is blocked; this run may not be saved.')
     setSaveInfo({})
     setChoosingNew(false)
@@ -208,6 +221,7 @@ export default function Rogue0() {
   }
 
   const continueGame = () => {
+    pendingScenario.current = undefined
     const current = readRunSave()
     setSaveInfo(current)
     if (!current.save) return
@@ -256,6 +270,19 @@ export default function Rogue0() {
     if (contextRef.current) contextRef.current.helpOpen = true
     setHelpPage(0)
     setHelpOpen(true)
+  }
+
+  const startScenario = (scenario: Scenario) => {
+    unlockAudio()
+    pendingSave.current = undefined
+    pendingScenario.current = scenario
+    writeScenarioDraft(scenario)
+    if (!clearRunSave()) setSaveStatus('Browser storage is blocked; this run may not be saved.')
+    setSaveInfo({})
+    setChoosingNew(false)
+    setInspectMode(false)
+    setScenarioOpen(false)
+    setHeroClass(scenario.hero?.class ?? DEFAULT_HERO_CLASS)
   }
 
   const helpModal = helpOpen ? (
@@ -312,6 +339,18 @@ export default function Rogue0() {
   }
 
   if (!heroClass) {
+    if (scenarioOpen && DEV_TOOLS) {
+      return (
+        <div className="rogue0-shell">
+          <ScenarioSetupPanel
+            initial={readScenarioDraft()}
+            maxFloor={25}
+            onStart={startScenario}
+            onCancel={() => setScenarioOpen(false)}
+          />
+        </div>
+      )
+    }
     return (
       <div className="rogue0-shell">
         <div className="rogue0-panel">
@@ -333,6 +372,11 @@ export default function Rogue0() {
             </p>
           )}
           <button className="rogue0-link-btn" onClick={openHelp}>Help</button>
+          {DEV_TOOLS && (
+            <button className="rogue0-link-btn" onClick={() => setScenarioOpen(true)}>
+              Scenario (dev)
+            </button>
+          )}
 
           {(!saveInfo.save || choosingNew) && (
             <div className="rogue0-actions">

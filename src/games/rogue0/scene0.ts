@@ -98,6 +98,14 @@ import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXT
 import { generateArmorTextures } from "./armorTextures";
 import { prewarmConsumableAppearances, resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
 import { maybeCurse } from "./curses";
+import {
+  applyScenarioHero,
+  applyScenarioInventory,
+  expandScenarioMonsters,
+  finishScenarioInventory,
+  scenarioReplacesPopulation,
+  scenarioSummary,
+} from './scenario';
 import { encodeGraph } from './saveCodec';
 import { saveRegistry } from './saveRegistry';
 import { writeRunSave, clearRunSave } from './saveStorage';
@@ -277,7 +285,13 @@ export class Scene0 extends Phaser.Scene {
     // label always matches the knowledge page (a resumed run restores its own
     // saved mapping over this).
     prewarmConsumableAppearances(this.context);
-    this.context.floor = 1;
+    // Phase 17 dev tooling: an authored start state. `context.scenario` is only
+    // ever set by the dev-gated React panel; the shipped flow leaves it
+    // undefined and every branch below is the normal one.
+    const scenario = this.context.scenario;
+    this.context.floor = scenario
+      ? Math.max(1, Math.min(this.context.maxFloor, Math.floor(scenario.floor)))
+      : 1;
     this.context.kills = 0;
     this.context.chasmFallenItems = undefined;
     this.ended = false;
@@ -320,7 +334,7 @@ export class Scene0 extends Phaser.Scene {
     const active: SavedFloor | undefined = resumed?.floors.get(resumed.floor);
     const { levelArray, spawn, stairs } = active
       ? { levelArray: active.map, spawn: { x: resumed!.player.x!, y: resumed!.player.y! }, stairs: active.down }
-      : this.generateLevel();
+      : this.generateLevel(this.context.floor);
     if (active) {
       this.context.floor = resumed!.floor;
       this.applyFeatures(active.features);
@@ -348,6 +362,17 @@ export class Scene0 extends Phaser.Scene {
     const HeroClass = classes[this.context.heroClass as keyof typeof classes] ?? classes.Warrior;
     const player = resumed?.player ?? new HeroClass(this.context, spawn.x, spawn.y);
     this.context.player = player;
+    // Scenario loadout is applied before setupFloor builds the floor: setupFloor
+    // keeps `player` plus `player.getAllItems()` and drops everything else, and
+    // its scheduler reset clears the equip action cost. A resumed run restores
+    // its own hero instead, so a scenario never mixes with a saved run.
+    if (scenario && !resumed) {
+      applyScenarioHero(player, scenario);
+      for (const warning of applyScenarioInventory(player, scenario)) {
+        dungeon.log(this.context, `Scenario: ${warning}`);
+      }
+      finishScenarioInventory(this.context, player);
+    }
     if (resumed) {
       this.floors = resumed.floors;
       restoreRunState(this.context, resumed);
@@ -367,10 +392,17 @@ export class Scene0 extends Phaser.Scene {
     // restores exact deadlines instead, including fractional-speed actions.
     const deadlines = resumed ? [player, ...active!.entities].map(entity =>
       [entity, entity.nextActionTime, entity.actionReady] as const) : [];
-    this.setupFloor(resumed?.floor ?? 1, levelArray, spawn, stairs, active);
+    this.setupFloor(resumed?.floor ?? this.context.floor, levelArray, spawn, stairs, active);
     for (const [entity, time, ready] of deadlines) {
       entity.nextActionTime = time;
       entity.actionReady = ready;
+    }
+    if (scenario && !resumed) {
+      // The scenario describes the starting floor only; descending from it
+      // builds normal floors.
+      this.context.scenario = undefined;
+      dungeon.log(this.context, scenarioSummary(scenario,
+        this.context.entities.filter(entity => entity.type === 'enemy').length));
     }
     for (const entity of this.context.entities) {
       if (hasEffect(entity, 'invisible')) entity.sprite?.setAlpha(0.4);
@@ -396,7 +428,7 @@ export class Scene0 extends Phaser.Scene {
     this.context.onDescend = () => this.tryDescend();
     this.context.onAscend = () => this.tryAscend();
     this.context.onSummonTrap = (x, y) => this.summonFromTrap(x, y);
-    this.context.onMonsterRemoved = () => this.reinforceEmptyFloor();
+    if (!scenario) this.context.onMonsterRemoved = () => this.reinforceEmptyFloor();
     this.context.onFrostTerrain = (x, y) => dungeon.freezeWater(this.context, x, y);
     this.context.onShockWater = (target, damage) => dungeon.conductShock(this.context, target, damage);
     this.context.onCreatePoisonGas = (x, y) => createPoisonGas(this.context, dungeon.getCurrentLevel(), x, y);
@@ -741,7 +773,8 @@ export class Scene0 extends Phaser.Scene {
         this.context.entities.push(entity);
       }
     } else {
-      this.spawnFloorContent(floor, levelArray, spawn);
+      if (this.context.scenario) this.spawnScenarioContent(floor, levelArray, spawn);
+      else this.spawnFloorContent(floor, levelArray, spawn);
     }
 
     // A chasm is a chute: anything that fell in on the floor above lands at a
@@ -1403,6 +1436,89 @@ export class Scene0 extends Phaser.Scene {
     up.fillRect(ux + 3, uy + 8, 8, 2);
     up.fillRect(ux + 3, uy + 11, 10, 2);
     this.upstairsLabel = up;
+  }
+
+  // Phase 17 dev tooling. "replace" skips the default spawner entirely rather
+  // than deleting entities, so no loot or reinforcement guard ever runs for the
+  // default population. "append" builds the normal floor and adds the list.
+  private spawnScenarioContent(
+    floor: number,
+    levelArray: number[][],
+    spawn: { x: number; y: number }
+  ) {
+    const scenario = this.context.scenario!;
+    if (!scenarioReplacesPopulation(scenario)) {
+      this.spawnFloorContent(floor, levelArray, spawn);
+    }
+
+    const placements = expandScenarioMonsters(scenario);
+    if (!placements.length) return;
+
+    const exclude = new Set([
+      `${spawn.x},${spawn.y}`,
+      `${this.context.stairsX},${this.context.stairsY}`,
+      `${this.context.upstairsX},${this.context.upstairsY}`
+    ]);
+    for (const entity of this.context.entities) {
+      if (entity.x !== undefined && entity.y !== undefined) exclude.add(`${entity.x},${entity.y}`);
+    }
+    // Reserve the hidden room: a boss parked behind a secret door is not a
+    // test anyone asked for.
+    if (this.secretRoom) {
+      const room = this.secretRoom;
+      for (let y = room.y; y < room.y + room.h + 2; y++) {
+        for (let x = 0; x < levelArray[y].length; x++) exclude.add(`${x},${y}`);
+      }
+    }
+
+    const terrain = terrainFor(this.context);
+    const free = randomWalkableTiles(levelArray, placements.length * 3 + 12, exclude,
+      MAX_VISIBLE_X, terrain);
+    const used = new Set(exclude);
+
+    // "near hero" is a ring search around the spawn, not a filter over random
+    // tiles: a random sample of a whole floor almost never lands within six.
+    // The inner radius keeps a monster from starting on top of the hero.
+    const nearCell = (): { x: number; y: number } | undefined => {
+      for (let radius = 2; radius <= 6; radius++) {
+        const ring: Array<{ x: number; y: number }> = [];
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+            const x = spawn.x + dx;
+            const y = spawn.y + dy;
+            if (levelArray[y]?.[x] !== 0 || terrain.isBlocking(x, y)) continue;
+            if (used.has(`${x},${y}`)) continue;
+            ring.push({ x, y });
+          }
+        }
+        if (ring.length) return ring[Math.floor(Math.random() * ring.length)];
+      }
+      return undefined;
+    };
+
+    let placed = 0;
+    for (const placement of placements) {
+      let cell = placement.near ? nearCell() : undefined;
+      while (!cell && free.length) {
+        const candidate = free.shift()!;
+        if (!used.has(`${candidate.x},${candidate.y}`)) cell = candidate;
+      }
+      if (!cell) break;
+      used.add(`${cell.x},${cell.y}`);
+      const monster = new placement.cls(this.context, cell.x, cell.y) as Monster;
+      if (placement.awake) {
+        // Skip the 8–24 tick dormancy and let it hunt from the first frame.
+        monster.sleepTurnsRemaining = 0;
+        monster.awareOfPlayer = true;
+      }
+      this.context.entities.push(monster);
+      placed += 1;
+    }
+    if (placed < placements.length) {
+      dungeon.log(this.context,
+        `Scenario: only ${placed} of ${placements.length} monsters found room on this floor.`);
+    }
   }
 
   private spawnFloorContent(floor: number, levelArray: number[][], spawn: { x: number; y: number }) {

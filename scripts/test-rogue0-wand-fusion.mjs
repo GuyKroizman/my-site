@@ -134,20 +134,72 @@ function wand(Type, context, x, y, level = 0) {
   assert.equal(right.maxCharges, 12);
 }
 
-// Pair shape, type and power must all match exactly: no free upgrades from a
-// mismatched wand, a vertical pair or a gap between the two items.
+// Mixed fusion tiers and upgrade levels combine additively: a ×2 wand fused
+// with an ordinary ×1 wand becomes a ×3 wand instead of being rejected.
+{
+  const ctx = context();
+  const left = wand(FireWand, ctx, 4, 6, 3);
+  left.fusionCount = 2;
+  left.reconcileChargeScaling();
+  left.charges = left.maxCharges; // (3 base + 3 upgrades) × 2 = 12
+  const right = wand(FireWand, ctx, 5, 6, 0);
+  right.identified = true;
+  right.charges = 2;
+  const result = tryFuseWands(ctx, 6, 6);
+  assert.ok(result, 'a fused wand and an ordinary one of the same type fuse');
+  assert.equal(result.wand, right, 'the right-hand wand is still the survivor');
+  assert.equal(ctx.entities.includes(left), false);
+  assert.equal(result.power, 3, 'fusion power adds up');
+  assert.equal(right.fusionCount, 3);
+  assert.equal(right.fusionPower, 3);
+  assert.equal(right.level, 3, 'the higher upgrade level survives');
+  assert.equal(right.maxCharges, 18, '(3 base + 3 upgrades) × 3');
+  assert.equal(right.charges, 14, 'charges combine and cap at the new capacity');
+  assert.equal(right.damage(), (6 + 3) * 3, 'damage scales with the summed power');
+  assert.match(right.displayName, /×3$/);
+  assert.ok(ctx.messages.some(line => /Wand of Firebolt \+3 ×3/.test(line)));
+}
+
+// The reverse pairing (ordinary on the left, ×2 on the right) fuses too, and
+// two different fused tiers keep adding: ×4 + ×2 makes ×6.
+{
+  const ctx = context();
+  const left = wand(FrostWand, ctx, 7, 3, 1);
+  const right = wand(FrostWand, ctx, 8, 3, 0);
+  right.fusionCount = 2;
+  right.reconcileChargeScaling();
+  right.charges = 1;
+  assert.ok(tryFuseWands(ctx, 9, 3));
+  assert.equal(right.fusionCount, 3);
+  assert.equal(right.level, 1, 'the upgraded left wand still lends its level');
+  assert.equal(right.maxCharges, 12, '(3 base + 1 upgrade) × 3');
+  assert.equal(right.charges, 5, 'four charges plus one carried over');
+
+  const secondCtx = context();
+  const four = wand(FrostWand, secondCtx, 2, 9);
+  const two = wand(FrostWand, secondCtx, 3, 9);
+  four.fusionCount = 4;
+  two.fusionCount = 2;
+  four.reconcileChargeScaling();
+  two.reconcileChargeScaling();
+  assert.ok(tryFuseWands(secondCtx, 4, 9));
+  assert.equal(two.fusionCount, 6);
+  assert.equal(two.maxCharges, 18);
+}
+
+// Pair shape and type must still match exactly: no merging of different wand
+// types, however their tiers line up, and no vertical pair or gap.
 {
   const ctx = context();
   const left = wand(FireWand, ctx, 5, 5);
+  left.fusionCount = 2;
   const wrongType = wand(FrostWand, ctx, 6, 5);
+  wrongType.fusionCount = 1;
   assert.equal(canFuseWands(left, wrongType), false, 'different wand types never fuse');
-  left.fusionCount = 1;
-  wrongType.fusionCount = 2;
-  assert.equal(canFuseWands(left, wrongType), false, 'power tiers cannot be topped up');
 
   const same = new FireWand(ctx, 6, 5);
   same.fusionCount = 1;
-  assert.equal(canFuseWands(left, same), true);
+  assert.equal(canFuseWands(left, same), true, 'mixed tiers of one type can fuse');
   same.x = 7;
   assert.equal(canFuseWands(left, same), false, 'horizontal pairs must be adjacent');
   same.x = 6; same.y = 6;
@@ -324,4 +376,4 @@ function wand(Type, context, x, y, level = 0) {
   assert.equal(mergedSprite.alpha, 1, 'cleanup restores an interrupted merged sprite');
 }
 
-console.log('Rogue0 wand fusion: fire-potion trigger, pair rules, doubled power, persistence-facing state and animation passed');
+console.log('Rogue0 wand fusion: fire-potion trigger, pair rules, additive tiers, persistence-facing state and animation passed');

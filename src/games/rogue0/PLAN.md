@@ -82,10 +82,14 @@ has been playtested. Checked boxes mean the described implementation exists.
   with elapsed world time, effects retain their own tick phase, and skill
   cooldowns use absolute timestamps. See `README.md`, `timing.ts` and
   `turnManager.ts`; do not reintroduce per-action status/hunger ticking.
-- Regression: `npm run test:rogue0` runs **41** headless suites (42 files,
+- Regression: `npm run test:rogue0` runs **42** headless suites (43 files,
   including the separate browser `test-rogue0-save-browser.mjs`). The last full
   run and the production build passed at the time of this update. Results append
   to `logs/rogue0-tests.jsonl`; query with `npm run test:rogue0:history`.
+- **Local scenario harness (Phase 17, dev only):** a dev-gated title-screen panel
+  authors a start state (floor, class/level/HP/hunger/gold/talents, exact
+  inventory, explicit monster set) that `scenario.ts` applies to the first
+  floor. Nothing in the shipped flow sets it.
 
 ### Original baseline (historical, not current)
 
@@ -858,6 +862,85 @@ Kenney frames through `tile = row * 49 + col`, so the overhaul is not close.
 
 ---
 
+### Phase 17 — Local scenario harness (dev tooling)
+*Implemented. Local-only: `GameContext.scenario` is written solely by the
+`isLocalViteDev()`-gated React panel; the shipped flow never sets it.*
+
+Problem it removes: hand-testing anything floor-specific or loadout-specific
+currently means either grinding 25 floors or editing source. Manual testing
+should start from an authored state in one click: any floor, any monster set,
+any inventory.
+
+**Scenario object** (new `src/games/rogue0/scenario.ts`; the scene reads it off
+`context.scenario` and every branch is dev-gated):
+
+```ts
+{ floor: number,                       // 1..maxFloor
+  hero: { class?, level?, healthPoints?, hunger?, gold?, talents? },
+  inventory?: Array<{ id: string, count?: number, equip?: boolean,
+                      cursed?: boolean, tier?: number, upgrade?: number,
+                      identified?: boolean }>,   // undefined = keep class gear
+  monsters?: { mode?: 'replace' | 'append',  // default 'replace'
+               list: Array<{ kind: string, count?: number,
+                             near?: boolean, awake?: boolean }> } }
+```
+
+- [x] `GameContext.scenario?: Scenario` (type-only import, so `context.ts` stays
+      Phaser-free). No autosave switch and no second storage key: an active
+      scenario overwrites the run save, by decision.
+- [x] **Ids reuse `saveRegistry`**, reversed once in `scenarioCatalog()`. The id
+      is the class name (`PotionOfFrost`, `Goblin`, `TieredWeapon`), which the
+      scenario suite verifies is unique across the registry; the elemental
+      aliases collapse onto one entry. Unknown ids are reported by
+      `normalizeScenario`, never skipped.
+- [x] **Start floor.** `create()` sets `context.floor` from the scenario *before*
+      `generateLevel(floor)` / `dungeon.initialize`, and passes it to
+      `setupFloor`. Ascending stays unavailable below a generated floor 1
+      (already logs “The entrance is sealed”). `scenario` is cleared once the
+      first floor exists, so descending builds a normal floor.
+- [x] **Floor population.** `'replace'` skips `spawnFloorContent` and spawns the
+      listed set only; `'append'` builds the normal floor and adds the list.
+      Nothing is ever deleted, so no loot roll and no reinforcement wave runs.
+      `near` is a ring search 2–6 tiles from the spawn (a random sample of a
+      whole floor never lands that close); `awake` clears the 8–24 tick dormancy
+      and sets `awareOfPlayer`.
+- [x] **Population guard suppressed.** `context.onMonsterRemoved` is left unset
+      in scenario mode, so an authored floor stays exactly as authored.
+- [x] **Hero loadout.** Level goes through `gainXp` (the only path that also
+      applies +5 HP/+1 ATK and talent points); then HP/hunger/gold/talents.
+      `inventory` replaces the class's starting gear exactly (unequip hooks run
+      first, so ring/armor passives unwind); `equip: true` uses `equipItem`,
+      `cursed` is opt-in, and `identified` defaults to true (identify registers
+      potion/scroll/wand knowledge) with `false` available for the unknown flow.
+- [x] **Finish like a load does.** `finishScenarioInventory` reuses
+      `rememberIdentifiedWandTypes`, `Wand.reconcileChargeScaling` and
+      `Ring.onUpgrade`.
+- [x] **React panel** (`src/components/rogue0/ScenarioSetupPanel.tsx`, reached
+      from a “Scenario (dev)” button beside Help on the title screen): floor
+      slider with the band/secret-room/dark-floor/boss notes it implies, class +
+      level + HP + food + gold, talent ranks, a filterable item picker with
+      count/tier/upgrade/equip/cursed toggles, and a monster list with
+      count/near/awake and a replace-vs-append choice. No new Phaser window.
+- [x] The last scenario persists in `localStorage['rogue0.scenario.v1']`, and a
+      collapsible JSON box can fill from the form or load a pasted scenario.
+- [x] Suite `scripts/test-rogue0-scenario.mjs` (`npm run test:rogue0:scenario`,
+      part of `npm run test:rogue0`): source audit of registry ids, then
+      normalisation, monster expansion, level/loadout application, gear
+      replacement, container/unknown reporting, post-load fixups and a guard
+      that “replace” never calls `removeEntity`. Verified in a real browser:
+      floor 12 · Wizard level 5 · four monsters · three frost potions.
+- **Accepted trade-offs:** autosave overwrites the previous run (and ends
+      clear it) — no separate key or autosave switch. Floors, monsters and
+      inventory are pinned; **map layout is not** (see the determinism note in
+      §7). Ascending from a mid-run start is out of scope.
+- **Acceptance:** from a cold page load, one click and a few form fields
+      produce e.g. “floor 12, Dwarf, level 5, two Potions of Frost, 4 goblins,
+      nothing else” and the run plays normally from there; clearing the floor
+      does not spawn a reinforcement wave; the same scenario can be re-run
+      after a reload.
+
+---
+
 ## 6. Suggested sequencing
 
 ### Next implementation priorities
@@ -866,6 +949,10 @@ State at this update: 41 headless suites (`npm run test:rogue0`) and the
 production build pass; visual and five-class balance playtesting stay deferred
 at user request.
 
+0. **Local scenario harness (Phase 17) — landed.** Dev-only title-screen panel
+(`src/components/rogue0/ScenarioSetupPanel.tsx`) plus `scenario.ts` and the
+scene apply step: floor, hero loadout, exact inventory and monster set in one
+click. Use it to hand-test every priority below instead of grinding to a floor.
 1. **Shops and a gold sink (Phase 10).** This is the biggest live gap: gold is
 awarded by kills and chests but has **no use at all**. A single shop room per
 region selling Identify / Upgrade / Remove Curse / food / Ankh would convert
@@ -940,6 +1027,25 @@ it does not affect depth.
 - **Scope guard:** SPD has a decade of content. Prioritise the systems above
   over raw item/monster count; 8 well-designed enemies with abilities beat 30
   stat clones.
+- **The scenario harness (Phase 17) is local-only dev tooling.** Rules for it:
+  the panel and its button are gated on `isLocalViteDev()` and it is the only
+  writer of `GameContext.scenario` (the scene branches just read it); achieve
+  “replace” by *skipping* the default spawner, never by deleting entities;
+  leave `onMonsterRemoved` unset while a scenario is active; reuse
+  `saveRegistry` ids and `restoreRunState`'s item fixups rather than
+  duplicating them. Overwriting the autosave is accepted, so no second storage
+  key and no autosave switch.
+- **Scenario determinism is deliberately out of scope (v1).** `generateMap`,
+  feature placement and `randomWalkableTiles` all use raw `Math.random()`, so a
+  scenario pins *what* is on the floor but not *where*. Combat, item and effect
+  bugs do not need layout stability. If a layout-dependent bug appears, add an
+  optional `map` + `features` override (paste the arrays from a save) rather
+  than plumbing a seeded RNG through mapgen.
+- **Scenario items are explicit, not rolled.** Defaults are not equipped, not
+  cursed, upgrade 0, and tier from `floorProgression(floor).tier` (the band
+  base, not `lootTier`'s random ±1 roll); `equip` goes through `equipItem` (so
+  `onEquip` and capacity rules still apply) and `cursed` is opt-in. Purpose:
+  reproduce one situation, not sample the loot table.
 - **Out of scope by decision:** goblin archers do **not** kite/retreat, wraiths
   do **not** phase through walls, and monsters do **not** call allies. Do not
   re-propose these or implement them as extras.

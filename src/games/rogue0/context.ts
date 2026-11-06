@@ -120,6 +120,10 @@ export type GameContext = {
   onResumeFollow?: () => void;
   onEnd?: (result: EndResult) => void;
   savedRun?: import('./saveStorage').RunSave;
+  // Phase 17 local-only dev tooling: an authored start state, set by the
+  // dev-gated React scenario panel. Never written by the shipped flow, and
+  // cleared once the first floor is built (the scenario covers the start only).
+  scenario?: import('./scenario').Scenario;
   saveNow?: () => void;
   onSaveStatus?: (message: string) => void;
   onLoadError?: () => void;
@@ -171,6 +175,7 @@ export function createGameContext(): GameContext {
     maxFloor: 25,
     kills: 0,
     heroClass: "Warrior",
+    scenario: undefined,
     stairsX: undefined,
     stairsY: undefined
   };
