@@ -169,6 +169,8 @@ const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 const methods = source.slice(source.indexOf('  private featureVisual('), source.indexOf('  private makeArrowTexture()'));
 const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
   tiles: { FeatureTiles: { water: 206, chasm: 5 } },
+  CHASM_TEXTURE: 'chasm-depth', CHASM_MARGIN: 4, CHASM_SIZE: 24,
+  chasmMask: () => 0, chasmFrame: (mask) => mask,
   TRAP_TEXTURE, TRAP_ALPHA, trapFrame,
   terrainFor: () => ({ getFeature: () => state?.feature,
     forEachFeature(fn) { if (state) fn(0, 0, state); } }),

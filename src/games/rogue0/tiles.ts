@@ -40,8 +40,7 @@ export const FeatureTiles = {
   doorClosed: 150,
   doorOpen: 301,
   grass: 7, // Grass blades (row 0, column 7), not a tree.
-  water: 206,
-  chasm: 5
+  water: 206
 } as const;
 
 const TRAP_LABELS: Record<TrapKind, string> = {

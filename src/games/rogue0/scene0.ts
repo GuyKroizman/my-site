@@ -25,6 +25,7 @@ import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
+import { CHASM_TEXTURE, CHASM_MARGIN, CHASM_SIZE, generateChasmTexture, chasmMask, chasmFrame } from './chasmVisuals';
 import { TRAP_ALPHA, TRAP_TEXTURE, generateTrapTextures, trapFrame } from './trapVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
 import { updateGasVisuals, clearGasVisuals } from './gasVisuals';
@@ -318,6 +319,7 @@ export class Scene0 extends Phaser.Scene {
     generateWallDecalTextures(this);
     generateUnknownItemTextures(this);
     generateWaterTexture(this);
+    generateChasmTexture(this);
     generateTrapTextures(this);
 
     // Restoring must not generate a floor or construct a hero: both reroll loot.
@@ -1239,7 +1241,8 @@ export class Scene0 extends Phaser.Scene {
       case "ice":
         return { tile: tiles.FeatureTiles.water, tint: 0xbbeeff };
       case "chasm":
-        return { tile: tiles.FeatureTiles.chasm, tint: 0x111111 };
+        // Rim, cliff face and floor shadow atlas; the cell interior stays void.
+        return { textureKey: CHASM_TEXTURE };
       case "trap":
         // One shared pressure plate; the glyph and its accent colour say which
         // kind it is, and a spent plate keeps the same silhouette drained of
@@ -1311,8 +1314,12 @@ export class Scene0 extends Phaser.Scene {
       const texKey = state.feature === 'grass' ? `tall-grass-${(x * 7 + y * 11) % 3}`
         : visual.textureKey ?? (upright ? 'foreground-tiles' : 'tiles');
       const mask = state.feature === 'water'
-        ? waterShoreMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'water') : 0;
+        ? waterShoreMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'water')
+        : state.feature === 'chasm'
+          ? chasmMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'chasm')
+          : 0;
       const frame = state.feature === 'water' ? waterFrame(mask, x, y, this.time.now)
+        : state.feature === 'chasm' ? chasmFrame(mask)
         : visual.frame ?? (visual.textureKey ? 0 : (visual.tile ?? 0));
 
       if (!sprite) {
@@ -1331,7 +1338,10 @@ export class Scene0 extends Phaser.Scene {
       // doors have transparent silhouettes that overlap the preceding row.
       // All upright artwork is feet/root anchored, including doors. Moving
       // a 16px panel up by 5px left its bottom floating above the threshold.
-      sprite.setOrigin(0, upright ? actorOriginY(sprite.height) : 0);
+      // The chasm atlas carries a 4px margin for its rim shadow, so its cell
+      // is inset and the sprite origin must be shifted to match.
+      const flatOrigin = state.feature === 'chasm' ? CHASM_MARGIN / CHASM_SIZE : 0;
+      sprite.setOrigin(flatOrigin, upright ? actorOriginY(sprite.height) : flatOrigin);
       sprite.setDepth(upright ? worldDepth(sprite.y, 'terrain') : 0);
       if (visual.tint !== undefined) {
         sprite.setTint(visual.tint);
