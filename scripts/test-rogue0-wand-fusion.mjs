@@ -330,7 +330,8 @@ function wand(Type, context, x, y, level = 0) {
 
   const visibleContext = { visibleTiles: new Set(['4,3']), simulationTime: 12 };
   const plain = makeScene();
-  showLiquidFlameShatter(plain.scene, visibleContext, { x: 4, y: 3 });
+  assert.equal(showLiquidFlameShatter(plain.scene, visibleContext, { x: 4, y: 3 }), true,
+    'a visible splash tells the caller it was drawn (and may be sounded)');
   assert.equal(plain.graphics[0].depth, 98, 'fire stays below fog');
   assert.ok(plain.graphics[0].rects.length > 0);
   const firstRects = JSON.stringify(plain.graphics[0].rects);
@@ -355,8 +356,7 @@ function wand(Type, context, x, y, level = 0) {
     x: 4, y: 3,
     fusion: { wand: merged, impactX: 4, impactY: 3, leftX: 2, leftY: 3, rightX: 3, rightY: 3, power: 2 },
   });
-  assert.equal(mergedSprite.alpha, 0, 'the real wand waits for the ghosts');
-  assert.equal(hidden.sprites.filter(s => s !== mergedSprite).length, 2, 'two ghost wands carry the animation');
+  assert.equal(mergedSprite.alpha, 0, 'the real wand waits for the ghosts');  assert.equal(hidden.sprites.filter(s => s !== mergedSprite).length, 2, 'two ghost wands carry the animation');
   assert.ok(hidden.sprites.filter(s => s !== mergedSprite).every(s => s.depth === 98));
   hidden.tweens[1].onComplete();
   hidden.tweens[2].onComplete();
@@ -374,6 +374,77 @@ function wand(Type, context, x, y, level = 0) {
   clearWandFusionVisuals(hidden.scene);
   clearWandFusionVisuals(hidden.scene);
   assert.equal(mergedSprite.alpha, 1, 'cleanup restores an interrupted merged sprite');
+
+  // An unseen splash draws nothing and reports so, which keeps the merge sound
+  // tied to the animation instead of playing for off-screen loot.
+  const unseen = makeScene();
+  assert.equal(showLiquidFlameShatter(unseen.scene,
+    { visibleTiles: new Set(), simulationTime: 12 }, { x: 4, y: 3 }), false,
+    'an off-screen splash is not drawn');
+  assert.equal(unseen.graphics.length, 0);
+  assert.equal(unseen.tweens.length, 0);
+  clearWandFusionVisuals(unseen.scene);
 }
 
-console.log('Rogue0 wand fusion: fire-potion trigger, pair rules, additive tiers, persistence-facing state and animation passed');
+// The merge sound: a procedural fire crackle, two opposite glides that meet in
+// the middle, then a three-note chime after the ghosts have slid together.
+// Audio is generated with the Web Audio API, so the test fakes that context.
+{
+  const oscillators = [], sources = [];
+  class FakeParam {
+    setValueAtTime(value, time) { this.value = value; this.time = time; }
+    exponentialRampToValueAtTime(value, time) { this.ramp = value; this.rampTime = time; }
+  }
+  class FakeAudioContext {
+    constructor() {
+      this.sampleRate = 8000; this.currentTime = 0; this.state = 'running';
+      this.destination = {};
+    }
+    createOscillator() {
+      const osc = {
+        type: '', frequency: new FakeParam(),
+        connect() {}, start(time) { osc.startedAt = time; }, stop() {},
+      };
+      oscillators.push(osc);
+      return osc;
+    }
+    createGain() { return { gain: new FakeParam(), connect() {} }; }
+    createBuffer(_channels, length) { return { getChannelData: () => new Float32Array(length) }; }
+    createBufferSource() {
+      const src = { connect() {}, start(time) { src.startedAt = time; } };
+      sources.push(src);
+      return src;
+    }
+    resume() { return Promise.resolve(); }
+  }
+
+  const previousWindow = globalThis.window;
+  globalThis.window = { AudioContext: FakeAudioContext };
+  try {
+    const { sfx, setMuted } = load('src/games/rogue0/audio.ts');
+    assert.equal(typeof sfx.wandFusion, 'function', 'the scene can trigger a fusion sound');
+    sfx.wandFusion();
+    assert.equal(sources.length, 1, 'the fire crackle is a procedural noise burst');
+    assert.equal(sources[0].startedAt, 0);
+    assert.equal(oscillators.length, 6, 'rumble, two glides and a three-note chime');
+    assert.deepEqual(
+      oscillators.filter(o => o.frequency.ramp !== undefined).map(o => [o.frequency.value, o.frequency.ramp]),
+      [[240, 140], [392, 523], [523, 349]], 'fire rumble plus a rise and a fall that meet mid-slide');
+    const chime = oscillators.filter(o => o.frequency.value >= 784);
+    assert.deepEqual(chime.map(o => o.frequency.value), [784, 1046, 1318]);
+    assert.ok(chime.every(o => o.startedAt >= 0.28), 'the chime lands with the merged wand');
+    for (const osc of oscillators) assert.ok(osc.startedAt === 0 || osc.startedAt >= 0.28);
+
+    const scheduled = oscillators.length;
+    setMuted(true);
+    sfx.wandFusion();
+    assert.equal(oscillators.length, scheduled, 'a muted game schedules no fusion sound');
+    assert.equal(sources.length, 1);
+    setMuted(false);
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+}
+
+console.log('Rogue0 wand fusion: fire-potion trigger, pair rules, additive tiers, persistence-facing state, animation and merge sound passed');

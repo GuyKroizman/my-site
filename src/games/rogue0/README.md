@@ -201,9 +201,12 @@ The surviving (right-hand) wand keeps the higher upgrade level, combines both
 wands' remaining charges, and scales its damage range and maximum charges by the
 new multiplier. Two full three-charge wands therefore become one six-charge
 wand at ×2 damage. Its name and description show the multiplier.
-The merge plays a short fire/slide/pop animation, but animation never advances
-world time or changes action deadlines. Fusion power is stored in browser saves.
-An ordinary single wand remains the default when loading older saves.
+The merge plays a short fire/slide/pop animation with a matching procedural
+sound (fire crackle, two pitch glides meeting, then a chime as the merged wand
+appears). Sound follows the visible animation, so an off-screen merge is silent.
+Animation never advances world time or changes action deadlines, and it honours
+the game's mute setting. Fusion power is stored in browser saves. An ordinary
+single wand remains the default when loading older saves.
 
 ## Passive wand recharge
 

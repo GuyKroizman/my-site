@@ -136,6 +136,18 @@ export const sfx = {
   equip(): void {
     tone(1000, 0.04, 'square', 0.045);
   },
+  // Two wands burn together: a crackle, the two wands sliding into each other
+  // on opposite pitch glides, then a bright chime as the merged wand appears.
+  // The chime lands after the ~280ms slide, matching the merge animation.
+  wandFusion(): void {
+    noise(0.26, 0.09);
+    tone(240, 0.3, 'sawtooth', 0.045, 0, 140);
+    tone(392, 0.26, 'square', 0.05, 0, 523);
+    tone(523, 0.26, 'square', 0.05, 0, 349);
+    tone(784, 0.09, 'square', 0.065, 0.28);
+    tone(1046, 0.12, 'square', 0.055, 0.3);
+    tone(1318, 0.16, 'sine', 0.045, 0.33);
+  },
   levelUp(): void {
     [440, 554, 659, 880].forEach((f, i) => tone(f, 0.12, 'square', 0.09, i * 0.09));
   },

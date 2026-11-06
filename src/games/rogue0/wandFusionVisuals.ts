@@ -167,19 +167,21 @@ function showFusion(scene: Phaser.Scene, state: FusionState, fusion: WandFusionR
 
 /**
  * Show the Liquid Flame flask burst and, when the impact completed a wand pair,
- * the two-wands-into-one merge animation.
+ * the two-wands-into-one merge animation. Returns true when the burst was drawn,
+ * so callers can keep sound tied to what the player actually sees.
  */
 export function showLiquidFlameShatter(
   scene: Phaser.Scene,
   context: GameContext,
   event: { x: number; y: number; fusion?: WandFusionResult }
-): void {
+): boolean {
   // Off-screen splashes remain logical (and saved), but must not draw reveals.
-  if (!context.visibleTiles.has(`${event.x},${event.y}`)) return;
+  if (!context.visibleTiles.has(`${event.x},${event.y}`)) return false;
   const state = stateFor(scene);
-  if (!state.active) return;
+  if (!state.active) return false;
   showFlameBurst(scene, state, event.x, event.y);
   if (event.fusion) showFusion(scene, state, event.fusion);
+  return true;
 }
 
 export function clearWandFusionVisuals(scene: Phaser.Scene): void {
