@@ -3,6 +3,9 @@ recordTestRun('terrain-pressure');
 import assert from 'node:assert/strict';
 import PF from 'pathfinding';
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
+import { createHeroNavigation } from '../src/games/rogue0/heroNavigation.ts';
+import { createHeroInput } from '../src/games/rogue0/heroInput.ts';
+import { actionCost, starvationDamageDuring } from '../src/games/rogue0/timing.ts';
 const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 const tiles = load('tiles');
 const fov = load('fov', tiles);
@@ -917,6 +920,111 @@ for (const adjacent of [false, true]) {
   assert.deepEqual([monster.x, monster.y], [3, 2], 'confused navigation can step onto a revealed trap');
   assert.equal(tiles.getTrapState(3, 2), 'triggered', 'the trap still fires for the stumbler');
   assert.ok(flightEffects.hasEffect(monster, 'confused'), 'confusion plate applies its effect');
+}
+// A revealed trap is a deliberate destination: clicking it or pressing the
+// direction key onto it walks the hero onto the plate. Automatic navigation
+// still routes around plates on the way to any other tile.
+function trapWalkSetup(map, heroX, heroY) {
+  tiles.clearAllFeatures();
+  flightDungeon.currentLevel = map;
+  flightDungeon.pathGrid = new PF.Grid(map);
+  tiles.applyToPathGrid(flightDungeon.pathGrid);
+  flightDungeon.diagonalFinder = new PF.AStarFinder({ diagonalMovement: PF.DiagonalMovement.OnlyWhenNoObstacles });
+  const ctx = renderContext({ entities: [], messages: [], visibleTiles: new Set(), simulationTime: 0 });
+  ctx.map.getTileAt = (x, y) => ({ index: map[y]?.[x] === 1 ? 637 : 0 });
+  ctx.map.worldToTileX = x => x;
+  ctx.map.worldToTileY = y => y;
+  const hero = Object.assign(new Entity(), {
+    context: ctx, type: 'player', name: 'Hero', healthPoints: 30, maxHealthPoints: 30,
+    x: heroX, y: heroY, sprite: sprite(), protection: () => 0, hunger: 100,
+    movementSpeed: 1, attackDelay: 1, nextActionTime: 0, actionReady: true,
+    effects: [], walkPath: [], inputBuffer: [], acknowledgedWalkEnemies: new Set(), actions: [],
+    takeDamage(amount) { this.healthPoints -= amount; },
+    canAct() { return this.actionReady && !this.moving; },
+    spendTurn(action) {
+      this.actions.push(action);
+      this.nextActionTime += actionCost(this, action, this.currentWeapon()?.attackDelay ?? 1);
+      this.actionReady = false;
+    },
+    currentWeapon: () => undefined,
+  });
+  ctx.player = hero;
+  ctx.entities = [hero];
+  const nav = createHeroNavigation({ dungeon: flightDungeon, isModalOpen: () => false,
+    hasEffect: flightEffects.hasEffect, isGrassConcealed: tiles.isGrassConcealed,
+    actionCost, starvationDamageDuring });
+  Object.assign(hero, {
+    nextStepToward: (x, y) => nav.nextStepToward(hero, x, y),
+    setWalkTarget: (x, y, target) => nav.setWalkTarget(hero, x, y, target),
+    tryStepIntoChasm: (x, y) => nav.tryStepIntoChasm(hero, x, y),
+    stepAutoWalk: () => nav.stepAutoWalk(hero),
+  });
+  const ready = () => {
+    hero.actionReady = true;
+    ctx.simulationTime = hero.nextActionTime;
+  };
+  return { ctx, hero, nav, ready };
+}
+// The corridor map used by flightSetup: row 2 is the only open ground.
+const corridorMap = (wallTile, width = 7) => Array.from({ length: 5 }, (_, y) =>
+  Array.from({ length: width }, (_, x) => y === 2 && x > 0 && x < width - 1 ? 0 : wallTile));
+{
+  const { hero, nav, ready } = trapWalkSetup(corridorMap(1), 2, 2);
+  tiles.setFeature(3, 2, 'trap', { trapKind: 'dart', trap: 'visible' });
+  nav.stepManually(hero, 1, 0);
+  assert.deepEqual([hero.x, hero.y], [3, 2], 'a direction key deliberately steps onto a revealed trap');
+  assert.deepEqual(hero.actions, ['move'], 'the trap step costs a normal move');
+  assert.equal(tiles.getTrapState(3, 2), 'triggered', 'stepping on the plate triggers it');
+  assert.ok(flightEffects.hasEffect(hero, 'poisoned'), 'the dart trap still poisons the hero');
+  ready();
+  nav.stepManually(hero, 1, 0);
+  assert.deepEqual([hero.x, hero.y], [4, 2], 'the hero keeps walking after the trap fires');
+}
+{
+  const { ctx, hero, nav, ready } = trapWalkSetup(corridorMap(1), 2, 2);
+  tiles.setFeature(4, 2, 'trap', { trapKind: 'fire', trap: 'visible' });
+  // Go through the real tap handler, not just the planner.
+  const input = createHeroInput({ dungeon: flightDungeon, isModalOpen: () => false,
+    isGrassConcealed: tiles.isGrassConcealed, hasLineOfSight: () => true });
+  input.processTouchInput(hero, ctx, { worldX: 4, worldY: 2 });
+  assert.deepEqual(hero.walkPath, [{ x: 3, y: 2 }, { x: 4, y: 2 }],
+    'an explicit tap on a revealed trap is a valid destination');
+  nav.stepAutoWalk(hero);
+  assert.deepEqual([hero.x, hero.y], [3, 2], 'auto-walk approaches the tapped trap');
+  ready();
+  nav.stepAutoWalk(hero);
+  assert.deepEqual([hero.x, hero.y], [4, 2], 'auto-walk finishes on the tapped trap');
+  assert.equal(tiles.getTrapState(4, 2), 'triggered');
+  assert.ok(flightEffects.hasEffect(hero, 'burning'), 'the fire trap fires for a tapped destination');
+}
+{
+  const { hero, nav, ready } = trapWalkSetup(corridorMap(1), 2, 2);
+  tiles.setFeature(3, 2, 'trap', { trapKind: 'fire', trap: 'visible' });
+  nav.setWalkTarget(hero, 5, 2);
+  assert.deepEqual(hero.walkPath, [], 'a revealed trap blocks the only corridor to a farther tap');
+  nav.stepAutoWalk(hero);
+  assert.deepEqual([hero.x, hero.y], [2, 2], 'the hero does not wander into the plate');
+  assert.equal(tiles.getTrapState(3, 2), 'visible');
+  ready();
+  nav.setWalkTarget(hero, 3, 2);
+  assert.deepEqual(hero.walkPath, [{ x: 3, y: 2 }], 'tapping the trap itself is still allowed from here');
+}
+{
+  // Open room: auto-walk detours around the plate instead of refusing the trip.
+  const map = Array.from({ length: 5 }, () => Array(7).fill(1));
+  for (let y = 1; y <= 3; y++) for (let x = 1; x <= 5; x++) map[y][x] = 0;
+  const { hero, nav, ready } = trapWalkSetup(map, 1, 2);
+  tiles.setFeature(3, 2, 'trap', { trapKind: 'frost', trap: 'visible' });
+  nav.setWalkTarget(hero, 5, 2);
+  assert.ok(hero.walkPath.length > 0, 'a detour exists around the revealed trap');
+  assert.ok(!hero.walkPath.some(step => step.x === 3 && step.y === 2),
+    'automatic navigation never includes the revealed trap');
+  for (let step = 0; step < 20 && hero.walkPath.length > 0; step++) {
+    ready();
+    nav.stepAutoWalk(hero);
+  }
+  assert.deepEqual([hero.x, hero.y], [5, 2], 'the hero reaches the tap without touching the plate');
+  assert.equal(tiles.getTrapState(3, 2), 'visible', 'the avoided trap stays armed');
 }
 // Teleport traps are always reusable; other kinds honor their configured policy.
 // Reactivation never depends on a world-time timer.

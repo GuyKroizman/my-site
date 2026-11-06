@@ -171,14 +171,19 @@ assert.equal(cursorDirection('I'), undefined, 'uppercase diagonals retain their 
   key(f, 'l'); assert.equal(f.hero.inputBuffer.length, 3, 'modal keys never queue movement');
 }
 
-// Walls/traps are free; closed doors are separate actions; pickup and movement
-// share one action, while full backpacks/chests don't move the hero.
+// Walls are free; a revealed trap is a deliberate step; closed doors are
+// separate actions; pickup and movement share one action, while full
+// backpacks/chests don't move the hero.
 {
   const f = fixture(); f.state.wall = true;
   f.hero.processInput('l'); assert.equal(f.hero.nextActionTime, 0);
   f.state.wall = false; f.state.trap = 'visible';
-  f.hero.processInput('l'); assert.equal(f.hero.nextActionTime, 0);
-  f.state.trap = undefined; f.state.door = true;
+  f.hero.processInput('l');
+  assert.deepEqual(f.state.moves, [[2, 1]], 'a direction key deliberately steps onto a revealed trap');
+  assert.deepEqual(f.hero.actions, ['move']);
+  f.hero.x = 1; f.hero.y = 1; f.state.trap = undefined; f.state.moves.length = 0;
+  f.hero.actions.length = 0;
+  ready(f); f.state.door = true;
   f.hero.processInput('l');
   assert.deepEqual(f.hero.actions, ['openDoor']); assert.equal(f.hero.x, 1);
   ready(f); f.hero.processInput('l');

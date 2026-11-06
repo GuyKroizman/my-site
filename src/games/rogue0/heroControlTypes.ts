@@ -56,7 +56,6 @@ export type HeroControlServices = {
     'inspectTile' | 'inspectTileInfo' | 'searchAround'>;
   hasEffect: typeof hasEffect;
   isGrassConcealed: Terrain['isGrassConcealed'];
-  getTrapState: Terrain['getTrapState'];
   hasLineOfSight: typeof hasLineOfSight;
   isModalOpen: typeof isModalOpen;
   actionCost: typeof actionCost;

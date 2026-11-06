@@ -12,7 +12,7 @@ import type { HeroControlServices } from './heroControlTypes';
 function createControls(context: GameContext) {
   const terrain = terrainFor(context);
   const services: HeroControlServices = { dungeon, isModalOpen, hasEffect,
-    getTrapState: terrain.getTrapState, isGrassConcealed: terrain.isGrassConcealed,
+    isGrassConcealed: terrain.isGrassConcealed,
     hasLineOfSight: (map, x, y, tx, ty) => hasLineOfSight(map, x, y, tx, ty, terrain),
     actionCost, starvationDamageDuring };
   return { ...createHeroNavigation(services), ...createHeroTargeting(services),

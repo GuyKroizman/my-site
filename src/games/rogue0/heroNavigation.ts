@@ -5,7 +5,7 @@ import { isHostile, pickupMessage } from './heroControlRules.ts';
 // Path planning and movement policy. The scheduler/terrain still own movement
 // execution; these operations never advance time except through spendTurn().
 export function createHeroNavigation(services: HeroControlServices) {
-  const { dungeon, hasEffect, isGrassConcealed, getTrapState, isModalOpen,
+  const { dungeon, hasEffect, isGrassConcealed, isModalOpen,
     actionCost, starvationDamageDuring } = services;
   return {
     nextStepToward(hero: HeroControlHost, tx: number, ty: number): TilePosition | null {
@@ -157,8 +157,8 @@ export function createHeroNavigation(services: HeroControlServices) {
       context.onResumeFollow?.();
       hero.walkPath = [];
       if (!dungeon.canStepBetween(oldX, oldY, newX, newY, hero)) return;
-      // Revealed traps require explicitly tapping their tile, not a direction key.
-      if (getTrapState(newX, newY) === 'visible') return;
+      // A direction key onto a revealed trap is deliberate: walk onto it and let
+      // the movement trigger it. Only automatic navigation routes around traps.
       if (hasEffect(hero, 'rooted') && dungeon.entityAtTile(context, newX, newY)?.type !== 'enemy') return;
       if (hero.tryStepIntoChasm(newX, newY)) return;
       if (dungeon.openDoor(newX, newY)) {

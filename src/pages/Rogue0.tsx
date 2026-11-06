@@ -53,7 +53,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Terrain',
-    body: `• Doors open when you walk into them (monsters open them too).\n• Traps are hidden until you step on them.\n• Grass burns; water douses fire; stepping into a chasm asks for confirmation, then drops you a floor and deals damage (fatal on the last floor).\n• Stepping on a trap reveals and triggers it.`,
+    body: `• Doors open when you walk into them (monsters open them too).\n• Traps are hidden until you step on them.\n• Revealed traps are easy to avoid: auto-walk routes around them, but tapping one or walking into it on purpose still triggers it.\n• Grass burns; water douses fire; stepping into a chasm asks for confirmation, then drops you a floor and deals damage (fatal on the last floor).\n• Stepping on a trap reveals and triggers it.`,
   },
   {
     title: 'Progress',
