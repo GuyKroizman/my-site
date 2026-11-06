@@ -92,6 +92,51 @@ export function canSee(
   return hasLineOfSight(map, x0, y0, x1, y1, terrain);
 }
 
+// Tall grass hides the ground and everything standing in it, but the wall
+// standing past a patch of grass is still seen above the blades. Reveal such
+// opaque tiles when the only thing blocking their sight line is grass.
+function isGrassTile(terrain: SightTerrain | undefined, x: number, y: number): boolean {
+  return terrain?.getTileState(x, y)?.feature === 'grass';
+}
+
+function hiddenOnlyByGrass(
+  map: number[][],
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  terrain?: SightTerrain
+): boolean {
+  const line = bresenhamLine(x0, y0, x1, y1);
+  let crossedGrass = false;
+  for (let i = 1; i < line.length - 1; i++) {
+    const [x, y] = line[i];
+    if (!blocksSight(map, x, y, terrain)) continue;
+    if (!isGrassTile(terrain, x, y)) return false;
+    crossedGrass = true;
+  }
+  return crossedGrass;
+}
+
+function revealOpaqueBeyondGrass(
+  map: number[][],
+  px: number,
+  py: number,
+  radius: number,
+  terrain: SightTerrain | undefined,
+  visible: Set<string>
+): void {
+  for (let y = Math.max(0, py - radius); y <= Math.min(map.length - 1, py + radius); y++) {
+    for (let x = Math.max(0, px - radius); x <= Math.min(map[y].length - 1, px + radius); x++) {
+      const key = `${x},${y}`;
+      if (visible.has(key)) continue;
+      if ((x - px) ** 2 + (y - py) ** 2 > radius * radius) continue;
+      if (!blocksSight(map, x, y, terrain) || isGrassTile(terrain, x, y)) continue;
+      if (hiddenOnlyByGrass(map, px, py, x, y, terrain)) visible.add(key);
+    }
+  }
+}
+
 export function computeFOV(
   map: number[][],
   px: number,
@@ -146,5 +191,6 @@ export function computeFOV(
     };
     scan(1, -1, 1);
   }
+  revealOpaqueBeyondGrass(map, px, py, r, terrain, visible);
   return visible;
 }

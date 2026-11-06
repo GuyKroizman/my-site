@@ -23,6 +23,26 @@ for (const feature of ['door', 'grass']) {
   assert.ok(!sees(18, 15), `${feature} blocks sight through it`);
   tiles.clearAllFeatures();
 }
+// Tall grass hides the ground behind it, but a wall standing past the grass is
+// still seen above the blades. Only grass may be in the sight line.
+map[15][19] = 1;
+tiles.setFeature(17, 15, 'grass');
+assert.ok(sees(19, 15), 'wall past grass stays visible');
+assert.ok(!sees(18, 15), 'floor between grass and that wall stays hidden');
+assert.ok(hasLineOfSight(map, 15, 15, 19, 15), 'wall past grass is a valid sight endpoint');
+tiles.setFeature(16, 15, 'grass');
+assert.ok(sees(19, 15), 'a wall past a thick patch of grass stays visible');
+tiles.clearAllFeatures();
+tiles.setFeature(18, 15, 'door');
+assert.ok(sees(18, 15), 'a closed door past grass shows its frame');
+assert.ok(!sees(19, 15), 'a closed door between grass and a wall still hides the wall');
+tiles.clearAllFeatures();
+tiles.setFeature(17, 15, 'grass');
+map[15][18] = 1;
+assert.ok(!sees(19, 15), 'a wall mid-line still hides the wall behind it');
+map[15][18] = 0;
+map[15][19] = 0;
+tiles.clearAllFeatures();
 tiles.setFeature(17, 15, 'door');
 tiles.setDoorState(17, 15, 'open');
 assert.ok(sees(18, 15), 'opening a door restores sight');
