@@ -353,7 +353,6 @@ export class Scene0 extends Phaser.Scene {
 
     // Door opens / grass burns / trap reveals all need to re-sync the overlay.
     dungeon.onTerrainChanged = () => this.syncFeatures();
-    this.context.onCoverChanged = () => this.syncFeatures();
     this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
     this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);
     this.context.onWandZap = (zap, onImpact) => showWandZap(this, this.context, zap, onImpact);

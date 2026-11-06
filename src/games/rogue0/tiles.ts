@@ -115,7 +115,7 @@ export function describeTile(
       case "ice":
         return "Ice. Grounded entry slows movement for 2 time units. Burning actors melt it back to water. Does not conduct shock.";
       case "grass":
-        return "Tall grass. Blocks sight and conceals occupants beyond adjacent tiles. Attacking flattens cover. Fire burns connected grass and ignites grounded actors.";
+        return "Tall grass. Blocks sight in both directions; only adjacent observers see an occupant. Walking onto it tramples it into bare floor, and fire burns it.";
       case "chasm":
         return "A chasm. Only levitation allows safe passage.";
       case "trap": {

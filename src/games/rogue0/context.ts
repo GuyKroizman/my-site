@@ -68,7 +68,6 @@ export type GameContext = {
   onGasContact?: (actor: Entity) => void;
   nextTerrainEvent?: () => number;
   onTerrainEvent?: () => void;
-  onCoverChanged?: () => void;
   onSurpriseAttack?: (target: Entity) => void;
   onGrassBurn?: (cells: Array<{ x: number; y: number }>) => void;
   // `onImpact`, when provided, fires once the bolt head visually reaches its

@@ -23,25 +23,34 @@ for (const feature of ['door', 'grass']) {
   assert.ok(!sees(18, 15), `${feature} blocks sight through it`);
   tiles.clearAllFeatures();
 }
-// Tall grass hides the ground behind it, but a wall standing past the grass is
-// still seen above the blades. Only grass may be in the sight line.
+// Tall grass severs every sight line that crosses it: floors, walls and closed
+// doors behind a patch stay hidden. The grass tile itself remains visible.
 map[15][19] = 1;
 tiles.setFeature(17, 15, 'grass');
-assert.ok(sees(19, 15), 'wall past grass stays visible');
+assert.ok(!sees(19, 15), 'wall past grass is hidden');
 assert.ok(!sees(18, 15), 'floor between grass and that wall stays hidden');
-assert.ok(hasLineOfSight(map, 15, 15, 19, 15), 'wall past grass is a valid sight endpoint');
+assert.ok(!hasLineOfSight(map, 15, 15, 19, 15), 'no sight endpoint past grass');
 tiles.setFeature(16, 15, 'grass');
-assert.ok(sees(19, 15), 'a wall past a thick patch of grass stays visible');
+assert.ok(!sees(19, 15), 'a thick patch of grass hides the wall behind it');
 tiles.clearAllFeatures();
 tiles.setFeature(18, 15, 'door');
-assert.ok(sees(18, 15), 'a closed door past grass shows its frame');
-assert.ok(!sees(19, 15), 'a closed door between grass and a wall still hides the wall');
+assert.ok(sees(18, 15), 'a closed door is visible');
+assert.ok(!sees(19, 15), 'a closed door hides the wall behind it');
 tiles.clearAllFeatures();
 tiles.setFeature(17, 15, 'grass');
 map[15][18] = 1;
 assert.ok(!sees(19, 15), 'a wall mid-line still hides the wall behind it');
 map[15][18] = 0;
 map[15][19] = 0;
+tiles.clearAllFeatures();
+// An observer standing in grass sees the adjacent ring and nothing beyond it.
+tiles.setFeature(15, 15, 'grass');
+assert.ok(sees(15, 16) && sees(16, 16) && sees(14, 14), 'grass occupant still sees adjacent tiles');
+assert.ok(!sees(15, 17), 'grass occupant cannot see past its own tile');
+assert.ok(!sees(17, 15), 'grass occupant has no long-range sight');
+assert.ok(!hasLineOfSight(map, 15, 15, 17, 15), 'sight cannot leave grass at range');
+assert.ok(hasLineOfSight(map, 15, 15, 15, 16), 'adjacent sightline still works from grass');
+assert.ok(computeFOV(map, 15, 15, 8, true).has('22,15'), 'Magical Sight ignores grass');
 tiles.clearAllFeatures();
 tiles.setFeature(17, 15, 'door');
 tiles.setDoorState(17, 15, 'open');
@@ -167,24 +176,32 @@ assert.ok(!sight.canSee(clearing, 1, 4, 4, 4, 8));
 assert.ok(sight.canSee(clearing, 3, 4, 4, 4, 8));
 assert.ok(tiles.isGrassConcealed(4, 4, 1, 4));
 assert.ok(!tiles.isGrassConcealed(4, 4, 3, 3), 'diagonal adjacency reveals');
+// Grass between two actors severs sight at range, even without concealment.
+tiles.setFeature(3, 4, 'grass');
+assert.ok(!sight.canSee(clearing, 2, 4, 4, 4, 8), 'grass between actors blocks ranged targeting');
+assert.ok(sight.canSee(clearing, 3, 4, 4, 4, 8), 'you see into the grass tile beside you');
+tiles.clearFeature(3, 4);
 const ai = load('src/games/rogue0/ai.ts', {
   ...sight, tiles, hasEffect: () => false, dungeon: { getCurrentLevel: () => clearing }
 });
 const ambusher = { type: 'player', x: 4, y: 4, attack: () => 4, effects: [], accuracy: 100 };
 const guard = { type: 'enemy', name: 'Guard', x: 1, y: 4, visionRadius: 8,
   awareOfPlayer: true, protection: () => 0, evasion: 0, effects: [], resistance: {}, vulnerability: {} };
-let refreshes = 0;
 const coverContext = { player: ambusher, currentLevel: clearing, visibleTiles: new Set(['4,4']),
-  messages: [], onCoverChanged: () => refreshes++ };
+  messages: [] };
 guard.context = ambusher.context = coverContext;
 assert.ok(!ai.enemyCanSeePlayer(guard), 'grass breaks current awareness');
 const combat = load('src/games/rogue0/combat.ts', { ...sight, tiles, ...effects });
 assert.ok(combat.isSurpriseAttack(coverContext, ambusher, guard));
-combat.resolveAttack(coverContext, ambusher, guard);
-assert.equal(tiles.getFeature(4, 4), undefined, 'attack flattens cover');
-assert.equal(refreshes, 1);
-assert.ok(ai.enemyCanSeePlayer(guard));
-assert.ok(!combat.isSurpriseAttack(coverContext, ambusher, guard), 'no repeated cover ambush');
+const coverAttack = combat.resolveAttack(coverContext, ambusher, guard);
+assert.ok(coverAttack.surprise, 'first attack from cover lands as an ambush');
+assert.equal(tiles.getFeature(4, 4), 'grass', 'attacking never clears grass cover');
+assert.ok(!ai.enemyCanSeePlayer(guard), 'grass keeps concealing its occupant after the attack');
+// Cover is no longer consumed, so concealment keeps its ambush value for as
+// long as the defender cannot see the attacker through the blades.
+assert.ok(combat.isSurpriseAttack(coverContext, ambusher, guard), 'standing in cover stays concealed');
+guard.x = 3;  // Adjacent: grass reveals its occupant, so no ambush from cover.
+assert.ok(!combat.isSurpriseAttack(coverContext, ambusher, guard), 'adjacent attackers gain nothing from grass');
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity: class {}, ...tiles, dungeon: { inspectTile: () => 'Tall grass' }
 }).default;

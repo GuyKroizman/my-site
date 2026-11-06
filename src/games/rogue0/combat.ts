@@ -92,20 +92,12 @@ export function resolveAttack(
   defender: Entity,
   opts: CombatOptions = {}
 ): CombatResult {
-  const tiles = terrainFor(context);
   const damageType = opts.damageType ?? "physical";
   const appliedEffects: StatusEffect[] = [];
   const surprise = isSurpriseAttack(context, attacker, defender);
   // An attempted attack can provoke a dormant creature even if it misses
   // or armor absorbs all damage. Capture surprise before revealing it.
   defender.onAttacked?.(attacker);
-
-  // Resolve the opening ambush before destroying cover, including on a miss.
-  if (attacker.x !== undefined && attacker.y !== undefined &&
-      tiles.getFeature(attacker.x, attacker.y) === "grass") {
-    tiles.clearFeature(attacker.x, attacker.y);
-    context.onCoverChanged?.();
-  }
 
   // An attack reveals the player's location even on a miss. Consume the
   // ambush before the next attack, including multiple fast player actions.

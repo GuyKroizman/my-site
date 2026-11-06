@@ -579,6 +579,16 @@ const dungeon = {
       }
     }
 
+    // Tall grass is trampled by walking through it. Entering the tile flattens
+    // the blades into bare floor, so nobody can stand hidden in it after a
+    // move; hide BEHIND a patch instead. Burning actors ignite it instead:
+    // fire is the other way to clear grass.
+    if (entering && !flying && entity.type !== "item" && entity.healthPoints > 0 &&
+        !hasEffect(entity, "burning") && tiles.getFeature(destX, destY) === "grass") {
+      tiles.clearFeature(destX, destY);
+      this.onTerrainChanged?.();
+    }
+
     // Grass is flammable: a burning creature ignites grass on or next to it.
     if (!flying && hasEffect(entity, "burning")) {
       this.igniteGrass(context, entity, destX, destY);

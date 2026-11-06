@@ -514,12 +514,16 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       automatic skill targeting and click attacks respect cover. Mind Vision
       still marks hidden enemies without enabling optical targeting; Magical
       Sight reveals terrain but does not bypass grass concealment. Tile-aimed
-      throws can still hit concealed actors. Attacks flatten the attacker's
-      grass after computing surprise, even on a miss, preventing repeated cover
-      ambushes. Cleared cover uses the existing terrain snapshot mechanism;
-      fire also removes concealment. Vision regressions cover detection,
-      ambush consumption, targeting and inspect secrecy. Visual/balance
-      playtesting remains deferred.
+      throws can still hit concealed actors. Sight never passes a grass tile:
+      floors, walls and closed doors behind it stay hidden, and an occupant
+      standing in grass sees only the adjacent ring (Magical Sight excepted).
+      Attacks never clear the attacker's grass, but walking onto a grass tile
+      tramples it into bare floor (flying actors do not), which is how an
+      ordinary move spends cover; burning actors ignite it instead. Enemies
+      that lose sight path to the last tile they saw, and striking a defender
+      that does not currently see the attacker still lands as a surprise hit.
+      Vision regressions cover detection, trampling, ambush geometry, targeting
+      and inspect secrecy. Visual/balance playtesting remains deferred.
 - [x] Voluntary chasm drops: step into a cardinally adjacent chasm with a
       direction key or tap its tile, then confirm the fall in an in-game
       "Are you sure?" dialog (no Jump button or `v` shortcut). Committing costs

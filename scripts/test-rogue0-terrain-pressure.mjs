@@ -183,6 +183,22 @@ ctx.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
 ctx.scene = sceneStub();
 dungeon.moveEntityTo(ctx, walker, 3, 3);
 assert.equal(walker.healthPoints, 5, 'monster stepping triggers plate at new position');
+// Tall grass is trampled by walking onto it; flying actors pass over it.
+tiles.setFeature(4, 3, 'grass');
+const changesBeforeTrample = changes;
+dungeon.moveEntityTo(ctx, walker, 4, 3);
+assert.equal(tiles.getFeature(4, 3), undefined, 'walking tramples tall grass into bare floor');
+assert.equal(changes, changesBeforeTrample + 1, 'trampling refreshes terrain once');
+tiles.setFeature(5, 3, 'grass');
+const flyer = actor('enemy', 5, 4);
+flyer.isFlying = true;
+ctx = setup([flyer]);
+tiles.setFeature(5, 3, 'grass');
+ctx.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
+ctx.scene = sceneStub();
+dungeon.moveEntityTo(ctx, flyer, 5, 3);
+assert.equal(tiles.getFeature(5, 3), 'grass', 'flying actors do not trample grass');
+tiles.clearAllFeatures();
 // Search reveals traps but never disables them, even on repeated use.
 for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 'alarm']) {
   const searcher = Object.create(Hero.prototype);
