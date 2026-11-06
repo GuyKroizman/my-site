@@ -231,20 +231,6 @@ export default function Rogue0() {
     setHeroClass(current.save.heroClass)
   }
 
-  const returnToTitle = () => {
-    const context = contextRef.current
-    if (context?.pendingFall || context?.entities.some(entity => entity.moving)) {
-      setSaveStatus('Wait for the current action to finish, then choose Save & title again.')
-      return
-    }
-    context?.saveNow?.()
-    setSaveInfo(readRunSave())
-    setChoosingNew(false)
-    setMenuOpen(false)
-    setHelpOpen(false)
-    setHeroClass(null)
-  }
-
   const toggleMute = () => {
     setMuted(toggleMuted())
   }
@@ -476,8 +462,6 @@ export default function Rogue0() {
               >
                 {muted ? 'Sound: OFF' : 'Sound: ON'}
               </button>
-              <button className="rogue0-game-btn" onClick={returnToTitle}>Save & title</button>
-              <p className="rogue0-foot" role="status">{saveStatus}</p>
               <Link to="/" className="rogue0-game-btn">← back</Link>
             </div>
           )}

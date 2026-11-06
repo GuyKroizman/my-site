@@ -57,9 +57,9 @@ has been playtested. Checked boxes mean the described implementation exists.
   Five-floor equipment/supply bands exist. Themed regions are visual-only so
   far (crypt → sandstone → crystal → volcanic palettes); per-region enemy,
   trap and boss scaling is future work.
-- Browser autosave/resume (localStorage) and Save & title exist; death and
-  victory clear the run. Saves retain hero, gear, effects, the scheduler clock
-  and every visited floor.
+- Browser autosave/resume (localStorage) exists; leaving the game (the menu's
+  **← back** link) and death/victory flush or clear the run. Saves retain hero,
+  gear, effects, the scheduler clock and every visited floor.
 - Wand identity is shared across a run; zaps have no distance cap and carried
   wands recharge one charge per 20 world-time units. Upgrade scrolls, gems and
   Holy Potions let the player choose a target.
@@ -768,7 +768,7 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
 *Independent of combat depth; pairs with the rest.*
 
 - [x] Save/load (localStorage) + resume: one run autosaves per browser, with
-      Continue on the title screen and Save & title in-game. The remaining
+      Continue on the title screen, and leaving the game flushes a checkpoint. The remaining
       meta features below are still open.
 - [ ] Daily seed + seeded runs; challenge modifiers (no healing, fog of war
       doubled, cursed start, etc.).

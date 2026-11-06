@@ -99,7 +99,8 @@ need compatibility handling.
 One run is autosaved in this browser's local storage (`rogue0.run.v1`). The title
 screen offers **Continue** when a save exists, or **New Game** and hero selection.
 Choosing a new hero replaces the old run; cancelling the selection keeps it.
-The game menu also offers **Save & title**. Death and victory clear the run.
+The game menu's **← back** link returns to the site home and flushes the same
+checkpoint, so `/rogue0` then offers **Continue**. Death and victory clear the run.
 
 Saves retain the hero, inventory/equipment/quickslot references, upgrades, talents,
 identified consumables and shuffled appearances, active status effects, scheduler
