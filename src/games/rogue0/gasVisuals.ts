@@ -1,30 +1,39 @@
 import type Phaser from 'phaser';
 import type { GameContext, PoisonCloud } from './context';
 
-// Poison gas, drawn as volume rather than a washed tile.
+// Poison gas, drawn as one volume per cloud rather than a tint per tile.
 //
-// Each gas cell contributes a wide faint haze, a handful of soft drifting puffs
-// whose radii exceed the tile (so neighbouring cells fuse into one mass), two
-// counter-rotating swirl arms of light motes, and a few motes rising through the
-// cloud. Density builds from accumulated translucency instead of a shaded ball,
-// which is what makes a diamond of cells read as one billowing cloud rather than
-// a grid of green squares.
+// Gameplay owns a set of cells, but rendering must not echo that grid. The cells
+// of a connected cloud instead define a smooth density field: every cell feeds a
+// soft radial influence and the field is the union of those influences. One big
+// cloud is then drawn as a swarm of large, heavily overlapping blobs sampled off
+// that field, so the cloud has a continuous body with no seams at cell edges.
+// Colour follows local density (dark rim -> lit core), a slow coherent drift
+// makes the whole mass churn, three spiral arms of motes rotate around the
+// cloud's centre and a few specks rise through the volume.
 //
 // Presentation only: nothing here touches gameplay state, saved data, FOV or
-// Math.random. Every wobble is derived from the tile coordinate and a visual
-// clock, so a paused menu freezes the cloud instead of reshuffling it.
+// Math.random. Every wobble comes from a coordinate hash and a visual clock, so
+// a paused menu freezes the cloud instead of reshuffling it.
 
 const TILE = 16;
 const EPSILON = 1e-9;
-const PUFFS_PER_CELL = 5;
-const SWIRL_ARMS = 2;
-const SWIRL_MOTES_PER_ARM = 5;
-const DRIFT_MOTES = 3;
+/** Radius of one cell's influence in px, well over a tile so cells fuse. */
+const FIELD_RADIUS = 21;
+/** A cell is fully dense out to here (roughly its own tile) before falling off. */
+const FIELD_PLATEAU = 7;
+/** Grid spacing of the body blobs. Well under the blob radius, so they fuse. */
+const SAMPLE_STEP = 8;
+/** Below this field strength a cell edge is just haze, not body. */
+const MIN_FIELD = 0.09;
 
-// Toxic green ramp. Body is the bulk of the vapour, LIGHT adds the lit bellies
-// and swirl arms, MOTE the bright specks travelling through it.
-const BODY = 0x5d9330;
-const LIGHT = 0x94cc52;
+// Toxic green ramp, applied by local density: a dark fringe, a green bulk, a lit
+// belly and a bright core. Banding with jitter is what gives the cloud its
+// billows without drawing any hard contour.
+const RIM = 0x3c5f22;
+const BODY = 0x6a9f3a;
+const LIGHT = 0x9ed45c;
+const CORE = 0xd8f59a;
 const MOTE = 0xeeffb8;
 
 /** Depth of the gas body: above every actor, below the fog of war (100). */
@@ -32,9 +41,18 @@ const BODY_DEPTH = 98.9;
 /** Swirls and motes sit just over the body so they are never muddied by it. */
 const WISP_DEPTH = 99.1;
 
-export type GasPuff = { x: number; y: number; r: number; alpha: number };
+export type GasCell = { x: number; y: number; density: number };
+export type GasBlob = { x: number; y: number; r: number; alpha: number; color: number };
 export type GasMote = { x: number; y: number; size: number; alpha: number; color: number };
-export type GasCellLayout = { haze: GasPuff; puffs: GasPuff[]; motes: GasMote[] };
+
+/** One connected cloud: gameplay cells plus the bounds and centre it implies. */
+export type GasCluster = {
+  cells: GasCell[];
+  /** Tile bounds, inclusive. */
+  minX: number; minY: number; maxX: number; maxY: number;
+  /** Centre and reach in px, used to orbit the swirl arms. */
+  cx: number; cy: number; radius: number;
+};
 
 type Quad = { x: number; y: number; w: number; h: number; color: number; alpha: number };
 
@@ -49,8 +67,8 @@ type GasVisuals = {
 const states = new WeakMap<Phaser.Scene, GasVisuals>();
 
 /**
- * Deterministic 0..1 noise from a tile and a channel. Visuals must never draw
- * from the gameplay RNG stream, so per-cell variation comes from this hash.
+ * Deterministic 0..1 noise from a coordinate and a channel. Visuals must never
+ * draw from the gameplay RNG stream, so per-sample variation comes from this.
  */
 export function gasNoise(x: number, y: number, channel: number): number {
   let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(channel | 0, 1442695041);
@@ -70,85 +88,197 @@ export function gasDensity(cloud: PoisonCloud, simulationTime: number): number {
   // Legacy saves carry no birth time; they keep the old constant-density look.
   if (cloud.bornAt === undefined || cloud.expiresAt <= cloud.bornAt + EPSILON) return 1;
   const span = cloud.expiresAt - cloud.bornAt;
-  const age = Math.max(0, simulationTime - cloud.bornAt);
-  const grow = Math.min(1, age / 0.35);
-  return Math.max(0, Math.min(1, grow)) * Math.max(0, Math.min(1, remaining / span));
+  const grow = Math.min(1, Math.max(0, simulationTime - cloud.bornAt) / 0.35);
+  return grow * Math.max(0, Math.min(1, remaining / span));
 }
 
 /**
- * Puffs and motes for one gas tile. Pure: (x, y, clock, density) fully determine
- * the result, which keeps the visuals testable and replayable.
+ * Groups living cloud cells into connected clouds and measures each one. Cells
+ * that do not touch stay separate masses: the field never bridges a gap.
  */
-export function gasCellLayout(x: number, y: number, time: number, density: number): GasCellLayout {
-  const cx = x * TILE + TILE / 2;
-  const cy = y * TILE + TILE / 2;
-  const d = Math.max(0, Math.min(1, density));
-  // A dissipating cloud shrinks toward the tile centre as well as fading.
-  const scale = 0.7 + 0.3 * Math.min(1, d * 1.5);
-  const t = time / 1000;
-
-  // A few wide, very faint puffs per cell. Their radii exceed the tile, so
-  // neighbouring cells of one cloud overlap heavily and fuse into a single soft
-  // mass whose middle is denser than its rim: volume from accumulated haze, not
-  // from a shaded ball.
-  // Per-cell tone breaks the uniform "every cell the same" checkerboard: some
-  // cells of a cloud are thicker than others, like real vapour.
-  const tone = 0.7 + 0.6 * gasNoise(x, y, 97);
-  const puffs: GasPuff[] = [];
-  for (let i = 0; i < PUFFS_PER_CELL; i++) {
-    const a = gasNoise(x, y, i * 3 + 1);
-    const b = gasNoise(x, y, i * 3 + 2);
-    const angle = t * (0.3 + a * 0.45) + b * Math.PI * 2;
-    const orbit = (2.4 + a * 2.2) * scale;
-    const r = (5.6 + b * 3.0) * scale + Math.sin(t * 0.9 + a * 5.5) * 0.7;
-    puffs.push({
-      x: cx + Math.cos(angle) * orbit,
-      y: cy + Math.sin(angle * 0.9) * orbit * 0.85,
-      r: Math.max(1.8, r),
-      alpha: (0.085 + 0.03 * b) * tone * (0.25 + 0.75 * d)
-    });
+export function gasClusters(clouds: PoisonCloud[], simulationTime: number): GasCluster[] {
+  const cells: GasCell[] = [];
+  for (const cloud of clouds) {
+    const density = gasDensity(cloud, simulationTime);
+    if (density <= 0.02) continue;
+    cells.push({ x: cloud.x, y: cloud.y, density });
   }
+  const byKey = new Map<string, GasCell>();
+  for (const cell of cells) byKey.set(`${cell.x},${cell.y}`, cell);
 
-  const motes: GasMote[] = [];
-  // Two counter-rotating swirl arms: an advancing spiral of light motes, so the
-  // cloud looks like it is turning in on itself rather than only pulsing.
-  for (let arm = 0; arm < SWIRL_ARMS; arm++) {
-    const direction = arm === 0 ? 1 : -1;
-    const spin = t * 1.9 * direction + gasNoise(x, y, 41 + arm) * Math.PI * 2;
-    for (let step = 0; step < SWIRL_MOTES_PER_ARM; step++) {
-      const theta = spin + step * 0.42 * direction;
-      const radius = (2.0 + step * 1.05) * scale;
-      motes.push({
-        x: cx + Math.cos(theta) * radius,
-        y: cy + Math.sin(theta) * radius * 0.82,
-        // One chunky mote per arm keeps the swirl readable at 1x; the rest of
-        // the arm tapers to single pixels so it reads as vapour, not a necklace.
-        size: step === 1 ? 2 : 1,
-        alpha: (0.4 - step * 0.06) * d,
-        color: step >= 3 ? MOTE : LIGHT
+  const clusters: GasCluster[] = [];
+  const seen = new Set<string>();
+  for (const start of cells) {
+    const startKey = `${start.x},${start.y}`;
+    if (seen.has(startKey)) continue;
+    const group: GasCell[] = [];
+    const queue = [start];
+    seen.add(startKey);
+    while (queue.length) {
+      const cell = queue.pop()!;
+      group.push(cell);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const key = `${cell.x + dx},${cell.y + dy}`;
+        const next = byKey.get(key);
+        if (!next || seen.has(key)) continue;
+        seen.add(key);
+        queue.push(next);
+      }
+    }
+    clusters.push(measureCluster(group));
+  }
+  return clusters;
+}
+
+function measureCluster(cells: GasCell[]): GasCluster {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let sumX = 0, sumY = 0;
+  for (const cell of cells) {
+    minX = Math.min(minX, cell.x);
+    minY = Math.min(minY, cell.y);
+    maxX = Math.max(maxX, cell.x);
+    maxY = Math.max(maxY, cell.y);
+    sumX += cell.x * TILE + TILE / 2;
+    sumY += cell.y * TILE + TILE / 2;
+  }
+  const cx = sumX / cells.length;
+  const cy = sumY / cells.length;
+  let radius = 0;
+  for (const cell of cells) {
+    radius = Math.max(radius, Math.hypot(cell.x * TILE + TILE / 2 - cx, cell.y * TILE + TILE / 2 - cy));
+  }
+  return { cells, minX, minY, maxX, maxY, cx, cy, radius: radius + TILE * 0.6 };
+}
+
+/**
+ * Smooth cloud density at a pixel: the union of every cell's radial influence.
+ * Continuity is the whole point, so neighbouring cells produce a single hump
+ * instead of a bright tile-centre and a seam between tiles.
+ */
+export function gasField(cluster: GasCluster, px: number, py: number): number {
+  let open = 1;
+  for (const cell of cluster.cells) {
+    const dx = px - (cell.x * TILE + TILE / 2);
+    const dy = py - (cell.y * TILE + TILE / 2);
+    const dist = Math.hypot(dx, dy);
+    if (dist >= FIELD_RADIUS) continue;
+    // Flat-topped kernel: a cell is fully dense across its own footprint and
+    // only its shoulder fades. Adjacent cells therefore overlap at full density,
+    // so the field is one plateau with a soft cloud edge, not a row of humps.
+    const shoulder = Math.max(0, 1 - Math.max(0, dist - FIELD_PLATEAU) / (FIELD_RADIUS - FIELD_PLATEAU));
+    open *= 1 - cell.density * shoulder * shoulder;
+  }
+  return 1 - open;
+}
+
+/** Colour band for a density, with a per-sample nudge so no contour rings show. */
+function gasColor(field: number, jitter: number): number {
+  const value = field + (jitter - 0.5) * 0.14;
+  if (value > 0.74) return CORE;
+  if (value > 0.48) return LIGHT;
+  if (value > 0.26) return BODY;
+  return RIM;
+}
+
+/**
+ * Body blobs and motes for one cloud at a given visual clock. Pure: the cluster
+ * and the time fully determine the result, which keeps it testable and lets a
+ * paused game freeze the animation exactly.
+ */
+export function gasCloudLayout(cluster: GasCluster, time: number): { blobs: GasBlob[]; motes: GasMote[] } {
+  const t = time / 1000;
+  const blobs: GasBlob[] = [];
+  const x0 = cluster.minX * TILE - 6;
+  const x1 = (cluster.maxX + 1) * TILE + 6;
+  const y0 = cluster.minY * TILE - 6;
+  const y1 = (cluster.maxY + 1) * TILE + 6;
+
+  for (let gy = y0; gy <= y1; gy += SAMPLE_STEP) {
+    for (let gx = x0; gx <= x1; gx += SAMPLE_STEP) {
+      const i = Math.floor(gx / SAMPLE_STEP);
+      const j = Math.floor(gy / SAMPLE_STEP);
+      const nx = gasNoise(i, j, 11);
+      const ny = gasNoise(i, j, 13);
+      const nr = gasNoise(i, j, 17);
+      // Drift is a smooth function of position, so neighbouring blobs move
+      // together and the cloud churns as one body instead of boiling per blob.
+      const x = gx + (nx - 0.5) * SAMPLE_STEP * 1.0
+        + Math.sin(t * 0.45 + gy * 0.021) * 2.4 + Math.sin(t * 0.23 + gx * 0.015) * 1.8;
+      const y = gy + (ny - 0.5) * SAMPLE_STEP * 1.0
+        + Math.cos(t * 0.38 + gx * 0.019) * 2.0 + Math.sin(t * 0.29 + gy * 0.017) * 1.4;
+      const field = gasField(cluster, x, y);
+      if (field < MIN_FIELD) continue;
+      const pulse = 0.93 + 0.08 * Math.sin(t * 0.85 + nr * Math.PI * 2);
+      // Slow low-frequency billows on top of the field: the body gains lumps and
+      // hollows that travel with the drift, instead of one uniform dome.
+      const billow = 0.86 + 0.24 * (0.5 + 0.5 * Math.sin(x * 0.085 + t * 0.35) * Math.sin(y * 0.1 - t * 0.3));
+      blobs.push({
+        x, y,
+        // Dense areas are made of bigger blobs, which is what turns the field
+        // into a rounded body with a soft fringe rather than a flat wash.
+        r: (4.6 + 9.8 * field) * pulse * (0.9 + 0.1 * billow),
+        alpha: (0.062 + 0.012 * field) * pulse * billow,
+        color: gasColor(field * billow * 1.1, nr)
       });
     }
   }
 
-  // Motes rising through the volume. They fade in and out at the tile edges, so
-  // the cloud always reads as contained by the cell it occupies.
-  for (let i = 0; i < DRIFT_MOTES; i++) {
-    const seed = gasNoise(x, y, 71 + i);
-    const cycle = 1.7 + seed * 1.5;
+  const motes: GasMote[] = [];
+  // Two long spiral wisps turning around the cloud's own centre. Sampled densely
+  // along the arc so they read as curved streaks of vapour sweeping across tile
+  // borders, rather than as scattered dots inside each cell.
+  for (let arm = 0; arm < 2; arm++) {
+    const direction = arm ? -1 : 1;
+    const base = gasNoise(cluster.minX, cluster.minY, 31 + arm) * Math.PI * 2;
+    const sweep = 2.6 + arm * 1.1;
+    const steps = 30;
+    for (let step = 0; step < steps; step++) {
+      const reach = (step + 1) / steps;
+      const theta = base + direction * (t * 0.7 + reach * sweep);
+      const radius = cluster.radius * (0.16 + reach * 0.8);
+      const mx = cluster.cx + Math.cos(theta) * radius;
+      const my = cluster.cy + Math.sin(theta) * radius * 0.85;
+      const field = gasField(cluster, mx, my);
+      if (field < 0.12) continue;
+      motes.push({
+        x: mx, y: my,
+        // The middle of the arc is a chunkier pixel run, so the wisp reads as a
+        // curve rather than a dotted line; the ends taper away.
+        size: reach > 0.35 && reach < 0.8 ? 2 : 1,
+        alpha: (0.16 + 0.22 * reach) * field,
+        color: reach > 0.5 ? MOTE : LIGHT
+      });
+    }
+  }
+  // A few brighter specks riding the densest part of the cloud.
+  for (let i = 0; i < 6; i++) {
+    const seed = gasNoise(cluster.minX + i, cluster.maxY, 53);
+    const angle = seed * Math.PI * 2 + t * 0.5 * (i % 2 ? -1 : 1);
+    const radius = cluster.radius * (0.15 + 0.45 * seed);
+    const mx = cluster.cx + Math.cos(angle) * radius;
+    const my = cluster.cy + Math.sin(angle) * radius * 0.85;
+    const field = gasField(cluster, mx, my);
+    if (field < 0.35) continue;
+    motes.push({ x: mx, y: my, size: 2, alpha: 0.3 * field, color: MOTE });
+  }
+  // Specks rising through the volume, one per cell, phase-staggered by hash.
+  for (const cell of cluster.cells) {
+    const seed = gasNoise(cell.x, cell.y, 71);
+    const cycle = 2.1 + seed * 1.7;
     const phase = (t / cycle + seed) % 1;
     motes.push({
-      x: cx + Math.sin(t * 1.7 + seed * 9) * 2.2 * scale,
-      y: cy + 6 - phase * 12,
+      x: cell.x * TILE + TILE / 2 + Math.sin(t * 1.4 + seed * 9) * 5,
+      y: cell.y * TILE + TILE / 2 + 6 - phase * 15,
       size: 1,
-      alpha: 0.55 * d * Math.sin(Math.PI * phase),
+      alpha: 0.26 * cell.density * Math.sin(Math.PI * phase),
       color: MOTE
     });
   }
 
-  return { haze: { x: cx, y: cy, r: 11 * scale, alpha: 0.085 * d }, puffs, motes };
+  return { blobs, motes };
 }
 
-/** One 1px-tall row of a chunky pixel disc, keeping the silhouette round. */
+/** A pixel row of a chunky disc, so the cloud keeps the game's pixel language. */
 function collectDisc(out: Quad[], cx: number, cy: number, radius: number, color: number, alpha: number): void {
   if (alpha <= 0.015) return;
   const r = Math.max(1, Math.round(radius));
@@ -161,29 +291,36 @@ function collectDisc(out: Quad[], cx: number, cy: number, radius: number, color:
   }
 }
 
-/**
- * Two discs per puff: the wide body and an offset lit belly. Deliberately soft:
- * the volume comes from many overlapping discs, so a hard rim on each one would
- * outline them as separate balls.
- */
-function collectPuff(out: Quad[], puff: GasPuff): void {
-  collectDisc(out, puff.x, puff.y, puff.r, BODY, puff.alpha);
-  collectDisc(out, puff.x - 0.6, puff.y - 0.8, puff.r * 0.62, LIGHT, puff.alpha * 0.32);
+/** A tile may be painted only while it is explored, visible and open floor. */
+function openTile(context: GameContext, x: number, y: number): boolean {
+  if (context.visibleTiles && !context.visibleTiles.has(`${x},${y}`)) return false;
+  return context.currentLevel?.[y]?.[x] === 0;
 }
 
-/** A quad may only paint complete tiles that are explored, visible and open. */
-function paintable(context: GameContext, quad: Quad): boolean {
-  const visible = context.visibleTiles;
-  const level = context.currentLevel;
-  const x0 = Math.floor(quad.x / TILE);
-  const x1 = Math.floor((quad.x + quad.w - 1) / TILE);
+/**
+ * Trims a 1px-tall row to the longest stretch of paintable tiles it covers, so a
+ * soft blob stops cleanly at a wall or the edge of sight instead of being
+ * dropped whole (which would cut a hole in the cloud) or leaking past the fog.
+ */
+function clipRow(context: GameContext, quad: Quad): Quad | null {
   const y = Math.floor(quad.y / TILE);
-  for (let x = x0; x <= x1; x++) {
-    if (visible && !visible.has(`${x},${y}`)) return false;
-    // Never spill onto a wall face: gas lives in the room, not in the stone.
-    if (level && level[y]?.[x] !== 0) return false;
+  const first = Math.floor(quad.x / TILE);
+  const last = Math.floor((quad.x + quad.w - 1) / TILE);
+  if (first === last) return openTile(context, first, y) ? quad : null;
+
+  let bestStart = 0, bestLength = 0;
+  let runStart = -1, runLength = 0;
+  for (let x = quad.x; x < quad.x + quad.w; x++) {
+    if (openTile(context, Math.floor(x / TILE), y)) {
+      if (runStart < 0) { runStart = x; runLength = 0; }
+      runLength++;
+    } else if (runStart >= 0) {
+      if (runLength > bestLength) { bestLength = runLength; bestStart = runStart; }
+      runStart = -1;
+    }
   }
-  return true;
+  if (runStart >= 0 && runLength > bestLength) { bestLength = runLength; bestStart = runStart; }
+  return bestLength > 0 ? { ...quad, x: bestStart, w: bestLength } : null;
 }
 
 /**
@@ -196,11 +333,12 @@ function flush(g: Phaser.GameObjects.Graphics, context: GameContext, quads: Quad
   for (const quad of quads) {
     const alpha = Math.max(0, Math.min(1, quad.alpha));
     if (alpha <= 0.015) continue;
-    if (!paintable(context, quad)) continue;
-    const key = (quad.color & 0xffffff) * 256 + Math.round(alpha * 255);
+    const row = clipRow(context, quad);
+    if (!row) continue;
+    const key = (row.color & 0xffffff) * 256 + Math.round(alpha * 255);
     const list = groups.get(key);
-    if (list) list.push(quad);
-    else groups.set(key, [quad]);
+    if (list) list.push(row);
+    else groups.set(key, [row]);
   }
   for (const [key, list] of groups) {
     g.fillStyle(Math.floor(key / 256), (key % 256) / 255);
@@ -221,7 +359,12 @@ export function updateGasVisuals(
 ): void {
   const simulationTime = context.simulationTime ?? 0;
   const clouds = (context.poisonClouds ?? []).filter(cloud => cloud.expiresAt > simulationTime + EPSILON);
-  if (!clouds.length) {
+  const clusters = clouds.length ? gasClusters(clouds, simulationTime) : [];
+  const visible = context.visibleTiles;
+  const shown = visible
+    ? clusters.filter(cluster => cluster.cells.some(cell => visible.has(`${cell.x},${cell.y}`)))
+    : clusters;
+  if (!shown.length) {
     clearGasVisuals(scene);
     return;
   }
@@ -243,16 +386,9 @@ export function updateGasVisuals(
 
   const bodyQuads: Quad[] = [];
   const wispQuads: Quad[] = [];
-  for (const cloud of clouds) {
-    const density = gasDensity(cloud, simulationTime);
-    if (density <= 0.02) continue;
-    // Gas is only ever drawn where the hero can currently see it.
-    if (context.visibleTiles && !context.visibleTiles.has(`${cloud.x},${cloud.y}`)) continue;
-    const { haze, puffs, motes } = gasCellLayout(cloud.x, cloud.y, state.clock, density);
-    // One wide, faint haze disc per cell bridges the gaps between puffs and ties
-    // neighbouring cells of the same cloud into a single volume.
-    collectDisc(bodyQuads, haze.x, haze.y, haze.r, BODY, haze.alpha);
-    for (const puff of puffs) collectPuff(bodyQuads, puff);
+  for (const cluster of shown) {
+    const { blobs, motes } = gasCloudLayout(cluster, state.clock);
+    for (const blob of blobs) collectDisc(bodyQuads, blob.x, blob.y, blob.r, blob.color, blob.alpha);
     for (const mote of motes) {
       wispQuads.push({
         x: Math.round(mote.x - mote.size / 2),
