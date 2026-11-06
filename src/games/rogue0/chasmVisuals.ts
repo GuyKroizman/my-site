@@ -12,6 +12,21 @@ export const CHASM_MARGIN = 4;
 export const CHASM_SIZE = CHASM_CELL + CHASM_MARGIN * 2;
 export const CHASM_FRAMES = 16;
 
+// The floor far below is a separate masked layer so it can slide at a slower
+// rate than the world (parallax). The texture is 128px and POT so WebGL can
+// repeat it; the offset is kept positive to avoid negative UV wraps.
+export const CHASM_DEEP_TEXTURE = 'chasm-deep';
+export const CHASM_DEEP_SIZE = 128;
+export const CHASM_PARALLAX = 0.35;
+export const CHASM_DEEP_DEPTH = 0.02;
+export const CHASM_SURFACE_DEPTH = 0.03;
+
+/** Texture offset for a camera scroll position: the deep layer moves at
+ * CHASM_PARALLAX of the world's speed, so the texture advances the rest. */
+export function chasmParallaxOffset(scroll: number): number {
+  return CHASM_DEEP_SIZE * 64 - scroll * (1 - CHASM_PARALLAX);
+}
+
 /** Same convention as waterShoreMask: a set bit means the chasm ends there. */
 export function chasmMask(x: number, y: number, isChasm: (x: number, y: number) => boolean): number {
   return (isChasm(x, y - 1) ? 0 : 1) | (isChasm(x + 1, y) ? 0 : 2) |
@@ -66,14 +81,8 @@ export function chasmPixels(mask: number): Rgba[] {
   const south = (mask & 4) !== 0;
   const west = (mask & 8) !== 0;
 
-  // Cell interior: one flat cold void with a whisper of grain. Per-mask
-  // lightening made large pits read as blocky sub-tiles.
-  for (let y = C0; y <= C1; y++) {
-    for (let x = C0; x <= C1; x++) {
-      const v = 6 + ((x * 13 + y * 7) % 11 < 2 ? 1 : 0);
-      put(x, y, [v, v + 1, v + 3]);
-    }
-  }
+  // The cell centre stays transparent: the masked deep-floor layer shows
+  // through it. Only the rim, walls and the shadow they cast are opaque.
 
   // Side walls: only the first few pixels of the east/west rim are visible.
   const sideWall = (fromX: number, toX: number, strength: number) => {
@@ -125,6 +134,29 @@ export function chasmPixels(mask: number): Rgba[] {
   if (west) for (let x = 0; x < M; x++) for (let y = 0; y < S; y++) paint(x, y, AO_ALPHA[M - 1 - x]);
   if (east) for (let x = C1 + 1; x < S; x++) for (let y = 0; y < S; y++) paint(x, y, AO_ALPHA[x - C1 - 1]);
 
+  // The walls occlude the light reaching the floor below, so the deep layer
+  // fades into black over the first few pixels inside the rim. The ramp is
+  // capped by the distance to the cell edge so it never steps at a tile seam.
+  const SHADOW_ALPHA = 0.62;
+  const SHADOW_WIDTH = 10;
+  const ramp = (distance: number, width: number) =>
+    distance <= 0 ? 0 : Math.max(0, 1 - distance / Math.min(width, SHADOW_WIDTH)) * SHADOW_ALPHA;
+  for (let y = C0; y <= C1; y++) {
+    for (let x = C0; x <= C1; x++) {
+      const i = y * S + x;
+      if (pixels[i][3] !== 0) continue;
+      let alpha = 0;
+      if (north) {
+        const faceBottom = C0 + FACE_ROWS.length - 1;
+        alpha = Math.max(alpha, ramp(y - faceBottom, C1 - faceBottom));
+      }
+      if (south) alpha = Math.max(alpha, ramp((C1 - 1) - y, (C1 - 1) - C0));
+      if (west) alpha = Math.max(alpha, ramp(x - (C0 + 2), C1 - (C0 + 2)));
+      if (east) alpha = Math.max(alpha, ramp((C1 - 2) - x, (C1 - 2) - C0));
+      if (alpha > 0) pixels[i] = [0, 0, 0, Math.round(alpha * 255)];
+    }
+  }
+
   // The near lip catches the light on the floor side of the cut.
   const lip = (x: number, y: number) => {
     // The lip is the lit floor edge itself; the shadow starts one pixel
@@ -136,6 +168,56 @@ export function chasmPixels(mask: number): Rgba[] {
   if (south) for (let x = C0; x <= C1; x++) lip(x, C1 + 1);
 
   return pixels;
+}
+
+/** Tileable floor far below the pit: small worn flagstones, rubble and cracks
+ * in a cold, very low-contrast palette. Dark enough that the pit still reads
+ * as a void; the inner rim shadow hides the tile seams. */
+export function chasmDeepPixels(): Rgba[] {
+  const size = CHASM_DEEP_SIZE;
+  const pixels: Rgba[] = Array.from({ length: size * size }, () => [0, 0, 0, 255] as Rgba);
+  // Small slabs read as a floor further away than the 16px surface tiles.
+  const slab = 8;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      // A plain grid reads as a floor of flagstones; the offset rows of a
+      // brick bond read as a wall instead.
+      const sx = x % slab;
+      const sy = y % slab;
+      const joint = sx === 0 || sy === 0;
+      let v: number;
+      if (joint) {
+        v = 7 + ((x * 7 + y * 13) % 5 === 0 ? 1 : 0);
+      } else {
+        const grain = (x * 11 + y * 5) % 17;
+        v = 10 + (grain < 3 ? 2 : grain < 9 ? 1 : 0);
+      }
+      // Sparse rubble and a hairline crack give the lower floor a readable
+      // scale without becoming a bright pattern.
+      if ((x * 5 + y * 3) % 97 === 0) v += 4;
+      if ((x * 13 + y * 7) % 131 === 0) v += 6;
+      if ((x * 3 + y * 5) % 53 < 3) v -= 2;
+      pixels[y * size + x] = [v, v + 1, v + 3, 255];
+    }
+  }
+  return pixels;
+}
+
+export function generateChasmDeepTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists(CHASM_DEEP_TEXTURE)) return;
+  const size = CHASM_DEEP_SIZE;
+  const texture = scene.textures.createCanvas(CHASM_DEEP_TEXTURE, size, size);
+  if (!texture) return;
+  const context = texture.getContext();
+  const image = context.createImageData(size, size);
+  chasmDeepPixels().forEach((pixel, i) => {
+    image.data[i * 4] = pixel[0];
+    image.data[i * 4 + 1] = pixel[1];
+    image.data[i * 4 + 2] = pixel[2];
+    image.data[i * 4 + 3] = pixel[3];
+  });
+  context.putImageData(image, 0, 0);
+  texture.refresh();
 }
 
 export function generateChasmTexture(scene: Phaser.Scene): void {

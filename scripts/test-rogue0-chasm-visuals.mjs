@@ -14,7 +14,9 @@ function evaluate(source, bindings = {}) {
 const chasm = evaluate(fs.readFileSync('src/games/rogue0/chasmVisuals.ts', 'utf8').replace(/^import.*;\n/gm, ''));
 const {
   CHASM_TEXTURE, CHASM_CELL, CHASM_MARGIN, CHASM_SIZE, CHASM_FRAMES,
-  chasmMask, chasmFrame, chasmPixels, generateChasmTexture
+  CHASM_DEEP_TEXTURE, CHASM_DEEP_SIZE, CHASM_PARALLAX, CHASM_DEEP_DEPTH, CHASM_SURFACE_DEPTH,
+  chasmMask, chasmFrame, chasmPixels, chasmDeepPixels, chasmParallaxOffset,
+  generateChasmTexture, generateChasmDeepTexture
 } = chasm;
 
 const S = CHASM_SIZE;
@@ -22,6 +24,9 @@ assert.equal(CHASM_CELL, 16);
 assert.equal(CHASM_MARGIN, 4);
 assert.equal(S, 24);
 assert.equal(CHASM_FRAMES, 16);
+assert.equal(CHASM_DEEP_SIZE, 128);
+assert.equal(CHASM_PARALLAX, 0.35);
+assert.ok(CHASM_DEEP_DEPTH < CHASM_SURFACE_DEPTH, 'the deep layer sits under the rim sprites');
 
 // --- edge masks ------------------------------------------------------------
 const never = () => false;
@@ -52,14 +57,8 @@ for (let mask = 0; mask < CHASM_FRAMES; mask++) {
       assert.equal(pixel.length, 4, 'pixels are RGBA');
       assert.ok(pixel.every(Number.isInteger));
       assert.ok(pixel[3] >= 0 && pixel[3] <= 255);
-      if (inCell(x, y)) {
-        assert.equal(pixel[3], 255, 'the pit cell is opaque');
-        // Rim bands are rock; the void between them stays near black. Mask 0
-        // is all void, so it must be uniformly dark.
-        if (mask === 0 ||
-          (x >= 8 && x <= 15 && y >= 12 && y <= 17)) {
-          assert.ok(pixel[0] < 20 && pixel[1] < 20 && pixel[2] < 20, 'the pit void stays near black');
-        }
+      if (inCell(x, y) && mask === 0) {
+        assert.equal(pixel[3], 0, 'interior cells are transparent so the deep floor shows through');
       }
     }
   }
@@ -80,18 +79,34 @@ for (let mask = 0; mask < CHASM_FRAMES; mask++) {
 const north = chasmPixels(1);
 assert.ok(at(north, 10, 4)[0] > at(north, 10, 12)[0], 'the north face darkens with depth');
 assert.equal(at(north, 10, 20)[3], 0, 'a north-only rim casts no near lip');
+assert.ok(at(north, 10, 14)[3] > 0, 'the face casts a shadow onto the deep floor');
+assert.equal(at(north, 10, 19)[3], 0, 'the north shadow fades before the tile seam');
 const south = chasmPixels(4);
 assert.deepEqual(at(south, 10, 20), [0x7a, 0x78, 0x62, 62], 'the near lip is a dim warm line');
 assert.ok(at(south, 10, 19)[0] < 20, 'the near cut edge is dark');
+assert.ok(at(south, 10, 16)[3] > 0, 'the near rim shades the deep floor');
 const all = chasmPixels(15);
 assert.ok(at(all, 10, 4)[0] > at(all, 10, 12)[0], 'the face is independent of the other edges');
 assert.deepEqual(at(all, 10, 20), [0x7a, 0x78, 0x62, 62], 'the near lip survives a fully edged frame');
+assert.ok(at(all, 11, 14)[3] > 0 && at(all, 11, 14)[3] < 255, 'the deep floor is shaded inside a one-tile pit');
 
-// The open interior must not use gameplay RNG.
+// --- deep floor ------------------------------------------------------------
+const deepPixels = chasmDeepPixels();
+assert.equal(deepPixels.length, CHASM_DEEP_SIZE * CHASM_DEEP_SIZE);
+assert.deepEqual(deepPixels, chasmDeepPixels(), 'the deep floor is deterministic');
+assert.ok(deepPixels.every(pixel => pixel[3] === 255), 'the deep floor is opaque');
+assert.ok(deepPixels.every(pixel => pixel[0] < 40 && pixel[1] < 40 && pixel[2] < 40),
+  'the deep floor stays dark enough to read as a void');
+assert.equal(chasmParallaxOffset(0), CHASM_DEEP_SIZE * 64);
+assert.equal(chasmParallaxOffset(0) - chasmParallaxOffset(100), 65,
+  'the texture advances 0.65px for every world pixel so the layer moves at 0.35x');
+assert.ok(chasmParallaxOffset(5000) > 0, 'the offset stays positive across a large map');
+
+// The atlas and deep floor must not use gameplay RNG.
 const previousRandom = Math.random;
 try {
   Math.random = () => { throw Error('visuals must not use gameplay randomness'); };
-  chasmPixels(15); chasmPixels(0);
+  chasmPixels(15); chasmPixels(0); chasmDeepPixels();
 } finally {
   Math.random = previousRandom;
 }
@@ -135,12 +150,37 @@ for (const [id, [x, y, w, h]] of atlas) {
   assert.equal(y, Math.floor(id / 4) * S);
 }
 
+let deepBuilds = 0;
+const deepScene = {
+  textures: {
+    exists: () => deepBuilds > 0,
+    createCanvas(key, width, height) {
+      assert.equal(key, CHASM_DEEP_TEXTURE);
+      assert.deepEqual([width, height], [CHASM_DEEP_SIZE, CHASM_DEEP_SIZE]);
+      return {
+        getContext: () => ({
+          createImageData: () => ({ data: new Uint8ClampedArray(CHASM_DEEP_SIZE * CHASM_DEEP_SIZE * 4) }),
+          putImageData(image) {
+            assert.equal(image.data.length, CHASM_DEEP_SIZE * CHASM_DEEP_SIZE * 4);
+            assert.equal(image.data[3], 255);
+          }
+        }),
+        refresh() { deepBuilds++; }
+      };
+    }
+  }
+};
+generateChasmDeepTexture(deepScene);
+generateChasmDeepTexture(deepScene);
+assert.equal(deepBuilds, 1, 'the deep floor is built once');
+
 // --- scene wiring ----------------------------------------------------------
 let state = { feature: 'chasm' };
 const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 const methods = source.slice(source.indexOf('  private featureVisual('), source.indexOf('  private makeArrowTexture()'));
 const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
-  CHASM_TEXTURE, CHASM_MARGIN, CHASM_SIZE, chasmMask, chasmFrame,
+  CHASM_TEXTURE, CHASM_MARGIN, CHASM_SIZE, CHASM_DEEP_TEXTURE, CHASM_DEEP_DEPTH,
+  CHASM_SURFACE_DEPTH, chasmParallaxOffset, chasmMask, chasmFrame,
   tiles: { FeatureTiles: { water: 206, chasm: 5 } },
   terrainFor: () => ({
     getFeature: (x, y) => (x === 0 && y === 0 ? state?.feature : undefined),
@@ -152,6 +192,20 @@ const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
   flatDecalFrameFor: () => undefined, DECAL_TEXTURE: 'wall-decals', UPRIGHT_LIFT: 5,
 });
 const s = new TestScene();
+
+const maskGraphics = [];
+const makeGraphics = () => {
+  const g = {
+    calls: [], destroyed: false,
+    fillStyle() { return g; },
+    fillRect(...args) { g.calls.push(args); return g; },
+    createGeometryMask() { return { geometryMask: g }; },
+    destroy() { g.destroyed = true; }
+  };
+  maskGraphics.push(g);
+  return g;
+};
+const sprites = [];
 const sprite = {
   visible: false, texture: '', frame: -1, tint: 0xffffff, alpha: 0, depth: -1, origins: [],
   setOrigin(...args) { this.origins.push(args); return this; },
@@ -164,10 +218,34 @@ const sprite = {
   clearTint() { this.tint = 0xffffff; },
   destroy() { this.destroyed = true; }
 };
+sprites.push(sprite);
+const deep = {
+  x: 0, y: 0, width: 0, height: 0, visible: false, depth: -1, mask: null,
+  tilePositionX: 999, tilePositionY: 999, texture: '',
+  setOrigin() { return this; },
+  setDepth(depth) { this.depth = depth; return this; },
+  setVisible(visible) { this.visible = visible; return this; },
+  setPosition(x, y) { this.x = x; this.y = y; return this; },
+  setSize(width, height) { this.width = width; this.height = height; return this; },
+  setMask(mask) { this.mask = mask; return this; }
+};
 Object.assign(s, {
-  context: { map: { tileToWorldX: (x) => x * 16, tileToWorldY: (y) => y * 16 } },
+  context: {
+    map: {
+      tileToWorldX: (x) => x * 16, tileToWorldY: (y) => y * 16,
+      widthInPixels: 16, heightInPixels: 16
+    }
+  },
+  cameras: { main: { scrollX: 0, scrollY: 0 } },
   time: { now: 0 },
-  add: { sprite: (_x, _y, texture, frame) => sprite.setTexture(texture, frame) },
+  add: {
+    sprite: (_x, _y, texture, frame) => sprite.setTexture(texture, frame),
+    tileSprite: (_x, _y, width, height, texture) => {
+      deep.width = width; deep.height = height; deep.texture = texture;
+      return deep;
+    }
+  },
+  make: { graphics: makeGraphics },
   featureSprites: new Map(), wallSprites: new Map(), seen: [], lastWaterStep: -1
 });
 
@@ -175,11 +253,29 @@ s.syncFeatures();
 assert.equal(sprite.texture, CHASM_TEXTURE, 'the chasm uses the depth atlas, not the tinted placeholder tile');
 assert.equal(sprite.frame, 15, 'an isolated chasm cell selects the fully edged frame');
 assert.equal(sprite.tint, 0xffffff, 'no tint is applied over the generated art');
-assert.equal(sprite.depth, 0, 'the pit stays flat on the floor');
+assert.equal(sprite.depth, CHASM_SURFACE_DEPTH, 'the rim draws above the deep layer');
 assert.equal(sprite.alpha, 1);
 assert.equal(sprite.visible, true);
 assert.deepEqual(sprite.origins.at(-1), [CHASM_MARGIN / CHASM_SIZE, CHASM_MARGIN / CHASM_SIZE],
   'the margin is centred on the cell so the rim shadow lands on the neighbours');
 assert.equal(s.waterSprites.size, 0, 'the pit is not animated as water');
 
-console.log('Rogue0 chasm visuals: edge masks, rim shadow, cliff face, near lip, generated atlas and scene wiring passed');
+assert.equal(deep.texture, CHASM_DEEP_TEXTURE);
+assert.equal(deep.depth, CHASM_DEEP_DEPTH);
+assert.equal(deep.visible, true);
+assert.equal(deep.mask.geometryMask.calls.length, 1, 'one mask rect per chasm cell');
+assert.deepEqual(deep.mask.geometryMask.calls[0], [0, 0, 16, 16]);
+assert.equal(deep.tilePositionX, chasmParallaxOffset(0), 'the initial texture offset is deterministic');
+s.cameras.main.scrollX = 100;
+s.cameras.main.scrollY = 40;
+s.updateDeepParallax();
+assert.equal(deep.tilePositionX, chasmParallaxOffset(100));
+assert.equal(deep.tilePositionY, chasmParallaxOffset(40));
+assert.equal(chasmParallaxOffset(0) - deep.tilePositionX, 65, 'the deep layer lags the world');
+
+// Leaving the floor hides the layer (the rim sprites are gone with it).
+state = null;
+s.syncFeatures();
+assert.equal(deep.visible, false, 'a floor without chasms hides the deep layer');
+
+console.log('Rogue0 chasm visuals: edge masks, rim shadow, cliff face, near lip, deep parallax layer, generated atlases and scene wiring passed');

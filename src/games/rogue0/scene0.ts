@@ -25,7 +25,11 @@ import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
-import { CHASM_TEXTURE, CHASM_MARGIN, CHASM_SIZE, generateChasmTexture, chasmMask, chasmFrame } from './chasmVisuals';
+import {
+  CHASM_TEXTURE, CHASM_MARGIN, CHASM_SIZE, CHASM_DEEP_TEXTURE, CHASM_DEEP_DEPTH,
+  CHASM_SURFACE_DEPTH, chasmParallaxOffset, generateChasmTexture, generateChasmDeepTexture,
+  chasmMask, chasmFrame
+} from './chasmVisuals';
 import { TRAP_ALPHA, TRAP_TEXTURE, generateTrapTextures, trapFrame } from './trapVisuals';
 import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from "./gas";
 import { updateGasVisuals, clearGasVisuals } from './gasVisuals';
@@ -213,6 +217,11 @@ export class Scene0 extends Phaser.Scene {
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private waterSprites = new Map<string, { sprite: Phaser.GameObjects.Sprite; x: number; y: number; mask: number }>();
   private lastWaterStep = -1;
+  // Masked floor glimpsed at the bottom of chasms. It slides slower than the
+  // world (parallax), so it is a sibling layer, not part of the rim sprites.
+  private deepLayer?: Phaser.GameObjects.TileSprite;
+  private chasmMaskGraphics?: Phaser.GameObjects.Graphics;
+  private chasmMaskSignature = '';
   private wallSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   // Sparse wall decoration, keyed like the raised wall sprites above. Raised
   // faces (corridor side) and flat wall tops share the map; the flag keeps
@@ -280,6 +289,10 @@ export class Scene0 extends Phaser.Scene {
       this.context.onWandZap = undefined;
       this.context.onLiquidFlameShatter = undefined;
       this.context.onMonsterRemoved = undefined;
+      this.chasmMaskGraphics?.destroy();
+      this.chasmMaskGraphics = undefined;
+      this.deepLayer = undefined;
+      this.chasmMaskSignature = '';
     });
     this.context.scene = this;
     resetConsumableAppearances(this.context);
@@ -320,6 +333,7 @@ export class Scene0 extends Phaser.Scene {
     generateUnknownItemTextures(this);
     generateWaterTexture(this);
     generateChasmTexture(this);
+    generateChasmDeepTexture(this);
     generateTrapTextures(this);
 
     // Restoring must not generate a floor or construct a hero: both reroll loot.
@@ -573,6 +587,7 @@ export class Scene0 extends Phaser.Scene {
 
   update() {
     if (this.ended) return;
+    this.updateDeepParallax();
     this.updateWater(this.time.now);
     updateWandZaps(this, this.context, this.time.now, isModalOpen(this.context));
     updateGrassBurns(this, this.context, this.time.now, isModalOpen(this.context));
@@ -1296,6 +1311,7 @@ export class Scene0 extends Phaser.Scene {
     }
 
     const seen = new Set<string>();
+    const chasmCells = new Set<string>();
     this.waterSprites ??= new Map();
     this.waterSprites.clear();
 
@@ -1333,6 +1349,7 @@ export class Scene0 extends Phaser.Scene {
       }
 
       if (state.feature === 'water') this.waterSprites.set(key, { sprite, x, y, mask });
+      if (state.feature === 'chasm') chasmCells.add(key);
 
       // Water, ice, traps and open thresholds remain flat. Grass and closed
       // doors have transparent silhouettes that overlap the preceding row.
@@ -1342,7 +1359,8 @@ export class Scene0 extends Phaser.Scene {
       // is inset and the sprite origin must be shifted to match.
       const flatOrigin = state.feature === 'chasm' ? CHASM_MARGIN / CHASM_SIZE : 0;
       sprite.setOrigin(flatOrigin, upright ? actorOriginY(sprite.height) : flatOrigin);
-      sprite.setDepth(upright ? worldDepth(sprite.y, 'terrain') : 0);
+      sprite.setDepth(upright ? worldDepth(sprite.y, 'terrain')
+        : state.feature === 'chasm' ? CHASM_SURFACE_DEPTH : 0);
       if (visual.tint !== undefined) {
         sprite.setTint(visual.tint);
       } else {
@@ -1359,6 +1377,52 @@ export class Scene0 extends Phaser.Scene {
         this.featureSprites.delete(key);
       }
     }
+
+    this.syncDeepLayer(chasmCells);
+  }
+
+  /** One mask per floor clipped to the chasm cells. Chasms never change, so
+   * the mask is rebuilt only when the set changes (a new floor). */
+  private syncDeepLayer(cells: Set<string>): void {
+    if (cells.size === 0) {
+      this.deepLayer?.setVisible(false);
+      return;
+    }
+    const map = this.context.map;
+    if (!map) return;
+
+    if (!this.deepLayer) {
+      this.deepLayer = this.add
+        .tileSprite(0, 0, map.widthInPixels, map.heightInPixels, CHASM_DEEP_TEXTURE)
+        .setOrigin(0, 0)
+        .setDepth(CHASM_DEEP_DEPTH);
+    } else if (this.deepLayer.width !== map.widthInPixels || this.deepLayer.height !== map.heightInPixels) {
+      this.deepLayer.setPosition(0, 0).setSize(map.widthInPixels, map.heightInPixels);
+    }
+    this.deepLayer.setVisible(true);
+
+    const signature = [...cells].sort().join('|');
+    if (signature === this.chasmMaskSignature) return;
+    this.chasmMaskSignature = signature;
+    this.chasmMaskGraphics?.destroy();
+    const mask = this.make.graphics({ x: 0, y: 0 }, false);
+    mask.fillStyle(0xffffff, 1);
+    for (const key of cells) {
+      const [x, y] = key.split(',').map(Number);
+      mask.fillRect(x * 16, y * 16, 16, 16);
+    }
+    this.chasmMaskGraphics = mask;
+    this.deepLayer.setMask(mask.createGeometryMask());
+    this.updateDeepParallax();
+  }
+
+  /** The hole is fixed in the world; the floor below slides at a fraction of
+   * the camera speed, which is the whole depth illusion. */
+  private updateDeepParallax(): void {
+    const layer = this.deepLayer;
+    if (!layer || !layer.visible) return;
+    layer.tilePositionX = chasmParallaxOffset(this.cameras.main.scrollX);
+    layer.tilePositionY = chasmParallaxOffset(this.cameras.main.scrollY);
   }
 
   /** One decal sprite per decorated wall cell. Raised faces share the wall
