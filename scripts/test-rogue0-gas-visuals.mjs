@@ -108,10 +108,6 @@ const diamond = (cx, cy, reach) => {
   assert.equal(clusters[0].cells.length, 13, 'every living cell belongs to it');
   assert.deepEqual([clusters[0].minX, clusters[0].minY, clusters[0].maxX, clusters[0].maxY], [3, 3, 7, 7],
     'the cluster reports its tile bounds');
-  const [cx, cy] = centre(5, 5);
-  assert.equal(clusters[0].cx, cx, 'the swirl centre is the cloud centre, not a tile centre');
-  assert.equal(clusters[0].cy, cy);
-  assert.ok(clusters[0].radius > 2 * TILE, 'the swirl radius reaches the cloud rim');
 
   // A gap of one tile keeps two clouds apart: no shared field, no merging.
   const split = gasClusters([cloud(1, 1), cloud(2, 1), cloud(6, 1), cloud(7, 1)], 1);
@@ -181,10 +177,11 @@ const diamond = (cx, cy, reach) => {
       assert.ok(covered, `cloud interior point ${x},${y} is covered by the body`);
     }
   }
-  assert.ok(a.motes.length > 10, 'the cloud carries swirl and rising motes');
+  assert.ok(a.motes.length > 5, 'the cloud carries rising motes');
+  assert.equal(a.motes.length, cluster.cells.length, 'exactly one rising speck per cell, no swirl arms');
   for (const mote of a.motes) {
     assert.ok(mote.alpha >= 0 && mote.alpha <= 1, 'mote alpha is a real alpha');
-    assert.ok(mote.size === 1 || mote.size === 2, 'motes are pixel-scale');
+    assert.equal(mote.size, 1, 'motes are single pixels');
   }
   // A fading cloud shrinks and thins; it never grows.
   const fading = gasClusters(diamond(5, 5, 2), 5.5)[0];
@@ -198,12 +195,12 @@ const diamond = (cx, cy, reach) => {
   const { scene, layers } = sceneCapture();
   const context = contextWith(solid(5, 5, 2));
   updateGasVisuals(scene, context, 1000, false);
-  assert.equal(layers.length, 2, 'one layer for the body, one for swirls and motes');
+  assert.equal(layers.length, 2, 'one layer for the body, one for motes');
   const [body, wisps] = layers;
   assert.ok(body.depth < 100, 'the gas body stays below the fog of war');
-  assert.ok(wisps.depth > body.depth && wisps.depth < 100, 'swirls sit over the body, still under the fog');
+  assert.ok(wisps.depth > body.depth && wisps.depth < 100, 'motes sit over the body, still under the fog');
   assert.ok(body.quads.length > 500, 'each cloud is made of many small quads');
-  assert.ok(wisps.quads.length > 0, 'swirl motes are drawn');
+  assert.ok(wisps.quads.length > 0, 'rising motes are drawn');
   for (const quad of [...body.quads, ...wisps.quads]) {
     assert.ok(quad.w > 0 && quad.h > 0 && quad.alpha > 0 && quad.alpha <= 1, 'quads are visible pixels');
     const x0 = Math.floor(quad.x / TILE), x1 = Math.floor((quad.x + quad.w - 1) / TILE);
@@ -257,9 +254,9 @@ const diamond = (cx, cy, reach) => {
   updateGasVisuals(scene, context, 1000, false);
   const first = layers.map(layer => layer.quads.map(q => ({ ...q })));
   updateGasVisuals(scene, context, 2200, true);
-  assert.deepEqual(layers.map(layer => layer.quads), first, 'a paused menu freezes the swirls');
+  assert.deepEqual(layers.map(layer => layer.quads), first, 'a paused menu freezes the cloud');
   updateGasVisuals(scene, context, 3400, false);
-  assert.notDeepEqual(layers.map(layer => layer.quads), first, 'unpausing resumes the swirls');
+  assert.notDeepEqual(layers.map(layer => layer.quads), first, 'unpausing resumes the drift');
 }
 
 // --- lifecycle: graphics appear on demand and are torn down -----------------
@@ -294,4 +291,4 @@ const diamond = (cx, cy, reach) => {
   assert.equal(context.simulationTime, 3, 'the visual clock never advances simulation time');
 }
 
-console.log('gas visuals: one continuous cloud per cloud, all assertions passed');
+console.log('gas visuals: one continuous, drifting cloud per cloud, all assertions passed');

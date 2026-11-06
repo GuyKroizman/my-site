@@ -9,8 +9,7 @@ import type { GameContext, PoisonCloud } from './context';
 // cloud is then drawn as a swarm of large, heavily overlapping blobs sampled off
 // that field, so the cloud has a continuous body with no seams at cell edges.
 // Colour follows local density (dark rim -> lit core), a slow coherent drift
-// makes the whole mass churn, three spiral arms of motes rotate around the
-// cloud's centre and a few specks rise through the volume.
+// makes the whole mass churn, and a few specks rise through the volume.
 //
 // Presentation only: nothing here touches gameplay state, saved data, FOV or
 // Math.random. Every wobble comes from a coordinate hash and a visual clock, so
@@ -38,27 +37,25 @@ const MOTE = 0xeeffb8;
 
 /** Depth of the gas body: above every actor, below the fog of war (100). */
 const BODY_DEPTH = 98.9;
-/** Swirls and motes sit just over the body so they are never muddied by it. */
-const WISP_DEPTH = 99.1;
+/** Motes sit just over the body so they are never muddied by it. */
+const MOTE_DEPTH = 99.1;
 
 export type GasCell = { x: number; y: number; density: number };
 export type GasBlob = { x: number; y: number; r: number; alpha: number; color: number };
 export type GasMote = { x: number; y: number; size: number; alpha: number; color: number };
 
-/** One connected cloud: gameplay cells plus the bounds and centre it implies. */
+/** One connected cloud: its living cells plus the tile bounds they span. */
 export type GasCluster = {
   cells: GasCell[];
   /** Tile bounds, inclusive. */
   minX: number; minY: number; maxX: number; maxY: number;
-  /** Centre and reach in px, used to orbit the swirl arms. */
-  cx: number; cy: number; radius: number;
 };
 
 type Quad = { x: number; y: number; w: number; h: number; color: number; alpha: number };
 
 type GasVisuals = {
   body: Phaser.GameObjects.Graphics;
-  wisps: Phaser.GameObjects.Graphics;
+  motes: Phaser.GameObjects.Graphics;
   lastTime: number;
   /** Visual clock in ms. Advances only while the game is not paused. */
   clock: number;
@@ -132,22 +129,13 @@ export function gasClusters(clouds: PoisonCloud[], simulationTime: number): GasC
 
 function measureCluster(cells: GasCell[]): GasCluster {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  let sumX = 0, sumY = 0;
   for (const cell of cells) {
     minX = Math.min(minX, cell.x);
     minY = Math.min(minY, cell.y);
     maxX = Math.max(maxX, cell.x);
     maxY = Math.max(maxY, cell.y);
-    sumX += cell.x * TILE + TILE / 2;
-    sumY += cell.y * TILE + TILE / 2;
   }
-  const cx = sumX / cells.length;
-  const cy = sumY / cells.length;
-  let radius = 0;
-  for (const cell of cells) {
-    radius = Math.max(radius, Math.hypot(cell.x * TILE + TILE / 2 - cx, cell.y * TILE + TILE / 2 - cy));
-  }
-  return { cells, minX, minY, maxX, maxY, cx, cy, radius: radius + TILE * 0.6 };
+  return { cells, minX, minY, maxX, maxY };
 }
 
 /**
@@ -224,43 +212,6 @@ export function gasCloudLayout(cluster: GasCluster, time: number): { blobs: GasB
   }
 
   const motes: GasMote[] = [];
-  // Two long spiral wisps turning around the cloud's own centre. Sampled densely
-  // along the arc so they read as curved streaks of vapour sweeping across tile
-  // borders, rather than as scattered dots inside each cell.
-  for (let arm = 0; arm < 2; arm++) {
-    const direction = arm ? -1 : 1;
-    const base = gasNoise(cluster.minX, cluster.minY, 31 + arm) * Math.PI * 2;
-    const sweep = 2.6 + arm * 1.1;
-    const steps = 30;
-    for (let step = 0; step < steps; step++) {
-      const reach = (step + 1) / steps;
-      const theta = base + direction * (t * 0.7 + reach * sweep);
-      const radius = cluster.radius * (0.16 + reach * 0.8);
-      const mx = cluster.cx + Math.cos(theta) * radius;
-      const my = cluster.cy + Math.sin(theta) * radius * 0.85;
-      const field = gasField(cluster, mx, my);
-      if (field < 0.12) continue;
-      motes.push({
-        x: mx, y: my,
-        // The middle of the arc is a chunkier pixel run, so the wisp reads as a
-        // curve rather than a dotted line; the ends taper away.
-        size: reach > 0.35 && reach < 0.8 ? 2 : 1,
-        alpha: (0.16 + 0.22 * reach) * field,
-        color: reach > 0.5 ? MOTE : LIGHT
-      });
-    }
-  }
-  // A few brighter specks riding the densest part of the cloud.
-  for (let i = 0; i < 6; i++) {
-    const seed = gasNoise(cluster.minX + i, cluster.maxY, 53);
-    const angle = seed * Math.PI * 2 + t * 0.5 * (i % 2 ? -1 : 1);
-    const radius = cluster.radius * (0.15 + 0.45 * seed);
-    const mx = cluster.cx + Math.cos(angle) * radius;
-    const my = cluster.cy + Math.sin(angle) * radius * 0.85;
-    const field = gasField(cluster, mx, my);
-    if (field < 0.35) continue;
-    motes.push({ x: mx, y: my, size: 2, alpha: 0.3 * field, color: MOTE });
-  }
   // Specks rising through the volume, one per cell, phase-staggered by hash.
   for (const cell of cluster.cells) {
     const seed = gasNoise(cell.x, cell.y, 71);
@@ -373,7 +324,7 @@ export function updateGasVisuals(
   if (!state) {
     state = {
       body: scene.add.graphics().setDepth(BODY_DEPTH),
-      wisps: scene.add.graphics().setDepth(WISP_DEPTH),
+      motes: scene.add.graphics().setDepth(MOTE_DEPTH),
       lastTime: now,
       clock: 0
     };
@@ -382,15 +333,15 @@ export function updateGasVisuals(
   state.clock = (state.clock + (paused ? 0 : Math.max(0, now - state.lastTime))) % 1e6;
   state.lastTime = now;
   state.body.clear();
-  state.wisps.clear();
+  state.motes.clear();
 
   const bodyQuads: Quad[] = [];
-  const wispQuads: Quad[] = [];
+  const moteQuads: Quad[] = [];
   for (const cluster of shown) {
     const { blobs, motes } = gasCloudLayout(cluster, state.clock);
     for (const blob of blobs) collectDisc(bodyQuads, blob.x, blob.y, blob.r, blob.color, blob.alpha);
     for (const mote of motes) {
-      wispQuads.push({
+      moteQuads.push({
         x: Math.round(mote.x - mote.size / 2),
         y: Math.round(mote.y - mote.size / 2),
         w: mote.size,
@@ -402,13 +353,13 @@ export function updateGasVisuals(
   }
 
   flush(state.body, context, bodyQuads);
-  flush(state.wisps, context, wispQuads);
+  flush(state.motes, context, moteQuads);
 }
 
 export function clearGasVisuals(scene: Phaser.Scene): void {
   const state = states.get(scene);
   if (!state) return;
   state.body.destroy();
-  state.wisps.destroy();
+  state.motes.destroy();
   states.delete(scene);
 }
