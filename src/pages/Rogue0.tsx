@@ -372,7 +372,6 @@ export default function Rogue0() {
               </button>
             </div>
           )}
-          <p className="rogue0-foot">Autosaved on this browser after completed actions. Death or victory ends the saved run. Clearing browser data removes your save.</p>
 
           <div className="rogue0-instructions">
             <h2>How to play</h2>
