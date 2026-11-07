@@ -295,8 +295,10 @@ verification and balance playtesting remain deferred.
 **Tier roster:** Dagger / Shortsword / Broadsword / Greatsword / Greataxe and
 Cloth / Leather / Mail / Scale / Plate Armor. At tier `t`, upgrade `u`, weapon
 damage is `t + u` to `5t + (t + 1)u`; base attack delays are 0.8 / 1 / 1 / 1.2 /
-1.4. Armor absorbs `2t + tu` physical damage. Equipment upgrades are uncapped,
-matching the existing upgrade system. Class starter equipment retains its old
+1.4. Armor absorbs `2t + tu` physical damage. Freshly found armor, weapons and
+wands spawn at +0 (most common), +1, +2 or +3 — never higher; Scroll-of-Upgrade
+and gem upgrades remain uncapped afterwards, matching the existing system.
+Class starter equipment retains its old
 stats/tier; shields and the new armor share one slot. Gems now accept all armor.
 Art reuses existing sword/shield silhouettes pending Phase 16.
 

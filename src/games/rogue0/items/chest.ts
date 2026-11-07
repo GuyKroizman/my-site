@@ -1,6 +1,7 @@
 import { Entity } from '../entity';
 import type { GameContext } from '../context';
 import { maybeCurse } from '../curses';
+import { rollFoundUpgrade } from '../foundUpgrades';
 import dungeon from '../dungeon';
 import Gold from './gold';
 import Gem from './gem';
@@ -24,6 +25,8 @@ export default class Chest extends Entity {
     const roll = Math.floor(Math.random() * 6);
     const weapon = new TieredWeapon(context, undefined, undefined, tier);
     const armor = new TieredArmor(context, undefined, undefined, tier);
+    rollFoundUpgrade(weapon);
+    rollFoundUpgrade(armor);
     maybeCurse(weapon);
     maybeCurse(armor);
     this.contents = [roll === 0 ? new Gold(context, undefined, undefined, 10 + tier * 5)

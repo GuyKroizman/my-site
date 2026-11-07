@@ -16,6 +16,7 @@ assert.equal(gem.canEnchant(new TieredArmor({})), true);
 assert.equal(gem.canEnchant(new TieredWeapon({})), true);
 assert.equal(gem.canEnchant(new Entity()), false);
 const progression = load('src/games/rogue0/progression.ts');
+const { rollFoundUpgrade } = load('src/games/rogue0/foundUpgrades.ts', { Entity });
 const { createGameContext } = load('src/games/rogue0/context.ts');
 assert.equal(createGameContext().maxFloor, 25);
 
@@ -110,8 +111,17 @@ bindings.dungeon = { getCurrentLevel: () => currentMap, log() {} };
 bindings.sfx = { stairs() {} };
 bindings.tiles = createTerrain();
 bindings.maybeCurse = () => false; // progression suite asserts supply placement, not curse rolls
+bindings.rollFoundUpgrade = rollFoundUpgrade;
+const equipmentFinds = load('src/games/rogue0/equipmentFinds.ts', {
+  ...progression, TieredWeapon, TieredArmor, rollFoundUpgrade, maybeCurse: bindings.maybeCurse,
+});
+Object.assign(bindings, equipmentFinds);
+let equipmentRoll = 0;
+bindings.rollFloorEquipment = floor => equipmentFinds.rollFloorEquipment(floor, () => equipmentRoll);
+bindings.createEquipmentFind = (...args) => Object.assign(equipmentFinds.createEquipmentFind(...args), { bonusFind: true });
 const { Scene0 } = load('src/games/rogue0/scene0.ts', bindings);
 for (let run = 0; run < 5; run++) {
+  equipmentRoll = run % 2 ? equipmentFinds.FLOOR_EQUIPMENT_CHANCE : 0;
   const totals = { strength: 0, upgrades: 0, bosses: 0 };
   for (let floor = 1; floor <= 25; floor++) {
     const scene = Object.create(Scene0.prototype);
@@ -143,6 +153,13 @@ for (let run = 0; run < 5; run++) {
     assert.equal(count('Boss'), floor === 25 ? 1 : 0, `boss floor ${floor}`);
     assert.ok(count('Ration') >= 1);
     assert.equal(count('Chest'), 2, 'two real treasure chests accompany the encounter roster');
+    assert.equal(count('SkeletalRemains'), progression.isBossFloor(floor) ? 0 : 1,
+      'one searchable bone pile per non-boss floor');
+    const bonusFinds = items.filter(item => item.bonusFind);
+    assert.equal(bonusFinds.length,
+      !progression.isBossFloor(floor) && equipmentRoll < equipmentFinds.FLOOR_EQUIPMENT_CHANCE ? 1 : 0,
+      'floor equipment roll spawns exactly one bonus find on success, never on boss floors');
+    for (const item of bonusFinds) assert.equal(item.identified, false);
     assert.equal(count('Mimic'), floor >= 2 ? 1 : 0);
     const occupied = new Set(items.map(item => `${item.x},${item.y}`));
     assert.equal(occupied.size, items.length, 'spawns never overlap');

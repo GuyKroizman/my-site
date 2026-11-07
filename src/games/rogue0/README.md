@@ -140,6 +140,28 @@ five dungeon regions: 32–64 HP, 14–30 damage, 1–3 protection, and 6-tile v
 Legacy 4-HP mimics in browser saves are upgraded once while preserving existing
 damage and provocation state.
 
+## Ground equipment and skeletal remains
+
+Every newly generated non-boss floor has an independent **30%** chance of one
+extra weapon or armor on the ground (equal chance of either). This supplements
+existing weighted loot and guaranteed progression gear. Every fifth floor is
+excluded from this bonus roll. Finds use the existing depth-based tier spread,
++0–+3 found-upgrade rolls and normal curse chance, and start unidentified. As with
+other physical gear, type/tier/upgrade are visible; identification reveals curses.
+
+Each non-boss floor also contains one **Skeletal Remains** bone pile. Walk or
+tap-to-walk into it to search, spending one use-action turn without moving.
+There is an **80%** equipment chance; otherwise the pile is empty. If its item is
+cursed, a separate **50%** roll determines whether an awake Wraith rises from the
+pile. Non-cursed finds and empty piles never summon one. Loot stays on the ground,
+including with a full backpack, and the Wraith guards its tile until it moves or
+is defeated. Contents and haunting are rolled once at generation and saved;
+searching, reloading or revisiting never rerolls them or replenishes searched piles.
+Existing visited floors are not retroactively populated.
+
+Odds live in `equipmentFinds.ts`. Regression coverage:
+`npm run test:rogue0:equipment-finds` and the progression suite.
+
 ## Ring upgrades
 
 Ring bonuses scale with upgrade level and update immediately while equipped:
@@ -392,7 +414,10 @@ time by 1.2 and divides evasion by 1.2. Meeting the requirement removes penaltie
 Wands and utility items are exempt. Status/hunger clocks remain world-time based.
 
 Dungeon equipment spans tiers 1–5: Dagger through Greataxe and Cloth through
-Plate Armor. Tier and upgrade level are independent. Weapon damage at tier `t`,
+Plate Armor. Tier and upgrade level are independent. Found armor, weapons and
+wands may generate plain or upgraded at +1, +2 or +3 — never higher (70/20/8/2%
+of finds). Scrolls of Upgrade and gems can still push an item beyond +3.
+Weapon damage at tier `t`,
 upgrade `u` ranges from `t + u` to `5t + (t + 1)u`; armor absorbs `2t + tu`.
 The playable hero is the **Warrior**, who starts with a basic Sword equipped;
 the disabled class picker's Wizard starts with a tier-1 Dagger plus two scrolls

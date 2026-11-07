@@ -9,6 +9,7 @@ import Axe from './items/axe';
 import BerserkPotion from './items/berserkPotion';
 import ChaliceOfBlood from './items/ChaliceOfBlood';
 import Chest from './items/chest';
+import SkeletalRemains from './items/skeletalRemains';
 import CursedGem from './items/cursedGem';
 import FangOfTheBeast from './items/FangOfTheBeast';
 import FullHealPotion from './items/fullHealPotion';
@@ -81,6 +82,7 @@ export const saveRegistry: Registry = {
   './items/berserkPotion.ts:default': BerserkPotion,
   './items/ChaliceOfBlood.ts:default': ChaliceOfBlood,
   './items/chest.ts:default': Chest,
+  'item:skeletal-remains': SkeletalRemains,
   './items/cursedGem.ts:default': CursedGem,
   './items/FangOfTheBeast.ts:default': FangOfTheBeast,
   './items/fullHealPotion.ts:default': FullHealPotion,

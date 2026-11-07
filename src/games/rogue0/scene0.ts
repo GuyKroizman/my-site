@@ -41,7 +41,9 @@ import { isModalOpen, type GameContext } from "./context";
 import { TurnManager } from "./turnManager";
 import Skeleton from "./monsters/skelaton";
 import { TieredWeapon, TieredArmor } from "./items/tieredEquipment";
-import { floorProgression, lootTier } from "./progression";
+import { floorProgression, isBossFloor, lootTier } from "./progression";
+import { createEquipmentFind, rollFloorEquipment } from './equipmentFinds';
+import { generateRemainsTexture } from './remainsTexture';
 import CursedGem from "./items/cursedGem";
 import Gem from './items/gem';
 import type { Room } from './mapgen';
@@ -84,6 +86,7 @@ import Cultist from "./monsters/cultist";
 import FireElemental, { IceElemental, ShockElemental } from "./monsters/elemental";
 import Mimic from "./monsters/mimic";
 import Chest from "./items/chest";
+import SkeletalRemains from "./items/skeletalRemains";
 import SwarmOfFlies from "./monsters/swarmOfFlies";
 import DeadlyFrog from "./monsters/deadlyFrog";
 import { updateMonsterSleepVisuals, clearMonsterSleepVisuals } from "./monsters/monsterSleepVisuals";
@@ -105,6 +108,7 @@ import { generateArmorTextures } from "./armorTextures";
 import { prewarmConsumableAppearances, resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
 import type { Entity } from "./entity";
 import { maybeCurse } from "./curses";
+import { rollFoundUpgrade } from "./foundUpgrades";
 import {
   applyScenarioHero,
   applyScenarioInventory,
@@ -329,6 +333,7 @@ export class Scene0 extends Phaser.Scene {
     generateCultistBoltTexture(this);
     generatePotionTextures(this);
     generateArmorTextures(this);
+    generateRemainsTexture(this);
     generateDoorThresholdTexture(this);
     generateWallDecalTextures(this);
     generateUnknownItemTextures(this);
@@ -1625,6 +1630,8 @@ export class Scene0 extends Phaser.Scene {
     const swarmCount = floor >= 2 ? 1 : 0;
     const mimicCount = floor >= 2 ? 1 : 0;
     const chestCount = 2;
+    const remainsCount = isBossFloor(floor) ? 0 : 1;
+    const equipmentCount = Number(rollFloorEquipment(floor));
     const cultistCount = floor >= 3 ? 1 : 0;
     const elementalCount = floor >= 3 ? 1 : 0;
     const wraithCount = floor >= 3 ? 1 : 0;
@@ -1639,7 +1646,7 @@ export class Scene0 extends Phaser.Scene {
       skeletonCount + goblinCount + ghoulCount + bruteCount + bossCount + quloptshCount +
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
         frogCount +
-        cursedGemCount + foodCount + itemCount + progressionCount + chestCount,
+        cursedGemCount + foodCount + itemCount + progressionCount + chestCount + remainsCount + equipmentCount,
       exclude,
       MAX_VISIBLE_X,
       terrain
@@ -1698,11 +1705,17 @@ export class Scene0 extends Phaser.Scene {
       dungeon.log(context, 'This floor could not fit all of its guaranteed Scrolls of Upgrade.');
     }
     for (const [Cls, enabled] of [[TieredWeapon, progression.weapon], [TieredArmor, progression.armor]] as const) {
-      if (enabled) spawnOne((x, y) => new Cls(context, x, y, progression.tier));
+      if (enabled) spawnOne((x, y) => {
+        const item = new Cls(context, x, y, progression.tier);
+        rollFoundUpgrade(item);
+        return item;
+      });
     }
     spawnGroup(Ration, foodCount);
     spawnGroup(Boss, bossCount);
     spawnGroup(Chest, chestCount);
+    spawnGroup(SkeletalRemains, remainsCount);
+    if (equipmentCount) spawnOne((x, y) => createEquipmentFind(context, x, y));
 
     spawnGroup(Skeleton, skeletonCount);
     spawnGroup(Quloptsh, quloptshCount);
@@ -1734,6 +1747,7 @@ export class Scene0 extends Phaser.Scene {
         const item = Loot === TieredWeapon || Loot === TieredArmor
           ? new Loot(context, x, y, lootTier(floor))
           : new Loot(context, x, y);
+        rollFoundUpgrade(item);
         maybeCurse(item);
         return item;
       });
