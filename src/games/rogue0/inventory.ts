@@ -82,12 +82,13 @@ export function splitStackItem(item: Entity): Entity {
 // presentation and lifecycle operations; tests can exercise the actual module.
 export function createInventoryActions(services: InventoryServices) {
   function onEquip(owner: InventoryOwner, item: Entity): void {
+    const wasIdentified = item.identified;
     item.equip();
     services.log(owner.context, `You equip ${item.displayName}.`);
-    // Rings and artifacts reveal their curse as soon as they are worn. Unknown
-    // physical gear stays secret: its upgrades and curse are learned through
-    // combat use (or a Scroll of Identify), so equipping alone is not enough.
-    if (!item.identified && (item.equipSlot === 'ring' || item.equipSlot === 'artifact')) {
+    // Equipping always reveals the curse status, but never the upgrade level or
+    // the true type of a ring/artifact. Those need a Scroll of Identify or
+    // extended use.
+    if (!wasIdentified && (item.isPhysicalEquipment || item.equipSlot === 'ring' || item.equipSlot === 'artifact')) {
       services.log(owner.context, item.cursed
         ? `${item.displayName} is cursed and cannot be removed until its curse is lifted.`
         : `${item.displayName} is not cursed.`);

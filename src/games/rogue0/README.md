@@ -177,11 +177,12 @@ extra weapon or armor on the ground (equal chance of either). This supplements
 existing weighted loot and guaranteed progression gear. Every fifth floor is
 excluded from this bonus roll. Finds use the existing depth-based tier spread,
 +0–+3 found-upgrade rolls and normal curse chance, and start unidentified. The
-weapon/armor type and tier are recognizable, but the upgrade level and any curse
-stay hidden until the item is identified — by a Scroll of Identify, or by using
-it in combat (thirty landed attacks for a weapon, thirty blows taken for armor).
-Equipping alone never reveals it; a locked cursed item only shows its true nature
-once identified by use or magic.
+weapon/armor type and tier are recognizable, but the upgrade level is shown as
+`?` until the item is identified — by a Scroll of Identify, or by extended use
+(thirty landed attacks for a weapon, thirty blows taken for armor). Equipping
+reveals only the curse status: cursed gear locks onto the slot immediately,
+while its named curse and upgrade level stay hidden until identification.
+Unidentified rings and artifacts keep even their type hidden while worn.
 
 Each non-boss floor also contains one **Skeletal Remains** bone pile. Walk or
 tap-to-walk into it to search, spending one use-action turn without moving.
@@ -197,6 +198,11 @@ Odds live in `equipmentFinds.ts`. Regression coverage:
 `npm run test:rogue0:equipment-finds` and the progression suite.
 
 ## Ring upgrades
+
+Unidentified rings apply their passive while worn but keep their type and `?`
+upgrade level secret. Equipping reveals only whether the ring is cursed. Thirty
+world-time ticks worn, or a Scroll of Identify, reveals the ring type and its
+upgrade level. Artifacts follow the same rule.
 
 Ring bonuses scale with upgrade level and update immediately while equipped:
 
@@ -218,8 +224,9 @@ reconciles already-upgraded rings automatically without consuming another scroll
 Wand identity is shared across the whole run, like potion and scroll knowledge.
 Every copy of a wand type has the same stable gibberish label, independent of
 charges, upgrades and floor location; the three wand types have distinct labels.
-Identifying or first zapping one copy reveals all existing and future copies of
-that type. Other types remain unknown, and a new run starts with no discoveries.
+Identifying or thirty successful zaps of one copy reveals all existing and future
+copies of that type; an unidentified wand shows `?` for its upgrade level. Other
+types remain unknown, and a new run starts with no discoveries.
 Browser saves retain shared knowledge. Older saves also recover knowledge from
 identified wands in the backpack or on any visited floor without adding log spam.
 

@@ -12,9 +12,10 @@ import type { CurseId } from "./curseData";
 
 export type EntityType = "player" | "enemy" | "item";
 
-// Unknown physical gear becomes familiar after this many real combat uses:
-// one swing for a weapon, one blow taken for armor. A Scroll of Identify
-// reveals it immediately, but equipping alone no longer does.
+// Unknown equipment becomes familiar after this many real uses: a landed
+// attack for a weapon, a blow taken for armor, one world-time tick worn for a
+// ring or artifact, or one charged zap for a wand. A Scroll of Identify reveals
+// it immediately, but equipping alone only reveals the curse status.
 export const EQUIPMENT_IDENTIFY_USES = 30;
 
 export type EquipSlot =
@@ -314,8 +315,8 @@ export abstract class Entity {
   isDecoy: boolean = false;
   blessed: boolean = false;
   level: number = 0;
-  // Successful combat uses since the item was found. Tracked for unknown
-  // physical gear so upgrades and curses stay secret until it has been used.
+  // Successful uses since the item was found. Tracked for unknown equipment
+  // so its upgrade level and item type stay secret until it has been used.
   equipmentUses: number = 0;
   maxLevel: number = Number.POSITIVE_INFINITY;
   charges: number = 0;
@@ -390,10 +391,16 @@ export abstract class Entity {
     return [this.baseDescription, this.curseDescription].filter(Boolean).join('\n\n');
   }
 
-  // Learn an unknown physical item's true quality through actual combat use.
-  // Equipping is not enough: a weapon must connect, armor must take a blow.
+  // True for items whose upgrade level is a meaningful, hidden property.
+  get isUpgradable(): boolean {
+    return this.isPhysicalEquipment || this.equipSlot === "ring" ||
+      this.equipSlot === "artifact" || !!this.textureKey?.startsWith("wand-");
+  }
+
+  // Learn an unknown item's true quality through actual use. Equipping only
+  // reveals the curse status; the upgrade level and item type need this.
   learnEquipmentFromUse(): void {
-    if (this.identified || !this.isPhysicalEquipment) return;
+    if (this.identified || !this.isUpgradable) return;
     this.equipmentUses = (this.equipmentUses ?? 0) + 1;
     if (this.equipmentUses >= EQUIPMENT_IDENTIFY_USES) identify(this);
   }
@@ -409,33 +416,36 @@ export abstract class Entity {
     return appearanceLabel(identity);
   }
 
-  // Physical equipment is recognizable; identification reveals its upgrades
-  // and curse state, not whether it is a sword, axe, or suit of armor.
+  // Physical equipment is recognizable; identification reveals its upgrades,
+  // not whether it is a sword, axe, or suit of armor. Rings and artifacts keep
+  // even their type hidden until identified.
   get isPhysicalEquipment(): boolean {
     return this.type === "item" && (this.equipSlot === "weapon" || this.equipSlot === "armor");
   }
 
-  // Artifacts are recognizable on sight too; curse knowledge remains separate.
+  // Only physical gear is recognizable on sight. Artifacts stay unidentified
+  // (type and upgrade level) until a scroll or extended use reveals them.
   get isRecognizableEquipment(): boolean {
-    return this.isPhysicalEquipment || (this.type === "item" && this.equipSlot === "artifact");
+    return this.isPhysicalEquipment;
   }
 
   get displayName(): string {
     if (this.isPhysicalEquipment) {
       // The make and tier are recognizable, but an unknown upgrade level must
       // not leak through the name before the item has been used or identified.
-      const level = this.identified && this.level > 0 ? ` +${this.level}` : "";
+      const level = this.identified ? (this.level > 0 ? ` +${this.level}` : "") : " ?";
       return `${this.name}${level} (Tier ${this.tier})`;
     }
     if (this.identified || this.isRecognizableEquipment) {
       return this.type === "item" && this.level > 0 ? `${this.name} +${this.level}` : this.name;
     }
+    const hiddenUpgrade = this.isUpgradable ? " ?" : "";
     const category = this.equipSlot === "weapon"
       ? (/wand/i.test(this.name) ? "Wand" : "Weapon")
       : this.equipSlot === "consumable"
         ? (/scroll/i.test(this.name) ? "Scroll" : "Potion")
         : ({ armor: "Armor", ring: "Ring", artifact: "Artifact", junk: "Item" }[this.equipSlot]);
-    return `${category} “${this.unidentifiedName}”`;
+    return `${category} “${this.unidentifiedName}”${hiddenUpgrade}`;
 
   }
 

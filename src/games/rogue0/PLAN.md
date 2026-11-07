@@ -478,16 +478,18 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
   Beast inverts its damage bonus into a penalty. Artifacts use the existing
   lock-on guards; wands remain backpack tools and are never locked on.
 - [x] **Lock-on & reveal.** Keep the existing unequip/drop/throw guards for
-      equipped cursed items. Unknown weapons/armor stay unidentified after
-      equipping: their upgrade level and curse are learned from thirty combat
-      uses (landed attacks for a weapon, blows taken for armor) or a Scroll of
-      Identify. Rings and artifacts still reveal their curse through the shared
-      `onEquip` path. Remove Curse / Holy Potion lift every equipped curse
-      (clearing `curseId`) and re-enable removal.
+      equipped cursed items. Equipping always reveals curse status through the
+      shared `onEquip` path, so a cursed weapon/armor/ring/artifact locks on and
+      says so immediately. Equipping never identifies the upgrade level (shown
+      as `?`) or the true type of a ring/artifact. Those are revealed by a
+      Scroll of Identify or extended use: thirty landed attacks (weapon), thirty
+      blows taken (armor), thirty world-time ticks worn (ring/artifact), or
+      thirty charged zaps (wand). Remove Curse / Holy Potion lift every equipped
+      curse (clearing `curseId`) and re-enable removal.
 - [x] **Detection.** Once identified (or scanned by a glyph stone), reuse the
-      existing red glow / "(cursed)" inventory label. Never reveal curses on
-      unidentified, unequipped items; an unidentified worn weapon/armor also
-      hides the lock-on reason until combat use reveals it.
+      existing red glow / "(cursed)" inventory label and named curse description.
+      Equipping an unknown item reveals only cursed/uncursed; the specific curse
+      name and upgrade level stay hidden until identification.
 - [x] **Regression.** New `scripts/test-rogue0-cursed-items.mjs` (added to
       `npm run test:rogue0`): curse chance and guaranteed supplies stay clean;
       each named curse's proc/penalty applies while equipped and clears on

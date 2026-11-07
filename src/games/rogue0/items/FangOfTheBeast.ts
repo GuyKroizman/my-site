@@ -1,6 +1,6 @@
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
-import { Entity, identify } from "../entity";
+import { Entity } from "../entity";
 import dungeon from "../dungeon";
 
 const STRIKES_TO_LEVEL = 8;
@@ -27,7 +27,6 @@ export default class FangOfTheBeast extends Entity {
   }
 
   equip() {
-    identify(this);
   }
 
   get baseDescription(): string {
@@ -46,7 +45,9 @@ export default class FangOfTheBeast extends Entity {
       this.level += 1;
       dungeon.log(
         this.context,
-        `${this.name} grows stronger (level ${this.level}).`
+        this.identified
+          ? `${this.name} grows stronger (level ${this.level}).`
+          : 'The artifact pulses with power.'
       );
     }
 
@@ -69,6 +70,7 @@ export default class FangOfTheBeast extends Entity {
   }
 
   refresh() {
+    if (this.context?.player?.artifact === this) this.learnEquipmentFromUse?.();
   }
 
   isOver() {

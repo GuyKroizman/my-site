@@ -74,6 +74,8 @@ function context() {
 }
 function wand(Type, context, x, y, level = 0) {
   const item = new Type(context, x, y);
+  // This suite exercises fusion, not the separate identification loop.
+  item.identified = true;
   item.level = level;
   item.fusionCount = 1;
   item.maxCharges = item.baseMaxCharges + level;

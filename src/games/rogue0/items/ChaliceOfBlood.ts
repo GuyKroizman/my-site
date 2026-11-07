@@ -1,6 +1,6 @@
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
-import { Entity, identify } from "../entity";
+import { Entity } from "../entity";
 import type { StatusEffect } from "../effects";
 import { applyEffect, removeEffect } from "../effects";
 import dungeon from "../dungeon";
@@ -42,7 +42,9 @@ export default class ChaliceOfBlood extends Entity {
     if (this.bloodProgress >= this.killsToNextLevel) {
       this.bloodProgress = 0;
       this.level += 1;
-      dungeon.log(this.context, `${this.name} grows stronger (level ${this.level}).`);
+      dungeon.log(this.context, this.identified
+        ? `${this.name} grows stronger (level ${this.level}).`
+        : 'The artifact pulses with power.');
     }
   }
 
@@ -58,7 +60,6 @@ export default class ChaliceOfBlood extends Entity {
   }
 
   equip() {
-    identify(this);
     const player = this.context.player;
     if (player) {
       applyEffect(player, this.cursed ? this.drainEffect() : this.regenEffect());
@@ -144,6 +145,7 @@ export default class ChaliceOfBlood extends Entity {
   }
 
   refresh() {
+    if (this.context?.player?.artifact === this) this.learnEquipmentFromUse?.();
   }
 
   isOver() {

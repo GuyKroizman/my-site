@@ -185,7 +185,7 @@ const Ring = itemClass('ring');
   sibling.level = 2;
   const offFloor = new Lightning(ctx); offFloor.x = 3; offFloor.y = 8;
   assert.equal(sibling.identified, false);
-  originals[2].damage(); // First zap discovers the type.
+  for (let zap = 0; zap < EQUIPMENT_IDENTIFY_USES; zap++) originals[2].damage();
   for (const copy of [originals[2], sibling, offFloor, new Lightning(ctx)]) assert.equal(copy.identified, true);
   assert.equal(sibling.displayName, 'Wand of Lightning +2');
   assert.equal(originals[0].identified, false);
@@ -353,11 +353,11 @@ for (let tier = 1; tier <= 5; tier++) {
     context, type: 'item', equipSlot: 'weapon', name: 'Shortsword', tier: 2, level: 2,
     identified: false,
   });
-  assert.equal(weapon.displayName, 'Shortsword (Tier 2)', 'upgrade level stays hidden');
+  assert.equal(weapon.displayName, 'Shortsword ? (Tier 2)', 'upgrade level stays hidden');
   for (let use = 1; use < EQUIPMENT_IDENTIFY_USES; use++) {
     weapon.learnEquipmentFromUse();
     assert.equal(weapon.identified, false, `still unknown after ${use} use(s)`);
-    assert.equal(weapon.displayName, 'Shortsword (Tier 2)');
+    assert.equal(weapon.displayName, 'Shortsword ? (Tier 2)');
   }
   weapon.learnEquipmentFromUse();
   assert.equal(weapon.identified, true, 'enough combat use identifies the weapon');
@@ -447,18 +447,19 @@ const Chalice = itemClass('ChaliceOfBlood', {
 });
 const context = { messages: [], player: { name: 'Elf', healthPoints: 99, maxHealthPoints: 100 } };
 const chalice = new Chalice(context);
-// Artifact identity is visible independently of identification and curse state.
+// Artifact identity, upgrade level and curse name stay hidden until identified.
 for (const artifact of [chalice, fang]) {
   const original = { identified: artifact.identified, cursed: artifact.cursed };
   for (const cursed of [false, true]) {
     artifact.identified = false;
     artifact.cursed = cursed;
-    const suffix = artifact.level > 0 ? ` +${artifact.level}` : '';
-    assert.equal(artifact.displayName, `${artifact.name}${suffix}`);
-    assert.equal(artifact.isRecognizableEquipment, true);
+    assert.match(artifact.displayName, /^Artifact “.+” \?$/,
+      'artifacts keep their type and upgrade level hidden');
+    assert.equal(artifact.isRecognizableEquipment, false);
     assert.equal(artifact.isPhysicalEquipment, false, 'artifacts do not gain physical tiers');
     assert.equal(artifact.identified, false, 'recognizing an artifact does not identify it');
-    assert.doesNotMatch(artifact.displayName, /cursed|Tier|“/);
+    assert.doesNotMatch(artifact.displayName, /cursed|Tier/);
+    assert.doesNotMatch(artifact.displayName, new RegExp(artifact.name));
   }
   Object.assign(artifact, original);
 }
@@ -466,7 +467,12 @@ assert.equal(chalice.spriteTextureKey, 'chalice-of-blood');
 assert.equal(chalice.spriteFrame, 0);
 assert.equal(chalice.unidentifiedTextureKey, chalice.spriteTextureKey);
 chalice.equip();
-assert.equal(chalice.identified, true);
+assert.equal(chalice.identified, false, 'equipping an artifact does not identify it');
+const savedArtifact = context.player.artifact;
+context.player.artifact = chalice;
+for (let tick = 0; tick < EQUIPMENT_IDENTIFY_USES; tick++) chalice.refresh();
+context.player.artifact = savedArtifact;
+assert.equal(chalice.identified, true, 'extended wear identifies an artifact');
 function healingTick(missing = 10) {
   context.player.healthPoints = context.player.maxHealthPoints - missing;
   effect.tick(context.player, context);

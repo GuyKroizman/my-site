@@ -1,10 +1,11 @@
 // Shared base for the Phase 6 rings.
 //
-// Rings are passive equipment: they reveal themselves on equip and apply a
-// passive modifier through `applyPassive()` until they are unequipped.
+// Rings are passive equipment: equipping reveals only whether they are cursed.
+// Their type and upgrade level stay hidden until a Scroll of Identify or
+// extended wear identifies them; the passive applies while unidentified.
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
-import { Entity, identify } from "../entity";
+import { Entity } from "../entity";
 
 export type RingConfig = {
   name: string;
@@ -45,7 +46,6 @@ export default abstract class Ring extends Entity {
   abstract removePassive(): void;
 
   equip() {
-    identify(this);
     if (this.passiveApplied) return;
     this.passiveLevel = this.level;
     this.applyPassive();
@@ -93,6 +93,10 @@ export default abstract class Ring extends Entity {
   }
 
   refresh() {
+    const player = this.context?.player;
+    if (player && (player.ring1 === this || player.ring2 === this)) {
+      this.learnEquipmentFromUse?.();
+    }
   }
 
   isOver() {

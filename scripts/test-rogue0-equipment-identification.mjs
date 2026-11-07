@@ -56,11 +56,11 @@ function gear(ctx, equipSlot, level = 2) {
   player.currentWeapon = () => weapon;
   ctx.player = player;
   const enemy = actor(ctx, 'enemy', 2, 1, 100);
-  assert.equal(weapon.displayName, 'Shortsword (Tier 2)');
+  assert.equal(weapon.displayName, 'Shortsword ? (Tier 2)');
   for (let use = 1; use < EQUIPMENT_IDENTIFY_USES; use++) {
     dungeon.resolveAndApplyAttack(ctx, player, enemy, 0, 'physical');
     assert.equal(weapon.identified, false, `still unknown after ${use} swing(s)`);
-    assert.equal(weapon.displayName, 'Shortsword (Tier 2)');
+    assert.equal(weapon.displayName, 'Shortsword ? (Tier 2)');
   }
   dungeon.resolveAndApplyAttack(ctx, player, enemy, 0, 'physical');
   assert.equal(weapon.identified, true, 'the final swing reveals the weapon');
@@ -109,6 +109,23 @@ function gear(ctx, equipSlot, level = 2) {
   assert.equal(weapon.identified, true);
   assert.equal(spare.identified, false, 'an unwielded weapon gains no familiarity');
   assert.equal(spare.equipmentUses, 0);
+}
+
+// Rings and artifacts hide even their type behind an alias and `?` upgrade.
+{
+  const ctx = { messages: [] };
+  for (const [equipSlot, label] of [['ring', 'Ring'], ['artifact', 'Artifact']]) {
+    const item = Object.assign(new Entity(), {
+      context: ctx, type: 'item', equipSlot, name: equipSlot === 'ring' ? 'Ring of Haste' : 'Chalice of Blood',
+      level: 2, identified: false,
+    });
+    assert.equal(item.isRecognizableEquipment, false);
+    assert.match(item.displayName, new RegExp(`^${label} “.+” \\?$`));
+    assert.doesNotMatch(item.displayName, new RegExp(item.name));
+    for (let use = 0; use < EQUIPMENT_IDENTIFY_USES; use++) item.learnEquipmentFromUse();
+    assert.equal(item.identified, true, `${equipSlot} identifies through extended use`);
+    assert.equal(item.displayName, `${item.name} +2`);
+  }
 }
 
 console.log(`Rogue0 equipment identification: unknown gear hides upgrades, identifies after ${EQUIPMENT_IDENTIFY_USES} combat uses, and only the equipped/worn item learns passed`);

@@ -332,12 +332,10 @@ export class InventoryWindow {
     item: Entity | undefined,
     selected: boolean
   ): void {
-    // Match inspection's knowledge rules; never expose an unidentified curse
-    // unless a glyph stone has read it. Unknown physical gear stays secret even
-    // while worn: it is learned through combat use, not by equipping it.
-    const equippedRevealsCurse = !!item && !!this.context.player?.slotOf(item) &&
-      !item.isPhysicalEquipment;
-    const curseKnown = !!item && (item.identified || item.curseScanned || equippedRevealsCurse);
+    // Equipping reveals curse status. The named curse, upgrade level and the
+    // type of rings/artifacts still wait for identification or a glyph stone.
+    const curseKnown = !!item && (item.identified || item.curseScanned ||
+      !!this.context.player?.slotOf(item));
     const knownCursed = curseKnown && !!item?.cursed;
     const background = !item ? C.cell : !curseKnown ? C.cellUnknown :
       knownCursed ? C.cellCursed : C.cellSafe;
@@ -468,8 +466,7 @@ export class InventoryWindow {
     this.menuRoot.add(name);
     ay += Math.max(iconSize, name.height) + 10;
 
-    const equippedRevealsCurse = !!player.slotOf(item) && !item.isPhysicalEquipment;
-    if (item.cursed && (item.identified || item.curseScanned || equippedRevealsCurse)) {
+    if (item.cursed && (item.identified || item.curseScanned || player.slotOf(item))) {
       this.menuRoot.add(
         this.scene.add.text(iconX, ay, "(cursed)", {
           fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
@@ -486,16 +483,15 @@ export class InventoryWindow {
     );
     ay += 12;
 
-    // Recognizable equipment reveals its identity, but unknown physical gear
-    // keeps its upgrades and curse secret until combat use identifies it.
-    const statsVisible = item.identified || (item.isRecognizableEquipment && !item.isPhysicalEquipment);
-    const description = statsVisible
+    // Equipping reveals the curse, but an unknown physical item still hides its
+    // upgrade level; rings, artifacts and wands hide their type as well.
+    const description = item.identified
       ? [item.displayDescription, item.strengthDescription(player.strength)].filter(Boolean).join("\n")
       : item.isPhysicalEquipment
-        ? ["You recognize the make, but its upgrade level and any curse stay hidden until you have used it in combat.",
+        ? ["You recognize the make, but its upgrade level stays hidden until you have used it in combat.",
             item.curseDescription].filter(Boolean).join("\n\n")
         : [item instanceof Wand
-            ? "An unidentified wand. Its kind of magic is unknown."
+            ? "An unidentified wand. Its kind of magic and upgrade level are unknown."
             : "You have not identified this item.", item.curseDescription].filter(Boolean).join('\n\n');
     const desc = this.scene.add.text(iconX, ay, description, {
       fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,

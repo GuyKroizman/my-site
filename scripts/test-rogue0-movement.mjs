@@ -930,7 +930,7 @@ const cursedGear = Object.assign(new Entity(), {
 });
 const replacement = Object.assign(new Entity(), { type: 'item', equipSlot: 'weapon' });
 curseHero.backpack = [cursedGear, replacement];
-assert.equal(cursedGear.displayName, 'Secret Blade (Tier 1)');
+assert.equal(cursedGear.displayName, 'Secret Blade ? (Tier 1)');
 assert.doesNotMatch(cursedGear.displayName, /\+3/, 'unknown gear hides its upgrade level');
 assert.doesNotMatch(cursedGear.displayName, /cursed/i, 'unknown gear hides its curse, not its physical identity');
 const unknownActions = inventory.buildActions(curseHero, cursedGear);
@@ -942,8 +942,15 @@ curseHero.beginThrow(cursedGear);
 assert.equal(curseHero.context.throwItem, cursedGear, 'unequipped cursed gear can be thrown');
 curseHero.cancelThrow();
 assert.equal(curseHero.nextActionTime, 0, 'throw targeting and cancellation are free');
+// This fixture's dungeon.log is a no-op; capture inventory messages for the
+// curse-reveal assertion without changing how the rest of the suite logs.
+const originalLog = dungeon.log;
+dungeon.log = (context, text) => context.messages?.push(text);
 curseHero.equipItem(cursedGear);
-assert.equal(cursedGear.identified, false, 'equipping a weapon does not identify it');
+dungeon.log = originalLog;
+assert.equal(cursedGear.identified, false, 'equipping a weapon does not identify its tier or upgrade');
+assert.ok(curseHero.context.messages.some(message => message.includes('is cursed and cannot')),
+  'equipping reveals only that the weapon is cursed');
 assert.equal(curseHero.weapon, cursedGear);
 for (const reject of [
   () => curseHero.unequipItem(cursedGear),
@@ -969,8 +976,7 @@ assert.ok(curseHero.backpack.includes(cursedGear));
 assert.equal(cursedGear.level, 3, 'uncursing and unequipping preserve upgrades');
 assert.equal(curseHero.nextActionTime, 1);
 
-// Equipping unknown weapons/armor is not identification; only the lock-on
-// guard reveals that a worn item is cursed.
+// Equipping reveals curse status but never the upgrade level or true type.
 for (const equipSlot of ['weapon', 'armor']) {
   for (const cursed of [false, true]) {
     const tester = Object.assign(new Entity(), {
@@ -983,8 +989,13 @@ for (const equipSlot of ['weapon', 'armor']) {
       type: 'item', name: 'Test Gear', equipSlot, identified: false, cursed, equip() {}
     });
     tester.backpack = [gear];
+    const originalTesterLog = dungeon.log;
+    dungeon.log = (context, text) => context.messages?.push(text);
     tester.equipItem(gear);
+    dungeon.log = originalTesterLog;
     assert.equal(gear.identified, false, 'equipping alone never identifies gear');
+    assert.ok(tester.context.messages.some(message => message.includes(cursed ? 'is cursed and cannot' : 'is not cursed')),
+      'equipping reveals curse status');
     assert.equal(tester[equipSlot], gear);
     tester.unequipItem(gear);
     assert.equal(tester[equipSlot], cursed ? gear : undefined,

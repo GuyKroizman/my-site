@@ -4,7 +4,7 @@
 // the main weapon. Each valid zap consumes one charge, even on a miss.
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
-import { Entity, identify } from "../entity";
+import { Entity } from "../entity";
 import type { DamageType, StatusEffect } from "../effects";
 import dungeon from "../dungeon";
 
@@ -43,7 +43,9 @@ export default abstract class Wand extends Entity {
   }
 
   get displayName(): string {
-    const base = this.identified ? super.displayName : `Wand “${this.unidentifiedName}”`;
+    const base = this.identified
+      ? super.displayName
+      : `Wand “${this.unidentifiedName}” ?`;
     return this.fusionPower > 1 ? `${base} ×${this.fusionPower}` : base;
   }
 
@@ -127,10 +129,10 @@ export default abstract class Wand extends Entity {
   }
 
   damage() {
-    // Wands reveal themselves on first successful zap, mirroring how potions
-    // and scrolls identify on use.
+    // Wands reveal their type and upgrade level after extended use, like other
+    // unknown equipment; a Scroll of Identify is faster.
     if (!this.identified) {
-      identify(this);
+      this.learnEquipmentFromUse?.();
     }
 
     if (this.charges <= 0) {

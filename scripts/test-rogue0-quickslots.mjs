@@ -64,7 +64,7 @@ for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
   const unknownWand = Object.assign(Object.create(Wand.prototype), {
     name, type: 'item', equipSlot: 'junk', identified: false, level: 0,
   });
-  assert.match(unknownWand.displayName, /^Wand “.+”$/, 'backpack wands retain their category');
+  assert.match(unknownWand.displayName, /^Wand “.+” \?$/, 'backpack wands retain their category and hide the upgrade level');
   assert.equal(unknownWand.unidentifiedTextureKey, 'unknown-wand');
   unknownWand.identified = true;
   assert.equal(unknownWand.displayName, name);

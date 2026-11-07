@@ -64,7 +64,7 @@ for (let tier = 1; tier <= 5; tier++) {
     assert.equal(item.requiredStrength, 8 + tier * 2);
     assert.equal(item.identified, false);
     assert.match(item.strengthDescription(10), new RegExp(`Tier ${tier}`));
-    assert.equal(item.displayName, `${item.name} (Tier ${tier})`);
+    assert.equal(item.displayName, `${item.name} ? (Tier ${tier})`);
     const visibleName = item.displayName;
     item.cursed = true;
     assert.equal(item.displayName, visibleName, 'unknown curse must not change the visible name');
@@ -82,7 +82,7 @@ for (let tier = 1; tier <= 5; tier++) {
       assert.equal(item.tier, tier);
       assert.equal(item.identified, false);
     }
-    assert.equal(item.displayName, `${item.name} (Tier ${tier})`,
+    assert.equal(item.displayName, `${item.name} ? (Tier ${tier})`,
       'unidentified gear never leaks its upgrade level through its name');
     item.identified = true;
     assert.equal(item.displayName, `${item.name} +4 (Tier ${tier})`);
