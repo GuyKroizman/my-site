@@ -53,6 +53,15 @@ for (let floor = 1; floor <= 25; floor++) {
   assert.equal(progression.lootTier(floor, 0), Math.max(1, tier - 1));
   assert.equal(progression.lootTier(floor, 0.99), Math.min(5, tier + 1));
 }
+// Each band's four ordinary floors carry exactly two Strength potions. The
+// fifth floor of every band is the secret-room floor and carries none.
+for (const [start, end] of [[1, 4], [6, 9], [11, 14], [16, 19], [21, 24]]) {
+  let potions = 0;
+  for (let floor = start; floor <= end; floor++) potions += progression.floorProgression(floor).strengthPotions;
+  assert.equal(potions, 2, `two Strength potions between floors ${start}-${end}`);
+  assert.equal(progression.floorProgression(end + 1).strengthPotions, 0,
+    `floor ${end + 1} is the band's secret-room floor with no Strength potion`);
+}
 // Exercise real spawnFloorContent with real maps and item classes. Monsters and
 // unrelated items only need identity/position here; their own suites cover AI.
 const sceneSource = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
