@@ -724,7 +724,17 @@ export default class BasicHero extends Entity implements HeroControlHost {
     );
 
     if (target) {
-      this.applyThrownItemToEnemy(item, target);
+      // Only a consumable's contents reach the target. Weapons, armour and
+      // tools are objects in flight, not attacks: they deal no damage, roll no
+      // combat math and apply no on-hit effects. The target still notices the
+      // impact, and the item clatters onto its tile.
+      if (!item.consumable) {
+        this.applyThrownItemToEnemy(item, target);
+        this.placeItemOnGround(item, tx, ty, true);
+        dungeon.triggerArrowTrap(context, tx, ty);
+        return;
+      }
+      this.applyThrownPotion(item, target);
       removeEntity(context, item);
       dungeon.triggerArrowTrap(context, tx, ty);
       return;
@@ -766,35 +776,16 @@ export default class BasicHero extends Entity implements HeroControlHost {
     dungeon.triggerArrowTrap(context, tx, ty);
   }
 
+  // A thrown object is not a melee attack. Non-consumables never damage the
+  // target, so a thrown weapon cannot hurt a mimic or any other monster; the
+  // target only notices the impact (which wakes a dormant mimic).
   private applyThrownItemToEnemy(item: Entity, enemy: Entity): void {
     const context = this.context;
-
-    // Weapons (and ranged weapon-like items such as fireball scrolls) deal
-    // their own damage through the normal combat math.
-    if (item.equipSlot === "weapon" || item.damage() > 0) {
-      const result = resolveAttack(context, this, enemy, {
-        baseDamage: () => item.damage(), damageType: item.damageType ?? "physical",
-        isRanged: true, onHitEffects: []
-      });
-      applyAttackResult(context, this, enemy, result, {
-        applyEffect: (target, effect) => applyEffect(target, effect),
-        removeEffect: (target, id) => removeEffect(target, id),
-        removeEntity: (ctx, target) => removeEntity(ctx, target),
-        onHit: () => {
-          if (result.damage > 0) {
-            dungeon.log(context,
-              `You throw ${item.displayName} at ${enemy.name} for ${result.damage} ${result.damageType} damage.`);
-            dungeon.applyHitEffects(context, enemy, result.surprise);
-          } else {
-            dungeon.log(context, `You throw ${item.displayName} at ${enemy.name} but deals no damage.`);
-          }
-        }
-      });
-      return;
-    }
-
-    // Potions splash their status effect onto the target where one applies.
-    this.applyThrownPotion(item, enemy);
+    dungeon.log(
+      context,
+      `You throw ${item.displayName} at ${enemy.name} — it clatters to the ground.`
+    );
+    enemy.onAttacked?.(this);
   }
 
   private applyThrownPotion(item: Entity, enemy: Entity): void {
@@ -840,7 +831,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
     }
   }
 
-  private placeItemOnGround(item: Entity, tx: number, ty: number): void {
+  private placeItemOnGround(item: Entity, tx: number, ty: number, quiet = false): void {
     const context = this.context;
     const scene = context.scene;
     const map = context.map;
@@ -859,10 +850,12 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
     placeFloorItem(item);
 
-    dungeon.log(
-      context,
-      `You throw ${item.displayName} — it lands on the floor.`
-    );
+    if (!quiet) {
+      dungeon.log(
+        context,
+        `You throw ${item.displayName} — it lands on the floor.`
+      );
+    }
   }
 
   processInput(key: string): void {

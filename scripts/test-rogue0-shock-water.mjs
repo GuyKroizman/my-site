@@ -94,7 +94,8 @@ for (const reason of ['zero', 'negative', 'nan', 'flight', 'ice', 'dry']) {
   assert.equal(immune.damageCalls, 0, 'fully absorbed arcs never heal or damage');
 }
 // Real attack-application entry points: no conduction on misses, zero damage or other types.
-for (const path of ['normal', 'throw', 'wand']) {
+// Thrown objects are not attacks and are covered by test-rogue0-thrown-items.mjs.
+for (const path of ['normal', 'wand']) {
   for (const mode of ['shock', 'miss', 'absorbed', 'physical']) {
     const ctx = setup();
     tiles.setFeature(2, 2, 'water'); tiles.setFeature(3, 2, 'water');
@@ -105,8 +106,6 @@ for (const path of ['normal', 'throw', 'wand']) {
     result = { hit: mode !== 'miss', damage: mode === 'absorbed' ? 0 : 5,
       damageType: mode === 'physical' ? 'physical' : 'shock', appliedEffects: [] };
     if (path === 'normal') dungeon.resolveAndApplyAttack(ctx, hero, target, 1, result.damageType);
-    if (path === 'throw') hero.applyThrownItemToEnemy({ equipSlot: 'weapon', damage: () => 5,
-      damageType: result.damageType, displayName: 'Lightning scroll' }, target);
     if (path === 'wand') {
       const wand = new Wand();
       ctx.throwItem = wand;

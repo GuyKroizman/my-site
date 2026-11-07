@@ -7,8 +7,10 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
 
 - `combat.ts` resolves attack attempts and rolls damage. `combatApplication.ts`
   owns successful-hit application: damage, invisibility, shock-water contact,
-  statuses, victim reactions and death cleanup. Normal attacks, thrown
-  weapons and wands use it. Presentation/curse/arc hooks remain explicit;
+  statuses, victim reactions and death cleanup. Normal attacks and wands use
+  it. Thrown objects are not attacks: only consumables splash their contents
+  onto a target, and a thrown weapon, armour or tool never rolls damage.
+  Presentation/curse/arc hooks remain explicit;
   this extraction does not change which attack kinds trigger weapon curses or
   physical-hit reactions. Damage overrides and bonus damage are parameters,
   not temporary replacements of hero methods/stats.
@@ -225,6 +227,20 @@ items also have no distance cap; they only need an in-bounds, non-wall
 destination in line of sight. Tapping the aiming wand again cancels target
 selection instead of firing; only the target tile (or Enter) fires. Charges
 and action costs are unchanged.
+
+## Throwing is not attacking
+
+A thrown object is never a melee or ranged attack. Weapons, armour, rings,
+scrolls, food and tools deal **no damage** to any monster — a thrown axe bounces
+off a mimic exactly like it bounces off a goblin. No combat roll, accuracy
+check, resistance, critical, on-hit effect or weapon curse applies. The target
+does notice the impact (a dormant mimic wakes up), the object lands on the
+impact tile, and an arrow plate under it still fires.
+
+Only consumables act on a target: potions splash their contents (frost chills,
+flame burns, gas poisons) and are used up. Wands are separate — using one starts
+a zap that does roll combat damage. To hurt something with gear, equip the
+weapon and attack normally.
 
 ## Lightning wand arcs
 

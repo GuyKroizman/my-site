@@ -16,6 +16,14 @@ has been playtested. Checked boxes mean the described implementation exists.
 
 ### Implemented since the original roadmap
 
+- Throwing is not attacking. A thrown weapon, armour, ring, scroll, food or
+  tool deals no damage to any monster (mimic included): no combat roll,
+  accuracy check, resistance, crit, on-hit effect or curse. The object lands on
+  the impact tile and the target only notices the blow (a dormant mimic wakes).
+  Consumables still splash their potion contents and are used up; wands keep
+  their roll-based zap damage. This deliberately replaces the earlier
+  thrown-weapon damage path; `test-rogue0-thrown-items.mjs` covers weapons,
+  legacy damage-bearing non-weapons, consumables and the landing/trap path.
 - Five classes share one innate passive each; per-class active skills were
   removed. First-tier (passive) class talents are implemented; subclasses and
   later talent tiers remain future work.
@@ -81,13 +89,16 @@ has been playtested. Checked boxes mean the described implementation exists.
   textures. The full custom-art overhaul (Phase 16) is still open.
 - `combatApplication.ts` applies successful hits (damage, invisibility,
   shock-water contact, statuses, reactions, death) and is shared by normal
-  attacks, skills, thrown weapons and wands; `combat.ts` only resolves the roll.
+  attacks, skills and wands; `combat.ts` only resolves the roll. Thrown objects
+  are not attacks — a thrown weapon/armour/tool deals no damage and only wakes
+  the target, while potions still splash their contents
+  (`test-rogue0-thrown-items.mjs`).
 - The turn engine is now a **discrete-event action-time scheduler**:
   movement speed and weapon delay are independent; hunger/regeneration tick
   with elapsed world time, effects retain their own tick phase, and skill
   cooldowns use absolute timestamps. See `README.md`, `timing.ts` and
   `turnManager.ts`; do not reintroduce per-action status/hunger ticking.
-- Regression: `npm run test:rogue0` runs **51** headless suites (52 files,
+- Regression: `npm run test:rogue0` runs **52** headless suites (53 files,
   including the separate browser `test-rogue0-save-browser.mjs`). The last full
   run and the production build passed at the time of this update. Results append
   to `logs/rogue0-tests.jsonl`; query with `npm run test:rogue0:history`.
@@ -630,8 +641,8 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       armor does not apply. Ice, walls, dry gaps and diagonal-only contact break
       conduction; levitation avoids it. No recursive arcs, extra crits/on-hit
       effects, charges or action costs. Lethal primary hits still conduct, and
-      secondary deaths use normal removal. Normal attacks, skills, thrown weapons
-      and wands share this behavior. `test-rogue0-shock-water.mjs` covers networks,
+      secondary deaths use normal removal. Normal attacks, skills and wands
+      share this behavior. `test-rogue0-shock-water.mjs` covers networks,
       exclusions, resistances, caster risk, deaths and all four attack paths.
       Visual and balance playtesting remain deferred.
 - [x] Lightning wand arcs into adjacent actors. A successful lightning-wand zap
