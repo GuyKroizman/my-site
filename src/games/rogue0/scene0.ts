@@ -104,7 +104,7 @@ import { hasEffect, removeEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import { generateGlyphStoneTextures } from './glyphStoneTextures';
-import { createGlyphStone, rollGlyphStoneKind } from './glyphStoneDrop';
+import { dropTrampledGlyphStone } from './glyphStoneDrop';
 import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
 import { prewarmConsumableAppearances, resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
@@ -378,21 +378,16 @@ export class Scene0 extends Phaser.Scene {
 
     // Door opens / grass burns / trap reveals all need to re-sync the overlay.
     dungeon.onTerrainChanged = () => this.syncFeatures();
-    // Trampled grass can hide a glyph stone. The hero picks it up immediately;
-    // a full backpack leaves it on the flattened grass to collect later.
+    // Trampled grass can hide a glyph stone. It is left lying on the flattened
+    // tile rather than stowed: moving off and back onto that tile picks it up
+    // through the normal walk-onto-item flow.
     this.context.onGrassTrampled = (entity, x, y) => {
       const player = this.context.player;
       if (!player || entity !== player) return;
-      const kind = rollGlyphStoneKind();
-      if (!kind) return;
-      const stone = createGlyphStone(this.context, kind, x, y);
-      this.context.entities.push(stone);
-      if (player.addItem(stone)) {
-        dungeon.log(this.context, `You find a ${stone.displayName} in the trampled grass.`);
-      } else {
-        dungeon.log(this.context,
-          `You uncover a ${stone.displayName} in the trampled grass, but your backpack is full.`);
-      }
+      const stone = dropTrampledGlyphStone(this.context, x, y);
+      if (!stone) return;
+      dungeon.log(this.context,
+        `You uncover a ${stone.displayName} in the trampled grass. Step off and back onto the tile to pick it up.`);
     };
     this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
     this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);

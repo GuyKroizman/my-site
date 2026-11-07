@@ -1,87 +1,175 @@
 import type Phaser from 'phaser';
 
-// Glyph stones share one worn-stone silhouette and differ by the rune inlaid
-// on their face. Drawing them at runtime keeps them independent of the floor
-// tilesheet, whose tiles are mostly scenery and equipment.
+// Every kind of glyph stone has its own artwork: a distinct silhouette, stone
+// colour and inlaid rune. Both kinds can lie side by side in the same trampled
+// grass, so they must be tellable apart at a glance rather than by tooltip.
+// Drawing them at runtime keeps them independent of the floor tilesheet, whose
+// tiles are mostly scenery and equipment.
 export const GLYPH_STONE_TEXTURES = {
   blink: 'glyph-stone-blink',
   detectCurse: 'glyph-stone-detect-curse'
 } as const;
 
-const STONE_OUTLINE = 0x2b2e34;
-const STONE_SHADOW = 0x666c76;
-const STONE_BODY = 0x8b929c;
-const STONE_LIGHT = 0xb8c0ca;
+export type GlyphStoneKind = keyof typeof GLYPH_STONE_TEXTURES;
 
-const BLINK_GLYPH = [
-  '..#..',
-  '.#.#.',
-  '#...#',
-  '.#.#.',
-  '..#..'
-];
+export const GLYPH_STONE_KINDS = Object.keys(GLYPH_STONE_TEXTURES) as GlyphStoneKind[];
 
-const DETECT_CURSE_GLYPH = [
-  '..###..',
-  '.#...#.',
-  '#..#..#',
-  '.#...#.',
-  '..###..'
-];
+export type GlyphStonePalette = {
+  outline: number;
+  shadow: number;
+  body: number;
+  light: number;
+  ink: number;
+  glow: number;
+  inkShadow: number;
+};
 
-function drawGlyph(
-  graphics: Phaser.GameObjects.Graphics,
-  glyph: string[],
-  ink: number,
-  glow: number
-): void {
-  const offsetX = Math.floor((16 - glyph[0].length) / 2);
-  const offsetY = Math.floor((16 - glyph.length) / 2);
-  glyph.forEach((row, y) => {
-    [...row].forEach((pixel, x) => {
-      if (pixel !== '#') return;
-      // A one-pixel dark backing keeps the rune legible on the light stone.
-      graphics.fillStyle(STONE_OUTLINE, 1);
-      graphics.fillRect(offsetX + x - 1, offsetY + y, 1, 1);
-      graphics.fillStyle(y === 0 ? glow : ink, 1);
-      graphics.fillRect(offsetX + x, offsetY + y, 1, 1);
+// Blink is a cool blue-white shard. Detect curse is a squat, moss-green cobble.
+// The carved runes share the ink colours with the stone tint so each kind reads
+// as one object before the face is legible at 1x.
+export const GLYPH_STONE_PALETTES: Record<GlyphStoneKind, GlyphStonePalette> = {
+  blink: {
+    outline: 0x1b2430,
+    shadow: 0x4a5c74,
+    body: 0x7c93ad,
+    light: 0xb3c8dd,
+    ink: 0x35c8ff,
+    glow: 0xdcf8ff,
+    inkShadow: 0x1a7fa8
+  },
+  detectCurse: {
+    outline: 0x24261b,
+    shadow: 0x5c6044,
+    body: 0x8f9670,
+    light: 0xc3c9a3,
+    ink: 0x3fbf5a,
+    glow: 0xdcffe2,
+    inkShadow: 0x226b31
+  }
+};
+
+const STONE_SIZE = 16;
+const TRANSPARENT = -1;
+
+type Token = '.' | 'o' | 'd' | 'b' | 'h' | '#' | '+' | '-';
+
+// o outline, d shadow, b body, h highlight. Every row is exactly 16 pixels.
+const STONE_ROWS: Record<GlyphStoneKind, readonly string[]> = {
+  // An upright, pointed shard: narrow at the top, widest around the middle.
+  blink: [
+    '......oo.....+..',
+    '.....ohho.......',
+    '....ohhho.......',
+    '....ohhbbbo.....',
+    '...ohhbbbbbo....',
+    '...ohhbbbbbbo...',
+    '..ohhbbbbbbbbdo.',
+    '..ohhbbbbbbbbdo.',
+    '..ohbbbbbbbbddo.',
+    '..ohbbbbbbbbddo.',
+    '...ohbbbbbbbddo.',
+    '...ohbbbbbbddo..',
+    '....obbbbbbddo..',
+    '....obbbbbddo...',
+    '.....obbbddo....',
+    '......ooooo.....'
+  ],
+  // A wide, flatter cobble with a chipped top edge.
+  detectCurse: [
+    '................',
+    '.....oooooo.....',
+    '...oohhhhhhoo...',
+    '..ohhhhhbbbbbo..',
+    '.ohhbbbbbbbbbbo.',
+    '.ohbbbbbbbbbbddo',
+    '.ohbbbbbbbbbbddo',
+    '.ohbbbbbbbbbbddo',
+    '.ohbbbbbbbbbbddo',
+    '.obbbbbbbbbbbddo',
+    '.obbbbbbbbbbddo.',
+    '..obbbbbbbbbddo.',
+    '...obbbbbbbddo..',
+    '....obbbbbddo...',
+    '.....oooooo.....',
+    '................'
+  ]
+};
+
+// '#' ink, '+' highlight ink, '-' shadow ink. Shapes are deliberately unlike
+// each other: a four-point blink sparkle versus a ringed curse eye.
+const RUNE_ROWS: Record<GlyphStoneKind, readonly string[]> = {
+  blink: [
+    '...+...',
+    '...#...',
+    '..###..',
+    '#######',
+    '..###..',
+    '...#...',
+    '...#...'
+  ],
+  detectCurse: [
+    '..###..',
+    '.#..+..',
+    '#.....#',
+    '#.---.#',
+    '#.....#',
+    '.#...#.',
+    '..###..'
+  ]
+};
+
+const RUNE_ORIGIN: Record<GlyphStoneKind, readonly [number, number]> = {
+  blink: [4, 5],
+  detectCurse: [4, 4]
+};
+
+const TOKENS: Record<Exclude<Token, '.'>, keyof GlyphStonePalette> = {
+  o: 'outline',
+  d: 'shadow',
+  b: 'body',
+  h: 'light',
+  '#': 'ink',
+  '+': 'glow',
+  '-': 'inkShadow'
+};
+
+// Flatten one kind into 16x16 RGBA-less colour indices: -1 is transparent and
+// every other value is an opaque 0xRRGGBB colour. Exported so the visual suite
+// can compare silhouettes and palettes without a Phaser renderer.
+export function glyphStonePixels(kind: GlyphStoneKind): number[] {
+  const palette = GLYPH_STONE_PALETTES[kind];
+  const cells = STONE_ROWS[kind].map(row => [...row]);
+  const [originX, originY] = RUNE_ORIGIN[kind];
+  RUNE_ROWS[kind].forEach((row, y) => {
+    [...row].forEach((token, x) => {
+      if (token === '.') return;
+      const stoneRow = cells[originY + y];
+      if (!stoneRow) return;
+      stoneRow[originX + x] = token;
     });
   });
-}
 
-function drawStone(
-  scene: Phaser.Scene,
-  key: string,
-  glyph: string[],
-  ink: number,
-  glow: number
-): void {
-  if (scene.textures.exists(key)) return;
-  const graphics = scene.make.graphics(undefined, false);
-
-  // A 13x11 oval with a lit top-left face and a darker underside. The stepped
-  // pixel edge matches the rest of the game's 16x16 art.
-  for (let y = 0; y < 16; y++) {
-    for (let x = 0; x < 16; x++) {
-      const nx = (x - 7.5) / 6.4;
-      const ny = (y - 8) / 5.3;
-      const distance = nx * nx + ny * ny;
-      if (distance > 1) continue;
-      const color = distance > 0.78 ? STONE_OUTLINE
-        : y <= 5 && x <= 8 ? STONE_LIGHT
-        : y >= 10 ? STONE_SHADOW
-        : STONE_BODY;
-      graphics.fillStyle(color, 1);
-      graphics.fillRect(x, y, 1, 1);
+  const pixels: number[] = [];
+  for (let y = 0; y < STONE_SIZE; y++) {
+    for (let x = 0; x < STONE_SIZE; x++) {
+      const token = (cells[y]?.[x] ?? '.') as Token;
+      pixels.push(token === '.' ? TRANSPARENT : palette[TOKENS[token]]);
     }
   }
-
-  drawGlyph(graphics, glyph, ink, glow);
-  graphics.generateTexture(key, 16, 16);
-  graphics.destroy();
+  return pixels;
 }
 
 export function generateGlyphStoneTextures(scene: Phaser.Scene): void {
-  drawStone(scene, GLYPH_STONE_TEXTURES.blink, BLINK_GLYPH, 0x66d9ff, 0xd6f7ff);
-  drawStone(scene, GLYPH_STONE_TEXTURES.detectCurse, DETECT_CURSE_GLYPH, 0x7ee08a, 0xe0ffe4);
+  for (const kind of GLYPH_STONE_KINDS) {
+    const key = GLYPH_STONE_TEXTURES[kind];
+    if (scene.textures.exists(key)) continue;
+    const graphics = scene.make.graphics(undefined, false);
+    glyphStonePixels(kind).forEach((color, index) => {
+      if (color === TRANSPARENT) return;
+      graphics.fillStyle(color, 1);
+      graphics.fillRect(index % STONE_SIZE, Math.floor(index / STONE_SIZE), 1, 1);
+    });
+    graphics.generateTexture(key, STONE_SIZE, STONE_SIZE);
+    graphics.destroy();
+  }
 }

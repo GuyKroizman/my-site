@@ -2,7 +2,10 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('glyph-stones');
 import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
-import { GLYPH_STONE_TEXTURES } from '../src/games/rogue0/glyphStoneTextures.ts';
+import {
+  GLYPH_STONE_TEXTURES, GLYPH_STONE_KINDS, GLYPH_STONE_PALETTES,
+  glyphStonePixels, generateGlyphStoneTextures
+} from '../src/games/rogue0/glyphStoneTextures.ts';
 import { bresenhamLine } from '../src/games/rogue0/fov.ts';
 import { createTerrain } from '../src/games/rogue0/terrain.ts';
 
@@ -62,8 +65,80 @@ assert.equal(blinkMeta.throwToUse, true, 'using blink starts throw targeting');
 assert.equal(curseMeta.throwToUse, false);
 assert.equal(curseMeta.requiresItemTarget, true);
 
+// --- each stone kind has its own artwork -----------------------------------
+const STONE_SIZE = 16;
+assert.deepEqual([...GLYPH_STONE_KINDS].sort(), ['blink', 'detectCurse']);
+const silhouettes = new Map();
+const runeInks = new Map();
+for (const kind of GLYPH_STONE_KINDS) {
+  const pixels = glyphStonePixels(kind);
+  assert.equal(pixels.length, STONE_SIZE * STONE_SIZE, `${kind} artwork is a 16x16 tile`);
+  assert.deepEqual(pixels, glyphStonePixels(kind), `${kind} pixels are deterministic`);
+  assert.ok(pixels.every(color => color === -1 ||
+    (Number.isInteger(color) && color >= 0 && color <= 0xffffff)), `${kind} pixels are transparent or colours`);
+  for (const corner of [0, STONE_SIZE - 1, STONE_SIZE * (STONE_SIZE - 1), STONE_SIZE * STONE_SIZE - 1]) {
+    assert.equal(pixels[corner], -1, `${kind} leaves the tile corners clear`);
+  }
+  const opaque = pixels.filter(color => color !== -1);
+  assert.ok(opaque.length >= 100, `${kind} fills enough of the tile to read as a stone (${opaque.length} px)`);
+  const palette = GLYPH_STONE_PALETTES[kind];
+  assert.ok(opaque.includes(palette.ink), `${kind} shows its rune ink`);
+  assert.ok(opaque.includes(palette.glow), `${kind} highlights part of the rune`);
+  assert.ok(!runeInks.has(palette.ink), `${kind} rune ink is unique (clashes with ${runeInks.get(palette.ink)})`);
+  runeInks.set(palette.ink, kind);
+
+  // The stone itself, not just the small rune, must differ: compare the whole
+  // opaque silhouette as well as the colours it is cut from.
+  const silhouette = pixels.map(color => color === -1 ? 0 : 1).join('');
+  assert.ok(!silhouettes.has(silhouette), `${kind} stone silhouette is unique (clashes with ${silhouettes.get(silhouette)})`);
+  silhouettes.set(silhouette, kind);
+}
+assert.notEqual(GLYPH_STONE_PALETTES.blink.body, GLYPH_STONE_PALETTES.detectCurse.body,
+  'the stones are cut from different-coloured rock');
+assert.notEqual(GLYPH_STONE_PALETTES.blink.ink, GLYPH_STONE_PALETTES.detectCurse.ink,
+  'the runes are inlaid in different inks');
+
+// --- both textures are generated once, under their own keys -----------------
+{
+  let graphicsCreated = 0;
+  const generated = new Map();
+  const scene = {
+    textures: { exists: key => generated.has(key) },
+    make: {
+      graphics() {
+        graphicsCreated += 1;
+        const cells = [];
+        return {
+          fillStyle(color) { this.color = color; },
+          fillRect(x, y, width, height) { cells.push([x, y, width, height, this.color]); },
+          generateTexture(key, width, height) { generated.set(key, { cells: [...cells], width, height }); },
+          destroy() {}
+        };
+      }
+    }
+  };
+  generateGlyphStoneTextures(scene);
+  assert.equal(graphicsCreated, GLYPH_STONE_KINDS.length, 'one graphics object per stone kind');
+  assert.deepEqual([...generated.keys()].sort(),
+    GLYPH_STONE_KINDS.map(kind => GLYPH_STONE_TEXTURES[kind]).sort());
+  for (const kind of GLYPH_STONE_KINDS) {
+    const texture = generated.get(GLYPH_STONE_TEXTURES[kind]);
+    assert.deepEqual([texture.width, texture.height], [STONE_SIZE, STONE_SIZE]);
+    const pixels = glyphStonePixels(kind);
+    assert.equal(texture.cells.length, pixels.filter(color => color !== -1).length,
+      `${kind} paints every opaque pixel once`);
+    assert.ok(texture.cells.every(([x, y, w, h]) =>
+      Number.isInteger(x) && Number.isInteger(y) && w === 1 && h === 1),
+    `${kind} draws one explicit pixel at a time`);
+  }
+  const before = graphicsCreated;
+  generateGlyphStoneTextures(scene);
+  assert.equal(graphicsCreated, before, 'existing textures are not regenerated');
+}
+
 // --- Trample drop odds: independent chance then a rune choice ---
-const { GLYPH_STONE_TRAMPLE_CHANCE, rollGlyphStoneKind, createGlyphStone } =
+const { GLYPH_STONE_TRAMPLE_CHANCE, rollGlyphStoneKind, createGlyphStone,
+  dropTrampledGlyphStone } =
   load('src/games/rogue0/glyphStoneDrop.ts', { StoneOfBlink, StoneOfDetectCurse });
 const seq = values => {
   let index = 0;
@@ -77,6 +152,18 @@ assert.equal(rollGlyphStoneKind(seq([0, 0.499])), 'blink');
 assert.equal(rollGlyphStoneKind(seq([0, 0.5])), 'detect-curse');
 assert.ok(createGlyphStone(metaCtx, 'blink') instanceof StoneOfBlink);
 assert.ok(createGlyphStone(metaCtx, 'detect-curse') instanceof StoneOfDetectCurse);
+
+// --- A trample find stays on the floor, never in the backpack ---
+{
+  const ctx = { entities: [], messages: [] };
+  const stone = dropTrampledGlyphStone(ctx, 2, 3, seq([0, 0]));
+  assert.ok(stone instanceof StoneOfBlink);
+  assert.deepEqual([stone.x, stone.y], [2, 3], 'the stone rests on the trampled tile');
+  assert.equal(ctx.entities.includes(stone), true, 'it is on the floor for a later pickup');
+  assert.equal(stone.count, 1);
+  assert.equal(dropTrampledGlyphStone(ctx, 2, 4, seq([0.99])), undefined);
+  assert.equal(ctx.entities.length, 1, 'a missed roll leaves no stone behind');
+}
 
 // --- Blink destination: exact free tile only, like any thrown item ---
 function blinkScene() {

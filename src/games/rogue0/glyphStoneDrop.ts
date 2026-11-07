@@ -29,3 +29,19 @@ export function createGlyphStone(
     ? new StoneOfBlink(context, x, y)
     : new StoneOfDetectCurse(context, x, y);
 }
+
+// The find stays on the trampled tile instead of jumping into the backpack. The
+// hero is standing on that tile, so the normal walk-onto-item pickup applies
+// once they step off and back; a full backpack needs no special case.
+export function dropTrampledGlyphStone(
+  context: GameContext,
+  x: number,
+  y: number,
+  random: () => number = Math.random
+): Entity | undefined {
+  const kind = rollGlyphStoneKind(random);
+  if (!kind) return undefined;
+  const stone = createGlyphStone(context, kind, x, y);
+  context.entities.push(stone);
+  return stone;
+}

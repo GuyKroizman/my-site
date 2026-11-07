@@ -145,11 +145,12 @@ damage and provocation state.
 ## Glyph stones
 
 Each tall-grass tile the hero tramples has a **12%** independent chance to hide a
-glyph stone. The stone is picked up immediately when there is backpack space; a
-full backpack leaves it on the flattened grass for a later pickup, with a log
-message either way. Monsters flatten grass too, but only the hero disturbs the
-hidden stones. Every glyph stone is one-use and is consumed when it takes
-effect.
+glyph stone. The find is **not** taken automatically: it stays on the flattened
+tile with a log message, and the hero picks it up by stepping off that tile and
+back onto it, like any other item lying on the floor. A full backpack therefore
+does not need special handling. Monsters flatten grass too, but only the hero
+disturbs the hidden stones. Every glyph stone is one-use and is consumed when it
+takes effect.
 
 - **Stone of Blink** is thrown (its inventory **Use** action starts throw
 targeting). On landing, the hero teleports to that exact tile. It follows the
