@@ -26,7 +26,7 @@ const footerDoodle = `
 const displayOrder = ['hoot', 'racing', 'the-mask', 'snake-bitter', 'yoga', 'rogue0', 'tiny-shooter', 'floaty', 'gmtk-2026']
 
 const constructionIds = new Set(['rogue0', 'tiny-shooter', 'floaty', 'gmtk-2026'])
-const desktopOnlyIds = new Set(['rogue0', 'hoot'])
+const desktopOnlyIds = new Set(['hoot'])
 
 function orderedProjects(): Project[] {
   const map = new Map(projects.map((p) => [p.id, p]))
