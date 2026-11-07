@@ -103,6 +103,8 @@ import { computeFOV, resolveVision } from "./fov";
 import { hasEffect, removeEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
+import { generateGlyphStoneTextures } from './glyphStoneTextures';
+import { createGlyphStone, rollGlyphStoneKind } from './glyphStoneDrop';
 import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
 import { prewarmConsumableAppearances, resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
@@ -332,6 +334,7 @@ export class Scene0 extends Phaser.Scene {
     generateGoblinArrowTexture(this);
     generateCultistBoltTexture(this);
     generatePotionTextures(this);
+    generateGlyphStoneTextures(this);
     generateArmorTextures(this);
     generateRemainsTexture(this);
     generateDoorThresholdTexture(this);
@@ -375,6 +378,22 @@ export class Scene0 extends Phaser.Scene {
 
     // Door opens / grass burns / trap reveals all need to re-sync the overlay.
     dungeon.onTerrainChanged = () => this.syncFeatures();
+    // Trampled grass can hide a glyph stone. The hero picks it up immediately;
+    // a full backpack leaves it on the flattened grass to collect later.
+    this.context.onGrassTrampled = (entity, x, y) => {
+      const player = this.context.player;
+      if (!player || entity !== player) return;
+      const kind = rollGlyphStoneKind();
+      if (!kind) return;
+      const stone = createGlyphStone(this.context, kind, x, y);
+      this.context.entities.push(stone);
+      if (player.addItem(stone)) {
+        dungeon.log(this.context, `You find a ${stone.displayName} in the trampled grass.`);
+      } else {
+        dungeon.log(this.context,
+          `You uncover a ${stone.displayName} in the trampled grass, but your backpack is full.`);
+      }
+    };
     this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
     this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);
     this.context.onWandZap = (zap, onImpact) => showWandZap(this, this.context, zap, onImpact);
@@ -854,8 +873,13 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private resolveFall() {
-    if (!this.context.pendingFall) return;
+    if (!this.context.pendingFall) {
+      this.context.pendingBlinkFall = false;
+      return;
+    }
     this.context.pendingFall = false;
+    const blinkFall = this.context.pendingBlinkFall === true;
+    this.context.pendingBlinkFall = false;
     this.context.terrainActionMode = false;
     const player = this.context.player;
     if (!player || player.healthPoints <= 0 || this.ended) return;
@@ -863,9 +887,26 @@ export class Scene0 extends Phaser.Scene {
     player.walkPath = [];
     player.cancelThrow();
     if (this.context.floor >= this.context.maxFloor) {
+      if (blinkFall) {
+        dungeon.log(this.context, "The Stone of Blink vanishes into the abyss. There is no floor below.");
+        return;
+      }
       dungeon.log(this.context, "You fall into the abyss. There is no floor below!");
       player.takeDamage(player.healthPoints);
       removeEntity(this.context, player);
+      return;
+    }
+    if (blinkFall) {
+      // The stone is consumed by the throw; the hero is carried through the
+      // chasm unharmed and set down at a random walkable spot below.
+      this.descend();
+      if (this.ended) return;
+      const tile = player.x !== undefined && player.y !== undefined
+        ? dungeon.randomWalkableTile(this.context, player.x, player.y)
+        : null;
+      if (tile) this.placePlayer(tile.x, tile.y);
+      dungeon.log(this.context,
+        `The Stone of Blink carries you unharmed to floor ${this.context.floor}.`);
       return;
     }
     const damage = Math.max(1, Math.ceil(player.maxHealthPoints / 3));

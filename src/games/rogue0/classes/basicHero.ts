@@ -272,6 +272,12 @@ export default class BasicHero extends Entity implements HeroControlHost {
       this.context.onChooseItemTarget?.(item);
       return false; // Selecting/cancelling is free; confirmation consumes it.
     }
+    // Glyph stones are thrown, not consumed in place. "Use" is a shortcut to
+    // the same targeting flow as the Throw inventory action.
+    if (item.throwToUse) {
+      this.beginThrow(item);
+      return false;
+    }
     if (!item.identified) {
       identify(item);
     }
@@ -704,6 +710,13 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
   private resolveThrowLanding(item: Entity, tx: number, ty: number): void {
     const context = this.context;
+    // Stones such as Blink resolve themselves at the destination and never
+    // rest on the floor.
+    if (item.onThrownLand?.(tx, ty)) {
+      removeEntity(context, item);
+      dungeon.triggerArrowTrap(context, tx, ty);
+      return;
+    }
     // Loot can share an actor's tile; entity array order must not hide the
     // living target from the impact handler.
     const target = context.entities.find(entity =>

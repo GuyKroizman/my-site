@@ -332,8 +332,9 @@ export class InventoryWindow {
     item: Entity | undefined,
     selected: boolean
   ): void {
-    // Match inspection's knowledge rules; never expose an unidentified curse.
-    const curseKnown = !!item && (item.identified || !!this.context.player?.slotOf(item));
+    // Match inspection's knowledge rules; never expose an unidentified curse
+    // unless a glyph stone has read it.
+    const curseKnown = !!item && (item.identified || item.curseScanned || !!this.context.player?.slotOf(item));
     const knownCursed = curseKnown && !!item?.cursed;
     const background = !item ? C.cell : !curseKnown ? C.cellUnknown :
       knownCursed ? C.cellCursed : C.cellSafe;
@@ -464,7 +465,7 @@ export class InventoryWindow {
     this.menuRoot.add(name);
     ay += Math.max(iconSize, name.height) + 10;
 
-    if (item.cursed && (item.identified || player.slotOf(item))) {
+    if (item.cursed && (item.identified || item.curseScanned || player.slotOf(item))) {
       this.menuRoot.add(
         this.scene.add.text(iconX, ay, "(cursed)", {
           fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,

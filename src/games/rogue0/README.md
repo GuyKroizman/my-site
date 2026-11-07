@@ -140,6 +140,33 @@ five dungeon regions: 32–64 HP, 14–30 damage, 1–3 protection, and 6-tile v
 Legacy 4-HP mimics in browser saves are upgraded once while preserving existing
 damage and provocation state.
 
+## Glyph stones
+
+Each tall-grass tile the hero tramples has a **12%** independent chance to hide a
+glyph stone. The stone is picked up immediately when there is backpack space; a
+full backpack leaves it on the flattened grass for a later pickup, with a log
+message either way. Monsters flatten grass too, but only the hero disturbs the
+hidden stones. Every glyph stone is one-use and is consumed when it takes
+effect.
+
+- **Stone of Blink** is thrown (its inventory **Use** action starts throw
+targeting). On landing, the hero teleports to that exact tile. It follows the
+normal thrown-item rules: the destination must be in line of sight and walls
+block it. A living actor in the path stops the stone like any other thrown item;
+the hero is carried to the last clear tile *before* that actor, never around or
+past it. If the stone falls into a chasm, it is consumed and the hero descends
+to the next floor unharmed, set down at a random walkable location (on the final
+floor there is no floor below, so the stone vanishes and the hero stays put).
+- **Stone of Detect Curse** uses the normal item-target picker. Choose one
+unidentified carried item and the stone reports whether it is **cursed** or
+**free of curse**, then is consumed. It does **not** identify the item; its
+inventory description keeps the glyph-stone verdict (and the inventory cell now
+shows the known curse colour) until the item is identified normally.
+
+Glyph stones stack like other consumables and persist through browser saves.
+Regression coverage is `npm run test:rogue0:glyph-stones`, also part of
+`npm run test:rogue0`.
+
 ## Ground equipment and skeletal remains
 
 Every newly generated non-boss floor has an independent **30%** chance of one

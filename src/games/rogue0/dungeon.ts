@@ -587,6 +587,11 @@ const dungeon = {
         !hasEffect(entity, "burning") && tiles.getFeature(destX, destY) === "grass") {
       tiles.clearFeature(destX, destY);
       this.onTerrainChanged?.();
+      // Only the hero disturbs hidden stones; monster-driven trampling must not
+      // create unannounced loot across the floor.
+      if (entity.type === "player") {
+        context.onGrassTrampled?.(entity, destX, destY);
+      }
     }
 
     // Grass is flammable: a burning creature ignites grass on or next to it.

@@ -70,6 +70,9 @@ export type GameContext = {
   onTerrainEvent?: () => void;
   onSurpriseAttack?: (target: Entity) => void;
   onGrassBurn?: (cells: Array<{ x: number; y: number }>) => void;
+  // Fired after the hero walks into tall grass and flattens it. The scene
+  // decides whether the disturbed patch hides a glyph stone.
+  onGrassTrampled?: (entity: Entity, x: number, y: number) => void;
   // `onImpact`, when provided, fires once the bolt head visually reaches its
   // destination so a wand kill lands on impact instead of on the firing frame.
   onWandZap?: (zap: WandZap, onImpact?: () => void) => void;
@@ -115,6 +118,9 @@ export type GameContext = {
   onDescend?: () => void;
   // Resolved by the scene after the current scheduler event, never mid-iteration.
   pendingFall?: boolean;
+  // Set with pendingFall when a Stone of Blink pulls the hero through a chasm:
+  // the scene descends without fall damage and places the hero elsewhere.
+  pendingBlinkFall?: boolean;
   // Count of visible trap arrows still in flight. Their damage lands when the
   // arrow arrives, so the scheduler holds every later event until then.
   pendingTrapArrows?: number;

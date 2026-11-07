@@ -36,6 +36,11 @@ has been playtested. Checked boxes mean the described implementation exists.
   map—not the originally proposed tile enum. Doors, searchable hidden traps,
   burning grass, water extinguishing fire, blocking chasms and searchable
   secret doors exist; advanced elemental combinations remain outstanding.
+  Trampling tall grass has a small chance to uncover a **glyph stone**: the
+  Stone of Blink teleports the hero to its landing tile when thrown (or pulls
+  them unharmed to the next floor if thrown into a chasm), and the Stone of
+  Detect Curse reveals one unidentified item's curse status without identifying
+  its type. Both are one-use consumables.
 - Monster roster includes cultists, splitting swarms, mimics, three elementals,
   goblin archers, wraiths and poison-gas Deadly Frogs. The goblin archer fires
   bleeding arrows at range
@@ -82,7 +87,7 @@ has been playtested. Checked boxes mean the described implementation exists.
   with elapsed world time, effects retain their own tick phase, and skill
   cooldowns use absolute timestamps. See `README.md`, `timing.ts` and
   `turnManager.ts`; do not reintroduce per-action status/hunger ticking.
-- Regression: `npm run test:rogue0` runs **42** headless suites (43 files,
+- Regression: `npm run test:rogue0` runs **51** headless suites (52 files,
   including the separate browser `test-rogue0-save-browser.mjs`). The last full
   run and the production build passed at the time of this update. Results append
   to `logs/rogue0-tests.jsonl`; query with `npm run test:rogue0:history`.

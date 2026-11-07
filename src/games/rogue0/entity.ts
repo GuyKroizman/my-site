@@ -230,9 +230,17 @@ export abstract class Entity {
   requiresItemTarget = false;
   itemTargetTitle = "CLEANSE: CHOOSE ITEM";
   noItemTargetsMessage = "You have no cursed items to cleanse.";
+  // Using this item opens throw targeting instead of consuming it in place.
+  throwToUse = false;
+  // A Stone of Detect Curse has looked at this item's curse without
+  // identifying it. The result is permanent knowledge for this item.
+  curseScanned = false;
   curseEffectId?: string;
   canTargetItem(_target: Entity): boolean { return false; }
   useOnItem(_target: Entity): boolean { return false; }
+  // Resolve a special landing effect (e.g. a Stone of Blink). True means the
+  // throw is fully handled and the item never rests on the floor.
+  onThrownLand?(_tx: number, _ty: number): boolean;
   onUncursed(): void {}
   onUpgrade(): void {}
   onAttacked(_attacker: Entity): void {}
@@ -335,8 +343,25 @@ export abstract class Entity {
   }
 
   get curseDescription(): string {
+    // A glyph stone exposes curse status without revealing the item's identity.
+    // Keep the lifting record visible even before identification, as it was
+    // before the stone existed.
+    if (!this.identified) {
+      if (this.cursed) {
+        return this.curseScanned
+          ? 'A glyph stone reveals that this item is cursed.'
+          : '';
+      }
+      if (this.curseLifted) {
+        return this.curseLockMessage
+          ? 'Curse lifted: this item is no longer cursed and can be freely unequipped or dropped.'
+          : 'Curse lifted: this item is no longer cursed.';
+      }
+      return this.curseScanned
+        ? 'A glyph stone reveals that this item is free of curse.'
+        : '';
+    }
     if (this.cursed) {
-      if (!this.identified) return '';
       const name = this.curseId ? CURSE_NAMES[this.curseId as CurseId] : '';
       if (name) {
         const lock = this.curseLockMessage ? ` ${this.curseLockMessage}` : '';
