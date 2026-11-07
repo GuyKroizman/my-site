@@ -1121,6 +1121,10 @@ const dungeon = {
         // Ordinary weapon attacks retain curse procs; throws/wands do not.
         if (victim.type === "player") this.procArmorCurse(context, victim);
         if (attacker.type === "player") this.procWeaponCurse(context, attacker, victim, result.damage);
+        // Unknown physical gear becomes familiar from real combat use. A weapon
+        // learns from a landed swing; armor learns from a blow it absorbs.
+        if (attacker.type === "player") context.player?.currentWeapon?.()?.learnEquipmentFromUse?.();
+        if (victim.type === "player") context.player?.armor?.learnEquipmentFromUse?.();
       }
     });
   },

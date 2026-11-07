@@ -727,7 +727,10 @@ export class UI extends Phaser.Scene {
         );
       } else {
         const desc = e.identified ? e.displayDescription
-          : ['You have not identified this item.', e.curseDescription].filter(Boolean).join('\n\n');
+          : e.isPhysicalEquipment
+            ? ['You recognize the make, but its upgrade level and any curse stay hidden until you have used it in combat.',
+                e.curseDescription].filter(Boolean).join('\n\n')
+            : ['You have not identified this item.', e.curseDescription].filter(Boolean).join('\n\n');
         this.inspectModalText.setText(`${e.displayName}\n${desc}`);
       }
       return;

@@ -422,8 +422,9 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       specific curse from its slot's SPD-style table and stores a `curseId`.
       One cursed item = one curse. Every curse reuses rogue0's existing systems
       (effects, terrain, `gas.ts`, teleport, alarm) instead of inventing new
-      stats, and its name is revealed on equip/Remove Curse in the item
-      description — matching SPD's named curses.
+      stats, and its name is revealed when the item is identified (combat use,
+      Scroll of Identify or Remove Curse) in the item description — matching SPD's
+      named curses.
 
   *Weapon curses (SPD → rogue0):*
 
@@ -464,13 +465,16 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
   Beast inverts its damage bonus into a penalty. Artifacts use the existing
   lock-on guards; wands remain backpack tools and are never locked on.
 - [x] **Lock-on & reveal.** Keep the existing unequip/drop/throw guards for
-      equipped cursed items. Equipping reveals the curse for weapons/armor,
-      rings and artifacts via the shared `onEquip` path. Remove Curse / Holy
-      Potion lift every equipped curse (clearing `curseId`) and re-enable
-      removal.
-- [x] **Detection.** Once known (equipped, or after Remove Curse), reuse the
+      equipped cursed items. Unknown weapons/armor stay unidentified after
+      equipping: their upgrade level and curse are learned from thirty combat
+      uses (landed attacks for a weapon, blows taken for armor) or a Scroll of
+      Identify. Rings and artifacts still reveal their curse through the shared
+      `onEquip` path. Remove Curse / Holy Potion lift every equipped curse
+      (clearing `curseId`) and re-enable removal.
+- [x] **Detection.** Once identified (or scanned by a glyph stone), reuse the
       existing red glow / "(cursed)" inventory label. Never reveal curses on
-      unidentified, unequipped items.
+      unidentified, unequipped items; an unidentified worn weapon/armor also
+      hides the lock-on reason until combat use reveals it.
 - [x] **Regression.** New `scripts/test-rogue0-cursed-items.mjs` (added to
       `npm run test:rogue0`): curse chance and guaranteed supplies stay clean;
       each named curse's proc/penalty applies while equipped and clears on

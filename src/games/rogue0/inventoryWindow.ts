@@ -333,8 +333,11 @@ export class InventoryWindow {
     selected: boolean
   ): void {
     // Match inspection's knowledge rules; never expose an unidentified curse
-    // unless a glyph stone has read it.
-    const curseKnown = !!item && (item.identified || item.curseScanned || !!this.context.player?.slotOf(item));
+    // unless a glyph stone has read it. Unknown physical gear stays secret even
+    // while worn: it is learned through combat use, not by equipping it.
+    const equippedRevealsCurse = !!item && !!this.context.player?.slotOf(item) &&
+      !item.isPhysicalEquipment;
+    const curseKnown = !!item && (item.identified || item.curseScanned || equippedRevealsCurse);
     const knownCursed = curseKnown && !!item?.cursed;
     const background = !item ? C.cell : !curseKnown ? C.cellUnknown :
       knownCursed ? C.cellCursed : C.cellSafe;
@@ -465,7 +468,8 @@ export class InventoryWindow {
     this.menuRoot.add(name);
     ay += Math.max(iconSize, name.height) + 10;
 
-    if (item.cursed && (item.identified || item.curseScanned || player.slotOf(item))) {
+    const equippedRevealsCurse = !!player.slotOf(item) && !item.isPhysicalEquipment;
+    if (item.cursed && (item.identified || item.curseScanned || equippedRevealsCurse)) {
       this.menuRoot.add(
         this.scene.add.text(iconX, ay, "(cursed)", {
           fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
@@ -482,12 +486,17 @@ export class InventoryWindow {
     );
     ay += 12;
 
-    // Recognizable equipment reveals its identity, but not its curse status.
-    const description = item.identified || item.isRecognizableEquipment
+    // Recognizable equipment reveals its identity, but unknown physical gear
+    // keeps its upgrades and curse secret until combat use identifies it.
+    const statsVisible = item.identified || (item.isRecognizableEquipment && !item.isPhysicalEquipment);
+    const description = statsVisible
       ? [item.displayDescription, item.strengthDescription(player.strength)].filter(Boolean).join("\n")
-      : [item instanceof Wand
-          ? "An unidentified wand. Its kind of magic is unknown."
-          : "You have not identified this item.", item.curseDescription].filter(Boolean).join('\n\n');
+      : item.isPhysicalEquipment
+        ? ["You recognize the make, but its upgrade level and any curse stay hidden until you have used it in combat.",
+            item.curseDescription].filter(Boolean).join("\n\n")
+        : [item instanceof Wand
+            ? "An unidentified wand. Its kind of magic is unknown."
+            : "You have not identified this item.", item.curseDescription].filter(Boolean).join('\n\n');
     const desc = this.scene.add.text(iconX, ay, description, {
       fontFamily: `${FONT_MONO}, monospace`, fontSize: 16,
       color: item.identified ? COL.text : COL.muted,

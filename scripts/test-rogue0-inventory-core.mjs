@@ -122,7 +122,7 @@ function gear(slot = 'weapon', overrides = {}) {
   const old = carry(owner, gear('weapon', { identified: false }));
   inventory.equipItem(owner, old);
   assert.equal(owner.weapon, old);
-  assert.equal(old.identified, true);
+  assert.equal(old.identified, false, 'equipping alone does not identify unknown gear');
   assert.deepEqual(owner.actions, []);
   owner.sprite = {}; owner.actionReady = true;
   const replacement = carry(owner, gear());
@@ -148,7 +148,9 @@ function gear(slot = 'weapon', overrides = {}) {
   const owner = new Owner();
   const cursed = carry(owner, gear('weapon', { cursed: true, identified: false }));
   inventory.equipItem(owner, cursed);
-  assert.ok(owner.context.messages.some(message => message.includes('cursed and cannot')));
+  assert.equal(cursed.identified, false, 'unknown gear stays unidentified while worn');
+  assert.ok(!owner.context.messages.some(message => message.includes('cursed and cannot')),
+    'equipping unknown physical gear does not reveal its curse');
   const replacement = carry(owner, gear());
   owner.actionReady = true;
   const time = owner.nextActionTime;

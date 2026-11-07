@@ -7,7 +7,7 @@ import { inflateSync } from 'node:zlib';
 
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 const { Entity, upgrade, identify, removeEntity, saveConsumableKnowledge, restoreConsumableKnowledge,
-  rememberIdentifiedWandTypes } = load('src/games/rogue0/entity.ts', load('src/games/rogue0/rendering.ts'));
+  rememberIdentifiedWandTypes, EQUIPMENT_IDENTIFY_USES } = load('src/games/rogue0/entity.ts', load('src/games/rogue0/rendering.ts'));
 // Every category keeps its floor texture/frame/tint before and after identification.
 for (const equipSlot of ['weapon', 'armor', 'ring', 'artifact', 'consumable', 'junk']) {
   for (const textureKey of [undefined, 'custom-item']) {
@@ -345,6 +345,35 @@ for (let tier = 1; tier <= 5; tier++) {
     upgrade(armor);
     assert.equal(armor.tier, tier);
   }
+}
+// Unknown physical gear hides its upgrade level until combat use identifies it.
+{
+  const context = { messages: [] };
+  const weapon = Object.assign(new Entity(), {
+    context, type: 'item', equipSlot: 'weapon', name: 'Shortsword', tier: 2, level: 2,
+    identified: false,
+  });
+  assert.equal(weapon.displayName, 'Shortsword (Tier 2)', 'upgrade level stays hidden');
+  for (let use = 1; use < EQUIPMENT_IDENTIFY_USES; use++) {
+    weapon.learnEquipmentFromUse();
+    assert.equal(weapon.identified, false, `still unknown after ${use} use(s)`);
+    assert.equal(weapon.displayName, 'Shortsword (Tier 2)');
+  }
+  weapon.learnEquipmentFromUse();
+  assert.equal(weapon.identified, true, 'enough combat use identifies the weapon');
+  assert.equal(weapon.displayName, 'Shortsword +2 (Tier 2)', 'identification reveals the upgrade');
+  assert.match(context.messages[0], /^Identified: Shortsword/);
+  const uses = weapon.equipmentUses;
+  weapon.learnEquipmentFromUse();
+  assert.equal(weapon.equipmentUses, uses, 'identified gear stops counting uses');
+
+  const armor = Object.assign(new Entity(), {
+    context, type: 'item', equipSlot: 'armor', name: 'Mail Armor', tier: 3, level: 1,
+    identified: false,
+  });
+  for (let use = 0; use < EQUIPMENT_IDENTIFY_USES; use++) armor.learnEquipmentFromUse();
+  assert.equal(armor.identified, true, 'armor learns from blows taken, using the same threshold');
+  assert.equal(armor.displayName, 'Mail Armor +1 (Tier 3)');
 }
 const shield = new Shield({ messages: [] });
 const shieldItems = contextFor(shield);

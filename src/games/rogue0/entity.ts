@@ -12,6 +12,11 @@ import type { CurseId } from "./curseData";
 
 export type EntityType = "player" | "enemy" | "item";
 
+// Unknown physical gear becomes familiar after this many real combat uses:
+// one swing for a weapon, one blow taken for armor. A Scroll of Identify
+// reveals it immediately, but equipping alone no longer does.
+export const EQUIPMENT_IDENTIFY_USES = 30;
+
 export type EquipSlot =
   | "weapon"
   | "armor"
@@ -309,6 +314,9 @@ export abstract class Entity {
   isDecoy: boolean = false;
   blessed: boolean = false;
   level: number = 0;
+  // Successful combat uses since the item was found. Tracked for unknown
+  // physical gear so upgrades and curses stay secret until it has been used.
+  equipmentUses: number = 0;
   maxLevel: number = Number.POSITIVE_INFINITY;
   charges: number = 0;
   equipSlot: EquipSlot = "junk";
@@ -382,6 +390,14 @@ export abstract class Entity {
     return [this.baseDescription, this.curseDescription].filter(Boolean).join('\n\n');
   }
 
+  // Learn an unknown physical item's true quality through actual combat use.
+  // Equipping is not enough: a weapon must connect, armor must take a blow.
+  learnEquipmentFromUse(): void {
+    if (this.identified || !this.isPhysicalEquipment) return;
+    this.equipmentUses = (this.equipmentUses ?? 0) + 1;
+    if (this.equipmentUses >= EQUIPMENT_IDENTIFY_USES) identify(this);
+  }
+
   // Consumable labels follow their shuffled appearance, not their true identity.
   // Copies, floor changes and stack splits retain the same label within a run.
   get unidentifiedName(): string {
@@ -393,8 +409,8 @@ export abstract class Entity {
     return appearanceLabel(identity);
   }
 
-  // Physical equipment is recognizable; identification reveals its curse state,
-  // not whether it is a sword, axe, or suit of armor.
+  // Physical equipment is recognizable; identification reveals its upgrades
+  // and curse state, not whether it is a sword, axe, or suit of armor.
   get isPhysicalEquipment(): boolean {
     return this.type === "item" && (this.equipSlot === "weapon" || this.equipSlot === "armor");
   }
@@ -406,7 +422,9 @@ export abstract class Entity {
 
   get displayName(): string {
     if (this.isPhysicalEquipment) {
-      const level = this.level > 0 ? ` +${this.level}` : "";
+      // The make and tier are recognizable, but an unknown upgrade level must
+      // not leak through the name before the item has been used or identified.
+      const level = this.identified && this.level > 0 ? ` +${this.level}` : "";
       return `${this.name}${level} (Tier ${this.tier})`;
     }
     if (this.identified || this.isRecognizableEquipment) {

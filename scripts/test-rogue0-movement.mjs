@@ -930,7 +930,8 @@ const cursedGear = Object.assign(new Entity(), {
 });
 const replacement = Object.assign(new Entity(), { type: 'item', equipSlot: 'weapon' });
 curseHero.backpack = [cursedGear, replacement];
-assert.equal(cursedGear.displayName, 'Secret Blade +3 (Tier 1)');
+assert.equal(cursedGear.displayName, 'Secret Blade (Tier 1)');
+assert.doesNotMatch(cursedGear.displayName, /\+3/, 'unknown gear hides its upgrade level');
 assert.doesNotMatch(cursedGear.displayName, /cursed/i, 'unknown gear hides its curse, not its physical identity');
 const unknownActions = inventory.buildActions(curseHero, cursedGear);
 cursedGear.cursed = false;
@@ -942,7 +943,7 @@ assert.equal(curseHero.context.throwItem, cursedGear, 'unequipped cursed gear ca
 curseHero.cancelThrow();
 assert.equal(curseHero.nextActionTime, 0, 'throw targeting and cancellation are free');
 curseHero.equipItem(cursedGear);
-assert.equal(cursedGear.identified, true, 'equipping a weapon reveals its curse status');
+assert.equal(cursedGear.identified, false, 'equipping a weapon does not identify it');
 assert.equal(curseHero.weapon, cursedGear);
 for (const reject of [
   () => curseHero.unequipItem(cursedGear),
@@ -968,7 +969,8 @@ assert.ok(curseHero.backpack.includes(cursedGear));
 assert.equal(cursedGear.level, 3, 'uncursing and unequipping preserve upgrades');
 assert.equal(curseHero.nextActionTime, 1);
 
-// Both safe and cursed weapons/armor reveal their status on actual equip.
+// Equipping unknown weapons/armor is not identification; only the lock-on
+// guard reveals that a worn item is cursed.
 for (const equipSlot of ['weapon', 'armor']) {
   for (const cursed of [false, true]) {
     const tester = Object.assign(new Entity(), {
@@ -982,11 +984,11 @@ for (const equipSlot of ['weapon', 'armor']) {
     });
     tester.backpack = [gear];
     tester.equipItem(gear);
-    assert.equal(gear.identified, true);
+    assert.equal(gear.identified, false, 'equipping alone never identifies gear');
     assert.equal(tester[equipSlot], gear);
     tester.unequipItem(gear);
     assert.equal(tester[equipSlot], cursed ? gear : undefined,
-      'only cursed equipment is locked after revealing its status');
+      'only cursed equipment is locked after equipping');
   }
 }
 
@@ -1023,7 +1025,7 @@ assert.equal(equipmentTurns, 1);
 assert.equal(oldGear.level, 2);
 assert.equal(newGear.level, 4);
 assert.equal(oldGear.identified, false);
-assert.equal(newGear.identified, true, 'swapping in equipment reveals its curse status');
+assert.equal(newGear.identified, false, 'swapping in equipment does not identify it');
 
 // Recheck ownership/curse at confirmation, not only when targeting opens.
 for (const invalidate of ['removed', 'equipped-curse']) {
