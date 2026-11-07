@@ -11,6 +11,21 @@ export function floorHasSecretRoom(floor: number): boolean {
   return floor % 5 === 0;
 }
 
+// Terrain biome of a floor. Most floors mix small patches, but roughly half
+// of them are dominated by one terrain type so descending can land the player
+// in an overgrown or flooded level instead of a uniform stone hall.
+export type FloorTerrainTheme = 'neutral' | 'overgrown' | 'flooded';
+
+export function floorTerrainTheme(floor: number): FloorTerrainTheme {
+  // Floor 1 stays a plain stone introduction; the first descent already
+  // varies. Roll once per generated floor, independent of room layout.
+  if (floor <= 1) return 'neutral';
+  const roll = Math.random();
+  if (roll < 0.3) return 'overgrown';
+  if (roll < 0.55) return 'flooded';
+  return 'neutral';
+}
+
 export type Room = {
   x: number;
   y: number;
@@ -430,6 +445,47 @@ function growPatch(
   return patch;
 }
 
+// Fills room interiors with one terrain type by growing several overlapping
+// patches per room. `coverage` is the fraction of each room's free floor the
+// theme should claim, which is what turns a level into a real biome instead of
+// a handful of decorative tufts.
+function growTerrainCover(
+  map: number[][],
+  rooms: Room[],
+  used: Set<string>,
+  coverage: number,
+  maxPatchSize: number
+): Array<{ x: number; y: number }> {
+  const covered: Array<{ x: number; y: number }> = [];
+
+  for (const room of rooms) {
+    const free: Array<{ x: number; y: number }> = [];
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (map[y][x] === 0 && !used.has(`${x},${y}`)) free.push({ x, y });
+      }
+    }
+    if (free.length < 3) continue;
+
+    const target = Math.max(2, Math.round(free.length * coverage));
+    let placed = 0;
+    for (let attempt = 0; attempt < 80 && placed < target; attempt++) {
+      const remaining = free.filter((t) => !used.has(`${t.x},${t.y}`));
+      if (remaining.length === 0) break;
+      const seed = remaining[Math.floor(Math.random() * remaining.length)];
+      const size = Math.min(
+        target - placed,
+        4 + Math.floor(Math.random() * maxPatchSize)
+      );
+      const patch = growPatch(map, rooms, seed, size, used);
+      placed += patch.length;
+      covered.push(...patch);
+    }
+  }
+
+  return covered;
+}
+
 // Returns true when every walkable floor tile (map === 0) not listed in
 // `blocked` is reachable from any other via cardinal steps. Chasms are the
 // only permanently blocking feature for this check: doors can be opened, and
@@ -811,30 +867,6 @@ export function generateMap(floor = 1): GeneratedMap {
     used.add(key);
   }
 
-  // 1-3 grass patches inside rooms.
-  const grassPatchCount = 1 + Math.floor(Math.random() * 3);
-  for (let p = 0; p < grassPatchCount; p++) {
-    const seed = shuffle(roomTiles.filter((t) => !used.has(`${t.x},${t.y}`)))[0];
-    if (!seed) break;
-    const size = 2 + Math.floor(Math.random() * 3); // 2..4 tiles
-    const patch = growPatch(map, rooms, seed, size, used);
-    for (const t of patch) {
-      features.push({ x: t.x, y: t.y, feature: "grass" });
-    }
-  }
-
-  // 1-2 water pools inside rooms.
-  const waterPatchCount = 1 + Math.floor(Math.random() * 2);
-  for (let p = 0; p < waterPatchCount; p++) {
-    const seed = shuffle(roomTiles.filter((t) => !used.has(`${t.x},${t.y}`)))[0];
-    if (!seed) break;
-    const size = 2 + Math.floor(Math.random() * 2); // 2..3 tiles
-    const patch = growPatch(map, rooms, seed, size, used);
-    for (const t of patch) {
-      features.push({ x: t.x, y: t.y, feature: "water" });
-    }
-  }
-
   // A couple of hidden traps.
   const trapKinds: TrapKind[] = ["dart", "fire", "frost", "teleport", "summon", "alarm", "geyser", "confusion"];
   const trapCount = 2;
@@ -909,7 +941,62 @@ export function generateMap(floor = 1): GeneratedMap {
   // One visible pressure plate: unlike hidden status traps it can be used
   // deliberately by throwing an object onto it.
   const arrowTile = shuffle(roomTiles.filter(t => !used.has(`${t.x},${t.y}`)))[0];
-  if (arrowTile) features.push({ ...arrowTile, feature: "trap", trap: "visible", trapKind: "arrow" });
+  if (arrowTile) {
+    features.push({ ...arrowTile, feature: "trap", trap: "visible", trapKind: "arrow" });
+    used.add(`${arrowTile.x},${arrowTile.y}`);
+  }
+
+  // --- Grass and water ---
+  // Planted last so traps, the visible plate and chasms keep their tiles. Big
+  // patches are the point: a themed floor is a biome, not decoration.
+  const terrainTheme = floorTerrainTheme(floor);
+  if (terrainTheme === "neutral") {
+    // 2-4 grass patches, each several tiles wide.
+    const grassPatchCount = 2 + Math.floor(Math.random() * 3);
+    for (let p = 0; p < grassPatchCount; p++) {
+      const seed = shuffle(roomTiles.filter((t) => !used.has(`${t.x},${t.y}`)))[0];
+      if (!seed) break;
+      const size = 5 + Math.floor(Math.random() * 10); // 5..14 tiles
+      const patch = growPatch(map, rooms, seed, size, used);
+      for (const t of patch) {
+        features.push({ x: t.x, y: t.y, feature: "grass" });
+      }
+    }
+
+    // 1-2 water pools, large enough to read as shoreline.
+    const waterPatchCount = 1 + Math.floor(Math.random() * 2);
+    for (let p = 0; p < waterPatchCount; p++) {
+      const seed = shuffle(roomTiles.filter((t) => !used.has(`${t.x},${t.y}`)))[0];
+      if (!seed) break;
+      const size = 4 + Math.floor(Math.random() * 7); // 4..10 tiles
+      const patch = growPatch(map, rooms, seed, size, used);
+      for (const t of patch) {
+        features.push({ x: t.x, y: t.y, feature: "water" });
+      }
+    }
+  } else {
+    const main: "grass" | "water" = terrainTheme === "overgrown" ? "grass" : "water";
+    const other: "grass" | "water" = main === "grass" ? "water" : "grass";
+
+    // The biome claims most of every room's open floor, in overlapping lumps.
+    const coverage = 0.5 + Math.random() * 0.25; // 50%..75%
+    const mainTiles = growTerrainCover(map, rooms, used, coverage, 14);
+    for (const t of mainTiles) {
+      features.push({ x: t.x, y: t.y, feature: main });
+    }
+
+    // A few patches of the opposite type keep the biome from being monotone.
+    const otherPatchCount = 1 + Math.floor(Math.random() * 2);
+    for (let p = 0; p < otherPatchCount; p++) {
+      const seed = shuffle(roomTiles.filter((t) => !used.has(`${t.x},${t.y}`)))[0];
+      if (!seed) break;
+      const size = 4 + Math.floor(Math.random() * 6); // 4..9 tiles
+      const patch = growPatch(map, rooms, seed, size, used);
+      for (const t of patch) {
+        features.push({ x: t.x, y: t.y, feature: other });
+      }
+    }
+  }
 
   // The northernmost floor belongs to the connected dungeon. Above it the
   // reserved band is solid wall, so the branch cannot accidentally reconnect

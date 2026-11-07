@@ -9,7 +9,33 @@ import { actionCost, starvationDamageDuring } from '../src/games/rogue0/timing.t
 const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 const tiles = load('tiles');
 const fov = load('fov', tiles);
-const { generateMap, findFarthestWalkable, floorHasSecretRoom } = load('mapgen', tiles);
+const { generateMap, findFarthestWalkable, floorHasSecretRoom, floorTerrainTheme } = load('mapgen', tiles);
+// Every floor theme must be reachable: the generator rolls one per floor.
+const themeRolls = new Set();
+for (let i = 0; i < 400; i++) themeRolls.add(floorTerrainTheme(2));
+assert.deepEqual([...themeRolls].sort(), ['flooded', 'neutral', 'overgrown'], 'floors roll between plain, overgrown and flooded biomes');
+assert.equal(floorTerrainTheme(1), 'neutral', 'the introduction floor stays plain stone');
+// Contiguous same-terrain mass, used to prove patches are landscapes and not
+// single decorative tiles.
+function largestTerrainBlob(features, feature) {
+  const cells = new Set(features.filter(f => f.feature === feature).map(f => `${f.x},${f.y}`));
+  let largest = 0;
+  while (cells.size) {
+    const first = cells.values().next().value;
+    cells.delete(first);
+    const queue = [first];
+    for (let qi = 0; qi < queue.length; qi++) {
+      const [x, y] = queue[qi].split(',').map(Number);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const key = `${x + dx},${y + dy}`;
+        if (cells.delete(key)) queue.push(key);
+      }
+    }
+    largest = Math.max(largest, queue.length);
+  }
+  return largest;
+}
+let biggestGrass = 0, biggestWater = 0, grassTiles = 0, waterTiles = 0;
 // The shared hit presentation (impact sound, flash, sparks) now also runs for
 // landed trap arrows, so every fixture provides the same audio surface.
 const sfxStub = { step() {}, hit() {}, hurt() {}, deflect() {}, surpriseHit() {}, death() {} };
@@ -70,12 +96,15 @@ for (let i = 0; i < 200; i++) {
   // Doors must sit in a straight 1-wide corridor. Junctions, L-bends and
   // 2-wide corridors are left as open archways instead of getting a door
   // that only covers one of several walkable lanes.
-  const doorFeatures = features.filter(f => f.feature === 'door');
-  for (const d of doorFeatures) {
+  const doorFeatures = features.filter(f => f.feature === 'door');  for (const d of doorFeatures) {
     assert.ok(isStraightDoorway(map, d),
       'doors sit in straight 1-wide corridors, not junctions or 2-wide corridors');
   }
   for (const f of features) tiles.setFeature(f.x, f.y, f.feature, f);
+  biggestGrass = Math.max(biggestGrass, largestTerrainBlob(features, 'grass'));
+  biggestWater = Math.max(biggestWater, largestTerrainBlob(features, 'water'));
+  grassTiles += features.filter(f => f.feature === 'grass').length;
+  waterTiles += features.filter(f => f.feature === 'water').length;
   const chasms = features.filter(f => f.feature === 'chasm');
   if (chasms.length > 0) assert.ok(chasms.length >= 2, 'chasms are multi-tile patches, never a lone tile');
   const spawn = { x: rooms[0].cx, y: rooms[0].cy };
@@ -140,6 +169,12 @@ for (let i = 0; i < 200; i++) {
     assert.equal(tiles.getDoorState(x, y), 'open', 'revisit keeps discovered/open door');
   }
 }
+// Across 200 maps every biome shows up, and at least one floor of each type is
+// genuinely covered rather than speckled with a few lone tiles.
+assert.ok(biggestGrass >= 20, `overgrown floors grow big connected grass (largest ${biggestGrass})`);
+assert.ok(biggestWater >= 20, `flooded floors grow big connected water (largest ${biggestWater})`);
+assert.ok(grassTiles / 200 >= 4, `grass is a regular floor feature (avg ${(grassTiles / 200).toFixed(1)} tiles)`);
+assert.ok(waterTiles / 200 >= 4, `water is a regular floor feature (avg ${(waterTiles / 200).toFixed(1)} tiles)`);
 function actor(type, x, y, hp = 10) {
   return { type, x, y, healthPoints: hp, name: type, protection: () => 0,
     takeDamage(n) { this.healthPoints -= n; } };
