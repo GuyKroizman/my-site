@@ -9,7 +9,7 @@ import { actionCost, starvationDamageDuring } from '../src/games/rogue0/timing.t
 const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 const tiles = load('tiles');
 const fov = load('fov', tiles);
-const { generateMap, findFarthestWalkable, floorHasSecretRoom, floorTerrainTheme } = load('mapgen', tiles);
+const { generateMap, findFarthestWalkable, floorHasSecretRoom, floorIsBossArena, floorTerrainTheme } = load('mapgen', tiles);
 // Every floor theme must be reachable: the generator rolls one per floor.
 const themeRolls = new Set();
 for (let i = 0; i < 400; i++) themeRolls.add(floorTerrainTheme(2));
@@ -77,7 +77,8 @@ for (let i = 0; i < 200; i++) {
   tiles.clearAllFeatures();
   const floor = i % 25 + 1;
   const hasSecret = floorHasSecretRoom(floor);
-  const { map, rooms, features, secretRoom } = generateMap(floor);
+  const generated = generateMap(floor);
+  const { map, rooms, features, secretRoom } = generated;
   if (hasSecret) {
     assert.ok(secretRoom, 'band floors generate a secret corridor leading to a treasure room');
     assert.equal(secretRoom.w, 3); assert.equal(secretRoom.h, 3);
@@ -92,7 +93,14 @@ for (let i = 0; i < 200; i++) {
     assert.ok(!features.some(f => f.feature === 'secretDoor'), 'no secret door outside band floors');
   }
   assert.ok(map[0].every(cell => cell === 1), 'northern boundary stays sealed');
-  assert.ok(rooms.length > 1);
+  if (floorIsBossArena(floor)) {
+    // A boss floor is one huge arena hall, not a room network.
+    assert.equal(rooms.length, 1, `floor ${floor} is a single arena room`);
+    const arena = rooms[0];
+    assert.ok(arena.w >= 60 && arena.h >= 30, `arena is huge (${arena.w}x${arena.h})`);
+  } else {
+    assert.ok(rooms.length > 1);
+  }
   // Doors must sit in a straight 1-wide corridor. Junctions, L-bends and
   // 2-wide corridors are left as open archways instead of getting a door
   // that only covers one of several walkable lanes.
@@ -107,7 +115,7 @@ for (let i = 0; i < 200; i++) {
   waterTiles += features.filter(f => f.feature === 'water').length;
   const chasms = features.filter(f => f.feature === 'chasm');
   if (chasms.length > 0) assert.ok(chasms.length >= 2, 'chasms are multi-tile patches, never a lone tile');
-  const spawn = { x: rooms[0].cx, y: rooms[0].cy };
+  const spawn = generated.spawn ?? { x: rooms[0].cx, y: rooms[0].cy };
   const blocked = new Set(chasms.map(c => `${c.x},${c.y}`));
   const reachable = floodReachable(map, spawn, blocked);
   for (const key of floodReachable(map, spawn, new Set())) {
@@ -119,6 +127,10 @@ for (let i = 0; i < 200; i++) {
   assert.ok(features.some(f => f.trapKind === 'arrow' && f.trap === 'visible'));
   for (const f of features.filter(f => f.feature === 'trap')) {
     assert.equal(!!f.trapReusable, ['frost', 'teleport', 'alarm'].includes(f.trapKind));
+    // A boss floor is a guardian-only arena: its traps never summon a monster.
+    if (floorHasSecretRoom(floor)) {
+      assert.notEqual(f.trapKind, 'summon', `floor ${floor} has no summon trap`);
+    }
   }
   if (hasSecret) {
     const secret = features.find(f => f.feature === 'secretDoor');

@@ -11,6 +11,23 @@ export function floorHasSecretRoom(floor: number): boolean {
   return floor % 5 === 0;
 }
 
+// Boss floors are one huge arena hall, not a network of rooms. Mirrors
+// progression.isBossFloor so map generation stays free of gameplay imports.
+export function floorIsBossArena(floor: number): boolean {
+  return Number.isInteger(floor) && floor > 0 && floor % 5 === 0;
+}
+
+// The arena fills the map minus a solid rock border and the northern wall band
+// the hidden gem branch is carved into. The hero arrives at the south edge so
+// the guardian waiting in the middle is met face to face.
+export function bossArenaRoom(width: number, height: number): Room {
+  const x = 4;
+  const y = 12;
+  const w = width - 8;
+  const h = height - 14;
+  return { x, y, w, h, cx: x + Math.floor(w / 2), cy: y + Math.floor(h / 2) };
+}
+
 // Terrain biome of a floor. Most floors mix small patches, but roughly half
 // of them are dominated by one terrain type so descending can land the player
 // in an overgrown or flooded level instead of a uniform stone hall.
@@ -40,6 +57,15 @@ export type GeneratedMap = {
   rooms: Room[];
   features: FeaturePlacement[];
   secretRoom?: Room;
+  // Where the hero arrives when the layout dictates it (the boss arena's south
+  // edge). Ordinary floors derive the arrival tile from rooms[0].
+  spawn?: { x: number; y: number };
+  // Middle of the boss arena, where the guardian waits asleep.
+  bossArena?: { x: number; y: number };
+  // The arena's far corner. Ordinary floors derive the exit from the arrival
+  // tile instead; the arena states it so the stairs cannot land in the stub of
+  // the hidden branch above the north wall.
+  stairs?: { x: number; y: number };
 };
 
 function carve(map: number[][], room: Room): void {
@@ -729,10 +755,14 @@ export function generateMap(floor = 1): GeneratedMap {
   );
   const rooms: Room[] = [];
 
+  // A boss floor is one vast arena: no room network and no chasm chamber.
+  const arenaFloor = floorIsBossArena(floor);
+  const arena = arenaFloor ? bossArenaRoom(width, height) : undefined;
+
   // Floors 6+ carve a big chasm chamber at a random spot: a walkable ring
   // around a noise-shaped chasm. Regular rooms fill the rest of the map and a
   // spanning network of corridors links everything without crossing the chasm.
-  const bigChasm = floor >= 6;
+  const bigChasm = floor >= 6 && !arenaFloor;
   let chasmRoom: Room | undefined;
   let chasmTiles: Set<string> | undefined;
 
@@ -765,9 +795,14 @@ export function generateMap(floor = 1): GeneratedMap {
   const maxRooms = floor === 1 ? 7 : 14;
   const maxAttempts = 200;
 
+  if (arena) {
+    carve(map, arena);
+    rooms.push(arena);
+  }
+
   for (
     let attempt = 0;
-    attempt < maxAttempts && rooms.length < maxRooms;
+    attempt < maxAttempts && !arena && rooms.length < maxRooms;
     attempt++
   ) {
     const w = 4 + Math.floor(Math.random() * 8);
@@ -867,13 +902,17 @@ export function generateMap(floor = 1): GeneratedMap {
     used.add(key);
   }
 
-  // A couple of hidden traps.
+  // A couple of hidden traps. A boss floor is a guardian arena, so the summon
+  // trap is left out of its pool: nothing may add another monster there.
   const trapKinds: TrapKind[] = ["dart", "fire", "frost", "teleport", "summon", "alarm", "geyser", "confusion"];
+  const allowedTrapKinds = floorHasSecretRoom(floor)
+    ? trapKinds.filter((kind) => kind !== "summon")
+    : trapKinds;
   const trapCount = 2;
   for (let i = 0; i < trapCount; i++) {
     const tile = shuffle(roomTiles.filter((t) => !used.has(`${t.x},${t.y}`)))[0];
     if (!tile) break;
-    const trapKind = trapKinds[Math.floor(Math.random() * trapKinds.length)];
+    const trapKind = allowedTrapKinds[Math.floor(Math.random() * allowedTrapKinds.length)];
     features.push({
       x: tile.x,
       y: tile.y,
@@ -905,7 +944,7 @@ export function generateMap(floor = 1): GeneratedMap {
     if (secretApproachX >= 0) reserved.add(`${secretApproachX},${secretApproachY}`);
   }
 
-  const chasmPatchCount = 1 + (Math.random() < 0.4 ? 1 : 0);
+  const chasmPatchCount = arenaFloor ? 0 : 1 + (Math.random() < 0.4 ? 1 : 0);
   for (let p = 0; p < chasmPatchCount; p++) {
     const targetSize = 2 + Math.floor(Math.random() * 5); // 2..6 tiles
     const candidates = shuffle(
@@ -1015,7 +1054,16 @@ export function generateMap(floor = 1): GeneratedMap {
     // Not in rooms: spawn/stairs and ordinary room terrain must stay outside.
   }
 
-  return { map, rooms, features, secretRoom };
+  return {
+    map, rooms, features, secretRoom,
+    ...(arena
+      ? {
+        spawn: { x: arena.cx, y: arena.y + arena.h - 3 },
+        bossArena: { x: arena.cx, y: arena.cy },
+        stairs: { x: arena.x + arena.w - 1, y: arena.y }
+      }
+      : {})
+  };
 }
 
 // BFS to find the farthest walkable tile reachable from a start point.

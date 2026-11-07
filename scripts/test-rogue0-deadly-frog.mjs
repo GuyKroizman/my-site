@@ -206,7 +206,9 @@ function makeContext() {
   assert.equal(floor4Kinds.has('frog'), true, 'frogs join reinforcement waves from floor 4');
 
   const scene0 = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
-  assert.match(scene0, /const frogCount = floor >= 4 \? 1 : 0/);
+  assert.match(scene0, /const frogCount = roster\(floor >= 4 \? 1 : 0\)/);
+  assert.match(scene0, /const roster = \(count: number\) => \(bossFloor \? 0 : count\)/,
+    'boss floors suppress the wandering roster');
   assert.match(scene0, /spawnGroup\(DeadlyFrog, frogCount\)/);
   assert.match(scene0, /case "frog": return new DeadlyFrog\(context, x, y\)/);
   assert.match(scene0, /generateDeadlyFrogTexture\(this\)/,

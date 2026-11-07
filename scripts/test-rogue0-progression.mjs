@@ -137,13 +137,18 @@ for (let run = 0; run < 5; run++) {
   const totals = { strength: 0, upgrades: 0, bosses: 0 };
   for (let floor = 1; floor <= 25; floor++) {
     const scene = Object.create(Scene0.prototype);
-    const { map, rooms, secretRoom } = mapgen.generateMap(floor);
+    const generated = mapgen.generateMap(floor);
+    const { map, rooms, secretRoom } = generated;
     scene.secretRoom = secretRoom;
+    scene.bossArena = generated.bossArena;
     currentMap = map;
-    const spawn = { x: rooms[0].cx, y: rooms[0].cy };
+    const spawn = generated.spawn ?? { x: rooms[0].cx, y: rooms[0].cy };
+    // Mirror the scene: the map may state its exit (the boss arena does),
+    // otherwise it is the farthest walkable tile from the arrival.
+    const stairs = generated.stairs ?? mapgen.findFarthestWalkable(map, spawn.x, spawn.y, 80);
     scene.context = { ...createGameContext(), floor, currentLevel: map,
       player: { getAllItems: () => [] }, upstairsX: spawn.x, upstairsY: spawn.y,
-      stairsX: rooms.at(-1).cx, stairsY: rooms.at(-1).cy };
+      stairsX: stairs.x, stairsY: stairs.y };
     scene.spawnFloorContent(floor, map, spawn);
     const items = scene.context.entities;
     const treasure = items.filter(item => item instanceof Gem);
@@ -172,7 +177,24 @@ for (let run = 0; run < 5; run++) {
       !progression.isBossFloor(floor) && equipmentRoll < equipmentFinds.FLOOR_EQUIPMENT_CHANCE ? 1 : 0,
       'floor equipment roll spawns exactly one bonus find on success, never on boss floors');
     for (const item of bonusFinds) assert.equal(item.identified, false);
-    assert.equal(count('Mimic'), floor >= 2 ? 1 : 0);
+    assert.equal(count('Mimic'), !progression.isBossFloor(floor) && floor >= 2 ? 1 : 0,
+      'no mimic disguises itself on a boss floor');
+    if (progression.isBossFloor(floor)) {
+      // The boss floor is the guardian's arena: it carries the guardian, two
+      // treasure chests, one ration and the hidden room's gem, nothing else.
+      const nameOf = item => item.kind ?? item.constructor?.name;
+      const allowed = new Set(['Boss', 'Chest', 'Ration', 'Gem']);
+      const strays = items.filter(item => !allowed.has(nameOf(item)));
+      assert.deepEqual(strays.map(nameOf), [],
+        `boss floor ${floor} holds no other monsters, loot or bone piles`);
+      assert.equal(items.filter(item => nameOf(item) === 'Boss').length, 1,
+        `boss floor ${floor} holds exactly one guardian`);
+      const guardian = items.find(item => nameOf(item) === 'Boss');
+      assert.deepEqual({ x: guardian.x, y: guardian.y }, generated.bossArena,
+        `boss floor ${floor} places its guardian in the middle of the arena`);
+      assert.notDeepEqual({ x: guardian.x, y: guardian.y }, spawn,
+        'the hero does not arrive on top of the guardian');
+    }
     const occupied = new Set(items.map(item => `${item.x},${item.y}`));
     assert.equal(occupied.size, items.length, 'spawns never overlap');
     assert.ok(!occupied.has(`${spawn.x},${spawn.y}`));
@@ -225,13 +247,16 @@ assert.ok(!chestSource.includes('ScrollOfUpgrade'), 'treasure chests never add u
 walkableTiles = () => [];
 for (const [floor, expected] of [[1, 1], [2, 0], [3, 1], [4, 1], [5, 0], [6, 1], [10, 0], [25, 0]]) {
   const scene = Object.create(Scene0.prototype);
-  const { map, rooms, secretRoom } = mapgen.generateMap(floor);
+  const generated = mapgen.generateMap(floor);
+  const { map, rooms, secretRoom } = generated;
   scene.secretRoom = secretRoom;
+  scene.bossArena = generated.bossArena;
   currentMap = map;
-  const spawn = { x: rooms[0].cx, y: rooms[0].cy };
+  const spawn = generated.spawn ?? { x: rooms[0].cx, y: rooms[0].cy };
+  const stairs = generated.stairs ?? mapgen.findFarthestWalkable(map, spawn.x, spawn.y, 80);
   scene.context = { ...createGameContext(), floor, currentLevel: map,
     player: { getAllItems: () => [] }, upstairsX: spawn.x, upstairsY: spawn.y,
-    stairsX: rooms.at(-1).cx, stairsY: rooms.at(-1).cy };
+    stairsX: stairs.x, stairsY: stairs.y };
   scene.spawnFloorContent(floor, map, spawn);
   const scrolls = scene.context.entities.filter(item => item.kind === 'ScrollOfUpgrade');
   assert.equal(scrolls.length, expected, `floor ${floor} keeps its SoU quota without shuffled tiles`);

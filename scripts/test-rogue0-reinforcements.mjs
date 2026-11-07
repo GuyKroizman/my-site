@@ -6,13 +6,16 @@ import ts from 'typescript';
 // Direct import: the selection/floor policy has no renderer dependencies.
 import {
   REINFORCEMENT_MIN_DISTANCE,
+  REINFORCEMENT_BOSS_FLOOR_EVERY,
   isLivingMonster,
   floorIsEmptyOfMonsters,
+  floorAllowsReinforcements,
   reinforcementCount,
   pickReinforcementKind,
   selectReinforcementTiles,
   reinforceFloor
 } from '../src/games/rogue0/monsterReinforcements.ts';
+import { REGION_SIZE } from '../src/games/rogue0/progression.ts';
 
 function load(path, bindings = {}) {
   const source = fs.readFileSync(path, 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
@@ -151,6 +154,18 @@ const decoyContext = {
 let decoySpawned = 0;
 assert.equal(reinforceFloor(decoyContext, field, () => { decoySpawned++; }, { count: 1 }), 1);
 assert.equal(decoySpawned, 1);
+
+// --- Boss floors are never repopulated --------------------------------------
+// The mirrored constant must match the real region size progression uses.
+assert.equal(REINFORCEMENT_BOSS_FLOOR_EVERY, REGION_SIZE,
+  'the reinforcement boss-floor rule tracks the region size');
+for (const floor of [1, 2, 3, 4, 6, 24]) assert.equal(floorAllowsReinforcements(floor), true);
+for (const floor of [5, 10, 15, 20, 25]) {
+  assert.equal(floorAllowsReinforcements(floor), false, `floor ${floor} is a boss floor`);
+  const bossArena = { entities: [player], player: { x: 7, y: 7 }, visibleTiles: new Set() };
+  assert.equal(reinforceFloor(bossArena, field, () => assert.fail(`floor ${floor} was repopulated`),
+    { floor }), 0, `floor ${floor} stays a guardian-only arena`);
+}
 
 // --- removeEntity invokes the population hook only for real monsters --------
 const { Entity, removeEntity } = load('src/games/rogue0/entity.ts', {

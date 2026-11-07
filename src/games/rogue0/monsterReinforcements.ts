@@ -37,6 +37,15 @@ export function floorIsEmptyOfMonsters(entities: Entity[]): boolean {
   return !entities.some(isLivingMonster);
 }
 
+// Boss floors are the guardian's arena: they are generated with the guardian
+// alone, so nothing is drawn onto them after it dies either. Kept dependency
+// free (like dungeon.bossSealsFloor) so this module can be imported and tested
+// without the renderer, and mirrors progression.isBossFloor.
+export const REINFORCEMENT_BOSS_FLOOR_EVERY = 5;
+export function floorAllowsReinforcements(floor: number): boolean {
+  return !(Number.isInteger(floor) && floor > 0 && floor % REINFORCEMENT_BOSS_FLOOR_EVERY === 0);
+}
+
 export function reinforcementCount(floor: number, random: () => number = Math.random): number {
   const depthBonus = floor >= 8 ? 1 : 0;
   return 2 + depthBonus + (random() < 0.35 ? 1 : 0);
@@ -156,6 +165,7 @@ export function reinforceFloor(
   if (!floorIsEmptyOfMonsters(context.entities)) return 0;
 
   const floor = options.floor ?? 1;
+  if (!floorAllowsReinforcements(floor)) return 0;
   const random = options.random ?? Math.random;
   const count = options.count ?? reinforcementCount(floor, random);
   const occupied = new Set<string>();

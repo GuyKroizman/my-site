@@ -127,6 +127,7 @@ import { generateLightningElementalTexture } from './monsters/lightningElemental
 import { generateIceElementalTexture } from './monsters/iceElementalTexture';
 import { generateFlySwarmTexture } from './monsters/flySwarmTexture';
 import { generateDeadlyFrogTexture } from './monsters/deadlyFrogTexture';
+import { generateBossTexture } from './monsters/bossTexture';
 import { generateWraithTexture } from './monsters/wraithTexture';
 import { generateCultistBoltTexture, generateGoblinArrowTexture, generateTrapArrowTexture } from './projectileTextures';
 import * as tiles from "./tiles";
@@ -235,6 +236,9 @@ export class Scene0 extends Phaser.Scene {
   // their different anchoring and depth in sync when terrain changes.
   private wallDecals = new Map<string, { sprite: Phaser.GameObjects.Sprite; raised: boolean }>();
   private secretRoom?: Room;
+  // Middle of a boss floor's arena. The guardian is placed here, asleep, so the
+  // hall stays a single open fight instead of a loot scatter.
+  private bossArena?: { x: number; y: number };
   private cursor!: Phaser.GameObjects.Graphics;
   private zoom = 2;
   private MIN_ZOOM = 0.2;
@@ -420,6 +424,7 @@ export class Scene0 extends Phaser.Scene {
       generateFlySwarmTexture(this);
       generateWraithTexture(this);
       generateDeadlyFrogTexture(this);
+      generateBossTexture(this);
       player.bindInput();
       player.init(this.context, spawn.x, spawn.y);
       this.turnManager.time = resumed.time;
@@ -859,17 +864,21 @@ export class Scene0 extends Phaser.Scene {
     const tiles = terrainFor(this.context);
     const generated = generateMap(floor);
     this.secretRoom = generated.secretRoom;
+    this.bossArena = generated.bossArena;
     const levelArray = generated.map;
 
     this.applyFeatures(generated.features);
 
     const spawnRoom =
       generated.rooms.find((r) => r.cx < MAX_VISIBLE_X) ?? generated.rooms[0];
-    const spawn = spawnRoom
+    const spawn = generated.spawn ?? (spawnRoom
       ? { x: spawnRoom.cx, y: spawnRoom.cy }
-      : this.findSpawn(levelArray);
-    const stairs = findFarthestWalkable(levelArray, spawn.x, spawn.y, MAX_VISIBLE_X, (x, y) =>
-      tiles.getFeature(x, y) === "chasm");
+      : this.findSpawn(levelArray));
+    // A boss arena states its exit, so the stairs sit in the hall itself rather
+    // than in the stub of the hidden branch above the north wall.
+    const stairs = generated.stairs ?? findFarthestWalkable(
+      levelArray, spawn.x, spawn.y, MAX_VISIBLE_X,
+      (x, y) => tiles.getFeature(x, y) === "chasm");
 
     // Spawn and stairs must never sit on a terrain feature.
     tiles.clearFeature(spawn.x, spawn.y);
@@ -1033,6 +1042,9 @@ export class Scene0 extends Phaser.Scene {
   private reinforceEmptyFloor(): void {
     const context = this.context;
     if (this.ended || !context.player) return;
+    // A boss floor stays empty once its guardian falls: the arena is never
+    // repopulated behind the hero's back, matching its generated population.
+    if (isBossFloor(context.floor)) return;
     const level = dungeon.getCurrentLevel();
     if (!level?.length) return;
 
@@ -1707,29 +1719,39 @@ export class Scene0 extends Phaser.Scene {
     const progression = floorProgression(floor);
     const progressionCount = progression.strengthPotions + progression.upgradeScrolls
       + Number(progression.weapon) + Number(progression.armor);
-    const skeletonCount = 2 + density;
-    const goblinCount = Math.max(0, density - 1);
-    const ghoulCount = floor >= 3 ? 1 : 0;
-    const bruteCount = floor >= 3 ? 1 : 0;
-    const bossCount = isBossFloor(floor) ? 1 : 0;
-    const quloptshCount = Math.max(0, density - 2);
-    const swarmCount = floor >= 2 ? 1 : 0;
-    const mimicCount = floor >= 2 ? 1 : 0;
+    // A boss floor is the guardian's arena: no other monster shares it, and no
+    // scattered loot (random items, cursed gems or a bone pile) clutters it. The
+    // guardian, the treasure chests, one ration and the hidden room's gem are
+    // the floor's whole population, so the fight stays the floor's only event.
+    const bossFloor = isBossFloor(floor);
+    const roster = (count: number) => (bossFloor ? 0 : count);
+    const skeletonCount = roster(2 + density);
+    const goblinCount = roster(Math.max(0, density - 1));
+    const ghoulCount = roster(floor >= 3 ? 1 : 0);
+    const bruteCount = roster(floor >= 3 ? 1 : 0);
+    const quloptshCount = roster(Math.max(0, density - 2));
+    const swarmCount = roster(floor >= 2 ? 1 : 0);
+    const mimicCount = roster(floor >= 2 ? 1 : 0);
     const chestCount = 2;
-    const remainsCount = isBossFloor(floor) ? 0 : 1;
+    const remainsCount = bossFloor ? 0 : 1;
     const equipmentCount = Number(rollFloorEquipment(floor));
-    const cultistCount = floor >= 3 ? 1 : 0;
-    const elementalCount = floor >= 3 ? 1 : 0;
-    const wraithCount = floor >= 3 ? 1 : 0;
-    const frogCount = floor >= 4 ? 1 : 0;
-    const itemCount = 3;
-    const cursedGemCount = Math.random() < 0.2 ? 1 : 0;
+    const cultistCount = roster(floor >= 3 ? 1 : 0);
+    const elementalCount = roster(floor >= 3 ? 1 : 0);
+    const wraithCount = roster(floor >= 3 ? 1 : 0);
+    const frogCount = roster(floor >= 4 ? 1 : 0);
+    const itemCount = bossFloor ? 0 : 3;
+    const cursedGemCount = bossFloor ? 0 : (Math.random() < 0.2 ? 1 : 0);
     const foodCount = 1;
+
+    // The guardian's own tile is reserved before anything else rolls: it waits
+    // in the middle of the arena, and nothing else may stand there.
+    const bossHome = bossFloor ? this.bossArena : undefined;
+    if (bossHome) exclude.add(`${bossHome.x},${bossHome.y}`);
 
     const terrain = terrainFor(this.context);
     const tiles = randomWalkableTiles(
       levelArray,
-      skeletonCount + goblinCount + ghoulCount + bruteCount + bossCount + quloptshCount +
+      skeletonCount + goblinCount + ghoulCount + bruteCount + quloptshCount +
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
         frogCount +
         cursedGemCount + foodCount + itemCount + progressionCount + chestCount + remainsCount + equipmentCount,
@@ -1798,7 +1820,18 @@ export class Scene0 extends Phaser.Scene {
       });
     }
     spawnGroup(Ration, foodCount);
-    spawnGroup(Boss, bossCount);
+    // The guardian stands in the middle of its arena rather than on a random
+    // floor tile, and the Boss class keeps it asleep until it is disturbed.
+    if (bossFloor) {
+      const centerFree = bossHome !== undefined &&
+        levelArray[bossHome.y]?.[bossHome.x] === 0 &&
+        !terrain.isBlocking(bossHome.x, bossHome.y);
+      const cell = centerFree ? bossHome : takeCell();
+      if (cell) {
+        usedCells.add(`${cell.x},${cell.y}`);
+        context.entities.push(new Boss(context, cell.x, cell.y));
+      }
+    }
     spawnGroup(Chest, chestCount);
     spawnGroup(SkeletalRemains, remainsCount);
     if (equipmentCount) spawnOne((x, y) => createEquipmentFind(context, x, y));

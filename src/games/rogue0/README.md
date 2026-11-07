@@ -436,7 +436,10 @@ A floor is never allowed to become empty of hostile monsters. When a death
 removes the last living monster (items, corpses and friendly mirror images do
 not count), the scene immediately draws a small wave — two to four monsters,
 weighted from the regular roster for the current depth but never the Bone Lord.
-The wave joins the current action timeline and is always placed outside the
+The one exception is a **boss floor** (5, 10, 15, 20, 25): it is the guardian's
+arena, so it is never repopulated — killing the guardian leaves the floor empty
+and the way down open. The wave joins the current action timeline and is always
+placed outside the
 hero's field of view, on free walkable tiles at least 8 tiles away when such
 unseen space exists. Floors are far larger than the view radius, so the full
 wave fits out of sight; within unseen space, distant tiles are chosen first.
@@ -451,10 +454,25 @@ refilled on arrival.
 ## Run length and equipment progression
 
 A run has **25 floors**. Floors **5, 10, 15, 20 and 25** are boss floors, each
-guarded by the unchanged Bone Lord. Their stairs are sealed until that floor's
-guardian dies, and slaying the floor-25 guardian ends the run in victory. The
-old five-floor limit was for testing. Themed regions and later-region enemy
-scaling are still future work; ordinary enemy counts stop growing after floor 5.
+guarded by the Bone Lord. Their stairs are sealed until that floor's guardian
+dies, and slaying the floor-25 guardian ends the run in victory.
+
+A boss floor is not a room network: map generation carves **one huge arena
+hall** (72x36 tiles on the standard map) behind a border of solid rock, with the
+guardian asleep at its exact centre. The hero arrives at the south edge, so the
+whole hall has to be crossed, and the sealed stairs wait in the far north
+corner. The arena is the guardian's alone: no wandering roster (skeletons,
+goblins, ghouls, brutes, Quloptsh, swarms, mimics, cultists, elementals,
+wraiths, frogs), no random floor loot, no cursed gem, no chasm, no bone pile and
+no summon trap. What it does carry is the guardian, two treasure chests, one
+ration and the hidden room's gem above the north wall; grass, water and the
+other hidden traps still dress the hall. The guardian naps until disturbed — a
+wound, a noise, the hero stepping within two tiles in its line of sight, or a
+long dormancy running out — so a careful approach earns the first strike. The
+floor is never repopulated after the guardian falls. The old five-floor limit
+was for testing.
+Themed regions and later-region enemy scaling are still future work; ordinary
+enemy counts stop growing after floor 5.
 
 Heroes start with **10 Strength**. Strength potions permanently add one Strength,
 not attack. XP still grants +5 max HP / +1 attack; talents are not implemented.

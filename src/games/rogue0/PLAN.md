@@ -54,19 +54,32 @@ has been playtested. Checked boxes mean the described implementation exists.
   bleeding arrows at range
   5 and switches to a weaker melee sidearm when adjacent; wraiths deal magic
   damage with physical resistance. The Deadly Frog vents gas on every damage
-  event and on death, and is immune to poison. The Bone Lord still lacks
-  phases/telegraphs/arena mechanics.
+  event and on death, and is immune to poison. The Bone Lord fights in its own
+  arena hall but still lacks phases/telegraphs.
 - Monsters start **asleep** for 8–24 world-time units and wake on damage, noise,
   or a visible hero within 2 tiles; sleepers spend time waiting and show a
   visual sleep marker. Awareness/membership is rebuilt from saves without
   rerolling sleep.
 - A floor-population guard (`monsterReinforcements.ts`) tops up a floor when its
   last living monster dies: a small wave spawns at least 8 tiles away and
-  outside the hero's field of view, scaling with floor depth.
+  outside the hero's field of view, scaling with floor depth. Boss floors
+  (every fifth) are exempt: they are guardian-only arenas and stay empty once
+  the guardian falls (`floorAllowsReinforcements`).
+- Boss floors are one huge arena hall (`bossArenaRoom`), not a room network:
+  the hero enters at the south edge, the guardian sleeps at the exact centre,
+  and the stairs sit in the far north corner. The guardian is the only monster,
+  and no random floor loot, cursed gem, chasm, summon trap or Skeletal Remains
+  pile appears. They keep their two treasure chests, one ration and the hidden
+  room's gem.
+- The Bone Lord is rendered with generated 24x24 art (`bossTexture.ts`): a fat
+  green blob with one great eye and a maw of interlocking fangs, scaled up past
+  the 16px monsters. It starts with a long dormancy (`BOSS_ARENA_DORMANCY`) and
+  wakes on damage, noise, a visible hero within 2 tiles, or when the dormancy
+  runs out.
 - Hunger, starvation, well-fed regeneration, rations and monster gold rewards
   exist. Shops, trading and revival items do not.
 - `context.ts` defaults to **25 floors**. Five floors was a testing limit.
-  The Bone Lord spawns only on floor 25; its stats are unchanged.
+  The Bone Lord guards floors 5/10/15/20/25; its stats are unchanged.
   Five-floor equipment/supply bands exist. Themed regions are visual-only so
   far (crypt → sandstone → crystal → volcanic palettes); per-region enemy,
   trap and boss scaling is future work.
@@ -331,7 +344,7 @@ equipment is usually current band, with 20% chances of one tier lower/higher
 (clamped to 1–5). Saved-floor revisits never regenerate supplies. Food remains
 guaranteed each floor.
 Ordinary encounter density stops increasing after floor 5; later regional
-monster scaling is still future work. The Bone Lord is unchanged on floor 25.
+monster scaling is still future work. The Bone Lord's stats are unchanged.
 
 **Not yet complete:** later talent tiers/subclasses, same-tier weapon variety
 and full-run balancing. First-tier talents *are* implemented (Phase 9).
