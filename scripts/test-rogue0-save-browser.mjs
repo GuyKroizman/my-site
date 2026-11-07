@@ -70,6 +70,8 @@ try {
     const ctx = scene.context;
     const { default: dungeon } = await import('/src/games/rogue0/dungeon.ts');
     const firstMap = JSON.stringify(dungeon.getCurrentLevel());
+    // This fixture exercises save/restore, not the boss gate.
+    ctx.bossesSlain = new Set([5]);
     while (ctx.floor < 6) scene.descend();
     const p = ctx.player;
     p.healthPoints = 24; p.hunger = 63.5; p.gold = 77; p.weapon.level = 2;

@@ -15,6 +15,14 @@ export function isBossFloor(floor: number): boolean {
   return Number.isInteger(floor) && floor > 0 && floor % REGION_SIZE === 0;
 }
 
+// A boss floor stays sealed until its guardian is recorded as slain. The
+// context shape is structural so progression does not depend on the scene.
+export function bossSealsFloor(
+  context: { floor: number; bossesSlain?: ReadonlySet<number> }
+): boolean {
+  return isBossFloor(context.floor) && !(context.bossesSlain?.has(context.floor) ?? false);
+}
+
 export function upgradeScrollsForFloor(floor: number): number {
   if (!Number.isInteger(floor) || floor < 1 || isBossFloor(floor)) return 0;
   const position = ((floor - 1) % REGION_SIZE) + 1;

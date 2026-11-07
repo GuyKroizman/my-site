@@ -41,6 +41,9 @@ export type GameContext = {
   // Discrete-event clock, in normal-action units (not wall-clock seconds).
   simulationTime?: number;
   floor: number;
+  // Boss floors whose guardian has already been defeated. The stairs (and every
+  // other route below) stay sealed until the current floor is in this set.
+  bossesSlain?: Set<number>;
   // Optional floor lighting override; deeper floors default to dark.
   darkLevel?: boolean;
   maxFloor: number;
@@ -180,6 +183,7 @@ export function createGameContext(): GameContext {
     panning: false,
     simulationTime: 0,
     floor: 1,
+    bossesSlain: new Set(),
     maxFloor: 25,
     kills: 0,
     heroClass: "Warrior",

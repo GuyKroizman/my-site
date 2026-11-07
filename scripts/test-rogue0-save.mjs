@@ -94,6 +94,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   Object.assign(legacyIce, { x: 0, y: 0, healthPoints: 16 });
   const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, IceElemental };
   const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
+    bossesSlain: new Set([5, 10]),
     knowledge: { appearances: [], known: [] }, floors: new Map([[1, {
       map: [[0]], seen: [[true]], features: [], entities: [legacyIce], savedAt: 0,
       up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
@@ -107,6 +108,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   });
   const save = { version: 1, heroClass: 'Warrior', floor: 1, graph };
   const run = decodeRunSave(save, {});
+  assert.deepEqual([...run.bossesSlain], [5, 10], 'slain boss floors survive the save graph');
   const restored = run.player.backpack[0];
   assert.deepEqual(run.player.inputBuffer, []);
   assert.throws(() => decodeRunSave({ ...save, heroClass: 'unknown' }, {}), /Invalid saved run/);

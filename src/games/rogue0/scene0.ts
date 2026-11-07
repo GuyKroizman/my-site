@@ -41,7 +41,7 @@ import { isModalOpen, type GameContext } from "./context";
 import { TurnManager } from "./turnManager";
 import Skeleton from "./monsters/skelaton";
 import { TieredWeapon, TieredArmor } from "./items/tieredEquipment";
-import { floorProgression, isBossFloor, lootTier } from "./progression";
+import { bossSealsFloor, floorProgression, isBossFloor, lootTier } from "./progression";
 import { createEquipmentFind, rollFloorEquipment } from './equipmentFinds';
 import { generateRemainsTexture } from './remainsTexture';
 import CursedGem from "./items/cursedGem";
@@ -471,7 +471,9 @@ export class Scene0 extends Phaser.Scene {
     this.context.onDescend = () => this.tryDescend();
     this.context.onAscend = () => this.tryAscend();
     this.context.onSummonTrap = (x, y) => this.summonFromTrap(x, y);
-    if (!scenario) this.context.onMonsterRemoved = () => this.reinforceEmptyFloor();
+    // Boss state is always tracked; only the normal (non-scenario) flow adds
+    // the empty-floor reinforcement wave.
+    this.context.onMonsterRemoved = entity => this.handleMonsterRemoved(entity, !scenario);
     this.context.onFrostTerrain = (x, y) => dungeon.freezeWater(this.context, x, y);
     this.context.onShockWater = (target, damage) => dungeon.conductShock(this.context, target, damage);
     this.context.onCreatePoisonGas = (x, y) => createPoisonGas(this.context, dungeon.getCurrentLevel(), x, y);
@@ -693,6 +695,7 @@ export class Scene0 extends Phaser.Scene {
         floor: context.floor, kills: context.kills, messages: context.messages,
         time: this.turnManager.time, nextTick: this.turnManager.nextTick,
         knowledge: saveConsumableKnowledge(context),
+        bossesSlain: context.bossesSlain ?? new Set(),
         // Items still falling toward a lower floor survive the checkpoint.
         chasmFallen: context.chasmFallenItems ?? new Map() }, saveRegistry);
       const serialized = JSON.stringify(graph);
@@ -837,6 +840,14 @@ export class Scene0 extends Phaser.Scene {
       dungeon.log(this.context, `${item.displayName} lies on the floor, fallen from the chasm above.`);
     }
 
+    // A boss floor with no guardian (a legacy save or an authored scenario)
+    // was cleared before this rule existed. Never seal its stairs behind an
+    // absent boss.
+    if (isBossFloor(floor) && !this.context.entities.some(entity => entity instanceof Boss)) {
+      if (!this.context.bossesSlain) this.context.bossesSlain = new Set();
+      this.context.bossesSlain.add(floor);
+    }
+
     this.turnManager.reset(this.context.entities, !!restored || floor > 1);
     this.recomputeFOV();
     // Older saves and saves from before this guard can contain a cleared floor.
@@ -886,6 +897,13 @@ export class Scene0 extends Phaser.Scene {
     player.inputBuffer = [];
     player.walkPath = [];
     player.cancelThrow();
+    if (bossSealsFloor(this.context)) {
+      player.actionReady = true;
+      dungeon.log(this.context, blinkFall
+        ? "The guardian's seal repels the Stone of Blink."
+        : "The guardian's seal holds you above the abyss.");
+      return;
+    }
     if (this.context.floor >= this.context.maxFloor) {
       if (blinkFall) {
         dungeon.log(this.context, "The Stone of Blink vanishes into the abyss. There is no floor below.");
@@ -918,6 +936,13 @@ export class Scene0 extends Phaser.Scene {
 
   private descend() {
     if (this.ended) return;
+
+    if (bossSealsFloor(this.context)) {
+      dungeon.log(this.context, this.context.floor >= this.context.maxFloor
+        ? "The final guardian still lives. The dungeon will not release you."
+        : "The way down is sealed. Slay this floor's guardian first.");
+      return;
+    }
 
     if (this.context.floor >= this.context.maxFloor) {
       this.events.emit("player-won");
@@ -984,6 +1009,27 @@ export class Scene0 extends Phaser.Scene {
         return new Elemental(context, x, y);
       }
       default: return new Skeleton(context, x, y);
+    }
+  }
+
+  private handleMonsterRemoved(entity: Entity, reinforce: boolean): void {
+    if (entity instanceof Boss) this.markBossSlain();
+    if (reinforce && !this.ended) this.reinforceEmptyFloor();
+  }
+
+  private markBossSlain(): void {
+    const context = this.context;
+    const floor = context.floor;
+    if (!context.bossesSlain) context.bossesSlain = new Set();
+    context.bossesSlain.add(floor);
+    if (floor >= context.maxFloor) {
+      dungeon.log(context, "The final guardian falls. You have conquered the dungeon!");
+      this.events.emit("player-won");
+      return;
+    }
+    dungeon.log(context, "The guardian falls. The way down is no longer sealed.");
+    if (context.stairsX !== undefined && context.stairsY !== undefined) {
+      this.renderStairs(context.stairsX, context.stairsY);
     }
   }
 
@@ -1085,9 +1131,11 @@ export class Scene0 extends Phaser.Scene {
         const isExit = this.context.floor >= this.context.maxFloor;
         dungeon.log(
           this.context,
-          isExit
-            ? "You stand on the exit. Press > (or .) to escape the dungeon."
-            : "You stand on the stairs. Press > (or .) to descend."
+          bossSealsFloor(this.context)
+            ? "You stand on sealed stairs. The guardian of this floor still lives."
+            : isExit
+              ? "You stand on the exit. Press > (or .) to escape the dungeon."
+              : "You stand on the stairs. Press > (or .) to descend."
         );
       }
     }
@@ -1528,7 +1576,9 @@ export class Scene0 extends Phaser.Scene {
 
     if (!this.context.map) return;
 
-    const color = 0x918b94;
+    const sealed = isBossFloor(this.context.floor) &&
+      !(this.context.bossesSlain?.has(this.context.floor) ?? false);
+    const color = sealed ? 0xd9534f : 0x918b94;
     const wx = this.context.map.tileToWorldX(x)!;
     const wy = this.context.map.tileToWorldY(y)!;
 
@@ -1666,7 +1716,7 @@ export class Scene0 extends Phaser.Scene {
     const goblinCount = Math.max(0, density - 1);
     const ghoulCount = floor >= 3 ? 1 : 0;
     const bruteCount = floor >= 3 ? 1 : 0;
-    const bossCount = floor === this.context.maxFloor ? 1 : 0;
+    const bossCount = isBossFloor(floor) ? 1 : 0;
     const quloptshCount = Math.max(0, density - 2);
     const swarmCount = floor >= 2 ? 1 : 0;
     const mimicCount = floor >= 2 ? 1 : 0;

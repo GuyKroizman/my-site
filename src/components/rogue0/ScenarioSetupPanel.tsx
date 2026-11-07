@@ -11,7 +11,7 @@ import {
   type Scenario,
 } from '../../games/rogue0/scenario'
 import { CLASS_TALENTS } from '../../games/rogue0/classes/basicHero'
-import { floorProgression } from '../../games/rogue0/progression'
+import { floorProgression, isBossFloor } from '../../games/rogue0/progression'
 import { floorHasSecretRoom } from '../../games/rogue0/mapgen'
 import { DEFAULT_HERO_CLASS } from '../../games/rogue0/classes'
 
@@ -141,7 +141,9 @@ function floorHint(floor: number, maxFloor: number): string {
   const notes = [`band ${band.tier} (tier ${band.tier} loot)`]
   if (perks.length) notes.push(perks.join(', '))
   if (floorHasSecretRoom(floor)) notes.push('secret gem room')
-  if (floor === maxFloor) notes.push('final floor — boss + exit')
+  if (isBossFloor(floor)) {
+    notes.push(floor === maxFloor ? 'final floor — boss ends the run' : 'boss floor — stairs sealed')
+  }
   if (floor > 15) notes.push('dark floor')
   return notes.join(' · ')
 }

@@ -310,8 +310,9 @@ An “Are you sure?” confirmation warns about the fall before committing.
 Accepting drops you into the next floor, costs movement time, and deals
 `ceil(max HP / 3)` damage on arrival, ignoring armor; final-floor falls are
 fatal. Cancelling is free. Rooted heroes cannot step into chasms; levitating
-heroes cross safely. Auto-walk routes still avoid chasms. There is no Jump
-button or `v` shortcut.
+heroes cross safely. While a boss floor's guardian still lives, the seal also
+prevents entering its chasms, so the boss cannot be bypassed by falling.
+Auto-walk routes still avoid chasms. There is no Jump button or `v` shortcut.
 
 Items also fall in: a thrown item, a stack dropped in mid-air, and the loot of a
 monster killed by the fall all land at a random walkable spot on the next floor
@@ -428,9 +429,11 @@ refilled on arrival.
 
 ## Run length and equipment progression
 
-A run has **25 floors**, with the unchanged Bone Lord on floor **25**. The old
-five-floor limit was for testing. Themed regions and later-region enemy scaling
-are still future work; ordinary enemy counts stop growing after floor 5.
+A run has **25 floors**. Floors **5, 10, 15, 20 and 25** are boss floors, each
+guarded by the unchanged Bone Lord. Their stairs are sealed until that floor's
+guardian dies, and slaying the floor-25 guardian ends the run in victory. The
+old five-floor limit was for testing. Themed regions and later-region enemy
+scaling are still future work; ordinary enemy counts stop growing after floor 5.
 
 Heroes start with **10 Strength**. Strength potions permanently add one Strength,
 not attack. XP still grants +5 max HP / +1 attack; talents are not implemented.

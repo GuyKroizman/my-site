@@ -18,7 +18,16 @@ assert.equal(gem.canEnchant(new Entity()), false);
 const progression = load('src/games/rogue0/progression.ts');
 const { rollFoundUpgrade } = load('src/games/rogue0/foundUpgrades.ts', { Entity });
 const { createGameContext } = load('src/games/rogue0/context.ts');
+const { bossSealsFloor } = progression;
 assert.equal(createGameContext().maxFloor, 25);
+{
+  const locked = { ...createGameContext(), floor: 5 };
+  assert.equal(bossSealsFloor(locked), true, 'floor 5 is sealed while its guardian lives');
+  locked.bossesSlain.add(5);
+  assert.equal(bossSealsFloor(locked), false, 'killing the guardian unseals the floor');
+  locked.floor = 6;
+  assert.equal(bossSealsFloor(locked), false, 'ordinary floors are never sealed');
+}
 
 // Scrolls of Upgrade are a fixed budget, not an RNG outcome: 3 per five-floor
 // region, 15 per standard run, and none on the region's boss floor.
@@ -150,7 +159,7 @@ for (let run = 0; run < 5; run++) {
     const spec = progression.floorProgression(floor);
     assert.equal(count('PotionOfStrength'), spec.strengthPotions);
     assert.equal(count('ScrollOfUpgrade'), spec.upgradeScrolls);
-    assert.equal(count('Boss'), floor === 25 ? 1 : 0, `boss floor ${floor}`);
+    assert.equal(count('Boss'), progression.isBossFloor(floor) ? 1 : 0, `boss floor ${floor}`);
     assert.ok(count('Ration') >= 1);
     assert.equal(count('Chest'), 2, 'two real treasure chests accompany the encounter roster');
     assert.equal(count('SkeletalRemains'), progression.isBossFloor(floor) ? 0 : 1,
@@ -190,10 +199,13 @@ for (let run = 0; run < 5; run++) {
       restored = true;
     };
     scene.spawnFloorContent = () => assert.fail('revisit regenerated supplies');
+    // This loop exercises snapshot/restore travel, not the boss gate. Mark
+    // the floor we are leaving as cleared so descending is permitted.
+    scene.context.bossesSlain = new Set([floor - 1]);
     scene.descend();
     assert.equal(restored, true);
   }
-  assert.deepEqual(totals, { strength: 10, upgrades: 15, bosses: 1 });
+  assert.deepEqual(totals, { strength: 10, upgrades: 15, bosses: 5 });
 }
 
 // SoU are also excluded from every other loot source, so the 15-item budget
@@ -224,4 +236,35 @@ for (const [floor, expected] of [[1, 1], [2, 0], [3, 1], [4, 1], [5, 0], [6, 1],
   assert.equal(occupied.size, scene.context.entities.length, 'fallback spawns never overlap');
 }
 walkableTiles = mapgen.randomWalkableTiles;
+
+// Boss floors cannot be descended until the guardian dies, and the final
+// guardian's death wins the run immediately.
+{
+  const scene = Object.create(Scene0.prototype);
+  scene.context = { ...createGameContext(), floor: 5, entities: [], stairsX: 1, stairsY: 1 };
+  scene.floors = new Map([[6, { up: { x: 0, y: 0 } }]]);
+  scene.seen = [];
+  let restored = false;
+  scene.saveFloor = () => {};
+  scene.restoreFloor = () => { restored = true; };
+  scene.descend();
+  assert.equal(restored, false, 'a live guardian seals the way down');
+  scene.context.bossesSlain.add(5);
+  scene.descend();
+  assert.equal(restored, true, 'slaying the guardian permits descent');
+}
+{
+  const emitted = [];
+  const scene = Object.create(Scene0.prototype);
+  scene.context = { ...createGameContext(), floor: 10, entities: [], stairsX: 1, stairsY: 1 };
+  scene.events = { emit: name => emitted.push(name) };
+  scene.renderStairs = () => {};
+  scene.handleMonsterRemoved(new bindings.Boss(scene.context, 2, 2), false);
+  assert.equal(scene.context.bossesSlain.has(10), true, 'a slain boss marks its floor cleared');
+  assert.deepEqual(emitted, [], 'an intermediate boss does not end the run');
+  scene.context.floor = 25;
+  scene.handleMonsterRemoved(new bindings.Boss(scene.context, 2, 2), false);
+  assert.equal(scene.context.bossesSlain.has(25), true);
+  assert.deepEqual(emitted, ['player-won'], 'the final boss death wins immediately');
+}
 console.log('Rogue0 progression: deterministic 15 SoU / 3 per region / no boss-floor SoU, 25 floors, final boss, five equipment tiers, supply quotas and revisits passed');

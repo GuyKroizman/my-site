@@ -47,9 +47,13 @@ class TrapSkeleton {
   constructor(context, x, y) { Object.assign(this, { context, x, y, type: 'enemy' }); }
   hearNoise(x, y) { this.noise = [x, y]; }
 }
-new Function('exports', 'Phaser', 'terrainFor', 'dungeon', 'isModalOpen', 'sfx', 'removeEntity', 'Skeleton', js)(
+const isBossFloor = floor => Number.isInteger(floor) && floor > 0 && floor % 5 === 0;
+const bossSealsFloor = context => isBossFloor(context.floor) &&
+  !(context.bossesSlain?.has(context.floor) ?? false);
+new Function('exports', 'Phaser', 'terrainFor', 'dungeon', 'isModalOpen', 'sfx', 'removeEntity', 'Skeleton',
+  'isBossFloor', 'bossSealsFloor', js)(
   exports, { Scene: class {} }, () => tiles, dungeon, () => false, { stairs() {} },
-  () => { deaths++; }, TrapSkeleton);
+  () => { deaths++; }, TrapSkeleton, isBossFloor, bossSealsFloor);
 const scene = Object.create(exports.Scene0.prototype);
 const gear = { name: 'carried potion' };
 const player = { x: 0, y: 0, canAct: () => true, getAllItems: () => [gear] };
@@ -134,6 +138,9 @@ assert.equal(scene.context.floor, 3);
 assert.equal(player.healthPoints, -5, 'fall damage can kill on arrival');
 assert.equal(deaths, 1);
 scene.context.floor = 5;
+// The floor-5 guardian is already dead, otherwise the seal (not the abyss)
+// would resolve this fall.
+scene.context.bossesSlain = new Set([5]);
 scene.context.pendingFall = true;
 player.healthPoints = 30;
 scene.events = { emit() { assert.fail('falling must never win the run'); } };

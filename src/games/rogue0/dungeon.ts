@@ -33,6 +33,14 @@ export const Sprites = {
 
 const tileSize = 16;
 
+// Boss floors are sealed until their guardian dies. This deliberately mirrors
+// context.bossSealsFloor without a runtime import, so isolated dungeon suites
+// can keep their minimal bindings.
+function bossSealsFloor(context: GameContext): boolean {
+  return context.floor > 0 && context.floor % 5 === 0 &&
+    !(context.bossesSlain?.has(context.floor) ?? false);
+}
+
 // Short hops stay snappy, long shots stay readable. The simulation waits out
 // this flight, so it is capped well below a single action's worth of time.
 function arrowFlightDuration(fromX: number, fromY: number, toX: number, toY: number): number {
@@ -411,6 +419,7 @@ const dungeon = {
     if (actor.type !== "player" || actor.healthPoints <= 0 || actor.x === undefined || actor.y === undefined ||
         hasEffect(actor, "rooted") || actor.isFlying ||
         Math.max(Math.abs(actor.x - x), Math.abs(actor.y - y)) !== 1 ||
+        bossSealsFloor(context) ||
         !this.canStepBetween(actor.x, actor.y, x, y, actor) ||
         this.currentLevel[y]?.[x] !== 0 || tiles.getFeature(x, y) !== "chasm" ||
         context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) return false;
@@ -434,6 +443,10 @@ const dungeon = {
     if (entity.x === undefined || entity.y === undefined || entity.healthPoints <= 0 ||
         tiles.getFeature(entity.x, entity.y) !== "chasm") return;
     if (entity.type === "player") {
+      if (bossSealsFloor(context)) {
+        this.log(context, "The guardian's seal holds you above the abyss.");
+        return;
+      }
       context.pendingFall = true;
       entity.actionReady = false;
     } else if (entity.type === "enemy") {

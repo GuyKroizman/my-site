@@ -33,6 +33,9 @@ export type RunState = {
   floors: Map<number, SavedFloor>;
   floor: number;
   kills: number;
+  // Boss floors whose guardian died. Optional so v1 saves written before boss
+  // floors were sealed still load.
+  bossesSlain?: Set<number>;
   messages: string[];
   time: number;
   nextTick: number;
@@ -69,6 +72,12 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
       !Number.isFinite(run.time) || run.time < 0 || !Number.isFinite(run.nextTick) ||
       !Array.isArray(run.messages) || !Array.isArray(run.knowledge?.appearances) ||
       !Array.isArray(run.knowledge?.known)) throw new Error('Invalid saved run');
+  if (run.bossesSlain !== undefined) {
+    if (!(run.bossesSlain instanceof Set)) throw new Error('Invalid saved run');
+    for (const floor of run.bossesSlain) {
+      if (!Number.isInteger(floor) || floor < 1 || floor > 25) throw new Error('Invalid saved run');
+    }
+  }
   for (const [floor, data] of run.floors) {
     if (!Number.isInteger(floor) || floor < 1 || floor > 25 || !data ||
         !Array.isArray(data.map) || !data.map.length || data.map.length > 256 ||
@@ -111,6 +120,7 @@ export function restoreRunState(context: GameContext, run: RunState): void {
   context.player = run.player;
   context.floor = run.floor;
   context.kills = run.kills;
+  context.bossesSlain = run.bossesSlain ?? new Set();
   context.messages = run.messages;
   context.simulationTime = run.time;
   restoreConsumableKnowledge(context, run.knowledge);
