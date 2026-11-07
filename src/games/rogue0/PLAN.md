@@ -304,10 +304,14 @@ Art reuses existing sword/shield silhouettes pending Phase 16.
 second/fourth floors, upgrade scrolls on its first/third/fourth floors, a
 current-band weapon on its first floor, and armor on its third floor. Total:
 **10 Strength potions, 15 upgrade scrolls, 5 weapons and 5 armor pieces**.
-Strength/upgrade scrolls are no longer in random floor loot; monster gem drops
-remain an additional source of upgrades. Random equipment is usually current
-band, with 20% chances of one tier lower/higher (clamped to 1–5). Saved-floor
-revisits never regenerate supplies. Food remains guaranteed each floor.
+The upgrade-scroll layout is a fixed floor lookup (no RNG roll): exactly three
+per region and never on boss floors 5/10/15/20/25. If a map is too cramped for
+its full encounter roster, a deterministic fallback still places the scroll
+quota before optional content. Strength/upgrade scrolls are no longer in random
+floor loot; monster gem drops remain an additional source of upgrades. Random
+equipment is usually current band, with 20% chances of one tier lower/higher
+(clamped to 1–5). Saved-floor revisits never regenerate supplies. Food remains
+guaranteed each floor.
 Ordinary encounter density stops increasing after floor 5; later regional
 monster scaling is still future work. The Bone Lord is unchanged on floor 25.
 

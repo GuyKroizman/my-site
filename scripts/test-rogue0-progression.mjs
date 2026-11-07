@@ -18,6 +18,35 @@ assert.equal(gem.canEnchant(new Entity()), false);
 const progression = load('src/games/rogue0/progression.ts');
 const { createGameContext } = load('src/games/rogue0/context.ts');
 assert.equal(createGameContext().maxFloor, 25);
+
+// Scrolls of Upgrade are a fixed budget, not an RNG outcome: 3 per five-floor
+// region, 15 per standard run, and none on the region's boss floor.
+assert.equal(progression.REGION_SIZE, 5);
+assert.equal(progression.FINAL_FLOOR, 25);
+assert.equal(progression.REGIONS_PER_RUN, 5);
+assert.equal(progression.UPGRADE_SCROLLS_PER_REGION, 3);
+assert.equal(progression.TOTAL_UPGRADE_SCROLLS, 15);
+assert.deepEqual([...progression.UPGRADE_SCROLL_FLOOR_POSITIONS], [1, 3, 4]);
+const expectedScrollFloors = [1, 3, 4, 6, 8, 9, 11, 13, 14, 16, 18, 19, 21, 23, 24];
+const actualScrollFloors = [];
+for (let floor = 1; floor <= progression.FINAL_FLOOR; floor++) {
+  const spec = progression.floorProgression(floor);
+  assert.equal(spec.upgradeScrolls, progression.upgradeScrollsForFloor(floor));
+  if (spec.upgradeScrolls) actualScrollFloors.push(floor);
+}
+assert.deepEqual(actualScrollFloors, expectedScrollFloors, 'fixed SoU floor layout');
+for (let region = 0; region < progression.REGIONS_PER_RUN; region++) {
+  let scrolls = 0;
+  for (let floor = region * 5 + 1; floor <= region * 5 + 5; floor++) {
+    scrolls += progression.floorProgression(floor).upgradeScrolls;
+  }
+  assert.equal(scrolls, progression.UPGRADE_SCROLLS_PER_REGION, `region ${region + 1} SoU total`);
+}
+for (const floor of [5, 10, 15, 20, 25]) {
+  assert.equal(progression.isBossFloor(floor), true, `floor ${floor} is a boss floor`);
+  assert.equal(progression.floorProgression(floor).upgradeScrolls, 0,
+    `boss floor ${floor} never carries a Scroll of Upgrade`);
+}
 for (let tier = 1; tier <= 5; tier++) {
   for (const Cls of [TieredWeapon, TieredArmor]) {
     const item = new Cls({ messages: [] }, undefined, undefined, tier);
@@ -74,7 +103,8 @@ for (const name of ['FireElemental', 'IceElemental', 'ShockElemental']) {
   bindings[name] = class { constructor(context, x, y) { Object.assign(this, { context, x, y, kind: name }); } };
 }
 const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
-bindings.randomWalkableTiles = mapgen.randomWalkableTiles;
+let walkableTiles = mapgen.randomWalkableTiles;
+bindings.randomWalkableTiles = (...args) => walkableTiles(...args);
 let currentMap;
 bindings.dungeon = { getCurrentLevel: () => currentMap, log() {} };
 bindings.sfx = { stairs() {} };
@@ -148,4 +178,33 @@ for (let run = 0; run < 5; run++) {
   }
   assert.deepEqual(totals, { strength: 10, upgrades: 15, bosses: 1 });
 }
-console.log('Rogue0 progression: 25 floors, final boss, five equipment tiers, upgrades, supply quotas and revisits passed');
+
+// SoU are also excluded from every other loot source, so the 15-item budget
+// only ever comes from the guaranteed floor allocation above.
+const lootTableSource = sceneSource.match(/const LOOT_TABLE[\s\S]*?\];/)?.[0] ?? '';
+assert.ok(lootTableSource.length > 0, 'found the random loot table');
+assert.ok(!lootTableSource.includes('ScrollOfUpgrade'), 'upgrade scrolls never roll as random floor loot');
+const chestSource = fs.readFileSync('src/games/rogue0/items/chest.ts', 'utf8');
+assert.ok(!chestSource.includes('ScrollOfUpgrade'), 'treasure chests never add upgrade scrolls');
+
+// Adversarial map budget: even with no shuffled tiles available at all, the
+// deterministic fallback still places every guaranteed scroll and never puts
+// one on a boss floor.
+walkableTiles = () => [];
+for (const [floor, expected] of [[1, 1], [2, 0], [3, 1], [4, 1], [5, 0], [6, 1], [10, 0], [25, 0]]) {
+  const scene = Object.create(Scene0.prototype);
+  const { map, rooms, secretRoom } = mapgen.generateMap(floor);
+  scene.secretRoom = secretRoom;
+  currentMap = map;
+  const spawn = { x: rooms[0].cx, y: rooms[0].cy };
+  scene.context = { ...createGameContext(), floor, currentLevel: map,
+    player: { getAllItems: () => [] }, upstairsX: spawn.x, upstairsY: spawn.y,
+    stairsX: rooms.at(-1).cx, stairsY: rooms.at(-1).cy };
+  scene.spawnFloorContent(floor, map, spawn);
+  const scrolls = scene.context.entities.filter(item => item.kind === 'ScrollOfUpgrade');
+  assert.equal(scrolls.length, expected, `floor ${floor} keeps its SoU quota without shuffled tiles`);
+  const occupied = new Set(scene.context.entities.map(item => `${item.x},${item.y}`));
+  assert.equal(occupied.size, scene.context.entities.length, 'fallback spawns never overlap');
+}
+walkableTiles = mapgen.randomWalkableTiles;
+console.log('Rogue0 progression: deterministic 15 SoU / 3 per region / no boss-floor SoU, 25 floors, final boss, five equipment tiers, supply quotas and revisits passed');

@@ -103,6 +103,7 @@ import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownIt
 import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
 import { prewarmConsumableAppearances, resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
+import type { Entity } from "./entity";
 import { maybeCurse } from "./curses";
 import {
   applyScenarioHero,
@@ -1632,6 +1633,7 @@ export class Scene0 extends Phaser.Scene {
     const cursedGemCount = Math.random() < 0.2 ? 1 : 0;
     const foodCount = 1;
 
+    const terrain = terrainFor(this.context);
     const tiles = randomWalkableTiles(
       levelArray,
       skeletonCount + goblinCount + ghoulCount + bruteCount + bossCount + quloptshCount +
@@ -1640,26 +1642,63 @@ export class Scene0 extends Phaser.Scene {
         cursedGemCount + foodCount + itemCount + progressionCount + chestCount,
       exclude,
       MAX_VISIBLE_X,
-      terrainFor(this.context)
+      terrain
     );
 
+    const usedCells = new Set<string>();
+    for (const entity of context.entities) {
+      if (entity.x !== undefined && entity.y !== undefined) {
+        usedCells.add(`${entity.x},${entity.y}`);
+      }
+    }
+
     let i = 0;
+    // Only the shuffle of `tiles` is random; the quota is not. If a map cannot
+    // fit the full roster, fall back to a deterministic row-major scan so
+    // progression items (especially Scrolls of Upgrade) are never dropped.
+    const takeCell = (): { x: number; y: number } | undefined => {
+      while (i < tiles.length) {
+        const cell = tiles[i++];
+        const key = `${cell.x},${cell.y}`;
+        if (usedCells.has(key)) continue;
+        usedCells.add(key);
+        return cell;
+      }
+      for (let y = 0; y < levelArray.length; y++) {
+        for (let x = 0; x < Math.min(levelArray[y].length, MAX_VISIBLE_X); x++) {
+          if (levelArray[y][x] !== 0) continue;
+          const key = `${x},${y}`;
+          if (exclude.has(key) || usedCells.has(key) || terrain.isBlocking(x, y)) continue;
+          usedCells.add(key);
+          return { x, y };
+        }
+      }
+      return undefined;
+    };
 
     const spawnGroup = (Cls: any, count: number) => {
-      for (let n = 0; n < count && i < tiles.length; n++, i++) {
-        context.entities.push(new Cls(context, tiles[i].x, tiles[i].y));
+      for (let n = 0; n < count; n++) {
+        const cell = takeCell();
+        if (!cell) return;
+        context.entities.push(new Cls(context, cell.x, cell.y));
       }
+    };
+
+    const spawnOne = (make: (x: number, y: number) => Entity) => {
+      const cell = takeCell();
+      if (cell) context.entities.push(make(cell.x, cell.y));
     };
 
     // Reserve progression, food and the final boss before optional enemies.
     // This only runs on first generation; revisits restore the saved entities.
     spawnGroup(PotionOfStrength, progression.strengthPotions);
+    const beforeScrolls = context.entities.length;
     spawnGroup(ScrollOfUpgrade, progression.upgradeScrolls);
+    if (context.entities.length - beforeScrolls !== progression.upgradeScrolls) {
+      dungeon.log(context, 'This floor could not fit all of its guaranteed Scrolls of Upgrade.');
+    }
     for (const [Cls, enabled] of [[TieredWeapon, progression.weapon], [TieredArmor, progression.armor]] as const) {
-      if (enabled && i < tiles.length) {
-        context.entities.push(new Cls(context, tiles[i].x, tiles[i].y, progression.tier));
-        i++;
-      }
+      if (enabled) spawnOne((x, y) => new Cls(context, x, y, progression.tier));
     }
     spawnGroup(Ration, foodCount);
     spawnGroup(Boss, bossCount);
@@ -1677,24 +1716,27 @@ export class Scene0 extends Phaser.Scene {
     spawnGroup(DeadlyFrog, frogCount);
 
     // Elementals: pick a random variant per spawn.
-    for (let n = 0; n < elementalCount && i < tiles.length; n++, i++) {
+    for (let n = 0; n < elementalCount; n++) {
       const Elemental = [FireElemental, IceElemental, ShockElemental][
         Math.floor(Math.random() * 3)
       ];
-      context.entities.push(new Elemental(context, tiles[i].x, tiles[i].y));
+      spawnOne((x, y) => new Elemental(context, x, y));
     }
 
     // Cursed gem: can appear throughout the run.
     spawnGroup(CursedGem, cursedGemCount);
 
-    // Random loot drawn from a weighted, SPD-style table.
-    for (let l = 0; l < itemCount && i < tiles.length; l++, i++) {
+    // Random loot drawn from a weighted, SPD-style table. Upgrade scrolls are
+    // deliberately absent from this table; their 15-per-run budget is fixed.
+    for (let l = 0; l < itemCount; l++) {
       const Loot = weightedPick(LOOT_TABLE);
-      const item = Loot === TieredWeapon || Loot === TieredArmor
-        ? new Loot(context, tiles[i].x, tiles[i].y, lootTier(floor))
-        : new Loot(context, tiles[i].x, tiles[i].y);
-      maybeCurse(item);
-      context.entities.push(item);
+      spawnOne((x, y) => {
+        const item = Loot === TieredWeapon || Loot === TieredArmor
+          ? new Loot(context, x, y, lootTier(floor))
+          : new Loot(context, x, y);
+        maybeCurse(item);
+        return item;
+      });
     }
   }
 

@@ -405,8 +405,11 @@ using the existing sword silhouette.
 
 Each five-floor band guarantees two Strength potions (floors 2/4 within the
 band), three upgrade scrolls (1/3/4), a band-tier weapon (1), and armor (3).
-That is **10 Strength potions and 15 upgrade scrolls** across the run; neither
-appears as extra random floor loot. Gems from monsters still provide additional
+The scroll layout is strictly deterministic: three per region, 15 per run, and
+zero on boss floors (5/10/15/20/25) — no RNG roll can change it, and a cramped
+map falls back to fixed placement instead of dropping the quota. That is
+**10 Strength potions and 15 upgrade scrolls** across the run; neither appears
+as extra random floor loot. Gems from monsters still provide additional
 upgrades, as does the hidden searchable gem room that appears once per band
 (floors 5, 10, 15, 20 and 25). Random equipment normally matches its band but
 can be one tier earlier
