@@ -25,6 +25,7 @@ import {
   removeEffect
 } from "./effects";
 import type { DamageType, StatusEffect } from "./effects";
+import { actorBodyAtTile, bodyOverlapsAt } from "./actorBodies.ts";
 
 export const Sprites = {
   floor: 0,
@@ -166,12 +167,15 @@ const dungeon = {
       return false;
     }
 
+    const mover = actor ?? context.player;
     for (const entity of context.entities) {
+      // Items and corpses never claim more than the cell they rest on.
       if (entity.sprite && entity.x === x && entity.y === y) return false;
+      if (entity !== mover && entity.type !== 'item' && entity.healthPoints > 0 &&
+          bodyOverlapsAt(mover ?? {}, x, y, entity)) return false;
     }
 
     if (level[y][x] !== 0) return false;
-    const mover = actor ?? context.player;
     const flying = !!mover && mover.isFlying;
     if (tiles.isBlocking(x, y) && !(flying && tiles.getFeature(x, y) === "chasm")) {
       return false;
@@ -376,7 +380,8 @@ const dungeon = {
     actor.spendTime("move");
     const chasm = tiles.getFeature(x, y) === "chasm";
     if (this.currentLevel[y]?.[x] !== 0 || (!chasm && tiles.isBlocking(x, y)) ||
-        context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) {
+        context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 &&
+          bodyOverlapsAt(actor, x, y, e))) {
       this.log(context, `${actor.type === "player" ? "You stumble" : `${actor.name} stumbles`} in confusion but cannot move.`);
       return true;
     }
@@ -400,7 +405,8 @@ const dungeon = {
     const y = target.y + dy;
     const chasm = tiles.getFeature(x, y) === "chasm";
     if (this.currentLevel[y]?.[x] !== 0 || (!chasm && tiles.isBlocking(x, y)) ||
-        context.entities.some(e => e !== target && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) return false;
+        context.entities.some(e => e !== target && e.type !== "item" && e.healthPoints > 0 &&
+          bodyOverlapsAt(target, x, y, e))) return false;
     // Wake monsters without granting magical knowledge of the player's position.
     target.hearNoise(target.x, target.y);
     this.log(context, `${target.type === "player" ? "You are" : `${target.name} is`} knocked back!`);
@@ -422,7 +428,8 @@ const dungeon = {
         bossSealsFloor(context) ||
         !this.canStepBetween(actor.x, actor.y, x, y, actor) ||
         this.currentLevel[y]?.[x] !== 0 || tiles.getFeature(x, y) !== "chasm" ||
-        context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 && e.x === x && e.y === y)) return false;
+        context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 &&
+          bodyOverlapsAt(actor, x, y, e))) return false;
     return true;
   },
 
@@ -463,10 +470,11 @@ const dungeon = {
       throw new Error("context.map is undefined");
     }
 
-    // Enforce actor occupancy here too, not just in individual AI paths.
+    // Enforce actor occupancy here too, not just in individual AI paths. A
+    // wider body cannot be squeezed onto a cell next to another actor.
     if (entity.type !== "item" && context.entities.some(other =>
       other !== entity && other.type !== "item" && other.healthPoints > 0 &&
-      other.x === x && other.y === y
+      bodyOverlapsAt(entity, x, y, other)
     )) return;
 
     const oldX = entity.x;
@@ -677,7 +685,7 @@ const dungeon = {
         const occupied = context.entities.some(
           (e) => e.sprite && e.x === x && e.y === y
         );
-        if (occupied) continue;
+        if (occupied || actorBodyAtTile(context.entities, x, y)) continue;
 
         cells.push({ x, y });
       }
@@ -708,6 +716,7 @@ const dungeon = {
       if (level[ny]?.[nx] !== 0) continue;
       if (tiles.isBlocking(nx, ny)) continue;
       if (context.entities.some(e => e.sprite && e.x === nx && e.y === ny)) continue;
+      if (actorBodyAtTile(context.entities, nx, ny)) continue;
       return { x: nx, y: ny };
     }
     return null;

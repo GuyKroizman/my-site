@@ -74,7 +74,9 @@ has been playtested. Checked boxes mean the described implementation exists.
   room's gem.
 - The Bone Lord is rendered with generated 24x24 art (`bossTexture.ts`): a fat
   green blob with one great eye and a maw of interlocking fangs, scaled up past
-  the 16px monsters. It starts with a long dormancy (`BOSS_ARENA_DORMANCY`) and
+  the 16px monsters. Its body is a 3x3 footprint (`bodyRadius = 1`): movement,
+  AI and melee reach all use the body, so the hero cannot stand underneath the
+  scaled art and attacks it from the body's edge. It starts with a long dormancy (`BOSS_ARENA_DORMANCY`) and
   wakes on damage, noise, a visible hero within 2 tiles, or when the dormancy
   runs out.
 - Hunger, starvation, well-fed regeneration, rations and monster gold rewards
@@ -84,8 +86,9 @@ has been playtested. Checked boxes mean the described implementation exists.
   Five-floor equipment/supply bands exist. Themed regions are visual-only so
   far (crypt → sandstone → crystal → volcanic palettes); per-region enemy,
   trap and boss scaling is future work.
-- Browser autosave/resume (localStorage) exists; leaving the game (the menu's
-  **← back** link) and death/victory flush or clear the run. Saves retain hero,
+- Browser autosave/resume (localStorage) exists; leaving the dungeon (the game
+  menu's **← back** button, which returns to the Rogue0 start screen) and
+  death/victory flush or clear the run. Saves retain hero,
   gear, effects, the scheduler clock and every visited floor.
 - Wand identity is shared across a run; zaps have no distance cap and carried
   wands recharge one charge per 20 world-time units. Upgrade scrolls, gems and

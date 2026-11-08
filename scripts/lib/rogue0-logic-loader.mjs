@@ -10,6 +10,7 @@ import { createHeroTargeting } from '../../src/games/rogue0/heroTargeting.ts';
 import { createHeroInput } from '../../src/games/rogue0/heroInput.ts';
 import { hostileAtTile, isHostile } from '../../src/games/rogue0/heroControlRules.ts';
 import { createTerrain } from '../../src/games/rogue0/terrain.ts';
+import * as actorBodies from '../../src/games/rogue0/actorBodies.ts';
 import { stashChasmFallen } from '../../src/games/rogue0/chasmDrops.ts';
 import * as tilePresentation from '../../src/games/rogue0/tiles.ts';
 import * as sight from '../../src/games/rogue0/fov.ts';
@@ -56,7 +57,7 @@ export function loadLogic(path, bindings = {}) {
   // no-op keeps their isolated source evaluator loadable.
   const tryFuseWands = (...args) => bindings.tryFuseWands?.(...args);
   const dependencies = { applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
-    terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation,
+    terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation, ...actorBodies,
     forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, tryFuseWands, heroStatsText, heroHudView, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));

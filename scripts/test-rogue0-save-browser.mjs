@@ -256,12 +256,12 @@ try {
     const { terrainFor } = await window.testImport('/src/games/rogue0/terrain.ts');
     window.previousTerrain = terrainFor(window.testScene.context);
   });
-  // The in-game menu only offers "← back" to the site home: unmounting flushes
-  // the same checkpoint, so returning to /rogue0 lists the saved run.
+  // The in-game menu's "← back" returns to Rogue0's start screen (not the site
+  // home): unmounting flushes the same checkpoint, so it lists the saved run.
   await page.getByRole('button', { name: 'Game menu' }).click();
-  await page.getByRole('link', { name: '← back' }).click();
-  await page.getByRole('button', { name: /Rogue0/ }).first().click();
+  await page.getByRole('button', { name: '← back', exact: true }).click();
   await captureScene();
+  assert.equal(new URL(page.url()).pathname, '/rogue0', 'back stays inside the game');
   if (process.env.ROGUE0_SCREENSHOT) await page.screenshot({ path: process.env.ROGUE0_SCREENSHOT });
   await page.getByRole('button', { name: 'New Game', exact: true }).click();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();

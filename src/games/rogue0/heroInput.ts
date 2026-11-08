@@ -84,7 +84,7 @@ export function createHeroInput(services: HeroControlServices) {
       // Wands select an enemy first, then confirm; ordinary throws fire on tap.
       if (context.throwMode) {
         if (hero.zapping && x !== null && y !== null) {
-          const hostile = hostileAtTile(context, x, y);
+          const hostile = entity && isHostile(entity) ? entity : hostileAtTile(context, x, y);
           if (hostile && !isGrassConcealed(hostile.x, hostile.y, hero.x, hero.y)) {
             if (context.cursorX === x && context.cursorY === y) hero.throwAt(x, y);
             else { context.cursorX = x; context.cursorY = y; }

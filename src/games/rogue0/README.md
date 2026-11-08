@@ -101,8 +101,10 @@ need compatibility handling.
 One run is autosaved in this browser's local storage (`rogue0.run.v1`). The title
 screen offers **Continue** when a save exists, or **New Game** and hero selection.
 Choosing a new hero replaces the old run; cancelling the selection keeps it.
-The game menu's **← back** link returns to the site home and flushes the same
-checkpoint, so `/rogue0` then offers **Continue**. Death and victory clear the run.
+The game menu's **← back** button returns to Rogue0's own start screen (the
+in-game menu, not the site home) and flushes the same checkpoint, so it then
+offers **Continue**. Only the start screen's **← back to home** link leaves the
+game. Death and victory clear the run.
 
 Saves retain the hero, inventory/equipment/quickslot references, upgrades, talents,
 identified consumables and shuffled appearances, active status effects, scheduler
@@ -478,9 +480,10 @@ grass, water and the
 other hidden traps still dress the hall. The guardian naps until disturbed — a
 wound, a noise, the hero stepping within two tiles in its line of sight, or a
 long dormancy running out — so a careful approach earns the first strike. The
-scaled guardian art is anchored to its tile and fades when it covers the hero,
-and taps anywhere on that art target the guardian. The floor is never
-repopulated after the guardian falls. The old five-floor limit
+scaled guardian art is anchored to its tile and its 3×3 body stops the hero
+outside the artwork, so nobody can stand underneath it; taps anywhere on that
+art target the guardian. The floor is never repopulated after the guardian
+falls. The old five-floor limit
 was for testing.
 Themed regions and later-region enemy scaling are still future work; ordinary
 enemy counts stop growing after floor 5.

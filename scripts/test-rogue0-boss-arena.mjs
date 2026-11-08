@@ -8,6 +8,7 @@ import {
   BOSS_TEXTURE, BOSS_PIXELS, BOSS_PALETTE, BOSS_TEXTURE_SIZE, generateBossTexture
 } from '../src/games/rogue0/monsters/bossTexture.ts';
 import { actorOrigin, occludesPlayer } from '../src/games/rogue0/rendering.ts';
+import { actorBodyAtTile, bodyAtTile, bodyDistance, bodyOverlapsAt } from '../src/games/rogue0/actorBodies.ts';
 
 // --- One compact arena instead of a room network ----------------------------
 for (const floor of [5, 10, 15, 20, 25]) {
@@ -119,6 +120,24 @@ assert.deepEqual(actorOrigin(16, 16, 0.7), { x: 0, y: 0 }, 'small actors keep th
   assert.equal(origin.x * 36, 10, 'the 36px boss is shifted left so its centre is the tile centre');
   assert.equal((1 - origin.y) * 36, 16, 'the boss feet land on the cell bottom');
 }
+// The wide body, not just the artwork, keeps the hero out of the boss.
+assert.equal(bodyDistance({ x: 10, y: 10, bodyRadius: 1 }, { x: 12, y: 10 }), 1,
+  'a 3x3 body reaches the cell between it and the hero');
+assert.equal(bodyDistance({ x: 10, y: 10, bodyRadius: 1 }, { x: 13, y: 10 }), 2,
+  'beyond the body the distance is measured normally');
+assert.equal(bodyOverlapsAt({ x: 10, y: 10, bodyRadius: 1 }, 11, 11, { x: 12, y: 12 }),
+  true, 'two bodies may not be squeezed together');
+assert.equal(bodyAtTile({ x: 10, y: 10, type: 'enemy', healthPoints: 5, bodyRadius: 1 }, 9, 9),
+  true, 'the body fills the 3x3 footprint');
+assert.equal(bodyAtTile({ x: 10, y: 10, type: 'enemy', healthPoints: 5, bodyRadius: 1 }, 8, 10),
+  false, 'outside the footprint is free');
+const bodyEntities = [
+  { x: 10, y: 10, type: 'enemy', healthPoints: 5, bodyRadius: 1 },
+  { x: 20, y: 20, type: 'item', healthPoints: 1, bodyRadius: 1 },
+];
+assert.equal(actorBodyAtTile(bodyEntities, 11, 11), bodyEntities[0]);
+assert.equal(actorBodyAtTile(bodyEntities, 19, 19), undefined, 'items never own extra cells');
+
 const bossRect = { x: -10, y: -20, width: 36, height: 36 };
 const heroRect = { x: 0, y: -16, width: 16, height: 16 };
 assert.equal(occludesPlayer(bossRect, 5, heroRect, 4), true,
@@ -212,6 +231,7 @@ const { BOSS_ARENA_DORMANCY } = Boss;
     'dormancy outlasts a walk across the arena');
   assert.ok(BOSS_ARENA_DORMANCY >= 100, 'the hero can cross the hall before the blob stirs');
   assert.ok(boss.spriteScale > 1, 'the blob is scaled up beyond the 16px monsters');
+  assert.equal(boss.bodyRadius, 1, 'the scaled guardian claims a 3x3 body');
   assert.equal(boss.healthPoints, 60, 'the arena rework keeps the guardian stats');
   boss.takeDamage(1);
   assert.equal(boss.sleeping, false, 'any wound wakes it');

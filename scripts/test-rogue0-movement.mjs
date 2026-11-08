@@ -675,7 +675,7 @@ const features = new Map();
 const realDungeon = load('src/games/rogue0/dungeon.ts', {
   PF, bresenhamLine: sight.bresenhamLine, hasEffect,
   tiles: {
-    getFeature() {}, getDoorState() {}, getTileState() {},
+    getFeature() {}, getDoorState() {}, getTileState() {}, isBlocking: () => false,
     forEachFeature(fn) { for (const [key, state] of features) fn(...key.split(',').map(Number), state); }
   }
 }).default;
@@ -683,9 +683,9 @@ const realDungeon = load('src/games/rogue0/dungeon.ts', {
 const walkTweens = [];
 const walkContext = {
   entities: [], visibleTiles: new Set(['1,1', '3,1']),
-  map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
+  map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16, getTileAt: () => ({ index: 0 }) },
   scene: {
-    add: { sprite: (x, y) => ({ x, y, setOrigin(x, y = x) { this.originY = y; }, setDepth(depth) { this.depth = depth; } }) },
+    add: { sprite: (x, y) => ({ x, y, setOrigin(x, y = x) { this.originY = y; }, setDepth(depth) { this.depth = depth; }, setPosition(x, y) { this.x = x; this.y = y; } }) },
     tweens: { add(tween) { walkTweens.push(tween); } }
   }
 };
@@ -714,6 +714,26 @@ assert.equal(floorLoot.x, 2, 'floor loot can share the monster tile');
 walkContext.visibleTiles.clear();
 realDungeon.moveEntityTo(walkContext, walkerB, 2, 1);
 assert.equal(walkerB.x, 3);
+
+realDungeon.currentLevel = Array.from({ length: 10 }, () => Array(10).fill(0));
+// A wider body claims its neighbouring cells. Movement is refused before the
+// hero can stand underneath the artwork, and walkability agrees.
+const wide = actor('enemy');
+Object.defineProperty(wide, 'bodyRadius', { value: 1 });
+wide.init(walkContext, 6, 4);
+walkContext.entities.push(wide);
+assert.equal(realDungeon.isWalkableTile(walkContext, 5, 4, walkerA), false,
+  'a wide actor blocks an adjacent cell');
+assert.equal(realDungeon.isWalkableTile(walkContext, 6, 5, walkerA), false,
+  'a wide actor blocks the cell in front of it');
+assert.equal(realDungeon.isWalkableTile(walkContext, 8, 4, walkerA), true,
+  'the cell beyond the body stays walkable');
+walkerB.x = 4; walkerB.y = 4;
+realDungeon.moveEntityTo(walkContext, walkerB, 5, 4);
+assert.equal(walkerB.x, 4, 'forced movement cannot enter a wide body either');
+realDungeon.moveEntityTo(walkContext, walkerB, 8, 4);
+assert.equal(walkerB.x, 8, 'movement outside the body still works');
+walkContext.entities = walkContext.entities.filter(entity => entity !== wide);
 
 // Projectiles stop at the nearest living actor, regardless of list order.
 const shooter = Object.assign(actor('player'), { x: 0, y: 0 });

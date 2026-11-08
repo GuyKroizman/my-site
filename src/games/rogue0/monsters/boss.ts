@@ -41,4 +41,10 @@ export default class Boss extends Monster {
   onHitEffects() {
     return [createWeakenedEffect(3), createCrippledEffect(3)];
   }
+
+  // The 1.5x blob art spans more than one cell. Give it a matching 3x3 body so
+  // the hero is stopped outside the artwork instead of walking underneath it.
+  get bodyRadius(): number {
+    return 1;
+  }
 }

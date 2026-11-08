@@ -252,6 +252,17 @@ export default function Rogue0() {
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [])
 
+  // Leaving the dungeon (game menu → ← back) returns to Rogue0's own start
+  // screen, not the site home. Flush the run first so the start screen already
+  // lists this run as Continue-able.
+  const backToGameMenu = () => {
+    contextRef.current?.saveNow?.()
+    setMenuOpen(false)
+    setSaveInfo(readRunSave())
+    setInspectMode(false)
+    setHeroClass(null)
+  }
+
   const openHelp = () => {
     if (contextRef.current) contextRef.current.helpOpen = true
     setHelpPage(0)
@@ -461,7 +472,9 @@ export default function Rogue0() {
               >
                 {muted ? 'Sound: OFF' : 'Sound: ON'}
               </button>
-              <Link to="/" className="rogue0-game-btn">← back</Link>
+              <button className="rogue0-game-btn" onClick={backToGameMenu}>
+                ← back
+              </button>
             </div>
           )}
         </div>

@@ -2,6 +2,7 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import dungeon from "../dungeon";
+import { actorBodyAtTile } from "../actorBodies.ts";
 
 // Keep the teleport destination out of the columns hidden under the UI
 // sidebar (matches the constant used by scene0's spawn logic).
@@ -49,6 +50,7 @@ export default class ScrollOfTeleport extends Entity {
         if (x >= MAX_VISIBLE_X) continue;
         if (map[y][x] !== 0) continue;
         if (occupied.has(`${x},${y}`)) continue;
+        if (actorBodyAtTile(this.context.entities, x, y)) continue;
         if (x === this.context.stairsX && y === this.context.stairsY) continue;
         candidates.push({ x, y });
       }

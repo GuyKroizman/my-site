@@ -269,6 +269,13 @@ export abstract class Entity {
   }
   xpValue: number = 0;
 
+  // Additional whole cells the actor's body covers on every side. Ordinary
+  // actors use one cell (radius 0); a scaled monster can claim a wider body so
+  // nobody can stand underneath its artwork.
+  get bodyRadius(): number {
+    return 0;
+  }
+
   // Item model v2 (G3). Optional with defaults so existing items still
   // compile without setting them.
   tier: number = 1;

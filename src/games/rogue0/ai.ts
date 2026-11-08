@@ -5,6 +5,7 @@ import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import type { ActionKind } from "./timing";
 import { hasEffect, fleeStep } from "./effects";
+import { bodyDistance, bodyOverlapsAt } from "./actorBodies.ts";
 
 // Enemies avoid stepping on traps they can perceive (revealed/armed plates).
 // Hidden traps stay invisible, and confusion overrides avoidance entirely.
@@ -37,10 +38,6 @@ export function enemyCanSeePlayer(entity: Entity): boolean {
   );
 }
 
-function chebyshev(aX: number, aY: number, bX: number, bY: number): number {
-  return Math.max(Math.abs(aX - bX), Math.abs(aY - bY));
-}
-
 function isAdjacentTo(entity: Entity, target: Entity): boolean {
   if (
     entity.x === undefined ||
@@ -50,7 +47,9 @@ function isAdjacentTo(entity: Entity, target: Entity): boolean {
   ) {
     return false;
   }
-  return chebyshev(entity.x, entity.y, target.x, target.y) <= 1;
+  // Bodies, not centres: a wide guardian can reach a hero two cells from its
+  // centre because its body already fills the cell between them.
+  return bodyDistance(entity, target) <= 1;
 }
 
 function inRange(entity: Entity, target: Entity): boolean {
@@ -62,7 +61,7 @@ function inRange(entity: Entity, target: Entity): boolean {
   ) {
     return false;
   }
-  return chebyshev(entity.x, entity.y, target.x, target.y) <= entity.range();
+  return bodyDistance(entity, target) <= entity.range();
 }
 
 function visibleDecoy(entity: Entity): Entity | undefined {
@@ -398,7 +397,7 @@ function followStep(entity: Entity, step: { x: number; y: number }): ActionKind 
   if (!entity.isFlying && isVisibleTrap(entity.context, step.x, step.y)) return null;
   if (entity.context.entities.some(e =>
     e !== entity && (e.type === "player" || e.type === "enemy") &&
-    e.healthPoints > 0 && e.x === step.x && e.y === step.y
+    e.healthPoints > 0 && bodyOverlapsAt(entity, step.x, step.y, e)
   )) return null;
   let openedDoor = false;
   if (tiles.getDoorState(step.x, step.y) === "closed") {

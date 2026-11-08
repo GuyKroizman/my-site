@@ -1,6 +1,7 @@
 import type { Entity } from './entity';
 import type { GameContext } from './context';
 import type { Direction } from './heroControlTypes';
+import { actorBodyAtTile } from './actorBodies.ts';
 
 export function isHostile(entity: Entity): boolean {
   return entity.type === 'enemy' && !entity.isDecoy;
@@ -10,6 +11,12 @@ export function hostileAtTile(context: GameContext, x: number, y: number): Entit
   return (context.entities ?? []).find(entity =>
     isHostile(entity) && (entity.healthPoints ?? 0) > 0 && !!entity.sprite &&
     entity.x === x && entity.y === y);
+}
+
+/** A hostile whose wider body covers x,y even though its centre tile does not. */
+export function hostileBodyAtTile(context: GameContext, x: number, y: number): Entity | undefined {
+  const actor = actorBodyAtTile(context.entities ?? [], x, y);
+  return actor && isHostile(actor) && !!actor.sprite ? actor : undefined;
 }
 
 /** Large sprites (the scaled Bone Lord) extend beyond their logical tile. A

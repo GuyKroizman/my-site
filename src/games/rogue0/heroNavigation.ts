@@ -1,6 +1,6 @@
 import type { Entity } from './entity';
 import type { HeroControlHost, HeroControlServices, TilePosition } from './heroControlTypes';
-import { isHostile, pickupMessage } from './heroControlRules.ts';
+import { hostileBodyAtTile, isHostile, pickupMessage } from './heroControlRules.ts';
 
 // Path planning and movement policy. The scheduler/terrain still own movement
 // execution; these operations never advance time except through spendTurn().
@@ -71,7 +71,8 @@ export function createHeroNavigation(services: HeroControlServices) {
         hero.walkTargetEntity = undefined;
         return;
       }
-      const entity = dungeon.entityAtTile(hero.context, step.x, step.y);
+      const entity = hostileBodyAtTile(hero.context, step.x, step.y) ??
+        dungeon.entityAtTile(hero.context, step.x, step.y);
       // Recheck before every action, including pickups/doors: speed and health
       // can change during travel. Automatic starvation deaths are avoidable.
       if (hero.hunger <= 0) {
@@ -166,7 +167,8 @@ export function createHeroNavigation(services: HeroControlServices) {
         return;
       }
       if (!dungeon.isWalkableTile(context, newX, newY)) {
-        const entity = dungeon.entityAtTile(context, newX, newY);
+        const entity = hostileBodyAtTile(context, newX, newY) ??
+          dungeon.entityAtTile(context, newX, newY);
         if (entity && isHostile(entity)) {
           const weapon = hero.currentWeapon();
           if (!weapon) return;

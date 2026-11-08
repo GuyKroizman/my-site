@@ -1758,7 +1758,15 @@ export class Scene0 extends Phaser.Scene {
     // The guardian's own tile is reserved before anything else rolls: it waits
     // in the middle of the arena, and nothing else may stand there.
     const bossHome = bossFloor ? this.bossArena : undefined;
-    if (bossHome) exclude.add(`${bossHome.x},${bossHome.y}`);
+    if (bossHome) {
+      // Reserve the guardian's full 3x3 body so chests and the ration cannot
+      // spawn inside the space the hero is not allowed to enter either.
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          exclude.add(`${bossHome.x + dx},${bossHome.y + dy}`);
+        }
+      }
+    }
 
     const terrain = terrainFor(this.context);
     const tiles = randomWalkableTiles(

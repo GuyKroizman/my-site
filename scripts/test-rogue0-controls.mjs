@@ -75,7 +75,9 @@ function fixture() {
     itemPicked: item => state.pickups.push(item),
     moveEntityTo(_ctx, actor, x, y) { state.moves.push([x, y]); actor.x = x; actor.y = y; },
     openDoor() { if (!state.door) return false; state.door = false; return true; },
-    isWalkableTile: (ctx, x, y) => !state.wall && !dungeon.entityAtTile(ctx, x, y),
+    isWalkableTile: (ctx, x, y) => !state.wall && !dungeon.entityAtTile(ctx, x, y) &&
+      !(ctx.entities ?? []).some(e => e.type !== 'item' && e.healthPoints > 0 &&
+        Math.max(Math.abs(x - e.x), Math.abs(y - e.y)) <= (e.bodyRadius ?? 0)),
     canStepBetween: (sx, sy, tx, ty) => Math.max(Math.abs(tx - sx), Math.abs(ty - sy)) === 1,
     canEnterChasm: () => state.chasm,
     stepIntoChasm() { state.falls++; return true; },
@@ -326,6 +328,23 @@ for (const stale of ['floor', 'position', 'death', 'readiness', 'modal', 'none']
   assert.equal(f.hero.nextActionTime, before, 'f spends no time');
   assert.deepEqual(f.hero.inputBuffer, [], 'f is not even a buffered command');
   assert.deepEqual([f.state.moves.length, f.state.attacks.length, f.state.searches], [0, 0, 0]);
+}
+
+// A wide actor's body is not walkable space. Trying to step into it attacks
+// from the body edge instead of overlapping the actor, for both manual and
+// auto-walk movement.
+{
+  const f = fixture();
+  const boss = enemy(f, 5, 1, { bodyRadius: 1 });
+  f.hero.x = 3; f.hero.y = 1;
+  f.hero.processInput('l');
+  assert.deepEqual(f.state.attacks.at(-1), [f.hero, boss], 'a manual step into the body attacks');
+  assert.equal(f.hero.x, 3, 'the hero does not enter the body');
+  ready(f); f.hero.setWalkTarget(5, 1, boss);
+  f.hero.stepAutoWalk();
+  assert.deepEqual(f.state.attacks.at(-1), [f.hero, boss], 'auto-walk attacks a body that blocks its step');
+  assert.equal(f.hero.x, 3);
+  assert.deepEqual(f.state.moves, [], 'no movement into a wide body');
 }
 
 // A scaled monster's art can cover tiles beyond its own cell. A tap anywhere

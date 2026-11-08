@@ -5,6 +5,7 @@ import { bresenhamLine } from "../fov";
 import { terrainFor } from "../terrain";
 import type { Entity } from "../entity";
 import type { GameContext } from "../context";
+import { actorBodyAtTile } from "../actorBodies.ts";
 
 // The stone is thrown at a destination, so "use" should immediately start
 // throw targeting instead of swallowing it.
@@ -86,10 +87,7 @@ function occupiedByActor(
   x: number,
   y: number
 ): boolean {
-  return context.entities.some(entity =>
-    entity !== player && entity.type !== "item" && entity.healthPoints > 0 &&
-    entity.x === x && entity.y === y
-  );
+  return !!actorBodyAtTile(context.entities, x, y, player);
 }
 
 // Walk the flight line up to the blocker and keep the last landable tile.
