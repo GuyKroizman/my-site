@@ -15,6 +15,11 @@ export default class StoneOfBlink extends GlyphStone {
   textureKey = GLYPH_STONE_TEXTURES.blink;
   throwToUse = true;
 
+  constructor(context: GameContext, x?: number, y?: number) {
+    super();
+    this.init(context, x, y);
+  }
+
   onThrownLand(tx: number, ty: number): boolean {
     const context = this.context;
     const player = context.player;

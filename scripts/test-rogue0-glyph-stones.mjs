@@ -557,4 +557,56 @@ function trampleScenario() {
   assert.deepEqual([hero.x, hero.y], [2, 1], 'auto-walk finishes on the tile');
 }
 
-console.log('Rogue0 glyph stones: trample drops, floor waits, blink landing, curse scrying and descriptions passed');
+// --- A fresh stone builds its own sprite, not the atlas fallback -----------
+// Field initializers in the concrete class run only after super() returns. If
+// the base class builds the sprite, textureKey is still undefined and the stone
+// lies on the floor looking like an empty atlas frame.
+{
+  const Rendering = load('src/games/rogue0/rendering.ts');
+  const FreshEntity = load('src/games/rogue0/entity.ts', {
+    ...curseData, ...Rendering, actionCost: () => 1,
+    sfx: { death() {} },
+  }).Entity;
+  const FreshGlyphStone = load('src/games/rogue0/items/glyphStone.ts', {
+    Entity: FreshEntity,
+  }).default;
+  const created = [];
+  const scene = {
+    add: {
+      sprite(x, y, key, frame) {
+        created.push({ key, frame });
+        return {
+          x, y, width: 16, height: 16,
+          setOrigin() { return this; },
+          setScale() { return this; },
+          setDepth() { return this; },
+          destroy() {},
+        };
+      },
+    },
+    tweens: { add() {} },
+  };
+  const ctx = {
+    messages: [], entities: [], scene,
+    map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
+  };
+  const freshDungeon = { log() {} };
+  const FreshBlink = load('src/games/rogue0/items/stoneOfBlink.ts', {
+    Entity: FreshEntity, GlyphStone: FreshGlyphStone, dungeon: freshDungeon,
+    bresenhamLine, terrainFor: () => terrain, GLYPH_STONE_TEXTURES,
+  }).default;
+  const FreshCurse = load('src/games/rogue0/items/stoneOfDetectCurse.ts', {
+    Entity: FreshEntity, GlyphStone: FreshGlyphStone, dungeon: freshDungeon,
+    removeEntity() {}, GLYPH_STONE_TEXTURES,
+  }).default;
+
+  new FreshBlink(ctx, 2, 3);
+  new FreshCurse(ctx, 4, 5);
+  assert.deepEqual(created.map(sprite => sprite.key),
+    [GLYPH_STONE_TEXTURES.blink, GLYPH_STONE_TEXTURES.detectCurse],
+    'a freshly dropped stone renders its own artwork, not the atlas frame');
+  assert.ok(created.every(sprite => sprite.frame === 0),
+    'custom stone textures use frame zero');
+}
+
+console.log('Rogue0 glyph stones: trample drops, floor waits, own sprite, blink landing, curse scrying and descriptions passed');

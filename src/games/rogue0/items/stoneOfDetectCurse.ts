@@ -3,6 +3,7 @@ import { GLYPH_STONE_TEXTURES } from "../glyphStoneTextures";
 import { removeEntity } from "../entity";
 import dungeon from "../dungeon";
 import type { Entity } from "../entity";
+import type { GameContext } from "../context";
 
 export default class StoneOfDetectCurse extends GlyphStone {
   name = "Stone of Detect Curse";
@@ -12,6 +13,11 @@ export default class StoneOfDetectCurse extends GlyphStone {
   requiresItemTarget = true;
   itemTargetTitle = "DETECT CURSE: CHOOSE ITEM";
   noItemTargetsMessage = "You have no unidentified items to examine.";
+
+  constructor(context: GameContext, x?: number, y?: number) {
+    super();
+    this.init(context, x, y);
+  }
 
   equip() {
     this.context.onChooseItemTarget?.(this);
