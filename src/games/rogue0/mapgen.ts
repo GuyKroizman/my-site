@@ -17,14 +17,20 @@ export function floorIsBossArena(floor: number): boolean {
   return Number.isInteger(floor) && floor > 0 && floor % 5 === 0;
 }
 
-// The arena fills the map minus a solid rock border and the northern wall band
-// the hidden gem branch is carved into. The hero arrives at the south edge so
-// the guardian waiting in the middle is met face to face.
+// A boss hall used to fill the whole map. Keep only 20% of that area by
+// shrinking each span by sqrt(0.2) and centring the smaller hall in the old
+// footprint, which leaves the rock border and the northern hidden branch in
+// place. The hero still arrives at the south edge, opposite the guardian.
+export const BOSS_ARENA_AREA_FRACTION = 0.2;
+const BOSS_ARENA_SPAN_SCALE = Math.sqrt(BOSS_ARENA_AREA_FRACTION);
+
 export function bossArenaRoom(width: number, height: number): Room {
-  const x = 4;
-  const y = 12;
-  const w = width - 8;
-  const h = height - 14;
+  const spanW = width - 8;
+  const spanH = height - 14;
+  const w = Math.max(12, Math.round(spanW * BOSS_ARENA_SPAN_SCALE));
+  const h = Math.max(10, Math.round(spanH * BOSS_ARENA_SPAN_SCALE));
+  const x = 4 + Math.floor((spanW - w) / 2);
+  const y = 12 + Math.floor((spanH - h) / 2);
   return { x, y, w, h, cx: x + Math.floor(w / 2), cy: y + Math.floor(h / 2) };
 }
 

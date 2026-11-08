@@ -1,6 +1,6 @@
 import type { GameContext } from './context';
 import type { HeroControlHost, HeroControlServices, PointerPosition } from './heroControlTypes';
-import { isHostile, hostileAtTile } from './heroControlRules.ts';
+import { isHostile, hostileAtTile, entityAtPointer } from './heroControlRules.ts';
 
 // Input dispatch only: targeting/navigation decide what a command means. Event
 // subscriptions are runtime-only, idempotent, and removed on scene shutdown.
@@ -76,7 +76,10 @@ export function createHeroInput(services: HeroControlServices) {
       if (context.map === undefined) throw new Error('context.map is undefined');
       const x = context.map.worldToTileX(event.worldX);
       const y = context.map.worldToTileY(event.worldY);
-      let entity = dungeon.entityAtTile(context, x!, y!);
+      // A scaled monster's art covers neighbouring tiles. Fall back to sprite
+      // bounds so clicking any visible part of it still targets the monster.
+      let entity = dungeon.entityAtTile(context, x!, y!) ??
+        entityAtPointer(context, event.worldX, event.worldY);
       if (entity && isGrassConcealed(entity.x, entity.y, hero.x, hero.y)) entity = undefined;
       // Wands select an enemy first, then confirm; ordinary throws fire on tap.
       if (context.throwMode) {

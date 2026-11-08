@@ -464,19 +464,23 @@ A run has **25 floors**. Floors **5, 10, 15, 20 and 25** are boss floors, each
 guarded by the Bone Lord. Their stairs are sealed until that floor's guardian
 dies, and slaying the floor-25 guardian ends the run in victory.
 
-A boss floor is not a room network: map generation carves **one huge arena
-hall** (72x36 tiles on the standard map) behind a border of solid rock, with the
-guardian asleep at its exact centre. The hero arrives at the south edge, so the
-whole hall has to be crossed, and the sealed stairs wait in the far north
-corner. The arena is the guardian's alone: no wandering roster (skeletons,
-goblins, ghouls, brutes, Quloptsh, swarms, mimics, cultists, elementals,
-wraiths, frogs), no random floor loot, no cursed gem, no chasm, no bone pile and
-no summon trap. What it does carry is the guardian, two treasure chests, one
-ration and the hidden room's gem above the north wall; grass, water and the
+A boss floor is not a room network: map generation carves a single **arena
+hall** behind a border of solid rock, with the guardian asleep at its exact
+centre. The standard map's hall is **32x16 tiles** — 20% of the area of the
+earlier 72x36 hall — so the fight starts without a long empty walk. The hero
+arrives at the south edge, across the hall from the guardian, and the sealed
+stairs wait in the far north corner. The arena is the guardian's alone: no
+wandering roster (skeletons, goblins, ghouls, brutes, Quloptsh, swarms, mimics,
+cultists, elementals, wraiths, frogs), no random floor loot, no cursed gem, no
+chasm, no bone pile and no summon trap. What it does carry is the guardian, two
+treasure chests, one ration and the hidden room's gem above the north wall;
+grass, water and the
 other hidden traps still dress the hall. The guardian naps until disturbed — a
 wound, a noise, the hero stepping within two tiles in its line of sight, or a
 long dormancy running out — so a careful approach earns the first strike. The
-floor is never repopulated after the guardian falls. The old five-floor limit
+scaled guardian art is anchored to its tile and fades when it covers the hero,
+and taps anywhere on that art target the guardian. The floor is never
+repopulated after the guardian falls. The old five-floor limit
 was for testing.
 Themed regions and later-region enemy scaling are still future work; ordinary
 enemy counts stop growing after floor 5.

@@ -94,10 +94,10 @@ for (let i = 0; i < 200; i++) {
   }
   assert.ok(map[0].every(cell => cell === 1), 'northern boundary stays sealed');
   if (floorIsBossArena(floor)) {
-    // A boss floor is one huge arena hall, not a room network.
+    // A boss floor is a single arena hall, now 20% of its old area.
     assert.equal(rooms.length, 1, `floor ${floor} is a single arena room`);
     const arena = rooms[0];
-    assert.ok(arena.w >= 60 && arena.h >= 30, `arena is huge (${arena.w}x${arena.h})`);
+    assert.equal(arena.w * arena.h, 512, `arena is 32x16 (${arena.w}x${arena.h})`);
   } else {
     assert.ok(rooms.length > 1);
   }

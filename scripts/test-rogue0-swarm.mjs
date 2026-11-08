@@ -2,6 +2,7 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('swarm');
 import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
+import { actorOrigin } from '../src/games/rogue0/rendering.ts';
 import { forgetInspectedEntity } from '../src/games/rogue0/context.ts';
 
 const tiles = load('src/games/rogue0/tiles.ts');
@@ -48,7 +49,7 @@ const PotionOfHealing = class { constructor(ctx, x, y) { this.name = 'Potion of 
 const Phaser = { Math: { Between: () => 1 } };
 
 const Monster = load('src/games/rogue0/monsters/monster.ts', {
-  Entity, dungeon, ...ai, Gold, Phaser,
+  Entity, actorOrigin, dungeon, ...ai, Gold, Phaser,
 }).default;
 
 const SwarmOfFlies = load('src/games/rogue0/monsters/swarmOfFlies.ts', {

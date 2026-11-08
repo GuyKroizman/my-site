@@ -5,6 +5,7 @@ import type { GameContext } from "../context";
 import type { DamageType } from "../effects";
 import dungeon from "../dungeon";
 import { enemyTurn, enemyCanSeePlayer } from "../ai";
+import { actorOrigin } from "../rendering";
 import Gold from "../items/gold";
 import { stashChasmFallen } from "../chasmDrops";
 
@@ -106,6 +107,14 @@ export default class Monster extends Entity {
     super.init(context, x, y);
     // init is also used when returning to a saved floor. Do not reroll sleep.
     this.sprite?.setScale(this.spriteScale);
+    if (this.sprite) {
+      // Scaling happens after Entity.init fixed the origin for the unscaled
+      // frame. Re-anchor so a large sprite stays centred over its tile.
+      const origin = actorOrigin(
+        this.sprite.width ?? 16, this.sprite.height ?? 16, this.spriteScale
+      );
+      this.sprite.setOrigin(origin.x, origin.y);
+    }
   }
 
   wakeUp() {

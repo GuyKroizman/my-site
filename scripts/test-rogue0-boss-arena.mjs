@@ -7,8 +7,9 @@ import { generateMap, floorIsBossArena, bossArenaRoom, findFarthestWalkable } fr
 import {
   BOSS_TEXTURE, BOSS_PIXELS, BOSS_PALETTE, BOSS_TEXTURE_SIZE, generateBossTexture
 } from '../src/games/rogue0/monsters/bossTexture.ts';
+import { actorOrigin, occludesPlayer } from '../src/games/rogue0/rendering.ts';
 
-// --- One huge arena instead of a room network -------------------------------
+// --- One compact arena instead of a room network ----------------------------
 for (const floor of [5, 10, 15, 20, 25]) {
   assert.equal(floorIsBossArena(floor), true, `floor ${floor} is a boss arena`);
 }
@@ -26,9 +27,11 @@ for (let run = 0; run < 40; run++) {
 
   assert.equal(rooms.length, 1, `floor ${floor} is a single room`);
   const arena = rooms[0];
-  assert.ok(arena.w >= 60, `the arena is very wide (${arena.w})`);
-  assert.ok(arena.h >= 30, `the arena is very tall (${arena.h})`);
-  assert.ok(arena.w * arena.h >= 1800, `the arena covers most of the map (${arena.w * arena.h} tiles)`);
+  assert.equal(arena.w, 32, `the arena is shrunk to 20% area (${arena.w}x${arena.h})`);
+  assert.equal(arena.h, 16, `the arena is shrunk to 20% area (${arena.w}x${arena.h})`);
+  const previousArea = 72 * 36;
+  assert.ok(Math.abs(arena.w * arena.h - previousArea * 0.2) <= previousArea * 0.01,
+    `the arena keeps 20% of its old area (${arena.w * arena.h}/${previousArea})`);
   seenSpans.add(`${arena.w}x${arena.h}`);
 
   // A single open hall: no interior walls, pillars, corridors or chasms.
@@ -47,7 +50,7 @@ for (let run = 0; run < 40; run++) {
   assert.ok(spawn, 'the arena tells the scene where the hero enters');
   assert.equal(spawn.x, arena.cx, 'the hero enters on the arena axis');
   assert.equal(spawn.y, arena.y + arena.h - 3, 'the hero enters near the south wall');
-  assert.ok(spawn.y > bossArena.y + 10, 'the hero walks most of the hall to reach the guardian');
+  assert.ok(spawn.y > bossArena.y + 4, 'the hero still enters across the hall from the guardian');
   assert.equal(map[spawn.y][spawn.x], 0);
 
   // Everything in the arena is reachable from the arrival tile.
@@ -71,7 +74,7 @@ for (let run = 0; run < 40; run++) {
 
   // The exit is the far corner of the hall: across the room from the entrance,
   // inside the arena, and never in the stub of the hidden branch.
-  assert.ok(Math.hypot(stairs.x - spawn.x, stairs.y - spawn.y) >= 25,
+  assert.ok(Math.hypot(stairs.x - spawn.x, stairs.y - spawn.y) >= 15,
     'the sealed stairs sit across the hall');
   assert.notDeepEqual(stairs, bossArena, 'the stairs never share the guardian tile');
   assert.equal(map[stairs.y][stairs.x], 0, 'the exit is a floor tile');
@@ -102,8 +105,28 @@ for (let run = 0; run < 40; run++) {
   }
 }
 assert.ok(seenSpans.size >= 1, 'arena size comes from the shared layout helper');
-assert.deepEqual(bossArenaRoom(80, 50), { x: 4, y: 12, w: 72, h: 36, cx: 40, cy: 30 },
-  'the arena leaves room for the walls and the northern hidden branch');
+assert.deepEqual(bossArenaRoom(80, 50), { x: 24, y: 22, w: 32, h: 16, cx: 40, cy: 30 },
+  'the 20%-area arena stays centred, leaving room for walls and the hidden branch');
+assert.equal(bossArenaRoom(80, 50).w * bossArenaRoom(80, 50).h, 512,
+  'the shrunken hall is 32x16 rather than 72x36');
+
+// Large, scaled art stays centred on its cell and its feet on the cell bottom;
+// otherwise the boss is drawn south-east of the tile the pointer resolves to.
+assert.deepEqual(actorOrigin(16, 16, 1), { x: 0, y: 0 }, 'ordinary actors keep their exact cell');
+assert.deepEqual(actorOrigin(16, 16, 0.7), { x: 0, y: 0 }, 'small actors keep the legacy anchor');
+{
+  const origin = actorOrigin(24, 24, 1.5);
+  assert.equal(origin.x * 36, 10, 'the 36px boss is shifted left so its centre is the tile centre');
+  assert.equal((1 - origin.y) * 36, 16, 'the boss feet land on the cell bottom');
+}
+const bossRect = { x: -10, y: -20, width: 36, height: 36 };
+const heroRect = { x: 0, y: -16, width: 16, height: 16 };
+assert.equal(occludesPlayer(bossRect, 5, heroRect, 4), true,
+  'a front boss covering the hero triggers transparency');
+assert.equal(occludesPlayer(bossRect, 3, heroRect, 4), false,
+  'a boss behind the hero never fades');
+assert.equal(occludesPlayer({ ...bossRect, x: 100 }, 5, heroRect, 4), false,
+  'a distant boss does not fade');
 
 // --- Boss artwork: a big, toothy, one-eyed blob -----------------------------
 assert.equal(BOSS_TEXTURE_SIZE, 24);
@@ -205,6 +228,10 @@ const { BOSS_ARENA_DORMANCY } = Boss;
     'the arena decides where the hero enters');
   assert.match(sceneSource, /new Boss\(context, cell\.x, cell\.y\)/,
     'the guardian is placed by the floor spawner');
+  assert.match(sceneSource, /occludesPlayer\(sprite\.getBounds\(\), sprite\.depth/,
+    'the scene fades a front actor that covers the hero');
+  assert.match(sceneSource, /sprite\.setAlpha\(occluding \? Math\.min\(baseAlpha, 0\.45\)/,
+    'the hero stays visible underneath a large monster');
 }
 
-console.log('Rogue0 boss arena: single huge hall, centred sleeping guardian, entrance/exit placement, hidden room and blob art passed');
+console.log('Rogue0 boss arena: 20%-area central hall, sleeping guardian, entrance/exit placement, hidden room, anchoring and blob art passed');

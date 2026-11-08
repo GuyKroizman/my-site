@@ -5,6 +5,7 @@ import { TurnManager } from '../src/games/rogue0/turnManager.ts';
 import fs from 'node:fs';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { forgetInspectedEntity } from '../src/games/rogue0/context.ts';
+import { actorOrigin } from '../src/games/rogue0/rendering.ts';
 
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const { Entity } = load('src/games/rogue0/entity.ts', { actionCost });
@@ -35,8 +36,9 @@ const dungeon = {
 const ai = load('src/games/rogue0/ai.ts', { dungeon, tiles, ...sight, hasEffect, fleeStep: () => false });
 const manager = new TurnManager({ log: dungeon.log, hasEffect, removeEffect });
 function sprite(x = 32, y = 32) {
-  return { x, y, visible: true, displayWidth: 16, depth: 2,
-    setScale(scale) { this.scale = scale; return this; } };
+  return { x, y, visible: true, width: 16, height: 16, displayWidth: 16, depth: 2,
+    setScale(scale) { this.scale = scale; return this; },
+    setOrigin(x, y) { this.origin = { x, y }; return this; } };
 }
 // Replace only actual display creation; retain real Entity timing/damage methods.
 Entity.prototype.init = function(context, x, y) {
@@ -44,7 +46,7 @@ Entity.prototype.init = function(context, x, y) {
 };
 let roll = 8;
 const Monster = load('src/games/rogue0/monsters/monster.ts', {
-  Entity, ...ai, dungeon, Gold: class {}, Phaser: { Math: { Between(min, max) {
+  Entity, ...ai, dungeon, Gold: class {}, actorOrigin, Phaser: { Math: { Between(min, max) {
     assert.equal(min, 8); assert.equal(max, 24); return roll;
   } } },
 }).default;

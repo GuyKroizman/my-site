@@ -328,6 +328,26 @@ for (const stale of ['floor', 'position', 'death', 'readiness', 'modal', 'none']
   assert.deepEqual([f.state.moves.length, f.state.attacks.length, f.state.searches], [0, 0, 0]);
 }
 
+// A scaled monster's art can cover tiles beyond its own cell. A tap anywhere
+// on the visible art must still select that monster, while an exact tile hit
+// keeps its usual precedence.
+{
+  const f = fixture();
+  const boss = enemy(f, 5, 1, {
+    sprite: { depth: 5, getBounds: () => ({ x: 4, y: 0, width: 4, height: 3 }) }
+  });
+  f.hero.processTouchInput(f.context, { worldX: 4, worldY: 1 });
+  assert.equal(f.hero.walkTargetEntity, boss);
+  assert.deepEqual(f.state.paths.at(-1), [5, 1], 'the art selects the boss tile, not the overlapped floor');
+  const loot = { type: 'item', x: 4, y: 1, displayName: 'Gem', sprite: {} };
+  f.context.entities.push(loot);
+  f.hero.processTouchInput(f.context, { worldX: 4, worldY: 1 });
+  assert.deepEqual(f.state.paths.at(-1), [4, 1], 'an entity on the exact tile still wins over art behind it');
+  f.context.entities = [f.hero];
+  f.hero.processTouchInput(f.context, { worldX: 4, worldY: 1 });
+  assert.deepEqual(f.state.paths.at(-1), [4, 1], 'empty floor taps still walk to the tile');
+}
+
 // Inspect stays free and visibility-limited; a second inspect request searches.
 {
   const f = fixture(); f.hero.actionReady = false;
