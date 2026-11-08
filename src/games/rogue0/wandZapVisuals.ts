@@ -47,10 +47,11 @@ export function updateWandZaps(scene: Phaser.Scene, context: GameContext, now: n
     const px = -dy / length, py = dx / length;
     const pixel = (x: number, y: number, size: number, tint: number, alpha: number) => {
       x = Math.round(x); y = Math.round(y);
-      // Clip every spark/trail sample against current FOV, beneath the fog layer.
-      if (!context.visibleTiles.has(`${Math.floor(x / 16)},${Math.floor(y / 16)}`) ||
-          !context.visibleTiles.has(`${Math.floor((x + size - 1) / 16)},${Math.floor((y + size - 1) / 16)}`)) return;
-      g.fillStyle(tint, alpha).fillRect(x, y, size, size);
+      // Bolts fired past the edge of sight stay visible but dimmed: the
+      // projectile reveals no terrain, and the player still sees the shot.
+      const inSight = context.visibleTiles.has(`${Math.floor(x / 16)},${Math.floor(y / 16)}`) &&
+        context.visibleTiles.has(`${Math.floor((x + size - 1) / 16)},${Math.floor((y + size - 1) / 16)}`);
+      g.fillStyle(tint, alpha * (inSight ? 1 : 0.35)).fillRect(x, y, size, size);
     };
     if (bolt.age < bolt.duration) {
       const progress = bolt.age / bolt.duration;

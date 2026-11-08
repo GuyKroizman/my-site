@@ -3,7 +3,7 @@ import { Entity } from "../entity";
 import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
 import type { DamageType } from "../effects";
-import dungeon from "../dungeon";
+import { announceDeath } from "../combatFeedback";
 import { enemyTurn, enemyCanSeePlayer } from "../ai";
 import { actorOrigin } from "../rendering";
 import Gold from "../items/gold";
@@ -209,13 +209,13 @@ export default class Monster extends Entity {
     const drop = (instance: Entity): void => {
       if (this.fellIntoChasm) {
         const landsBelow = stashChasmFallen(this.context, instance);
-        dungeon.log(this.context, landsBelow
+        announceDeath(this.context, this, landsBelow
           ? `${this.name} was killed, dropping ${instance.name} into the chasm.`
           : `${this.name} was killed. ${instance.name} is lost in the abyss.`);
         return;
       }
       this.context.entities.push(instance);
-      dungeon.log(this.context, `${this.name} was killed, dropping ${instance.name}.`);
+      announceDeath(this.context, this, `${this.name} was killed, dropping ${instance.name}.`);
     };
 
     if (this.loot.length > 0) {
@@ -232,7 +232,7 @@ export default class Monster extends Entity {
     if (this.gold > 0 && Phaser.Math.Between(1, 4) === 1) {
       drop(new Gold(this.context, x, y, this.gold));
     } else {
-      dungeon.log(this.context, `${this.name} was killed.`);
+      announceDeath(this.context, this, `${this.name} was killed.`);
     }
   }
 }

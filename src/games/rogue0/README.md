@@ -234,13 +234,23 @@ identified wands in the backpack or on any visited floor without adding log spam
 
 ## Wand targeting
 
-All wands have no distance cap, including wands in older browser saves. Zaps
-still require an in-bounds, non-wall destination and a clear line of sight;
-the first actor in the projectile path intercepts the shot. Ordinary thrown
-items also have no distance cap; they only need an in-bounds, non-wall
-destination in line of sight. Tapping the aiming wand again cancels target
-selection instead of firing; only the target tile (or Enter) fires. Charges
-and action costs are unchanged.
+All wands have no distance cap, including wands in older browser saves, and
+wands can be aimed **past the edge of sight** (darkness, fog and an unlit room
+never gate a zap). A zap only needs an in-bounds destination and a straight
+path free of walls, closed doors and secret doors; tall grass and chasms do not
+stop the bolt, and the first actor in the projectile path intercepts the shot.
+Ordinary thrown items also have no distance cap, but still require an in-bounds,
+non-wall destination in line of sight. Tapping the aiming wand again cancels
+target selection instead of firing; only the target tile (or Enter) fires.
+Charges and action costs are unchanged.
+
+Hits on monsters outside sight stay audible without leaking information. A
+damaging unseen hit logs **“You hear a cry of pain in the distance.”** and a
+lethal one adds **“, then silence.”**; a death with no preceding hit is
+**“You hear a death cry in the distance.”** Misses and absorbed hits use distant
+impact cues, and an unseen victim's name, exact damage, floating damage number,
+loot and death message are never shown. Tall grass concealment counts as
+outside sight, and status-effect damage ticks follow the same rule.
 
 ## Throwing is not attacking
 

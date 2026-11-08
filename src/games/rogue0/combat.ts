@@ -7,6 +7,7 @@
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import { canSee } from "./fov";
+import { announceMiss } from './combatFeedback';
 import { terrainFor } from './terrain';
 import {
   hasEffect,
@@ -113,10 +114,15 @@ export function resolveAttack(
     const accuracy = attacker.effectiveAccuracy ?? attacker.accuracy;
     const evasion = defender.effectiveEvasion ?? defender.evasion;
     if (roll >= accuracy - evasion) {
+      const playerAttack = attacker.type === "player" && defender.type === "enemy";
       if (evasion > 0) {
-        log(context, `${defender.type === "player" ? "You dodge" : `${defender.name} dodges`} ${attacker.type === "player" ? "your" : `${attacker.name}'s`} attack.`);
+        const text = `${defender.type === "player" ? "You dodge" : `${defender.name} dodges`} ${attacker.type === "player" ? "your" : `${attacker.name}'s`} attack.`;
+        if (playerAttack) announceMiss(context, defender, text);
+        else log(context, text);
       } else {
-        log(context, `${attacker.type === "player" ? "You miss" : `${attacker.name} misses`} ${defender.type === "player" ? "you" : defender.name}.`);
+        const text = `${attacker.type === "player" ? "You miss" : `${attacker.name} misses`} ${defender.type === "player" ? "you" : defender.name}.`;
+        if (playerAttack) announceMiss(context, defender, text);
+        else log(context, text);
       }
       return {
         hit: false,

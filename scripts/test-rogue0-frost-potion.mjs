@@ -46,7 +46,7 @@ const Hero = load('classes/basicHero', {
 }).default;
 
 function makeHero() {
-  return Object.assign(Object.create(Hero.prototype), { context: { messages: [] } });
+  return Object.assign(Object.create(Hero.prototype), { context: { messages: logs } });
 }
 
 function fireElemental(healthPoints = 8) {

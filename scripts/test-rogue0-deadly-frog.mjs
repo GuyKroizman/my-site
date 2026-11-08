@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { pickReinforcementKind } from '../src/games/rogue0/monsterReinforcements.ts';
 import { applyAttackResult } from '../src/games/rogue0/combatApplication.ts';
+import { UNSEEN_DEATH } from '../src/games/rogue0/combatFeedback.ts';
 
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const { Entity, removeEntity } = load('src/games/rogue0/entity.ts', {
@@ -89,6 +90,7 @@ function makeContext() {
   const frog = new DeadlyFrog(context, 3, 3);
   context.entities.push(frog);
   frog.takeDamage(999);
+  context.visibleTiles.add('3,3');
   assert.equal(frog.healthPoints < 0, true);
   assert.equal(gas.length, 0, 'the killing blow defers its cloud to death');
   removeEntity(context, frog);
@@ -107,6 +109,18 @@ function makeContext() {
   context.entities.push(frog);
   removeEntity(context, frog);
   assert.deepEqual(gas, ['4,4']);
+}
+
+// An unseen death burst is heard, but neither the frog's name nor its loot
+// text is revealed.
+{
+  const { context, gas } = makeContext();
+  context.visibleTiles.clear();
+  const frog = new DeadlyFrog(context, 5, 5);
+  context.entities.push(frog);
+  removeEntity(context, frog);
+  assert.deepEqual(gas, ['5,5']);
+  assert.deepEqual(context.messages, [UNSEEN_DEATH]);
 }
 
 // The shared attack pipeline reaches the frog's vent, including a lethal blow

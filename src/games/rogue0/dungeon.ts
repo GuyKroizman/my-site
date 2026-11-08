@@ -8,6 +8,7 @@ import MirrorImage from "./monsters/mirrorImage";
 import { CURSE_PROC_CHANCE } from "./curseData";
 import { sfx } from "./audio";
 import { resolveAttack } from "./combat";
+import { announceHit, isEnemyVisible } from './combatFeedback';
 import { applyAttackResult } from './combatApplication';
 import { spawnEntityFloatingText } from "./floatingText";
 import { describeTile, describeTileLabel } from './tiles';
@@ -303,8 +304,8 @@ const dungeon = {
       if (victim && victim.healthPoints > 0) {
         const damage = Math.max(1, 5 - victim.protection());
         victim.takeDamage(damage);
-        this.log(context, `The arrow hits ${victim.type === "player" ? "you" : victim.name} for ${damage} damage.`);
-        this.applyHitEffects(context, victim);
+        announceHit(context, victim, `The arrow hits ${victim.type === "player" ? "you" : victim.name} for ${damage} damage.`, true);
+        if (isEnemyVisible(context, victim)) this.applyHitEffects(context, victim);
         if (victim.healthPoints <= 0) removeEntity(context, victim);
       }
     };
@@ -892,9 +893,8 @@ const dungeon = {
       if (!context.entities.includes(victim) || victim.healthPoints <= 0) continue;
       const damage = Math.max(0, baseDamage - (victim.resistance.shock ?? 0) + (victim.vulnerability.shock ?? 0));
       if (damage > 0) victim.takeDamage(damage);
-      if (victim.type === "player" || context.visibleTiles.has(`${victim.x},${victim.y}`)) {
-        this.log(context, `Water conducts lightning into ${victim.type === "player" ? "you" : victim.name} for ${damage} shock damage.`);
-      }
+      announceHit(context, victim,
+        `Water conducts lightning into ${victim.type === "player" ? "you" : victim.name} for ${damage} shock damage.`, damage > 0);
       if (victim.healthPoints <= 0) removeEntity(context, victim);
     }
   },
@@ -919,9 +919,8 @@ const dungeon = {
       if (!context.entities.includes(victim) || victim.healthPoints <= 0) continue;
       const damage = Math.max(0, baseDamage - (victim.resistance.shock ?? 0) + (victim.vulnerability.shock ?? 0));
       if (damage > 0) victim.takeDamage(damage);
-      if (victim.type === "player" || context.visibleTiles.has(`${victim.x},${victim.y}`)) {
-        this.log(context, `Lightning arcs into ${victim.type === "player" ? "you" : victim.name} for ${damage} shock damage.`);
-      }
+      announceHit(context, victim,
+        `Lightning arcs into ${victim.type === "player" ? "you" : victim.name} for ${damage} shock damage.`, damage > 0);
       if (victim.healthPoints <= 0) removeEntity(context, victim);
     }
   },
@@ -1115,17 +1114,18 @@ const dungeon = {
       onHit: () => {
         const attackNote = [result.surprise ? "Surprise" : "", result.crit ? "Critical" : ""].filter(Boolean).join(", ");
         const prefix = attackNote ? `${attackNote}! ` : "";
+        const seenVictim = isEnemyVisible(context, victim);
         if (result.damage > 0) {
-          spawnEntityFloatingText(victim, `-${result.damage}`);
-          this.log(context,
-            `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for ${result.damage} ${result.damageType} damage.`);
-          this.applyHitEffects(context, victim, result.surprise);
+          if (seenVictim) spawnEntityFloatingText(victim, `-${result.damage}`);
+          announceHit(context, victim,
+            `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for ${result.damage} ${result.damageType} damage.`, true);
+          if (seenVictim) this.applyHitEffects(context, victim, result.surprise);
         } else {
-          this.log(context,
+          announceHit(context, victim,
             `${prefix}${attacker.type === "player" ? "You hit" : `${attacker.name} hits`} ${victim.type === "player" ? "you" : victim.name} for no damage.`);
           // A hit that lands but deals no damage still needs impact audio, just
-          // a different one from a wound.
-          this.applyHitEffects(context, victim, result.surprise, false);
+          // a different one from a wound. Hidden victims stay silent on screen.
+          if (seenVictim) this.applyHitEffects(context, victim, result.surprise, false);
         }
         // Ordinary weapon attacks retain curse procs; throws/wands do not.
         if (victim.type === "player") this.procArmorCurse(context, victim);

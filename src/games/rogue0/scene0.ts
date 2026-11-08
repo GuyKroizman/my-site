@@ -739,15 +739,15 @@ export class Scene0 extends Phaser.Scene {
     const y = ctx.cursorY;
     if (x === undefined || y === undefined) return;
 
-    // Only highlight tiles currently in view (targeting needs line of sight).
-    if (!this.visible.has(`${x},${y}`)) return;
-
+    // Wands may be aimed past the edge of sight, so keep the cursor visible
+    // even on an unlit tile; dim it to show that it lies outside current FOV.
+    const inSight = this.visible.has(`${x},${y}`);
     const wx = ctx.map.tileToWorldX(x)!;
     const wy = ctx.map.tileToWorldY(y)!;
     const color = ctx.throwMode || ctx.terrainActionMode ? 0xff6a6a : 0xf0b429;
-    this.cursor.lineStyle(2, color, 1);
+    this.cursor.lineStyle(2, color, inSight ? 1 : 0.4);
     this.cursor.strokeRect(wx + 1, wy + 1, 14, 14);
-    this.cursor.fillStyle(color, 0.18);
+    this.cursor.fillStyle(color, inSight ? 0.18 : 0.08);
     this.cursor.fillRect(wx, wy, 16, 16);
   }
 

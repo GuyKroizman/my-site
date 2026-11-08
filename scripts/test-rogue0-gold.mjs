@@ -12,29 +12,30 @@ const Monster = load('src/games/rogue0/monsters/monster.ts', {
   dungeon: { log: (_context, text) => messages.push(text) },
 }).default;
 const player = { gold: 0, gainXp() {}, refreshUI() {}, backpack: [], capacity: 0 };
-const context = { player, entities: [] };
+const context = { player, entities: [], messages, visibleTiles: new Set() };
 player.context = context;
-const monster = Object.assign(Object.create(Monster.prototype), {
-  context, name: 'Rat', gold: 3, xpValue: 5, loot: [], x: 4, y: 5,
+const makeMonster = (overrides = {}) => Object.assign(Object.create(Monster.prototype), {
+  context, name: 'Rat', gold: 3, xpValue: 5, loot: [], x: 4, y: 5, ...overrides,
 });
+let monster = makeMonster();
 monster.onDestroy();
 assert.equal(player.gold, 0);
-assert.equal(messages.at(-1), 'Rat was killed, dropping 3 gold.');
+assert.equal(context.messages.at(0), 'Rat was killed, dropping 3 gold.');
 const pile = context.entities[0];
 assert.ok(pile instanceof Gold);
 assert.equal(pile.x, 4);
 assert.equal(pile.y, 5);
 assert.equal(pile.goldAmount, 3);
 roll = 2;
+monster = makeMonster();
 monster.onDestroy();
 assert.equal(context.entities.length, 1);
 roll = 0;
-monster.loot = [class { name = 'Potion'; }];
+monster = makeMonster({ loot: [class { name = 'Potion'; }] });
 monster.onDestroy();
 assert.equal(context.entities.length, 2);
-assert.equal(messages.at(-1), 'Rat was killed, dropping Potion.');
-monster.loot = [];
-monster.gold = 0;
+assert.equal(context.messages.at(0), 'Rat was killed, dropping Potion.');
+monster = makeMonster({ gold: 0 });
 roll = 1;
 monster.onDestroy();
 assert.equal(context.entities.length, 2);

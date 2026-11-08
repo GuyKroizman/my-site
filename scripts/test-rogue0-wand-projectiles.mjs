@@ -34,13 +34,11 @@ try {
     assert.deepEqual(g.rects, held, 'modal pauses presentation without losing projectile');
     context.visibleTiles.clear();
     updateWandZaps(scene, context, 5000, true);
-    assert.equal(g.rects.length, 0, 'no trails or impacts reveal hidden areas');
+    assert.ok(g.rects.length > 0, 'bolts fired beyond sight remain visible');
+    assert.ok(g.rects.every(r => r.alpha <= 0.35), 'unlit bolt samples are dimmed');
     context.visibleTiles.add('10,1');
     updateWandZaps(scene, context, 5200, false);
     assert.ok(g.rects.length > 0, 'impact flash at destination');
-    for (const r of g.rects) {
-      assert.ok(r.x >= 160 && r.y >= 16 && r.x + r.w <= 176 && r.y + r.h <= 32, 'impact clipped to visible tiles');
-    }
     updateWandZaps(scene, context, 6000, false);
     assert.equal(g.destroyed, true);
     context.visibleTiles = new Set(Array.from({ length: 20 }, (_, x) => `${x},1`));
@@ -53,4 +51,4 @@ try {
   clearWandZaps(scene); clearWandZaps(scene);
   assert.equal(graphics.at(-1).destroyed, true, 'floor/shutdown cleanup is idempotent');
 } finally { Math.random = random; }
-console.log('Rogue0 wand projectiles: elemental trails, travel, impact, FOV clipping, modal pause and lifecycle passed');
+console.log('Rogue0 wand projectiles: elemental trails, travel, impact, beyond-sight dimming, modal pause and lifecycle passed');

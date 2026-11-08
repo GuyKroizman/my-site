@@ -9,6 +9,7 @@ import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import { spawnEntityFloatingText } from "./floatingText";
 import { terrainFor } from './terrain';
+import { announceHit, isEnemyVisible } from './combatFeedback';
 import dungeon from "./dungeon";
 
 export type DamageType =
@@ -45,6 +46,16 @@ function log(entity: Entity, text: string): void {
   if (entity.type === "enemy" && !context.visibleTiles.has(`${entity.x},${entity.y}`)) return;
   context.messages.unshift(text);
   context.messages = context.messages.slice(0, 20);
+}
+
+// Damage ticks are worth a distant sound even when the victim is unseen, while
+// a status application or expiry stays silent off screen.
+function logDamage(entity: Entity, text: string): void {
+  announceHit(entity.context, entity, text, true);
+}
+
+function showFloatingDamage(entity: Entity): boolean {
+  return isEnemyVisible(entity.context, entity);
 }
 
 export function hasEffect(entity: Entity, effectId: string): boolean {
@@ -117,8 +128,8 @@ export function createBurningEffect(duration = 3): StatusEffect {
     tick(entity) {
       const amount = 1;
       entity.takeDamage(amount);
-      spawnEntityFloatingText(entity, `-${amount}`);
-      log(entity, `${entity.type === "player" ? "You burn" : `${entity.name} burns`} for ${amount} fire damage.`);
+      if (showFloatingDamage(entity)) spawnEntityFloatingText(entity, `-${amount}`);
+      logDamage(entity, `${entity.type === "player" ? "You burn" : `${entity.name} burns`} for ${amount} fire damage.`);
     }
   };
 }
@@ -132,8 +143,8 @@ export function createPoisonedEffect(duration = 3): StatusEffect {
     tick(entity) {
       const amount = 1;
       entity.takeDamage(amount);
-      spawnEntityFloatingText(entity, `-${amount}`);
-      log(entity, `${entity.type === "player" ? "You take" : `${entity.name} takes`} ${amount} poison damage.`);
+      if (showFloatingDamage(entity)) spawnEntityFloatingText(entity, `-${amount}`);
+      logDamage(entity, `${entity.type === "player" ? "You take" : `${entity.name} takes`} ${amount} poison damage.`);
     }
   };
 }
@@ -147,8 +158,8 @@ export function createBleedingEffect(duration = 3): StatusEffect {
     tick(entity) {
       const amount = 1;
       entity.takeDamage(amount);
-      spawnEntityFloatingText(entity, `-${amount}`);
-      log(entity, `${entity.type === "player" ? "You bleed" : `${entity.name} bleeds`} for ${amount} physical damage.`);
+      if (showFloatingDamage(entity)) spawnEntityFloatingText(entity, `-${amount}`);
+      logDamage(entity, `${entity.type === "player" ? "You bleed" : `${entity.name} bleeds`} for ${amount} physical damage.`);
     }
   };
 }
@@ -237,8 +248,8 @@ export function createCursedEffect(): StatusEffect {
     tick(entity) {
       const amount = 1;
       entity.takeDamage(amount);
-      spawnEntityFloatingText(entity, `-${amount}`);
-      log(entity, `${entity.type === "player" ? "You are cursed and take" : `${entity.name} is cursed and takes`} ${amount} damage.`);
+      if (showFloatingDamage(entity)) spawnEntityFloatingText(entity, `-${amount}`);
+      logDamage(entity, `${entity.type === "player" ? "You are cursed and take" : `${entity.name} is cursed and takes`} ${amount} damage.`);
     }
   };
 }

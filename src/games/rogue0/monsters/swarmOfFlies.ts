@@ -8,6 +8,7 @@ import dungeon from "../dungeon";
 import { terrainFor } from '../terrain';
 import { swarmTurn } from "../ai";
 import Gold from "../items/gold";
+import { announceDeath } from "../combatFeedback";
 import PotionOfHealing from "../items/PotionOfHealing";
 import { FLY_SWARM_TEXTURE, generateFlySwarmTexture } from "./flySwarmTexture";
 
@@ -67,18 +68,18 @@ export default class SwarmOfFlies extends Monster {
     if (Math.random() < HEALING_POTION_DROP_CHANCE) {
       const potion = new PotionOfHealing(context, x, y);
       context.entities.push(potion);
-      dungeon.log(context, `${this.name} was killed, dropping ${potion.name}.`);
+      announceDeath(context, this, `${this.name} was killed, dropping ${potion.name}.`);
       return;
     }
 
     if (this.gold > 0 && Phaser.Math.Between(1, 4) === 1) {
       const pile = new Gold(context, x, y, this.gold);
       context.entities.push(pile);
-      dungeon.log(context, `${this.name} was killed, dropping ${pile.name}.`);
+      announceDeath(context, this, `${this.name} was killed, dropping ${pile.name}.`);
       return;
     }
 
-    dungeon.log(context, `${this.name} was killed.`);
+    announceDeath(context, this, `${this.name} was killed.`);
   }
 
   private split(): void {

@@ -54,6 +54,7 @@ const genericPotion = Object.assign(new Entity(), { equipSlot: 'consumable', ide
 assert.equal(genericPotion.unidentifiedTextureKey, 'unknown-potion', 'missing art keeps a fallback icon');
 const level = Array.from({length: 30}, () => Array(30).fill(0));
 let clearSight = true;
+let clearPath = true;
 let intercepted;
 const zaps = [];
 const dungeon = { log() {}, getCurrentLevel: () => level,
@@ -73,6 +74,7 @@ for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
 }
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, Wand, Gem: class {}, dungeon, hasLineOfSight: () => clearSight,
+  hasClearProjectilePath: () => clearPath,
   isGrassConcealed: () => false,
   resolveAttack: () => ({ hit: false, damage: 0, appliedEffects: [] }),
   getFeature: () => 'floor',
@@ -123,12 +125,20 @@ hero.activateQuickslot(0);
 hero.throwAt(30, 30); // outside the map still cannot be targeted
 assert.equal(wand.charges, 2);
 assert.equal(wand.range(), Infinity, 'old saved wandRange=5 does not impose a cap');
-clearSight = false;
+clearSight = false; // beyond sight, but the bolt still has a clear path
 hero.activateQuickslot(0);
 hero.throwAt(25, 1);
-assert.equal(wand.charges, 2, 'blocked line of sight consumes no charge');
-assert.equal(hero.turns, 0);
+assert.equal(wand.charges, 1, 'zapping past the edge of sight spends one charge');
+assert.equal(hero.turns, 1);
 clearSight = true;
+// Reset the fixture counters so the remaining path checks start from a full wand.
+wand.charges = 2; hero.turns = 0; hero.moving = false; zaps.length = 0;
+clearPath = false;
+hero.activateQuickslot(0);
+hero.throwAt(25, 1);
+assert.equal(wand.charges, 2, 'a blocked projectile path consumes no charge');
+assert.equal(hero.turns, 0);
+clearPath = true;
 level[1][25] = 1;
 hero.activateQuickslot(0);
 hero.throwAt(25, 1);

@@ -5,7 +5,7 @@ import dungeon from "../dungeon";
 import Gem from "../items/gem";
 import Wand from "../items/wand";
 import { terrainFor } from '../terrain';
-import { hasLineOfSight } from "../fov";
+import { hasLineOfSight, hasClearProjectilePath } from "../fov";
 import { sfx } from "../audio";
 import {
   applyEffect,
@@ -17,6 +17,7 @@ import {
   hasEffect
 } from "../effects";
 import { resolveAttack } from "../combat";
+import { announceHit, isEnemyVisible } from '../combatFeedback';
 import { applyAttackResult } from '../combatApplication';
 import { heroInventory } from '../heroInventory';
 import { splitStackItem, type EquipSlotKey } from '../inventory';
@@ -563,13 +564,21 @@ export default class BasicHero extends Entity implements HeroControlHost {
       ty >= 0 && tx >= 0 && ty < level.length && tx < level[0].length;
     const distance = Math.max(Math.abs(tx - this.x), Math.abs(ty - this.y));
     const isWall = inBounds && level[ty][tx] === 1;
-    const hasLOS = inBounds && hasLineOfSight(level, this.x, this.y, tx, ty, terrainFor(this.context));
+
+    // Wands fire past the edge of sight: darkness, fog and an unlit room never
+    // gate a zap. The bolt only needs a wall/door-free straight path to its
+    // destination, where the first actor intercepts it. Ordinary thrown items
+    // keep requiring line of sight.
+    const terrain = terrainFor(this.context);
+    const blocked = this.zapping
+      ? !inBounds || isWall || !hasClearProjectilePath(level, this.x, this.y, tx, ty, terrain)
+      : !inBounds || isWall || !hasLineOfSight(level, this.x, this.y, tx, ty, terrain);
 
     // Thrown items have no distance cap; only wands keep their own range
     // (which is already unlimited for every wand currently in the game).
     const outOfRange = this.zapping && item instanceof Wand && distance > item.range();
-    if (!inBounds || outOfRange || !hasLOS || isWall) {
-      dungeon.log(context, "You can't throw there.");
+    if (blocked || outOfRange) {
+      dungeon.log(context, this.zapping ? "You can't zap there." : "You can't throw there.");
       this.cancelThrow();
       return;
     }
@@ -615,10 +624,14 @@ export default class BasicHero extends Entity implements HeroControlHost {
               if (result.damageType === "shock" && result.damage > 0 && item.arcsToAdjacent()) {
                 dungeon.conductShockAdjacent(context, enemy, result.damage);
               }
+              announceHit(context, enemy,
+                `${item.displayName}: ${result.surprise ? "surprise, " : ""}${result.crit ? "critical, " : ""}${result.damage} damage.`,
+                result.damage > 0);
             },
-            afterEffects: () => dungeon.applyHitEffects(context, enemy, result.surprise)
+            afterEffects: () => {
+              if (isEnemyVisible(context, enemy)) dungeon.applyHitEffects(context, enemy, result.surprise);
+            }
           });
-          dungeon.log(context, `${item.displayName}: ${result.surprise ? "surprise, " : ""}${result.crit ? "critical, " : ""}${result.hit ? `${result.damage} damage` : "miss"}.`);
         }
         this.moving = false;
       };
@@ -812,10 +825,8 @@ export default class BasicHero extends Entity implements HeroControlHost {
           FROST_POTION_FIRE_DAMAGE - (enemy.resistance.ice ?? 0) + (enemy.vulnerability.ice ?? 0)
         );
         if (damage > 0) enemy.takeDamage(damage);
-        dungeon.log(
-          context,
-          `The frost potion hits ${enemy.name} for ${damage} ice damage.`
-        );
+        announceHit(context, enemy,
+          `The frost potion hits ${enemy.name} for ${damage} ice damage.`, damage > 0);
         if (enemy.healthPoints <= 0) {
           removeEntity(context, enemy);
         } else {

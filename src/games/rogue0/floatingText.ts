@@ -2,6 +2,7 @@
 // Shattered-Pixel-Dungeon style ("-1" on damage, "+N" on healing).
 import Phaser from "phaser";
 import type { Entity } from "./entity";
+import { isEnemyVisible } from './combatFeedback';
 
 export function spawnFloatingText(
   scene: Phaser.Scene,
@@ -40,6 +41,8 @@ export function spawnEntityFloatingText(
   const context = entity.context;
   if (!context?.scene || !context?.map) return;
   if (entity.x === undefined || entity.y === undefined) return;
+  // Never pop exact damage numbers over a monster the hero cannot see.
+  if (!isEnemyVisible(context, entity)) return;
 
   spawnFloatingText(
     context.scene,

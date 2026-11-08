@@ -190,6 +190,7 @@ const openMap = (w = 4, h = 2) => Array.from({ length: h }, () => Array(w).fill(
   ctx.floor = 5;
   ctx.player = { gainXp() {}, artifact: undefined };
   ctx.entities = [];
+  ctx.visibleTiles.add('2,2');
   const faller = new Monster(ctx, config, 2, 2);
   faller.fellIntoChasm = true;
   ctx.entities.push(faller);
@@ -212,6 +213,7 @@ const openMap = (w = 4, h = 2) => Array.from({ length: h }, () => Array(w).fill(
   goldCtx.floor = 5;
   goldCtx.player = { gainXp() {}, artifact: undefined };
   goldCtx.entities = [];
+  goldCtx.visibleTiles.add('2,2');
   const goldFaller = new Monster(goldCtx, { ...config, loot: [] }, 2, 2);
   goldFaller.fellIntoChasm = true;
   goldCtx.entities.push(goldFaller);
@@ -237,6 +239,7 @@ const openMap = (w = 4, h = 2) => Array.from({ length: h }, () => Array(w).fill(
   lastCtx.floor = lastCtx.maxFloor;
   lastCtx.player = { gainXp() {}, artifact: undefined };
   lastCtx.entities = [];
+  lastCtx.visibleTiles.add('2,2');
   const abyss = new Monster(lastCtx, config, 2, 2);
   abyss.fellIntoChasm = true;
   lastCtx.entities.push(abyss);

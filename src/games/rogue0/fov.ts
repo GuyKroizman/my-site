@@ -65,6 +65,44 @@ export function bresenhamLine(
   return points;
 }
 
+export type ProjectileTerrain = Pick<Terrain, 'getDoorState' | 'getTileState'>;
+
+// Physical blocking for a projectile is stricter than sight: a closed door or
+// a disguised secret door stops a bolt even when it does not hide the tile.
+// Tall grass is transparent to projectiles, and chasms do not block the path.
+export function blocksProjectile(
+  map: number[][],
+  x: number,
+  y: number,
+  terrain?: ProjectileTerrain
+): boolean {
+  if (map[y]?.[x] === undefined) return true;
+  if (map[y][x] === 1) return true;
+  const state = terrain?.getTileState?.(x, y);
+  return state?.feature === 'secretDoor' || terrain?.getDoorState?.(x, y) === 'closed';
+}
+
+// A wand bolt travels in a straight line regardless of the current field of
+// view, so darkness and unlit rooms do not gate a zap. Only solid obstructions
+// along the line (walls, closed doors, secret doors) stop it.
+export function hasClearProjectilePath(
+  map: number[][],
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  terrain?: ProjectileTerrain
+): boolean {
+  if (map[y0]?.[x0] === undefined || map[y1]?.[x1] === undefined) return false;
+  const points = bresenhamLine(x0, y0, x1, y1);
+  // The origin is the caster's own tile; the destination is included so a
+  // closed door or wall cannot be targeted and cannot hide a free shot.
+  for (let i = 1; i < points.length; i++) {
+    if (blocksProjectile(map, points[i][0], points[i][1], terrain)) return false;
+  }
+  return true;
+}
+
 export function hasLineOfSight(
   map: number[][],
   x0: number,

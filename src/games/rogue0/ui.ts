@@ -593,7 +593,7 @@ export class UI extends Phaser.Scene {
 
     const hint = this.context.throwMode
         ? this.context.throwItem instanceof Wand
-          ? `Target ${this.context.throwItem.displayName}: tap an enemy to select it, tap it again (or Enter) to fire. Tap the wand again to fire at the highlighted foe. Open the backpack or press Esc to cancel.`
+          ? `Target ${this.context.throwItem.displayName}: tap an enemy to select it, tap it again (or Enter) to fire. Move the cursor past your sight to zap into the dark; walls and closed doors still block the bolt. Tap the wand again to fire at the highlighted foe. Open the backpack or press Esc to cancel.`
           : `Target ${this.context.throwItem?.displayName ?? "item"}: tap any tile in sight, or move cursor + Enter. Esc cancels.`
         : undefined;
     this.log.setText(hint ?? this.context.messages.join("\n"));

@@ -1,6 +1,6 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
-import dungeon from "../dungeon";
+import { announceDeath } from "../combatFeedback";
 import { DEADLY_FROG_TEXTURE, generateDeadlyFrogTexture } from "./deadlyFrogTexture";
 
 // A poison-frog encounter: every wound it survives vents a toxic cloud, and its
@@ -36,7 +36,7 @@ export default class DeadlyFrog extends Monster {
 
   onDestroy(): void {
     this.releaseGas();
-    dungeon.log(this.context, `${this.name} bursts in a cloud of poison gas!`);
+    announceDeath(this.context, this, `${this.name} bursts in a cloud of poison gas!`);
     super.onDestroy();
   }
 

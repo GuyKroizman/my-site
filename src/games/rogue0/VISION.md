@@ -55,7 +55,9 @@ changes, including opening doors and burning away grass while stationary.
 - `createMagicalSightEffect(duration)` gives radius 12 and ignores opacity.
 - `createMindVisionEffect(duration)` marks every living on-map enemy with a
   purple mind marker, regardless of radius or walls. It never reveals terrain,
-  adds exploration memory, or grants ranged targeting through fog.
+  adds exploration memory, or grants optical targeting. Wand bolts are aimed
+  independently of sight: a zap may cross unlit or fogged tiles along a clear
+  path, while walls, closed doors and secret doors still stop it.
 - `createBlindedEffect(duration)` limits optical sight to the hero's own cell,
   overriding magical sight. Mind sensing remains independent of blindness.
 
