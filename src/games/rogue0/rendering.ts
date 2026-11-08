@@ -5,6 +5,46 @@ export function worldDepth(worldY: number, kind: 'item' | 'terrain' | 'actor'): 
   return 1 + 80 * foot / (foot + 32);
 }
 
+/** How a ground item's artwork sits inside its 16px cell. Only the sprite is
+ * affected; the entity keeps its tile anchor for depth, inspection and saves. */
+export type FloorItemView = { scale: number; centred: boolean };
+
+const FILLED_CELL_VIEW: FloorItemView = { scale: 1, centred: false };
+// Potions have always drawn a half-size flask against the cell's top-left
+// corner; keep that presentation exactly as it was.
+const CORNERED_FLASK_VIEW: FloorItemView = { scale: 0.5, centred: false };
+// A loose find is small and sits in the middle of the cell it was found on.
+// Three quarters keeps both stone silhouettes and their inlaid runes legible;
+// halving collapses the blink sparkle into a vertical sliver.
+const CENTRED_FIND_VIEW: FloorItemView = { scale: 0.75, centred: true };
+
+/** Artwork size and position for an item's floor texture. Glyph-stone keys are
+ * GLYPH_STONE_TEXTURES ("glyph-stone-…"), potion appearances are "potion-N". */
+export function floorItemView(textureKey?: string): FloorItemView {
+  if (textureKey?.startsWith('glyph-stone-')) return CENTRED_FIND_VIEW;
+  if (textureKey?.startsWith('potion-')) return CORNERED_FLASK_VIEW;
+  return FILLED_CELL_VIEW;
+}
+
+type FloorSprite = {
+  x: number;
+  y: number;
+  setScale(scale: number): unknown;
+  setPosition(x: number, y: number): unknown;
+};
+
+/** Shrink a freshly placed floor sprite and, when the view asks for it, inset
+ * the art so it sits in the middle of the cell rather than hugging the cell's
+ * top-left corner. Items that fill a tile are left exactly where they are. */
+export function presentFloorItem(sprite: FloorSprite, textureKey?: string): void {
+  const view = floorItemView(textureKey);
+  if (view.scale !== 1) sprite.setScale(view.scale);
+  if (!view.centred) return;
+  // Half of the 16px cell that the shrunken artwork no longer fills.
+  const inset = 8 * (1 - view.scale);
+  sprite.setPosition(sprite.x + inset, sprite.y + inset);
+}
+
 /** Passage direction, not the direction the door panel faces. Out-of-map
  * neighbors count as walls; ambiguous junctions retain the front-facing door. */
 export function doorPassage(level: number[][], x: number, y: number): 'horizontal' | 'vertical' {

@@ -7,6 +7,7 @@ import {
   glyphStonePixels, generateGlyphStoneTextures
 } from '../src/games/rogue0/glyphStoneTextures.ts';
 import { bresenhamLine } from '../src/games/rogue0/fov.ts';
+import { floorItemView, presentFloorItem } from '../src/games/rogue0/rendering.ts';
 import { createTerrain } from '../src/games/rogue0/terrain.ts';
 import { createHeroNavigation } from '../src/games/rogue0/heroNavigation.ts';
 
@@ -135,6 +136,38 @@ assert.notEqual(GLYPH_STONE_PALETTES.blink.ink, GLYPH_STONE_PALETTES.detectCurse
   const before = graphicsCreated;
   generateGlyphStoneTextures(scene);
   assert.equal(graphicsCreated, before, 'existing textures are not regenerated');
+}
+
+// --- Floor artwork is half size and centred in the tile --------------------
+for (const kind of GLYPH_STONE_KINDS) {
+  assert.deepEqual(floorItemView(GLYPH_STONE_TEXTURES[kind]), { scale: 0.75, centred: true },
+    `${kind} is drawn small and centred on its tile`);
+}
+assert.deepEqual(floorItemView('potion-3'), { scale: 0.5, centred: false },
+  'potions keep their existing cornered flask');
+assert.deepEqual(floorItemView(undefined), { scale: 1, centred: false },
+  'ordinary items still fill their whole tile');
+{
+  const tileX = 5 * 16, tileY = 7 * 16;
+  const calls = [];
+  const sprite = {
+    x: tileX, y: tileY,
+    setScale(scale) { calls.push(['scale', scale]); return this; },
+    setPosition(x, y) { calls.push(['position', x, y]); this.x = x; this.y = y; return this; }
+  };
+  presentFloorItem(sprite, GLYPH_STONE_TEXTURES.blink);
+  // Scaled art is 12px wide, so it needs 2px of the unused cell on each side:
+  // the artwork ends up spanning the middle of the tile, not its corner.
+  assert.deepEqual(calls, [['scale', 0.75], ['position', tileX + 2, tileY + 2]],
+    'the stone centres on the tile x/y');
+  assert.equal(sprite.x + 16 * 0.75 / 2, tileX + 8, 'the stone centre matches the tile centre');
+
+  const untouched = {
+    x: tileX, y: tileY,
+    setScale() { throw new Error('full-tile items are not scaled'); },
+    setPosition() { throw new Error('full-tile items are not moved'); }
+  };
+  presentFloorItem(untouched, undefined);
 }
 
 // --- Trample drop odds: independent chance then a rune choice ---
@@ -574,14 +607,16 @@ function trampleScenario() {
   const scene = {
     add: {
       sprite(x, y, key, frame) {
-        created.push({ key, frame });
-        return {
-          x, y, width: 16, height: 16,
+        const sprite = {
+          x, y, key, frame, width: 16, height: 16,
           setOrigin() { return this; },
-          setScale() { return this; },
+          setScale(scale) { this.scale = scale; return this; },
+          setPosition(x, y) { this.x = x; this.y = y; return this; },
           setDepth() { return this; },
           destroy() {},
         };
+        created.push(sprite);
+        return sprite;
       },
     },
     tweens: { add() {} },
@@ -607,6 +642,10 @@ function trampleScenario() {
     'a freshly dropped stone renders its own artwork, not the atlas frame');
   assert.ok(created.every(sprite => sprite.frame === 0),
     'custom stone textures use frame zero');
+  // Scaled art inset by 2px: (2,3) -> (34,50) and (4,5) -> (66,82).
+  assert.deepEqual(created.map(sprite => [sprite.x, sprite.y, sprite.scale]),
+    [[2 * 16 + 2, 3 * 16 + 2, 0.75], [4 * 16 + 2, 5 * 16 + 2, 0.75]],
+    'a fresh stone is drawn small and centred on its tile');
 }
 
 console.log('Rogue0 glyph stones: trample drops, floor waits, own sprite, blink landing, curse scrying and descriptions passed');

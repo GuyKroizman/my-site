@@ -1,5 +1,6 @@
 import type { Entity } from './entity';
 import type { GameContext } from './context';
+import { presentFloorItem } from './rendering.ts';
 
 export function clearFloorSprite(context: GameContext, item: Entity): void {
   if (item.sprite) {
@@ -27,7 +28,7 @@ export function placeFloorItem(item: Entity): void {
     map.tileToWorldX(item.x)!, map.tileToWorldY(item.y)!, item.spriteTextureKey, item.spriteFrame
   ).setOrigin(0);
   if (item.tint) sprite.tint = item.tint;
-  if (item.textureKey?.startsWith('potion-')) sprite.setScale(0.5);
+  presentFloorItem(sprite, item.spriteTextureKey);
   item.sprite = sprite;
   if (item.type === 'item') {
     scene.tweens.add({ targets: sprite, alpha: { from: 0.7, to: 1 },

@@ -311,7 +311,8 @@ function gear(slot = 'weapon', overrides = {}) {
       add: { sprite(x, y, key, frame) {
         const sprite = { x, y, key, frame,
           setOrigin(origin) { this.origin = origin; return this; },
-          setScale(scale) { this.scale = scale; return this; } };
+          setScale(scale) { this.scale = scale; return this; },
+          setPosition(x, y) { this.x = x; this.y = y; return this; } };
         sprites.push(sprite); return sprite;
       } },
       tweens: { add(config) { tweens.push(config); } }
@@ -324,6 +325,30 @@ function gear(slot = 'weapon', overrides = {}) {
     [48, 64, 'potion-3', 0, 0.5, 0x123456]);
   assert.equal(tweens[0].targets, item.sprite);
   assert.equal(tweens[0].repeat, -1);
+}
+
+// Glyph stones drop smaller, in the middle of the tile instead of its corner.
+{
+  const sprites = [];
+  const stone = new Item({ textureKey: 'glyph-stone-blink', spriteTextureKey: 'glyph-stone-blink',
+    spriteFrame: 0 });
+  stone.sprite = { destroy() {} };
+  stone.context = {
+    map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
+    scene: {
+      add: { sprite(x, y, key, frame) {
+        const sprite = { x, y, key, frame,
+          setOrigin(origin) { this.origin = origin; return this; },
+          setScale(scale) { this.scale = scale; return this; },
+          setPosition(x, y) { this.x = x; this.y = y; return this; } };
+        sprites.push(sprite); return sprite;
+      } },
+      tweens: { add() {} }
+    }
+  };
+  placeFloorItem(stone);
+  assert.deepEqual([stone.sprite.x, stone.sprite.y, stone.sprite.scale], [3 * 16 + 2, 4 * 16 + 2, 0.75],
+    'scaled art sits 2px in from the tile corner, which centres it on the tile');
 }
 
 // HUD strings/health clipping are pure and independent of the simulation clock.

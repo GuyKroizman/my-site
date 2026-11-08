@@ -1,6 +1,6 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import Phaser from "phaser";
-import { actorOrigin, worldDepth } from './rendering';
+import { actorOrigin, presentFloorItem, worldDepth } from './rendering';
 import { forgetInspectedEntity } from "./context.ts";
 import type { GameContext } from "./context";
 import { sfx } from "./audio";
@@ -499,16 +499,16 @@ export abstract class Entity {
     // (not on the map)
     if (this.x !== undefined && this.y !== undefined) {
       this.sprite = createSprite(context, this.x, this.y, this.spriteFrame, this.tint, this.spriteTextureKey);
-      if (this.type === "item" && this.textureKey?.startsWith("potion-")) {
-        this.sprite.setScale(0.5);
-      }
+      // Depth follows the cell anchor, before small artwork is inset.
+      this.sprite.setDepth(worldDepth(this.sprite.y, this.type === "item" ? "item" : "actor"));
       // Anchor feet, not the top of the artwork. Tall actors overlap the
       // preceding row without floating above the floor or moving their grid.
       if (this.type !== 'item') {
         const origin = actorOrigin(this.sprite.width ?? 16, this.sprite.height ?? 16);
         this.sprite.setOrigin(origin.x, origin.y);
+      } else {
+        presentFloorItem(this.sprite, this.spriteTextureKey);
       }
-      this.sprite.setDepth(worldDepth(this.sprite.y, this.type === "item" ? "item" : "actor"));
 
       // Floor items pulse gently so they stand out.
       if (this.type === "item" && !this.isContainer && this.sprite) {

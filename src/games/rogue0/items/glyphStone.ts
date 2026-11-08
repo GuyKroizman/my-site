@@ -3,7 +3,9 @@ import type { EntityType } from "../entity";
 
 // Glyph stones are small rune-carved stones found in trampled grass. They are
 // thrown or used once, stack like other consumables, and never leave the
-// backpack through the generic "eat/read" path.
+// backpack through the generic "eat/read" path. Their floor sprite is drawn
+// half size and centred in the tile by rendering.floorItemView, keyed on the
+// "glyph-stone-" texture prefix.
 export default abstract class GlyphStone extends Entity {
   type: EntityType = "item";
   name = "Glyph Stone";
