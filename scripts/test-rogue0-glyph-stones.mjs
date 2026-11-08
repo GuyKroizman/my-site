@@ -140,11 +140,11 @@ assert.notEqual(GLYPH_STONE_PALETTES.blink.ink, GLYPH_STONE_PALETTES.detectCurse
 
 // --- Floor artwork is half size and centred in the tile --------------------
 for (const kind of GLYPH_STONE_KINDS) {
-  assert.deepEqual(floorItemView(GLYPH_STONE_TEXTURES[kind]), { scale: 0.75, centred: true },
-    `${kind} is drawn small and centred on its tile`);
+  assert.deepEqual(floorItemView(GLYPH_STONE_TEXTURES[kind]), { scale: 0.5, centred: true },
+    `${kind} is drawn half size and centred on its tile`);
 }
-assert.deepEqual(floorItemView('potion-3'), { scale: 0.5, centred: false },
-  'potions keep their existing cornered flask');
+assert.deepEqual(floorItemView('potion-3'), { scale: 0.5, centred: true },
+  'potions are half size too, centred on the tile');
 assert.deepEqual(floorItemView(undefined), { scale: 1, centred: false },
   'ordinary items still fill their whole tile');
 {
@@ -156,11 +156,11 @@ assert.deepEqual(floorItemView(undefined), { scale: 1, centred: false },
     setPosition(x, y) { calls.push(['position', x, y]); this.x = x; this.y = y; return this; }
   };
   presentFloorItem(sprite, GLYPH_STONE_TEXTURES.blink);
-  // Scaled art is 12px wide, so it needs 2px of the unused cell on each side:
-  // the artwork ends up spanning the middle of the tile, not its corner.
-  assert.deepEqual(calls, [['scale', 0.75], ['position', tileX + 2, tileY + 2]],
+  // Half-scale art is 8px wide, so it needs 4px of the unused cell on each
+  // side: the artwork ends up spanning the middle of the tile, not its corner.
+  assert.deepEqual(calls, [['scale', 0.5], ['position', tileX + 4, tileY + 4]],
     'the stone centres on the tile x/y');
-  assert.equal(sprite.x + 16 * 0.75 / 2, tileX + 8, 'the stone centre matches the tile centre');
+  assert.equal(sprite.x + 16 * 0.5 / 2, tileX + 8, 'the stone centre matches the tile centre');
 
   const untouched = {
     x: tileX, y: tileY,
@@ -642,10 +642,10 @@ function trampleScenario() {
     'a freshly dropped stone renders its own artwork, not the atlas frame');
   assert.ok(created.every(sprite => sprite.frame === 0),
     'custom stone textures use frame zero');
-  // Scaled art inset by 2px: (2,3) -> (34,50) and (4,5) -> (66,82).
+  // Half-scale art inset by 4px: (2,3) -> (36,52) and (4,5) -> (68,84).
   assert.deepEqual(created.map(sprite => [sprite.x, sprite.y, sprite.scale]),
-    [[2 * 16 + 2, 3 * 16 + 2, 0.75], [4 * 16 + 2, 5 * 16 + 2, 0.75]],
-    'a fresh stone is drawn small and centred on its tile');
+    [[2 * 16 + 4, 3 * 16 + 4, 0.5], [4 * 16 + 4, 5 * 16 + 4, 0.5]],
+    'a fresh stone is drawn half size and centred on its tile');
 }
 
 console.log('Rogue0 glyph stones: trample drops, floor waits, own sprite, blink landing, curse scrying and descriptions passed');

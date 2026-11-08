@@ -10,19 +10,17 @@ export function worldDepth(worldY: number, kind: 'item' | 'terrain' | 'actor'): 
 export type FloorItemView = { scale: number; centred: boolean };
 
 const FILLED_CELL_VIEW: FloorItemView = { scale: 1, centred: false };
-// Potions have always drawn a half-size flask against the cell's top-left
-// corner; keep that presentation exactly as it was.
-const CORNERED_FLASK_VIEW: FloorItemView = { scale: 0.5, centred: false };
-// A loose find is small and sits in the middle of the cell it was found on.
-// Three quarters keeps both stone silhouettes and their inlaid runes legible;
-// halving collapses the blink sparkle into a vertical sliver.
-const CENTRED_FIND_VIEW: FloorItemView = { scale: 0.75, centred: true };
+// Small finds — potions and glyph stones — draw half size in the middle of
+// their cell instead of filling it. Inventory icons are unaffected: they
+// always draw at 100%.
+const CENTRED_HALF_VIEW: FloorItemView = { scale: 0.5, centred: true };
 
 /** Artwork size and position for an item's floor texture. Glyph-stone keys are
  * GLYPH_STONE_TEXTURES ("glyph-stone-…"), potion appearances are "potion-N". */
 export function floorItemView(textureKey?: string): FloorItemView {
-  if (textureKey?.startsWith('glyph-stone-')) return CENTRED_FIND_VIEW;
-  if (textureKey?.startsWith('potion-')) return CORNERED_FLASK_VIEW;
+  if (textureKey?.startsWith('glyph-stone-') || textureKey?.startsWith('potion-')) {
+    return CENTRED_HALF_VIEW;
+  }
   return FILLED_CELL_VIEW;
 }
 

@@ -1108,10 +1108,8 @@ export class Scene0 extends Phaser.Scene {
       context.entities.push(monster);
     }, { floor: context.floor, blocked: (x, y) => gasTiles.has(`${x},${y}`) });
 
-    if (spawned > 0) {
-      dungeon.log(context, spawned === 1
-        ? "Something stirs in the darkness elsewhere on this floor."
-        : "Distant movement echoes through the dungeon — more monsters arrive.");
+    if (spawned === 1) {
+      dungeon.log(context, "Something stirs in the darkness elsewhere on this floor.");
     }
   }
 

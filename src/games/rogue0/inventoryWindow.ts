@@ -369,6 +369,8 @@ export class InventoryWindow {
         (!!this.enchantingGem && !this.enchantingGem.canEnchant(item)) ||
         (this.quickslot !== undefined && !this.context.player!.canQuickslot(item));
       // Identification hides properties, not the artwork already visible on the floor.
+      // Icons always draw at 100%: the half-size, centred floor presentation in
+      // rendering.presentFloorItem applies to the dungeon only.
       const icon = this.scene.add
         .sprite(x + CELL / 2, y + CELL / 2, item.spriteTextureKey, item.spriteFrame)
         .setOrigin(0.5);

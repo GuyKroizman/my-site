@@ -21,7 +21,8 @@ const context = {
   messages: [],
   map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
   scene: {
-    add: { sprite: (x, y) => ({ x, y, scale: 1, setOrigin() {}, setScale(n) { this.scale = n; }, setDepth() {} }) },
+    add: { sprite: (x, y) => ({ x, y, scale: 1, setOrigin() {},
+      setScale(n) { this.scale = n; }, setPosition(x, y) { this.x = x; this.y = y; }, setDepth() {} }) },
     tweens: { add() {} },
   },
 };

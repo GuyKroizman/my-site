@@ -299,7 +299,7 @@ function gear(slot = 'weapon', overrides = {}) {
   assert.equal(restored.backpack[0].count, 4);
 }
 
-// Shared floor presentation keeps potion scale, tint, pulse and coordinates.
+// Shared floor presentation keeps potion scale, tint, pulse and centred tiles.
 {
   let destroyed = 0;
   const sprites = [], tweens = [];
@@ -321,13 +321,14 @@ function gear(slot = 'weapon', overrides = {}) {
   placeFloorItem(item);
   assert.equal(destroyed, 1);
   assert.equal(item.sprite, sprites[0]);
+  // A half-scale flask is inset 4px so it sits in the middle of the tile.
   assert.deepEqual([item.sprite.x, item.sprite.y, item.sprite.key, item.sprite.frame, item.sprite.scale, item.sprite.tint],
-    [48, 64, 'potion-3', 0, 0.5, 0x123456]);
+    [48 + 4, 64 + 4, 'potion-3', 0, 0.5, 0x123456]);
   assert.equal(tweens[0].targets, item.sprite);
   assert.equal(tweens[0].repeat, -1);
 }
 
-// Glyph stones drop smaller, in the middle of the tile instead of its corner.
+// Glyph stones drop half size, in the middle of the tile instead of its corner.
 {
   const sprites = [];
   const stone = new Item({ textureKey: 'glyph-stone-blink', spriteTextureKey: 'glyph-stone-blink',
@@ -347,8 +348,8 @@ function gear(slot = 'weapon', overrides = {}) {
     }
   };
   placeFloorItem(stone);
-  assert.deepEqual([stone.sprite.x, stone.sprite.y, stone.sprite.scale], [3 * 16 + 2, 4 * 16 + 2, 0.75],
-    'scaled art sits 2px in from the tile corner, which centres it on the tile');
+  assert.deepEqual([stone.sprite.x, stone.sprite.y, stone.sprite.scale], [3 * 16 + 4, 4 * 16 + 4, 0.5],
+    'half-scale art sits 4px in from the tile corner, which centres it on the tile');
 }
 
 // HUD strings/health clipping are pure and independent of the simulation clock.
