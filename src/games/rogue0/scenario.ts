@@ -310,6 +310,9 @@ export type ScenarioMonsterPlacement = {
   cls: ScenarioCtor;
   near: boolean;
   awake: boolean;
+  // Optional physical rectangle for authored large creatures. Scene code
+  // falls back to one tile when absent.
+  footprint?: import('./footprint.ts').Footprint;
 };
 
 // One placement per spawned monster, in list order. Unknown kinds are dropped

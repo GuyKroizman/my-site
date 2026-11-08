@@ -26,7 +26,8 @@ import {
   removeEffect
 } from "./effects";
 import type { DamageType, StatusEffect } from "./effects";
-import { actorBodyAtTile, bodyOverlapsAt } from "./actorBodies.ts";
+import { actorBodyAtTile, actorFootprint, bodyOverlapsAt } from "./actorBodies.ts";
+import { footprintBounds, footprintContains, footprintTiles, footprintsOverlap } from "./footprint.ts";
 
 export const Sprites = {
   floor: 0,
@@ -123,6 +124,81 @@ const dungeon = {
     return Math.max(dx, dy) === 1;
   },
 
+  // One physical-occupancy predicate for every actor size. Every cell of the
+  // footprint must be in bounds and walkable terrain; living bodies may not
+  // overlap. `swept` additionally checks the rectangle the actor leaves behind,
+  // which stops a multi-tile body squeezing diagonally through a wall corner.
+  canFootprintOccupy: function (
+    context: GameContext, actor: Entity | undefined, x: number, y: number,
+    options: {
+      ignoreActors?: boolean;
+      throughClosedDoors?: boolean;
+      allowChasm?: boolean;
+      swept?: boolean;
+    } = {}
+  ): boolean {
+    const tiles = terrainFor(context);
+    const level = this.currentLevel;
+    if (!level?.length) return false;
+    const fp = actorFootprint(actor);
+    const flying = !!actor?.isFlying;
+
+    const terrainFree = (tx: number, ty: number): boolean => {
+      if (tx < 0 || ty < 0 || ty >= level.length || tx >= level[0].length) return false;
+      if (level[ty][tx] !== 0) return false;
+      const state = tiles.getTileState(tx, ty);
+      if (tiles.isBlocking(tx, ty)) {
+        const throughDoor = options.throughClosedDoors && state?.feature === 'door' &&
+          state.door === 'closed';
+        const overChasm = (flying || options.allowChasm) && state?.feature === 'chasm';
+        if (!throughDoor && !overChasm) return false;
+      }
+      // `currentLevel` is authoritative: it is rebuilt from the same array as
+      // the tilemap and is what every headless simulation uses. Do not consult
+      // the rendered layer here; scene tiles can lag during floor transitions.
+      return true;
+    };
+
+    const rects: Array<{ x: number; y: number }> = [{ x, y }];
+    if (options.swept && actor?.x !== undefined && actor.y !== undefined) {
+      rects.push({ x: actor.x, y: actor.y });
+    }
+    // Sweep the bounding union of every rectangle, not just the old and new
+    // cells: a diagonal move must not pass through a corner the body would
+    // clip on the way. Cardinal moves produce the same union as before.
+    const bounds = rects.map(rect => footprintBounds(fp, rect.x, rect.y));
+    const x0 = Math.min(...bounds.map(b => b.x0));
+    const y0 = Math.min(...bounds.map(b => b.y0));
+    const x1 = Math.max(...bounds.map(b => b.x1));
+    const y1 = Math.max(...bounds.map(b => b.y1));
+    for (let ty = y0; ty <= y1; ty++) {
+      for (let tx = x0; tx <= x1; tx++) {
+        if (!terrainFree(tx, ty)) return false;
+      }
+    }
+
+    if (!options.ignoreActors) {
+      for (const other of context.entities ?? []) {
+        if (other === actor || other.type === 'item' || (other.healthPoints ?? 0) <= 0 ||
+            other.x === undefined || other.y === undefined) continue;
+        if (footprintsOverlap(fp, x, y, actorFootprint(other), other.x, other.y)) return false;
+      }
+    }
+    return true;
+  },
+
+  // A legal one-tile step for any actor size, including the swept-corner rule.
+  canMoveActor: function (
+    context: GameContext, actor: Entity, x: number, y: number
+  ): boolean {
+    if (actor.x === undefined || actor.y === undefined ||
+        !this.canStepBetween(actor.x, actor.y, x, y, actor) ||
+        !this.isWalkableTile(context, x, y, actor)) return false;
+    const fp = actorFootprint(actor);
+    if (fp.width === 1 && fp.height === 1) return true;
+    return this.canFootprintOccupy(context, actor, x, y, { swept: true });
+  },
+
   // Pathfinding mutates node state (opened/closed), so always search on a
   // fresh grid clone to avoid stale state between calls.
   // `throughDoors` lets players and pursuing enemies plan routes through
@@ -153,37 +229,75 @@ const dungeon = {
       });
     }
     if (!grid.isInside(sx, sy) || !grid.isInside(tx, ty)) return [];
+    const fp = actorFootprint(actor);
+    const multi = fp.width > 1 || fp.height > 1;
+    let base: boolean[][] | undefined;
+    if (multi) {
+      const startWalkable = grid.isWalkableAt(sx, sy);
+      // Snapshot walkability after door/trap/flying adjustments. Clearance must
+      // be measured against terrain only: mutating the grid to encode "can this
+      // anchor hold the body" would make neighbouring anchors inherit false
+      // negatives from cells of the body that are not anchors themselves.
+      base = [];
+      for (let y = 0; y < grid.height; y++) {
+        base[y] = [];
+        for (let x = 0; x < grid.width; x++) base[y][x] = grid.isWalkableAt(x, y);
+      }
+      const fits = (x: number, y: number): boolean => {
+        for (const [cx, cy] of footprintTiles(fp, x, y)) {
+          if (!grid.isInside(cx, cy) || !base![cy][cx]) return false;
+        }
+        return true;
+      };
+      for (let y = 0; y < grid.height; y++) {
+        for (let x = 0; x < grid.width; x++) {
+          if (grid.isWalkableAt(x, y) && !fits(x, y)) grid.setWalkableAt(x, y, false);
+        }
+      }
+      // Keep the start node usable even when the body is anchored imperfectly
+      // (a restored actor or a doorway); its neighbours still need clearance.
+      if (startWalkable) grid.setWalkableAt(sx, sy, true);
+    }
     // Only destination walkability matters, including trap avoidance. Always
     // enumerate all eight neighbors, matching manual movement and monster AI.
     const getNeighbors = grid.getNeighbors.bind(grid);
+    const terrainFreeCell = (x: number, y: number): boolean => {
+      if (!grid.isInside(x, y)) return false;
+      return multi ? !!base![y]?.[x] : grid.isWalkableAt(x, y);
+    };
+    const sweptFits = (sx2: number, sy2: number, tx2: number, ty2: number): boolean => {
+      const a = footprintBounds(fp, sx2, sy2);
+      const b = footprintBounds(fp, tx2, ty2);
+      for (let y = Math.min(a.y0, b.y0); y <= Math.max(a.y1, b.y1); y++) {
+        for (let x = Math.min(a.x0, b.x0); x <= Math.max(a.x1, b.x1); x++) {
+          if (!terrainFreeCell(x, y)) return false;
+        }
+      }
+      return true;
+    };
     grid.getNeighbors = (node) => getNeighbors(node, PF.DiagonalMovement.Always)
-      .filter(next => this.canStepBetween(node.x, node.y, next.x, next.y, actor));
+      .filter(next => this.canStepBetween(node.x, node.y, next.x, next.y, actor) &&
+        (!multi || (node.x === sx && node.y === sy) ||
+          sweptFits(node.x, node.y, next.x, next.y)));
     return this.diagonalFinder!.findPath(sx, sy, tx, ty, grid);
   },
 
   isWalkableTile: function (context: GameContext, x: number, y: number, actor?: Entity): boolean {
-    const tiles = terrainFor(context);
-    const level = this.currentLevel;
-    if (!level || y < 0 || x < 0 || y >= level.length || x >= level[0].length) {
-      return false;
-    }
-
     const mover = actor ?? context.player;
+    const fp = actorFootprint(mover);
+    // Terrain, bounds and living-body overlap for every cell of the footprint.
+    if (!this.canFootprintOccupy(context, mover, x, y)) return false;
+
+    // Items and corpses occupy exactly their own cell, even inside a larger
+    // destination rectangle. A big creature routes around them instead of
+    // standing on top of loot.
     for (const entity of context.entities) {
-      // Items and corpses never claim more than the cell they rest on.
-      if (entity.sprite && entity.x === x && entity.y === y) return false;
-      if (entity !== mover && entity.type !== 'item' && entity.healthPoints > 0 &&
-          bodyOverlapsAt(mover ?? {}, x, y, entity)) return false;
+      if (!entity.sprite || entity === mover ||
+          entity.x === undefined || entity.y === undefined) continue;
+      const fixed = entity.type === 'item' || (entity.healthPoints ?? 0) <= 0;
+      if (fixed && footprintContains(fp, x, y, entity.x, entity.y)) return false;
     }
-
-    if (level[y][x] !== 0) return false;
-    const flying = !!mover && mover.isFlying;
-    if (tiles.isBlocking(x, y) && !(flying && tiles.getFeature(x, y) === "chasm")) {
-      return false;
-    }
-
-    const tileAtDestination = context.map?.getTileAt(x, y);
-    return tileAtDestination?.index !== Sprites.wall;
+    return true;
   },
 
   openDoor: function (x: number, y: number): boolean {
@@ -199,6 +313,21 @@ const dungeon = {
       // Opening an ordinary door is visible on the map.
     }
     return true;
+  },
+
+  // A wide body may cover more than one closed door. Open every door under the
+  // destination rectangle, but only after the caller has confirmed the whole
+  // rectangle is passable (canFootprintOccupy throughClosedDoors).
+  openDoorsUnderFootprint: function (
+    context: GameContext, actor: Entity, x: number, y: number
+  ): boolean {
+    const tiles = terrainFor(context);
+    const fp = actorFootprint(actor);
+    let opened = false;
+    for (const [tx, ty] of footprintTiles(fp, x, y)) {
+      if (tiles.getDoorState(tx, ty) === 'closed' && this.openDoor(tx, ty)) opened = true;
+    }
+    return opened;
   },
 
   // Describes a tile for the Inspect command. Purely informational — it does
@@ -325,11 +454,24 @@ const dungeon = {
     return true;
   },
 
+  // Resolve the actor occupying a cell. Items stay one-cell objects; every
+  // other living actor is found anywhere inside its footprint, so a tap or a
+  // bolt on any body cell reaches the creature rather than the floor beneath.
   entityAtTile: function (context: GameContext, x: number, y: number): Entity | undefined {
+    let item: Entity | undefined;
+    let corpse: Entity | undefined;
     for (const entity of context.entities) {
-      if (entity.sprite && entity.x === x && entity.y === y) return entity;
+      if (!entity.sprite || entity.x === undefined || entity.y === undefined) continue;
+      if (entity.type === "item") {
+        if (!item && entity.x === x && entity.y === y) item = entity;
+        continue;
+      }
+      if (!footprintContains(actorFootprint(entity), entity.x, entity.y, x, y)) continue;
+      // A living creature always beats loot resting on the same cell.
+      if ((entity.healthPoints ?? 0) > 0) return entity;
+      if (!corpse) corpse = entity;
     }
-    return undefined;
+    return item ?? corpse;
   },
 
   itemPicked: function (entity: Entity): void {
@@ -379,10 +521,9 @@ const dungeon = {
     const x = actor.x + dx;
     const y = actor.y + dy;
     actor.spendTime("move");
-    const chasm = tiles.getFeature(x, y) === "chasm";
-    if (this.currentLevel[y]?.[x] !== 0 || (!chasm && tiles.isBlocking(x, y)) ||
-        context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 &&
-          bodyOverlapsAt(actor, x, y, e))) {
+    const fp = actorFootprint(actor);
+    const chasm = [...footprintTiles(fp, x, y)].some(([tx, ty]) => tiles.getFeature(tx, ty) === "chasm");
+    if (!this.canFootprintOccupy(context, actor, x, y, { swept: true, allowChasm: true })) {
       this.log(context, `${actor.type === "player" ? "You stumble" : `${actor.name} stumbles`} in confusion but cannot move.`);
       return true;
     }
@@ -404,10 +545,9 @@ const dungeon = {
     if (!Number.isInteger(dx) || !Number.isInteger(dy) || Math.abs(dx) + Math.abs(dy) !== 1) return false;
     const x = target.x + dx;
     const y = target.y + dy;
-    const chasm = tiles.getFeature(x, y) === "chasm";
-    if (this.currentLevel[y]?.[x] !== 0 || (!chasm && tiles.isBlocking(x, y)) ||
-        context.entities.some(e => e !== target && e.type !== "item" && e.healthPoints > 0 &&
-          bodyOverlapsAt(target, x, y, e))) return false;
+    if (!this.canFootprintOccupy(context, target, x, y, { swept: true, allowChasm: true })) return false;
+    const fp = actorFootprint(target);
+    const chasm = [...footprintTiles(fp, x, y)].some(([tx, ty]) => tiles.getFeature(tx, ty) === "chasm");
     // Wake monsters without granting magical knowledge of the player's position.
     target.hearNoise(target.x, target.y);
     this.log(context, `${target.type === "player" ? "You are" : `${target.name} is`} knocked back!`);
@@ -423,14 +563,15 @@ const dungeon = {
 
   canEnterChasm: function (context: GameContext, actor: Entity, x: number, y: number): boolean {
     const tiles = terrainFor(context);
+    const fp = actorFootprint(actor);
+    const multi = fp.width > 1 || fp.height > 1;
     if (actor.type !== "player" || actor.healthPoints <= 0 || actor.x === undefined || actor.y === undefined ||
         hasEffect(actor, "rooted") || actor.isFlying ||
         Math.max(Math.abs(actor.x - x), Math.abs(actor.y - y)) !== 1 ||
         bossSealsFloor(context) ||
         !this.canStepBetween(actor.x, actor.y, x, y, actor) ||
-        this.currentLevel[y]?.[x] !== 0 || tiles.getFeature(x, y) !== "chasm" ||
-        context.entities.some(e => e !== actor && e.type !== "item" && e.healthPoints > 0 &&
-          bodyOverlapsAt(actor, x, y, e))) return false;
+        tiles.getFeature(x, y) !== "chasm" ||
+        !this.canFootprintOccupy(context, actor, x, y, { allowChasm: true, swept: multi })) return false;
     return true;
   },
 
@@ -472,7 +613,14 @@ const dungeon = {
     }
 
     // Enforce actor occupancy here too, not just in individual AI paths. A
-    // wider body cannot be squeezed onto a cell next to another actor.
+    // wider body cannot be squeezed onto a cell next to another actor, and a
+    // multi-tile body must fit every destination cell without cutting a
+    // diagonal corner. Single-cell actors keep their legacy fast path.
+    if (entity.type !== "item") {
+      const fp = actorFootprint(entity);
+      if ((fp.width > 1 || fp.height > 1) &&
+          !this.canFootprintOccupy(context, entity, x, y, { swept: true })) return;
+    }
     if (entity.type !== "item" && context.entities.some(other =>
       other !== entity && other.type !== "item" && other.healthPoints > 0 &&
       bodyOverlapsAt(entity, x, y, other)
@@ -996,10 +1144,13 @@ const dungeon = {
     if (attacker.x === undefined || attacker.y === undefined) return undefined;
     const points = bresenhamLine(attacker.x, attacker.y, tx, ty);
     for (const [x, y] of points.slice(1)) {
-      const actor = context.entities.find(e =>
-        e !== attacker && (e.type === "enemy" || e.type === "player") &&
-        e.healthPoints > 0 && e.x === x && e.y === y
-      );
+      const actor = context.entities.find(e => {
+        if (e === attacker || (e.type !== "enemy" && e.type !== "player") ||
+            e.healthPoints <= 0 || e.x === undefined || e.y === undefined) return false;
+        // A wide body intercepts the bolt on any of its cells, not only when
+        // the exact line passes through its anchor.
+        return footprintContains(actorFootprint(e), e.x, e.y, x, y);
+      });
       if (actor) return actor;
     }
     return undefined;

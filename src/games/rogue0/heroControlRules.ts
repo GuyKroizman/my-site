@@ -8,21 +8,20 @@ export function isHostile(entity: Entity): boolean {
 }
 
 export function hostileAtTile(context: GameContext, x: number, y: number): Entity | undefined {
-  return (context.entities ?? []).find(entity =>
-    isHostile(entity) && (entity.healthPoints ?? 0) > 0 && !!entity.sprite &&
-    entity.x === x && entity.y === y);
+  return hostileBodyAtTile(context, x, y);
 }
 
-/** A hostile whose wider body covers x,y even though its centre tile does not. */
+/** A hostile whose body covers x,y, even when its anchor cell does not. */
 export function hostileBodyAtTile(context: GameContext, x: number, y: number): Entity | undefined {
   const actor = actorBodyAtTile(context.entities ?? [], x, y);
   return actor && isHostile(actor) && !!actor.sprite ? actor : undefined;
 }
 
-/** Large sprites (the scaled Bone Lord) extend beyond their logical tile. A
+/** Large sprites (the scaled Bone Lord) extend beyond their anchor tile. A
  * click anywhere inside that art should pick the actor, not the empty floor it
- * happens to overlap. Tile hits are checked first by the caller, so ordinary
- * entities keep their exact-cell behaviour. */
+ * happens to overlap. Tile/footprint hits are checked first by the caller, so
+ * ordinary entities keep their exact-cell behaviour. Temporary compatibility
+ * layer until art is guaranteed to fit the footprint (Phase 5). */
 export function entityAtPointer(
   context: GameContext, worldX: number, worldY: number
 ): Entity | undefined {

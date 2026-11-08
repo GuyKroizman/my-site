@@ -1,6 +1,8 @@
 import type { GameContext } from './context';
 import type { HeroControlHost, HeroControlServices, PointerPosition } from './heroControlTypes';
 import { isHostile, hostileAtTile, entityAtPointer } from './heroControlRules.ts';
+import { actorFootprint, bodyDistance } from './actorBodies.ts';
+import { footprintTiles } from './footprint.ts';
 
 // Input dispatch only: targeting/navigation decide what a command means. Event
 // subscriptions are runtime-only, idempotent, and removed on scene shutdown.
@@ -86,8 +88,11 @@ export function createHeroInput(services: HeroControlServices) {
         if (hero.zapping && x !== null && y !== null) {
           const hostile = entity && isHostile(entity) ? entity : hostileAtTile(context, x, y);
           if (hostile && !isGrassConcealed(hostile.x, hostile.y, hero.x, hero.y)) {
-            if (context.cursorX === x && context.cursorY === y) hero.throwAt(x, y);
-            else { context.cursorX = x; context.cursorY = y; }
+            // Aim at the creature's anchor, never at a body-edge tile: otherwise
+            // the bolt resolves against empty floor and wastes the charge.
+            const aimX = hostile.x!, aimY = hostile.y!;
+            if (context.cursorX === aimX && context.cursorY === aimY) hero.throwAt(aimX, aimY);
+            else { context.cursorX = aimX; context.cursorY = aimY; }
             return;
           }
         }
@@ -114,8 +119,15 @@ export function createHeroInput(services: HeroControlServices) {
       if (entity && isHostile(entity)) {
         const weapon = hero.currentWeapon();
         const ranged = weapon && weapon.range() > 0 ? weapon.attackTile || weapon.tile : false;
-        const distance = weapon ? dungeon.distanceBetweenEntities(hero, entity) : 0;
-        const los = hasLineOfSight(dungeon.getCurrentLevel(), hero.x!, hero.y!, entity.x!, entity.y!);
+        // Range and sight are measured to the creature's body, not its anchor:
+        // a wide monster is in reach when any occupied cell is in reach.
+        const distance = weapon ? bodyDistance(hero, entity) + 1 : 0;
+        const level = dungeon.getCurrentLevel();
+        const fp = actorFootprint(entity);
+        let los = false;
+        for (const [tx, ty] of footprintTiles(fp, entity.x!, entity.y!)) {
+          if (hasLineOfSight(level, hero.x!, hero.y!, tx, ty)) { los = true; break; }
+        }
         if (weapon && ranged && los && distance <= weapon.range() && hero.canAct()) {
           dungeon.attackEntity(context, hero, entity, ranged, weapon.tint, weapon.damageType);
           hero.spendTurn('attack');

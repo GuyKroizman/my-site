@@ -367,6 +367,26 @@ for (const stale of ['floor', 'position', 'death', 'readiness', 'modal', 'none']
   assert.deepEqual(f.state.paths.at(-1), [4, 1], 'empty floor taps still walk to the tile');
 }
 
+// A wide creature is selectable and confirmable from any of its body cells.
+// The first tap snaps the cursor to the anchor so the second tap fires there
+// instead of wasting the charge on the empty body-edge tile.
+{
+  const f = fixture();
+  const boss = enemy(f, 5, 1, {
+    healthPoints: 20,
+    footprint: { width: 3, height: 3, originX: 1, originY: 1 }
+  });
+  f.hero.x = 2; f.hero.y = 1; f.hero.zapping = true;
+  f.context.throwMode = true; f.context.throwItem = { name: 'Wand' };
+  f.hero.processTouchInput(f.context, { worldX: 4, worldY: 1 });
+  assert.deepEqual([f.context.cursorX, f.context.cursorY], [5, 1],
+    'a tap on a body cell selects the creature at its anchor');
+  f.hero.processTouchInput(f.context, { worldX: 4, worldY: 1 });
+  assert.deepEqual(f.state.throws.at(-1), [5, 1],
+    'the confirm tap fires at the anchor, not at the body-edge tile');
+  assert.equal(boss.healthPoints, 20);
+}
+
 // Inspect stays free and visibility-limited; a second inspect request searches.
 {
   const f = fixture(); f.hero.actionReady = false;

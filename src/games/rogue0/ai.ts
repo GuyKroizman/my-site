@@ -5,12 +5,45 @@ import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 import type { ActionKind } from "./timing";
 import { hasEffect, fleeStep } from "./effects";
-import { bodyDistance, bodyOverlapsAt } from "./actorBodies.ts";
+import { actorFootprint, bodyAtTile, bodyDistance, bodyOverlapsAt } from "./actorBodies.ts";
+import { footprintTiles } from "./footprint.ts";
 
 // Enemies avoid stepping on traps they can perceive (revealed/armed plates).
 // Hidden traps stay invisible, and confusion overrides avoidance entirely.
 function isVisibleTrap(context: GameContext, x: number, y: number): boolean {
   return terrainFor(context).getTileState(x, y)?.trap === "visible";
+}
+
+// Legacy unit fixtures load ai.ts with a partial dungeon double. New dungeon
+// methods are used when present, and the old occupancy rules remain as the
+// fallback so those fixtures keep testing AI logic rather than infrastructure.
+function canMoveActor(context: GameContext, entity: Entity, x: number, y: number): boolean {
+  const fn = dungeon.canMoveActor;
+  if (typeof fn === "function") return fn.call(dungeon, context, entity, x, y);
+  return dungeon.canStepBetween(entity.x!, entity.y!, x, y, entity) &&
+    dungeon.isWalkableTile(context, x, y, entity);
+}
+
+function canOccupyStep(
+  entity: Entity, x: number, y: number, throughClosedDoors: boolean
+): boolean {
+  const fn = dungeon.canFootprintOccupy;
+  const fp = actorFootprint(entity);
+  const multi = fp.width > 1 || fp.height > 1;
+  if (typeof fn === "function") {
+    return fn.call(dungeon, entity.context, entity, x, y,
+      { swept: multi, throughClosedDoors });
+  }
+  return !entity.context.entities.some(e =>
+    e !== entity && (e.type === "player" || e.type === "enemy") &&
+    e.healthPoints > 0 && bodyOverlapsAt(entity, x, y, e));
+}
+
+function openDoorsUnder(entity: Entity, x: number, y: number): boolean {
+  const fn = dungeon.openDoorsUnderFootprint;
+  if (typeof fn === "function") return fn.call(dungeon, entity.context, entity, x, y);
+  return terrainFor(entity.context).getDoorState(x, y) === "closed" &&
+    dungeon.openDoor(x, y);
 }
 
 export function enemyCanSeePlayer(entity: Entity): boolean {
@@ -27,15 +60,23 @@ export function enemyCanSeePlayer(entity: Entity): boolean {
 
   if (hasEffect(player, "invisible")) return false;
 
-  return canSee(
-    dungeon.getCurrentLevel(),
-    entity.x,
-    entity.y,
-    player.x,
-    player.y,
-    entity.visionRadius,
-    terrainFor(entity.context)
-  );
+  const map = dungeon.getCurrentLevel();
+  const terrain = terrainFor(entity.context);
+  // Fast path: the anchor-to-anchor sight line covers every ordinary 1x1
+  // creature. A multi-tile body only needs the extra scan when that line is
+  // blocked but another part of the body can still see.
+  if (canSee(map, entity.x, entity.y, player.x, player.y, entity.visionRadius, terrain)) {
+    return true;
+  }
+  const own = actorFootprint(entity);
+  const target = actorFootprint(player);
+  for (const [ax, ay] of footprintTiles(own, entity.x, entity.y)) {
+    for (const [bx, by] of footprintTiles(target, player.x, player.y)) {
+      if (ax === entity.x && ay === entity.y && bx === player.x && by === player.y) continue;
+      if (canSee(map, ax, ay, bx, by, entity.visionRadius, terrain)) return true;
+    }
+  }
+  return false;
 }
 
 function isAdjacentTo(entity: Entity, target: Entity): boolean {
@@ -220,8 +261,7 @@ function wanderStep(entity: Entity): boolean {
   if (heading && Math.random() < 0.75) {
     const nx = entity.x + heading.x;
     const ny = entity.y + heading.y;
-    if (dungeon.canStepBetween(entity.x, entity.y, nx, ny) &&
-        dungeon.isWalkableTile(entity.context, nx, ny, entity) &&
+    if (canMoveActor(entity.context, entity, nx, ny) &&
         (entity.isFlying || !isVisibleTrap(entity.context, nx, ny))) step = { x: nx, y: ny };
   }
   step ??= randomAdjacentStep(entity.context, entity);
@@ -241,7 +281,7 @@ function isOpenSwarmTile(entity: Entity, x: number, y: number): boolean {
   if (level[y][x] !== 0) return false;
   if (tiles.isBlocking(x, y) && !(entity.isFlying && tiles.getFeature(x, y) === "chasm")) return false;
   if (entity.context.entities.some(e => e !== entity && e.type !== "item" &&
-      e.healthPoints > 0 && e.x === x && e.y === y)) return false;
+      (e.healthPoints ?? 0) > 0 && bodyAtTile(e, x, y))) return false;
   return true;
 }
 
@@ -391,22 +431,24 @@ export function nextStepToward(
 // before entering its tile. Do not overlap another actor or forget the target
 // just because a corridor is busy.
 function followStep(entity: Entity, step: { x: number; y: number }): ActionKind | null {
-  const tiles = terrainFor(entity.context);
+  const fp = actorFootprint(entity);
   // Never step onto a revealed trap, even when it is the navigation target.
   // Flying actors ignore ground pressure plates entirely.
-  if (!entity.isFlying && isVisibleTrap(entity.context, step.x, step.y)) return null;
-  if (entity.context.entities.some(e =>
-    e !== entity && (e.type === "player" || e.type === "enemy") &&
-    e.healthPoints > 0 && bodyOverlapsAt(entity, step.x, step.y, e)
-  )) return null;
-  let openedDoor = false;
-  if (tiles.getDoorState(step.x, step.y) === "closed") {
-    if (!dungeon.openDoor(step.x, step.y)) return null;
+  if (!entity.isFlying) {
+    for (const [tx, ty] of footprintTiles(fp, step.x, step.y)) {
+      if (isVisibleTrap(entity.context, tx, ty)) return null;
+    }
+  }
+  // Plan with closed doors treated as passable, then open every door under the
+  // destination rectangle. A body that cannot fit stays out without burning a
+  // door it could never cross.
+  if (!canOccupyStep(entity, step.x, step.y, true)) return null;
+  const openedDoor = openDoorsUnder(entity, step.x, step.y);
+  if (openedDoor) {
     // The pursuer opens the door and steps onto its tile in the same action.
     // It has not yet had a chance to react, so the waiting player's next hit
     // can still land as a surprise attack.
     entity.awareOfPlayer = false;
-    openedDoor = true;
   }
   dungeon.moveEntityTo(entity.context, entity, step.x, step.y);
   return openedDoor ? "openDoor" : "move";
@@ -440,8 +482,7 @@ export function randomAdjacentStep(
     const nx = entity.x + dx;
     const ny = entity.y + dy;
     if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-    if (dungeon.canStepBetween(entity.x, entity.y, nx, ny) &&
-        dungeon.isWalkableTile(context, nx, ny, entity) &&
+    if (canMoveActor(context, entity, nx, ny) &&
         (entity.isFlying || !isVisibleTrap(context, nx, ny))) {
       return { x: nx, y: ny };
     }

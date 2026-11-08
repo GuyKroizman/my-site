@@ -8,6 +8,9 @@ import { enemyTurn, enemyCanSeePlayer } from "../ai";
 import { actorOrigin } from "../rendering";
 import Gold from "../items/gold";
 import { stashChasmFallen } from "../chasmDrops";
+import { bodyDistance } from "../actorBodies.ts";
+import { TILE_FOOTPRINT, resolveFootprint } from "../footprint.ts";
+import type { Footprint, FootprintSpec } from "../footprint.ts";
 
 export type MonsterConfig = {
   name: string;
@@ -38,6 +41,10 @@ export type MonsterConfig = {
   // Optional sidearm strength for ranged monsters; defaults to half the
   // primary attack (rounded up, minimum 1).
   meleeDamage?: number;
+  // Physical rectangle, not artwork. Fixed-size creatures can instead override
+  // the `footprint` getter on their class (restore-safe). A configured value is
+  // carried on the instance so saved floors keep it.
+  footprint?: FootprintSpec;
 };
 
 export default class Monster extends Entity {
@@ -59,6 +66,14 @@ export default class Monster extends Entity {
   // Remaining world ticks, not a wall-clock deadline: saved floors pause sleep.
   sleepTurnsRemaining = 0;
   private spriteScale = 1;
+  // Only created when a monster is configured with a non-default footprint.
+  // Declared (not initialized) so ordinary monsters pay nothing and the base
+  // Entity getter remains the default. Own enumerable data is save-compatible.
+  declare private footprintValue?: Footprint;
+
+  get footprint(): Footprint {
+    return this.footprintValue ?? TILE_FOOTPRINT;
+  }
 
   get sleeping(): boolean {
     // Combat marks awareness even on a miss/fully blocked attack.
@@ -74,6 +89,7 @@ export default class Monster extends Entity {
     this.tint = config.tint;
     this.textureKey = config.textureKey;
     this.spriteScale = config.scale ?? 1;
+    if (config.footprint) this.footprintValue = resolveFootprint(config.footprint);
     // Long dormancy keeps most of a floor asleep until the hero intrudes.
     this.sleepTurnsRemaining = config.initiallyAwake ? 0 : Phaser.Math.Between(8, 24);
 
@@ -138,7 +154,7 @@ export default class Monster extends Entity {
     // Nearby movement wakes a sleeper, but not through walls or invisibility.
     if (player?.x !== undefined && player.y !== undefined &&
         this.x !== undefined && this.y !== undefined &&
-        Math.max(Math.abs(this.x - player.x), Math.abs(this.y - player.y)) <= 2 &&
+        bodyDistance(this, player) <= 2 &&
         enemyCanSeePlayer(this)) {
       this.wakeUp();
       return false;

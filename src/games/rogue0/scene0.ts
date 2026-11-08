@@ -82,6 +82,13 @@ import Goblin from "./monsters/goblin";
 import Ghoul from "./monsters/ghoul";
 import Brute from "./monsters/brute";
 import Boss from "./monsters/boss";
+import { TILE_FOOTPRINT, footprintContains } from './footprint';
+import type { Footprint } from './footprint';
+import { actorFootprint } from './actorBodies';
+import {
+  firstFreeFootprintAnchor, footprintIsFree, nearestFreeFootprintAnchor,
+  reserveFootprint, takeFootprintPlacement
+} from './placement';
 import Cultist from "./monsters/cultist";
 import FireElemental, { IceElemental, ShockElemental } from "./monsters/elemental";
 import Mimic from "./monsters/mimic";
@@ -813,18 +820,28 @@ export class Scene0 extends Phaser.Scene {
 
     if (restored) {
       for (const entity of restored.entities) {
-        // A creature may have ended its last turn on the arrival staircase.
-        // Move it to the nearest free floor cell rather than overlap the hero.
-        if (entity.type === 'enemy' && entity.x === spawn.x && entity.y === spawn.y) {
-          const candidates: { x: number; y: number }[] = [];
-          levelArray.forEach((row, y) => row.forEach((cell, x) => {
-            if (cell === 0 && !tiles.isBlocking(x, y) && (x !== spawn.x || y !== spawn.y) &&
-                !restored.entities.some(other => other.type === 'enemy' && other !== entity && other.x === x && other.y === y)) {
-              candidates.push({ x, y });
+        // A saved creature may overlap the arrival point, a reshaped floor or
+        // another restored body (older saves, resized content). Repair the
+        // whole footprint to the nearest valid anchor instead of only checking
+        // the exact spawn cell.
+        if (entity.type !== 'item' && (entity.healthPoints ?? 0) > 0 &&
+            entity.x !== undefined && entity.y !== undefined) {
+          const footprint = actorFootprint(entity);
+          const occupiedByActor = (tx: number, ty: number): boolean =>
+            (this.context.entities ?? []).some(other =>
+              other !== entity && other.type !== 'item' &&
+              (other.healthPoints ?? 0) > 0 &&
+              other.x !== undefined && other.y !== undefined &&
+              footprintContains(actorFootprint(other), other.x, other.y, tx, ty));
+          if (!footprintIsFree(levelArray, footprint, entity.x, entity.y,
+              MAX_VISIBLE_X, tiles, occupiedByActor)) {
+            const spot = nearestFreeFootprintAnchor(levelArray, footprint,
+              entity.x, entity.y, MAX_VISIBLE_X, tiles, occupiedByActor);
+            if (spot) {
+              entity.x = spot.x;
+              entity.y = spot.y;
             }
-          }));
-          candidates.sort((a, b) => Math.hypot(a.x - spawn.x, a.y - spawn.y) - Math.hypot(b.x - spawn.x, b.y - spawn.y));
-          if (candidates[0]) { entity.x = candidates[0].x; entity.y = candidates[0].y; }
+          }
         }
         const pausedTime = (this.context.simulationTime ?? 0) - restored.savedAt;
         for (const effect of entity.effects) {
@@ -842,7 +859,9 @@ export class Scene0 extends Phaser.Scene {
     // random walkable spot here, clear of the stairs and generated content.
     const reserved = new Set<string>();
     for (const entity of this.context.entities) {
-      if (entity.x !== undefined && entity.y !== undefined) reserved.add(`${entity.x},${entity.y}`);
+      if (entity.x !== undefined && entity.y !== undefined) {
+        reserveFootprint(reserved, actorFootprint(entity), entity.x, entity.y);
+      }
     }
     for (const spot of [[this.context.stairsX, this.context.stairsY],
       [this.context.upstairsX, this.context.upstairsY]]) {
@@ -1662,7 +1681,7 @@ export class Scene0 extends Phaser.Scene {
     // "near hero" is a ring search around the spawn, not a filter over random
     // tiles: a random sample of a whole floor almost never lands within six.
     // The inner radius keeps a monster from starting on top of the hero.
-    const nearCell = (): { x: number; y: number } | undefined => {
+    const nearCell = (footprint: Footprint): { x: number; y: number } | undefined => {
       for (let radius = 2; radius <= 6; radius++) {
         const ring: Array<{ x: number; y: number }> = [];
         for (let dy = -radius; dy <= radius; dy++) {
@@ -1670,8 +1689,8 @@ export class Scene0 extends Phaser.Scene {
             if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
             const x = spawn.x + dx;
             const y = spawn.y + dy;
-            if (levelArray[y]?.[x] !== 0 || terrain.isBlocking(x, y)) continue;
-            if (used.has(`${x},${y}`)) continue;
+            if (!footprintIsFree(levelArray, footprint, x, y, MAX_VISIBLE_X, terrain,
+                (tx, ty) => used.has(`${tx},${ty}`))) continue;
             ring.push({ x, y });
           }
         }
@@ -1682,13 +1701,15 @@ export class Scene0 extends Phaser.Scene {
 
     let placed = 0;
     for (const placement of placements) {
-      let cell = placement.near ? nearCell() : undefined;
+      const footprint = placement.footprint ?? TILE_FOOTPRINT;
+      let cell = placement.near ? nearCell(footprint) : undefined;
       while (!cell && free.length) {
         const candidate = free.shift()!;
-        if (!used.has(`${candidate.x},${candidate.y}`)) cell = candidate;
+        if (footprintIsFree(levelArray, footprint, candidate.x, candidate.y,
+            MAX_VISIBLE_X, terrain, (tx, ty) => used.has(`${tx},${ty}`))) cell = candidate;
       }
       if (!cell) break;
-      used.add(`${cell.x},${cell.y}`);
+      reserveFootprint(used, footprint, cell.x, cell.y);
       const monster = new placement.cls(this.context, cell.x, cell.y) as Monster;
       if (placement.awake) {
         // Skip the 8–24 tick dormancy and let it hunt from the first frame.
@@ -1758,14 +1779,14 @@ export class Scene0 extends Phaser.Scene {
     // The guardian's own tile is reserved before anything else rolls: it waits
     // in the middle of the arena, and nothing else may stand there.
     const bossHome = bossFloor ? this.bossArena : undefined;
+    // Legacy fixtures can load scene0 with a placeholder Boss class; fall back
+    // to one tile when it carries no static footprint.
+    const bossFootprint: Footprint = Boss.footprint ?? TILE_FOOTPRINT;
     if (bossHome) {
-      // Reserve the guardian's full 3x3 body so chests and the ration cannot
-      // spawn inside the space the hero is not allowed to enter either.
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          exclude.add(`${bossHome.x + dx},${bossHome.y + dy}`);
-        }
-      }
+      // Reserve the guardian's full footprint so chests and the ration cannot
+      // spawn inside the space the hero is not allowed to enter either. The
+      // same helper reserves any future large creature's rectangle.
+      reserveFootprint(exclude, bossFootprint, bossHome.x, bossHome.y);
     }
 
     const terrain = terrainFor(this.context);
@@ -1783,44 +1804,46 @@ export class Scene0 extends Phaser.Scene {
     const usedCells = new Set<string>();
     for (const entity of context.entities) {
       if (entity.x !== undefined && entity.y !== undefined) {
-        usedCells.add(`${entity.x},${entity.y}`);
+        reserveFootprint(usedCells, actorFootprint(entity), entity.x, entity.y);
       }
     }
+    const blockedCell = (tx: number, ty: number): boolean =>
+      usedCells.has(`${tx},${ty}`) || exclude.has(`${tx},${ty}`);
 
-    let i = 0;
+    const cursor = { index: 0 };
     // Only the shuffle of `tiles` is random; the quota is not. If a map cannot
     // fit the full roster, fall back to a deterministic row-major scan so
     // progression items (especially Scrolls of Upgrade) are never dropped.
-    const takeCell = (): { x: number; y: number } | undefined => {
-      while (i < tiles.length) {
-        const cell = tiles[i++];
-        const key = `${cell.x},${cell.y}`;
-        if (usedCells.has(key)) continue;
-        usedCells.add(key);
+    // Every anchor is validated for its whole footprint, then all of its cells
+    // are reserved so two large bodies can never overlap.
+    const takeCell = (footprint: Footprint = TILE_FOOTPRINT): { x: number; y: number } | undefined => {
+      const cell = takeFootprintPlacement(tiles, cursor, footprint, levelArray,
+        MAX_VISIBLE_X, terrain, blockedCell);
+      if (cell) {
+        reserveFootprint(usedCells, footprint, cell.x, cell.y);
         return cell;
       }
-      for (let y = 0; y < levelArray.length; y++) {
-        for (let x = 0; x < Math.min(levelArray[y].length, MAX_VISIBLE_X); x++) {
-          if (levelArray[y][x] !== 0) continue;
-          const key = `${x},${y}`;
-          if (exclude.has(key) || usedCells.has(key) || terrain.isBlocking(x, y)) continue;
-          usedCells.add(key);
-          return { x, y };
-        }
+      const fallback = firstFreeFootprintAnchor(levelArray, footprint, MAX_VISIBLE_X,
+        terrain, blockedCell);
+      if (fallback) {
+        reserveFootprint(usedCells, footprint, fallback.x, fallback.y);
+        return fallback;
       }
       return undefined;
     };
 
-    const spawnGroup = (Cls: any, count: number) => {
+    const spawnGroup = (Cls: any, count: number, footprint: Footprint = TILE_FOOTPRINT) => {
       for (let n = 0; n < count; n++) {
-        const cell = takeCell();
+        const cell = takeCell(footprint);
         if (!cell) return;
         context.entities.push(new Cls(context, cell.x, cell.y));
       }
     };
 
-    const spawnOne = (make: (x: number, y: number) => Entity) => {
-      const cell = takeCell();
+    const spawnOne = (
+      make: (x: number, y: number) => Entity, footprint: Footprint = TILE_FOOTPRINT
+    ) => {
+      const cell = takeCell(footprint);
       if (cell) context.entities.push(make(cell.x, cell.y));
     };
 
@@ -1844,11 +1867,11 @@ export class Scene0 extends Phaser.Scene {
     // floor tile, and the Boss class keeps it asleep until it is disturbed.
     if (bossFloor) {
       const centerFree = bossHome !== undefined &&
-        levelArray[bossHome.y]?.[bossHome.x] === 0 &&
-        !terrain.isBlocking(bossHome.x, bossHome.y);
-      const cell = centerFree ? bossHome : takeCell();
+        footprintIsFree(levelArray, bossFootprint, bossHome.x, bossHome.y,
+          MAX_VISIBLE_X, terrain, (tx, ty) => usedCells.has(`${tx},${ty}`));
+      const cell = centerFree ? bossHome : takeCell(bossFootprint);
       if (cell) {
-        usedCells.add(`${cell.x},${cell.y}`);
+        reserveFootprint(usedCells, bossFootprint, cell.x, cell.y);
         context.entities.push(new Boss(context, cell.x, cell.y));
       }
     }

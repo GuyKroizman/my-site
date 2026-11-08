@@ -10,6 +10,9 @@
 
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
+import { TILE_FOOTPRINT, footprintTiles } from "./footprint.ts";
+import type { Footprint } from "./footprint.ts";
+import { reserveFootprint } from "./placement.ts";
 
 export type ReinforcementTile = { x: number; y: number };
 
@@ -85,6 +88,9 @@ export type ReinforcementSelection = {
   hidden?: (x: number, y: number) => boolean;
   minDistance?: number;
   random?: () => number;
+  // Physical rectangle every selected spawn occupies. Every cell must be
+  // present in the candidate list, unblocked and unseen; waves never overlap.
+  footprint?: Footprint;
 };
 
 function shuffled<T>(items: T[], random: () => number): T[] {
@@ -113,6 +119,12 @@ export function selectReinforcementTiles(
   const hidden = options.hidden ?? (() => false);
   const minDistance = options.minDistance ?? REINFORCEMENT_MIN_DISTANCE;
   const random = options.random ?? Math.random;
+  const footprint = options.footprint ?? TILE_FOOTPRINT;
+
+  // A footprint can only stand where every cell is a candidate.
+  const available = new Set(candidates.map(tile => `${tile.x},${tile.y}`));
+  const cellsFor = (tile: ReinforcementTile): Array<[number, number]> =>
+    [...footprintTiles(footprint, tile.x, tile.y)];
 
   const hiddenDistant: ReinforcementTile[] = [];
   const hiddenNear: ReinforcementTile[] = [];
@@ -123,27 +135,36 @@ export function selectReinforcementTiles(
     const key = `${tile.x},${tile.y}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (blocked(tile.x, tile.y)) continue;
-    const distant = player.x === undefined || player.y === undefined
-      ? true
-      : Math.hypot(tile.x - player.x, tile.y - player.y) >= minDistance;
-    const unseen = hidden(tile.x, tile.y);
+    const cells = cellsFor(tile);
+    if (!cells.every(([x, y]) => available.has(`${x},${y}`))) continue;
+    if (cells.some(([x, y]) => blocked(x, y))) continue;
+    // Hide the whole body: a wave must not appear partially inside the view.
+    const unseen = cells.every(([x, y]) => hidden(x, y));
+    const distance = player.x === undefined || player.y === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.min(...cells.map(([x, y]) => Math.hypot(x - player.x!, y - player.y!)));
+    const distant = distance >= minDistance;
     if (unseen) (distant ? hiddenDistant : hiddenNear).push(tile);
     else (distant ? visibleDistant : visibleNear).push(tile);
   }
 
   const chosen: ReinforcementTile[] = [];
-  for (const bucket of [hiddenDistant, hiddenNear]) {
-    if (chosen.length >= wanted) break;
-    chosen.push(...shuffled(bucket, random).slice(0, wanted - chosen.length));
-  }
+  const chosenCells = new Set<string>();
+  const fitsWave = (tile: ReinforcementTile): boolean =>
+    cellsFor(tile).every(([x, y]) => !chosenCells.has(`${x},${y}`));
+  const take = (bucket: ReinforcementTile[]): void => {
+    for (const tile of shuffled(bucket, random)) {
+      if (chosen.length >= wanted) return;
+      if (!fitsWave(tile)) continue;
+      chosen.push(tile);
+      for (const [x, y] of cellsFor(tile)) chosenCells.add(`${x},${y}`);
+    }
+  };
+  for (const bucket of [hiddenDistant, hiddenNear]) take(bucket);
   // Never spill into view while unseen tiles remain. Only a map with no unseen
   // walkable tile at all may use the visible fallback.
   if (chosen.length === 0) {
-    for (const bucket of [visibleDistant, visibleNear]) {
-      if (chosen.length >= wanted) break;
-      chosen.push(...shuffled(bucket, random).slice(0, wanted - chosen.length));
-    }
+    for (const bucket of [visibleDistant, visibleNear]) take(bucket);
   }
   return chosen;
 }
@@ -151,6 +172,9 @@ export function selectReinforcementTiles(
 export type ReinforcementFloorOptions = ReinforcementSelection & {
   floor?: number;
   count?: number;
+  // Per-kind footprint for mixed-size waves. When present, kinds are chosen
+  // first and one rectangle is reserved per spawn so bodies never overlap.
+  footprintsFor?: (kind: ReinforcementKind) => Footprint;
 };
 
 // Returns the number of monsters spawned. The caller's spawn callback is
@@ -171,15 +195,44 @@ export function reinforceFloor(
   const occupied = new Set<string>();
   for (const entity of context.entities) {
     if (entity.x !== undefined && entity.y !== undefined && entity.healthPoints > 0) {
-      occupied.add(`${entity.x},${entity.y}`);
+      reserveFootprint(occupied, entity.footprint ?? TILE_FOOTPRINT, entity.x, entity.y);
     }
   }
 
+  const blocked = (x: number, y: number): boolean =>
+    occupied.has(`${x},${y}`) || !!options.blocked?.(x, y);
+
+  if (options.footprintsFor) {
+    // Mixed-size wave: choose the roster first, then find a rectangle for each
+    // kind and reserve it before selecting the next one.
+    let spawned = 0;
+    const reserved = new Set(occupied);
+    for (let n = 0; n < count; n++) {
+      const kind = pickReinforcementKind(floor, random);
+      const footprint = options.footprintsFor(kind) ?? TILE_FOOTPRINT;
+      const [tile] = selectReinforcementTiles(candidates, context.player ?? {}, 1, {
+        blocked: (x, y) => reserved.has(`${x},${y}`) || !!options.blocked?.(x, y),
+        hidden: (x, y) => options.hidden
+          ? options.hidden(x, y) : !context.visibleTiles.has(`${x},${y}`),
+        minDistance: options.minDistance,
+        random,
+        footprint
+      });
+      if (!tile) break;
+      reserveFootprint(reserved, footprint, tile.x, tile.y);
+      spawn(kind, tile.x, tile.y);
+      spawned += 1;
+    }
+    return spawned;
+  }
+
   const tiles = selectReinforcementTiles(candidates, context.player ?? {}, count, {
-    blocked: (x, y) => occupied.has(`${x},${y}`) || !!options.blocked?.(x, y),
-    hidden: (x, y) => !context.visibleTiles.has(`${x},${y}`),
+    blocked,
+    hidden: (x, y) => options.hidden
+      ? options.hidden(x, y) : !context.visibleTiles.has(`${x},${y}`),
     minDistance: options.minDistance,
-    random
+    random,
+    footprint: options.footprint
   });
 
   for (const tile of tiles) {

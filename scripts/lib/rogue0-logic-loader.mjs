@@ -11,6 +11,8 @@ import { createHeroInput } from '../../src/games/rogue0/heroInput.ts';
 import { hostileAtTile, isHostile } from '../../src/games/rogue0/heroControlRules.ts';
 import { createTerrain } from '../../src/games/rogue0/terrain.ts';
 import * as actorBodies from '../../src/games/rogue0/actorBodies.ts';
+import * as footprint from '../../src/games/rogue0/footprint.ts';
+import * as placement from '../../src/games/rogue0/placement.ts';
 import { stashChasmFallen } from '../../src/games/rogue0/chasmDrops.ts';
 import * as combatFeedback from '../../src/games/rogue0/combatFeedback.ts';
 import * as tilePresentation from '../../src/games/rogue0/tiles.ts';
@@ -58,7 +60,7 @@ export function loadLogic(path, bindings = {}) {
   // no-op keeps their isolated source evaluator loadable.
   const tryFuseWands = (...args) => bindings.tryFuseWands?.(...args);
   const dependencies = { applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
-    terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation, ...actorBodies, ...combatFeedback,
+    terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation, ...actorBodies, ...footprint, ...placement, ...combatFeedback,
     forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, tryFuseWands, heroStatsText, heroHudView, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));

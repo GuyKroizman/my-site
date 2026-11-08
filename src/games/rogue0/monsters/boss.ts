@@ -5,6 +5,15 @@ import HolyPotion from "../items/holyPotion";
 import FullHealPotion from "../items/fullHealPotion";
 import { createCrippledEffect, createWeakenedEffect } from "../effects";
 import { BOSS_TEXTURE, generateBossTexture } from "./bossTexture";
+import { resolveFootprint } from "../footprint.ts";
+import type { Footprint } from "../footprint.ts";
+
+// The 1.5x blob art spans more than one cell. A 3x3 centre-anchored footprint
+// is the physical creature: movement, hits, projectiles and inspection all use
+// these nine cells. The class-level constant is restore-safe (prototype getter).
+export const BOSS_FOOTPRINT: Footprint = resolveFootprint({
+  width: 3, height: 3, anchor: 'center'
+});
 
 // The arena guardian waits at the middle of its hall with a long dormancy: the
 // hero can cross the room, but the blob wakes on its own if ignored, on any
@@ -12,6 +21,10 @@ import { BOSS_TEXTURE, generateBossTexture } from "./bossTexture";
 export const BOSS_ARENA_DORMANCY = 200;
 
 export default class Boss extends Monster {
+  // Available before construction so floor generation can reserve the arena
+  // rectangle without instantiating the guardian.
+  static readonly footprint: Footprint = BOSS_FOOTPRINT;
+
   constructor(context: GameContext, x?: number, y?: number) {
     if (context.scene) generateBossTexture(context.scene);
     super(context, {
@@ -42,9 +55,8 @@ export default class Boss extends Monster {
     return [createWeakenedEffect(3), createCrippledEffect(3)];
   }
 
-  // The 1.5x blob art spans more than one cell. Give it a matching 3x3 body so
-  // the hero is stopped outside the artwork instead of walking underneath it.
-  get bodyRadius(): number {
-    return 1;
+  // Centre-anchored, so the saved guardian position keeps the old meaning.
+  get footprint(): Footprint {
+    return BOSS_FOOTPRINT;
   }
 }

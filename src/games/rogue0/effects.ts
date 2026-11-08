@@ -11,6 +11,8 @@ import { spawnEntityFloatingText } from "./floatingText";
 import { terrainFor } from './terrain';
 import { announceHit, isEnemyVisible } from './combatFeedback';
 import dungeon from "./dungeon";
+import { actorFootprint } from "./actorBodies.ts";
+import { footprintContains } from "./footprint.ts";
 
 export type DamageType =
   | "physical"
@@ -437,10 +439,14 @@ export function fleeStep(entity: Entity, context: GameContext): boolean {
     if (dx && dy && (map[ey][nx] !== 0 || map[ny][ex] !== 0 ||
         isBlocking(nx, ey) || isBlocking(ex, ny))) continue;
 
-    const occupied = context.entities.some(
-      (o) => o !== entity && o.sprite && o.x === nx && o.y === ny
-    );
+    const fp = actorFootprint(entity);
+    const multi = fp.width > 1 || fp.height > 1;
+    const occupied = multi
+      ? context.entities.some(o => o !== entity && !!o.sprite &&
+          o.x !== undefined && o.y !== undefined && footprintContains(fp, nx, ny, o.x, o.y))
+      : context.entities.some(o => o !== entity && !!o.sprite && o.x === nx && o.y === ny);
     if (occupied) continue;
+    if (multi && !dungeon.canFootprintOccupy(context, entity, nx, ny, { swept: true })) continue;
 
     entity.x = nx;
     entity.y = ny;

@@ -28,6 +28,8 @@ import { heroStatsText } from '../heroViewModel';
 
 import { heroControlsFor } from '../heroControls';
 import { hostileAtTile, isHostile } from '../heroControlRules';
+import { actorFootprint } from '../actorBodies.ts';
+import { footprintContains } from '../footprint.ts';
 import type { HeroControlHost, PointerPosition } from '../heroControlTypes';
 import { spawnEntityFloatingText } from "../floatingText";
 import type { ActionKind } from "../timing";
@@ -242,9 +244,10 @@ export default class BasicHero extends Entity implements HeroControlHost {
     if (item instanceof Wand && this.zapping && this.context.throwMode &&
         this.context.throwItem === item) {
       const { cursorX, cursorY } = this.context;
-      if (cursorX !== undefined && cursorY !== undefined &&
-          hostileAtTile(this.context, cursorX, cursorY)) {
-        this.throwAt(cursorX, cursorY);
+      const target = cursorX !== undefined && cursorY !== undefined
+        ? hostileAtTile(this.context, cursorX, cursorY) : undefined;
+      if (target) {
+        this.throwAt(target.x!, target.y!);
       } else {
         this.cancelThrow();
       }
@@ -731,9 +734,12 @@ export default class BasicHero extends Entity implements HeroControlHost {
       return;
     }
     // Loot can share an actor's tile; entity array order must not hide the
-    // living target from the impact handler.
+    // living target from the impact handler. Any cell inside a wide body is a
+    // hit, not only the anchor cell.
     const target = context.entities.find(entity =>
-      isHostile(entity) && entity.healthPoints > 0 && entity.x === tx && entity.y === ty
+      isHostile(entity) && entity.healthPoints > 0 &&
+      entity.x !== undefined && entity.y !== undefined &&
+      footprintContains(actorFootprint(entity), entity.x, entity.y, tx, ty)
     );
 
     if (target) {

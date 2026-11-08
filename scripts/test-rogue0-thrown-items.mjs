@@ -76,6 +76,25 @@ function thrownWeapon(overrides = {}) {
     'one clear landing message replaces combat log lines');
 }
 
+// A wide creature is hit from any of its body cells, not only its anchor.
+{
+  logs.length = 0; traps.length = 0; removed.length = 0;
+  const mimic = Object.assign(monster(), {
+    footprint: { width: 3, height: 3, originX: 1, originY: 1 }
+  });
+  const { context, hero } = setup(mimic);
+  const axe = thrownWeapon();
+  hero.resolveThrowLanding(axe, 2, 2);
+  assert.deepEqual(mimic.attackedBy, [hero],
+    'a thrown object landing on a body cell reaches the creature');
+  assert.deepEqual(logs,
+    ['You throw Axe at Mimic \u2014 it clatters to the ground.'],
+    'a body-edge landing uses the same impact message');
+  assert.equal(axe.x, 2);
+  assert.equal(axe.y, 2);
+  assert.equal(context.entities.includes(axe), true);
+}
+
 // Any other monster behaves the same way, including a stack of thrown objects.
 {
   const enemy = monster();

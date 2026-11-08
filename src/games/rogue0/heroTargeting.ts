@@ -3,6 +3,8 @@ import { applyInspectChoice } from './context.ts';
 import type { InspectChoice } from './context.ts';
 import type { HeroControlHost, HeroControlServices } from './heroControlTypes';
 import { cursorDirection, isHostile } from './heroControlRules.ts';
+import { actorFootprint } from './actorBodies.ts';
+import { footprintContains, footprintTiles } from './footprint.ts';
 
 // Inspect/aim mode transitions are free. Projectile resolution remains on the
 // hero; this module selects a target without consuming charges or action time.
@@ -83,20 +85,40 @@ export function createHeroTargeting(services: HeroControlServices) {
       context.inspectChoices = undefined;
       context.inspectedEntity = undefined;
       context.inspectedTerrain = undefined;
-      if (!context.visibleTiles.has(`${x},${y}`)) return;
-      const entities = context.entities.filter(entity =>
-        entity.sprite && entity.x === x && entity.y === y && entity.type !== 'player' &&
-        !isGrassConcealed(entity.x, entity.y, hero.x, hero.y));
+      const tileVisible = context.visibleTiles.has(`${x},${y}`);
+      const entities = (context.entities ?? []).filter(entity => {
+        if (!entity.sprite || entity.type === 'player' ||
+            entity.x === undefined || entity.y === undefined) return false;
+        // Items are single-cell objects; every other actor is found anywhere
+        // inside its physical footprint, so inspecting a wide creature's limb
+        // describes the creature rather than the floor beneath it.
+        const covers = entity.type === 'item'
+          ? entity.x === x && entity.y === y
+          : footprintContains(actorFootprint(entity), entity.x, entity.y, x, y);
+        if (!covers) return false;
+        if (isGrassConcealed(entity.x, entity.y, hero.x, hero.y)) return false;
+        if (tileVisible) return true;
+        // A large body stays inspectable from any of its visible cells, even
+        // when the tapped cell itself is still dark.
+        for (const [tx, ty] of footprintTiles(actorFootprint(entity), entity.x, entity.y)) {
+          if (context.visibleTiles.has(`${tx},${ty}`)) return true;
+        }
+        return false;
+      });
+      // Never reveal terrain the hero cannot see, even when a wide body is
+      // visible through a different cell.
+      const info = tileVisible ? dungeon.inspectTileInfo?.(x, y) : undefined;
       // Terrain is its own entry whenever it says more than plain floor, so an
       // item on a trap never hides the trap (and vice versa).
-      const info = dungeon.inspectTileInfo?.(x, y);
       const choices: InspectChoice[] = entities.map(entity => ({ kind: 'entity', entity }));
       if (info?.label) {
         choices.push({ kind: 'terrain', label: info.label, description: info.description });
       }
       if (choices.length > 1) context.inspectChoices = choices;
       else if (choices.length === 1) applyInspectChoice(context, choices[0]);
-      else context.inspectedTerrain = info?.description ?? dungeon.inspectTile(x, y);
+      else if (tileVisible) {
+        context.inspectedTerrain = info?.description ?? dungeon.inspectTile(x, y);
+      }
     },
 
     closestZapTarget(hero: HeroControlHost): Entity | undefined {

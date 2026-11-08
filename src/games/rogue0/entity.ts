@@ -9,6 +9,8 @@ import { tickEffects as tickStatusEffects } from "./effects";
 import { actionCost, type ActionKind } from "./timing";
 import { CURSE_NAMES, CURSE_FLAVOR } from "./curseData";
 import type { CurseId } from "./curseData";
+import { TILE_FOOTPRINT } from "./footprint.ts";
+import type { Footprint } from "./footprint.ts";
 
 export type EntityType = "player" | "enemy" | "item";
 
@@ -269,11 +271,11 @@ export abstract class Entity {
   }
   xpValue: number = 0;
 
-  // Additional whole cells the actor's body covers on every side. Ordinary
-  // actors use one cell (radius 0); a scaled monster can claim a wider body so
-  // nobody can stand underneath its artwork.
-  get bodyRadius(): number {
-    return 0;
+  // The map cells this actor physically occupies. Ordinary actors are one
+  // cell; a large creature overrides this with its rectangle. Artwork is not
+  // consulted: a round drawing inside a 3x3 footprint still owns all 9 cells.
+  get footprint(): Footprint {
+    return TILE_FOOTPRINT;
   }
 
   // Item model v2 (G3). Optional with defaults so existing items still
