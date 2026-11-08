@@ -8,6 +8,7 @@ import {
 } from '../src/games/rogue0/glyphStoneTextures.ts';
 import { bresenhamLine } from '../src/games/rogue0/fov.ts';
 import { createTerrain } from '../src/games/rogue0/terrain.ts';
+import { createHeroNavigation } from '../src/games/rogue0/heroNavigation.ts';
 
 // Entity imports Phaser for sprites only; the stone suites use the established
 // isolated loader with a coordinate-only init.
@@ -450,4 +451,110 @@ function detectScene() {
   assert.equal(calls.length, 1, 'only the hero disturbs hidden stones');
 }
 
-console.log('Rogue0 glyph stones: trample drops, blink landing, curse scrying and descriptions passed');
+// --- A trample find waits underfoot: step off, then back, to take it --------
+// The drop tile is occupied by the hero, so the find must lie there until the
+// hero leaves and walks back onto it. This is the room-scale behaviour the
+// normal walk-onto-item pickup provides; the handoff is asserted end to end.
+function spriteStub() {
+  return {
+    x: 0, y: 0, depth: 0, width: 16, height: 16,
+    setOrigin() { return this; },
+    setScale() { return this; },
+    setDepth(depth) { this.depth = depth; return this; },
+    setPosition(x, y) { this.x = x; this.y = y; },
+    getBounds() { return { x: this.x, y: this.y, width: 16, height: 16 }; },
+    destroy() { this.destroyed = true; },
+  };
+}
+
+function trampleScenario() {
+  terrain = createTerrain();
+  const map = Array.from({ length: 5 }, () => Array(6).fill(0));
+  const dungeonLogic = load('src/games/rogue0/dungeon.ts', {
+    tiles: terrain, hasEffect: () => false,
+    sfx: { step() {}, pickup() {} },
+  }).default;
+  dungeonLogic.currentLevel = map;
+
+  const hero = Object.assign(new Entity(), {
+    type: 'player', x: 1, y: 1, healthPoints: 10, effects: [], moving: false,
+    walkPath: [], inputBuffer: [], actionReady: true, hunger: 100, attackDelay: 1,
+    backpack: [], acknowledgedWalkEnemies: new Set(),
+  });
+  hero.sprite = spriteStub();
+  hero.context = undefined;
+  hero.addItem = function (item) { this.backpack.push(item); return true; };
+  hero.spendTurn = function (action) { (this.actions ??= []).push(action); };
+  hero.canAct = function () { return true; };
+  hero.currentWeapon = function () { return undefined; };
+  hero.tryStepIntoChasm = function () { return false; };
+
+  const ctx = {
+    entities: [hero], messages: [], player: hero, visibleTiles: new Set(),
+    map: {
+      tileToWorldX: x => x * 16, tileToWorldY: y => y * 16,
+      getTileAt: () => ({ index: 0 }),
+    },
+    scene: {
+      add: { sprite: spriteStub },
+      tweens: { add() {}, killTweensOf() {} },
+    },
+  };
+  hero.context = ctx;
+  const dropped = [];
+  ctx.onGrassTrampled = (entity, x, y) => {
+    if (entity !== hero) return;
+    const stone = dropTrampledGlyphStone(ctx, x, y, seq([0, 0]));
+    if (!stone) return;
+    // The suite's coordinate-only Entity.init does not build sprites; floor-item
+    // lookup and walkability both require one.
+    stone.sprite = spriteStub();
+    dropped.push(stone);
+  };
+  const navigation = createHeroNavigation({
+    dungeon: dungeonLogic, isModalOpen: () => false, hasEffect: () => false,
+    isGrassConcealed: () => false, actionCost: () => 1,
+    starvationDamageDuring: () => 0,
+  });
+  return { ctx, hero, navigation, dropped };
+}
+
+{
+  const { ctx, hero, navigation, dropped } = trampleScenario();
+  terrain.setFeature(2, 1, 'grass');
+
+  navigation.stepManually(hero, 1, 0);
+  assert.deepEqual([hero.x, hero.y], [2, 1], 'the hero steps onto the grass');
+  assert.equal(dropped.length, 1, 'the trampled tile yields a stone');
+  assert.deepEqual([dropped[0].x, dropped[0].y], [2, 1], 'the stone lies under the hero');
+  assert.equal(ctx.entities.includes(dropped[0]), true, 'the stone stays on the floor');
+  assert.equal(hero.backpack.length, 0, 'sharing the tile does not take the stone');
+
+  navigation.stepManually(hero, 1, 0);
+  assert.deepEqual([hero.x, hero.y], [3, 1], 'the hero steps off the trampled tile');
+  assert.equal(hero.backpack.length, 0, 'leaving the tile does not take the stone');
+  assert.deepEqual([dropped[0].x, dropped[0].y], [2, 1], 'the stone stays where it fell');
+
+  navigation.stepManually(hero, -1, 0);
+  assert.deepEqual([hero.x, hero.y], [2, 1], 'walking back enters the stone tile');
+  assert.deepEqual(hero.backpack, [dropped[0]], 'returning to the tile picks the stone up');
+  assert.equal(dropped[0].sprite, undefined, 'a taken stone leaves no floor sprite');
+  assert.equal(ctx.messages[0], 'You picked up a Stone of Blink.');
+}
+
+{
+  // Click-to-move uses the same walk-onto-item rule, not a special case.
+  const { hero, navigation, dropped } = trampleScenario();
+  terrain.setFeature(2, 1, 'grass');
+  navigation.stepManually(hero, 1, 0);
+  navigation.stepManually(hero, 1, 0);
+  assert.equal(hero.backpack.length, 0, 'the stone waits after leaving');
+
+  hero.walkPath = [{ x: 2, y: 1 }];
+  hero.nextStepToward = () => ({ x: 2, y: 1 });
+  navigation.stepAutoWalk(hero);
+  assert.deepEqual(hero.backpack, [dropped[0]], 'auto-walk back to the tile picks it up');
+  assert.deepEqual([hero.x, hero.y], [2, 1], 'auto-walk finishes on the tile');
+}
+
+console.log('Rogue0 glyph stones: trample drops, floor waits, blink landing, curse scrying and descriptions passed');
