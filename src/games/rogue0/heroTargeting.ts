@@ -3,7 +3,8 @@ import { applyInspectChoice } from './context.ts';
 import type { InspectChoice } from './context.ts';
 import type { HeroControlHost, HeroControlServices } from './heroControlTypes';
 import { cursorDirection, isHostile } from './heroControlRules.ts';
-import { actorFootprint } from './actorBodies.ts';
+import { actorFootprint, bodyDistance } from './actorBodies.ts';
+import { actorIsVisible } from './actorVisibility.ts';
 import { footprintContains, footprintTiles } from './footprint.ts';
 
 // Inspect/aim mode transitions are free. Projectile resolution remains on the
@@ -96,7 +97,9 @@ export function createHeroTargeting(services: HeroControlServices) {
           ? entity.x === x && entity.y === y
           : footprintContains(actorFootprint(entity), entity.x, entity.y, x, y);
         if (!covers) return false;
-        if (isGrassConcealed(entity.x, entity.y, hero.x, hero.y)) return false;
+        // Inspect judges the selected cell, not the whole body: an exposed
+        // limb is describable even if the centre stands in tall grass.
+        if (isGrassConcealed(x, y, hero.x, hero.y)) return false;
         if (tileVisible) return true;
         // A large body stays inspectable from any of its visible cells, even
         // when the tapped cell itself is still dark.
@@ -131,10 +134,10 @@ export function createHeroTargeting(services: HeroControlServices) {
       for (const entity of context.entities ?? []) {
         if (!isHostile(entity) || (entity.healthPoints ?? 0) <= 0 || !entity.sprite) continue;
         if (entity.x === undefined || entity.y === undefined) continue;
-        if (!context.visibleTiles?.has(`${entity.x},${entity.y}`)) continue;
-        if (isGrassConcealed(entity.x, entity.y, hero.x, hero.y)) continue;
+        if (!context.visibleTiles || !actorIsVisible(entity, context.visibleTiles,
+            (x, y) => isGrassConcealed(x, y, hero.x, hero.y))) continue;
         if (!hasLineOfSight(level, hero.x, hero.y, entity.x, entity.y)) continue;
-        const distance = Math.max(Math.abs(entity.x - hero.x), Math.abs(entity.y - hero.y));
+        const distance = bodyDistance(hero, entity);
         if (distance < bestDistance) { best = entity; bestDistance = distance; }
       }
       return best;

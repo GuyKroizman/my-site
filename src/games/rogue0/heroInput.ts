@@ -2,6 +2,7 @@ import type { GameContext } from './context';
 import type { HeroControlHost, HeroControlServices, PointerPosition } from './heroControlTypes';
 import { isHostile, hostileAtTile, entityAtPointer } from './heroControlRules.ts';
 import { actorFootprint, bodyDistance } from './actorBodies.ts';
+import { actorIsConcealed } from './actorVisibility.ts';
 import { footprintTiles } from './footprint.ts';
 
 // Input dispatch only: targeting/navigation decide what a command means. Event
@@ -82,12 +83,14 @@ export function createHeroInput(services: HeroControlServices) {
       // bounds so clicking any visible part of it still targets the monster.
       let entity = dungeon.entityAtTile(context, x!, y!) ??
         entityAtPointer(context, event.worldX, event.worldY);
-      if (entity && isGrassConcealed(entity.x, entity.y, hero.x, hero.y)) entity = undefined;
+      if (entity && actorIsConcealed(entity,
+          (tx, ty) => isGrassConcealed(tx, ty, hero.x, hero.y))) entity = undefined;
       // Wands select an enemy first, then confirm; ordinary throws fire on tap.
       if (context.throwMode) {
         if (hero.zapping && x !== null && y !== null) {
           const hostile = entity && isHostile(entity) ? entity : hostileAtTile(context, x, y);
-          if (hostile && !isGrassConcealed(hostile.x, hostile.y, hero.x, hero.y)) {
+          if (hostile && !actorIsConcealed(hostile,
+              (tx, ty) => isGrassConcealed(tx, ty, hero.x, hero.y))) {
             // Aim at the creature's anchor, never at a body-edge tile: otherwise
             // the bolt resolves against empty floor and wastes the charge.
             const aimX = hostile.x!, aimY = hostile.y!;

@@ -8,6 +8,7 @@
 import type { Entity } from './entity';
 import type { GameContext } from './context';
 import { terrainFor } from './terrain.ts';
+import { actorIsVisible } from './actorVisibility.ts';
 
 export const UNSEEN_PAIN = 'You hear a cry of pain in the distance.';
 export const UNSEEN_KILL = 'You hear a cry of pain in the distance, then silence.';
@@ -25,10 +26,13 @@ export function isEnemyVisible(context: GameContext, entity: Entity): boolean {
   if (entity.x === undefined || entity.y === undefined) return true;
   // A caller without a perception snapshot cannot prove the victim hidden.
   if (!context.visibleTiles) return true;
-  if (!context.visibleTiles.has(`${entity.x},${entity.y}`)) return false;
   const player = context.player;
-  if (player?.x === undefined || player?.y === undefined) return true;
-  return !terrainFor(context).isGrassConcealed(entity.x, entity.y, player.x, player.y);
+  const terrain = terrainFor(context);
+  if (player?.x === undefined || player?.y === undefined) {
+    return actorIsVisible(entity, context.visibleTiles, () => false);
+  }
+  return actorIsVisible(entity, context.visibleTiles,
+    (x, y) => terrain.isGrassConcealed(x, y, player.x, player.y!));
 }
 
 function log(context: GameContext, text: string): void {

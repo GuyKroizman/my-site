@@ -15,6 +15,9 @@ import { bresenhamLine, canSee } from '../src/games/rogue0/fov.ts';
 import { createGameContext } from '../src/games/rogue0/context.ts';
 import { createHeroTargeting } from '../src/games/rogue0/heroTargeting.ts';
 import { createHeroInput } from '../src/games/rogue0/heroInput.ts';
+import { actorHasVisibleTile, actorIsConcealed, actorIsVisible } from '../src/games/rogue0/actorVisibility.ts';
+import { isEnemyVisible } from '../src/games/rogue0/combatFeedback.ts';
+import { terrainFor } from '../src/games/rogue0/terrain.ts';
 
 // --- Anchor conventions -----------------------------------------------------
 assert.deepEqual({ ...resolveFootprint({ width: 1, height: 1 }) }, { ...TILE_FOOTPRINT },
@@ -266,5 +269,43 @@ assert.equal(wandContext.throwMode, true, 'input routing does not resolve the za
     'the same anchor without the wide body has no sight line');
 }
 
-console.log('Rogue0 footprints: rectangle anchoring, body resolution, projectile interception, inspection, wand taps, movement clearance, pathfinding and sight passed');
+
+// --- Melee visibility through tall grass ------------------------------------
+{
+  const vision = createGameContext();
+  const meleeBoss = {
+    type: 'enemy', name: 'Guardian', x: 5, y: 5, healthPoints: 20,
+    footprint: resolveFootprint({ width: 3, height: 3, anchor: 'center' })
+  };
+  const meleeHero = { type: 'player', name: 'Hero', x: 4, y: 3, healthPoints: 10 };
+  vision.entities = [meleeBoss, meleeHero];
+  vision.player = meleeHero;
+
+  // Only the adjacent body cell is in view; the centre is two tiles away and
+  // stands in tall grass, which is exactly the reported melee case.
+  vision.visibleTiles = new Set(['4,4']);
+  terrainFor(vision).setFeature(5, 5, 'grass');
+  const concealed = (x, y) => terrainFor(vision).isGrassConcealed(x, y, 4, 3);
+  assert.equal(actorHasVisibleTile(meleeBoss, vision.visibleTiles), true,
+    'the exposed body edge counts as visible');
+  assert.equal(actorIsConcealed(meleeBoss, concealed), false,
+    'a body is only concealed when every occupied cell is grass-concealed');
+  assert.equal(actorIsVisible(meleeBoss, vision.visibleTiles, concealed), true,
+    'the guardian stays visible while its edge is in melee range');
+  assert.equal(isEnemyVisible(vision, meleeBoss), true,
+    'combat feedback names the adjacent guardian rather than hiding it');
+
+  // Anchor-only visibility would fail both cases: the centre is concealed.
+  vision.visibleTiles = new Set(['5,5']);
+  assert.equal(actorIsConcealed(meleeBoss, concealed), false);
+  assert.equal(isEnemyVisible(vision, meleeBoss), false,
+    'seeing only the grass-covered centre is not enough to see the body');
+
+  terrainFor(vision).clearFeature(5, 5);
+  assert.equal(isEnemyVisible(vision, meleeBoss), true,
+    'without grass the visible centre reveals the guardian');
+}
+
+console.log('Rogue0 footprints: rectangle anchoring, body resolution, projectile interception, inspection, wand taps, movement clearance, pathfinding, sight and melee visibility passed');
+
 

@@ -85,6 +85,7 @@ import Boss from "./monsters/boss";
 import { TILE_FOOTPRINT, footprintContains } from './footprint';
 import type { Footprint } from './footprint';
 import { actorFootprint } from './actorBodies';
+import { actorIsVisible } from './actorVisibility';
 import {
   firstFreeFootprintAnchor, footprintIsFree, nearestFreeFootprintAnchor,
   reserveFootprint, takeFootprintPlacement
@@ -1291,14 +1292,21 @@ export class Scene0 extends Phaser.Scene {
         continue;
       }
 
-      const key = `${entity.x},${entity.y}`;
       const seen = this.seen[entity.y]?.[entity.x] === true;
-      const concealed = tiles.isGrassConcealed(entity.x, entity.y, player?.x, player?.y);
-      const visible = this.visible.has(key) && !concealed;
+      // A wide body is concealed only when every occupied cell is hidden by
+      // tall grass. Its exposed edge can be adjacent to the hero while its
+      // centre is out of sight, so anchor-only checks made melee invisible.
+      const visible = entity.type === 'enemy'
+        ? actorIsVisible(entity, this.visible,
+            (x, y) => tiles.isGrassConcealed(x, y, player?.x, player?.y))
+        : this.visible.has(`${entity.x},${entity.y}`) &&
+          !tiles.isGrassConcealed(entity.x, entity.y, player?.x, player?.y);
 
       // Monsters are only shown while actually visible; items stay
       // remembered (dimmed by fog) once discovered.
-      entity.sprite?.setVisible(foreground.has(entity) && (entity.type === "enemy" ? visible : seen && !concealed));
+      const itemConcealed = tiles.isGrassConcealed(entity.x, entity.y, player?.x, player?.y);
+      entity.sprite?.setVisible(foreground.has(entity) &&
+        (entity.type === "enemy" ? visible : seen && !itemConcealed));
       // Mark minds, not terrain: never add these cells to visible/seen or
       // targeting LOS. Markers sit above opaque fog, unlike normal sprites.
       if (mindVision && entity.type === "enemy" && entity.healthPoints > 0 && !visible) {

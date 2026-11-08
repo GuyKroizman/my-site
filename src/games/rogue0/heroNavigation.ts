@@ -1,6 +1,7 @@
 import type { Entity } from './entity';
 import type { HeroControlHost, HeroControlServices, TilePosition } from './heroControlTypes';
 import { hostileBodyAtTile, isHostile, pickupMessage } from './heroControlRules.ts';
+import { actorHasVisibleTile, actorIsConcealed } from './actorVisibility.ts';
 
 // Path planning and movement policy. The scheduler/terrain still own movement
 // execution; these operations never advance time except through spendTurn().
@@ -52,8 +53,9 @@ export function createHeroNavigation(services: HeroControlServices) {
           hero.walkPath = [];
           return;
         }
-        if (!hero.context.visibleTiles.has(`${target.x},${target.y}`) ||
-            isGrassConcealed(target.x, target.y, hero.x, hero.y)) {
+        if (!hero.context.visibleTiles || !actorHasVisibleTile(target, hero.context.visibleTiles) ||
+            actorIsConcealed(target,
+              (x, y) => isGrassConcealed(x, y, hero.x, hero.y))) {
           hero.walkTargetEntity = undefined;
         } else {
           const path = dungeon.findPath(hero.x, hero.y, target.x!, target.y!, true, true, hero);
