@@ -4,6 +4,7 @@
 // as an apple), so we draw crisp, colored flasks ourselves and store them as
 // named single-frame textures. Potion items point at these via `textureKey`.
 import Phaser from "phaser";
+import { doorTextureKeys, type DoorStyle } from "./dungeonTheme";
 
 export const POTION_COLORS = {
   red: 0xe04a3a,
@@ -92,58 +93,229 @@ export function generateUnknownItemTextures(scene: Phaser.Scene): void {
   }
 }
 
-// An open door is just a brown dotted line on the floor (a doorstep).
+// Doors are drawn per dungeon region so a doorway reads differently as the
+// hero descends: oak planks on floors 1-4, banded iron on 6-9, sandstone slab
+// on 11-14, crystal on 16-19 and glowing basalt on 21-24. Panels are 21px tall
+// (they reach the floor at local y=16 with a 5px wall-height rise); the open
+// door style is a doorstep on the floor. Style textures are cached, so a run
+// that never leaves the first region only ever builds the oak set.
 export function generateDoorThresholdTexture(scene: Phaser.Scene): void {
-  // 21px panels reach the floor at local y=16 with a 5px wall-height rise.
-  if (!scene.textures.exists('door-front')) {
-    const front = scene.make.graphics(undefined, false);
-    front.fillStyle(0x292b28, 1);
-    front.fillRect(1, 0, 14, 21);
-    front.fillStyle(0x73502d, 1);
-    front.fillRect(2, 1, 12, 19);
-    front.fillStyle(0x936b38, 1);
-    for (const x of [3, 7, 11]) front.fillRect(x, 2, 2, 17);
-    front.fillStyle(0x4a3525, 1);
-    for (const x of [6, 10]) front.fillRect(x, 1, 1, 19);
-    front.fillStyle(0x424640, 1);
-    front.fillRect(2, 5, 12, 2);
-    front.fillRect(2, 15, 12, 2);
-    front.fillStyle(0xb69c60, 1);
-    front.fillRect(11, 10, 2, 2);
-    front.generateTexture('door-front', 16, 21);
-    front.destroy();
+  for (const style of DOOR_STYLES) {
+    const keys = doorTextureKeys(style);
+    // Front face (north–south passage) and narrow side panel (east–west
+    // passage). The side art is drawn narrow rather than rotated, which would
+    // put the handle and planks sideways.
+    generateCachedTexture(scene, keys.front, 16, 21, g => drawDoorPanel(g, style, false));
+    generateCachedTexture(scene, keys.side, 16, 21, g => drawDoorPanel(g, style, true));
+    generateCachedTexture(scene, keys.threshold, 16, 16, g => drawDoorThreshold(g, style, false));
+    generateCachedTexture(scene, keys.thresholdSide, 16, 16, g => drawDoorThreshold(g, style, true));
   }
-  // Side-on panel for an east–west passage. Keep it narrow rather than
-  // rotating the front sprite (which would put its handle/planks sideways).
-  if (!scene.textures.exists('door-side')) {
-    const side = scene.make.graphics(undefined, false);
-    side.fillStyle(0x292525, 1);
-    side.fillRect(5, 0, 6, 21);
-    side.fillStyle(0x67401f, 1);
-    side.fillRect(6, 1, 4, 19);
-    side.fillStyle(0xa17435, 1);
-    side.fillRect(6, 2, 1, 17);
-    side.fillStyle(0x402c1e, 1);
-    side.fillRect(7, 4, 3, 1);
-    side.fillRect(7, 16, 3, 1);
-    side.generateTexture('door-side', 16, 21);
-    side.destroy();
-  }
-  if (!scene.textures.exists('door-threshold-side')) {
-    const side = scene.make.graphics(undefined, false);
-    side.fillStyle(0x8a5a2b, 1);
-    for (let y = 1; y <= 13; y += 3) side.fillRect(7, y, 2, 2);
-    side.generateTexture('door-threshold-side', 16, 16);
-    side.destroy();
-  }
-  if (scene.textures.exists("door-threshold")) return;
+}
+
+const DOOR_STYLES: DoorStyle[] = ['wood', 'iron', 'stone-slab', 'crystal', 'basalt'];
+
+function generateCachedTexture(
+  scene: Phaser.Scene,
+  key: string,
+  width: number,
+  height: number,
+  draw: (g: Phaser.GameObjects.Graphics) => void
+): void {
+  if (scene.textures.exists(key)) return;
   const g = scene.make.graphics(undefined, false);
-  g.fillStyle(0x8a5a2b, 1);
-  for (let x = 1; x <= 13; x += 3) {
-    g.fillRect(x, 12, 2, 2);
-  }
-  g.generateTexture("door-threshold", 16, 16);
+  draw(g);
+  g.generateTexture(key, width, height);
   g.destroy();
+}
+
+function drawDoorPanel(g: Phaser.GameObjects.Graphics, style: DoorStyle, side: boolean): void {
+  if (side) {
+    drawSideDoor(g, style);
+    return;
+  }
+  switch (style) {
+    case 'wood': {
+      g.fillStyle(0x292b28, 1);
+      g.fillRect(1, 0, 14, 21);
+      g.fillStyle(0x73502d, 1);
+      g.fillRect(2, 1, 12, 19);
+      g.fillStyle(0x936b38, 1);
+      for (const x of [3, 7, 11]) g.fillRect(x, 2, 2, 17);
+      g.fillStyle(0x4a3525, 1);
+      for (const x of [6, 10]) g.fillRect(x, 1, 1, 19);
+      g.fillStyle(0x424640, 1);
+      g.fillRect(2, 5, 12, 2);
+      g.fillRect(2, 15, 12, 2);
+      g.fillStyle(0xb69c60, 1);
+      g.fillRect(11, 10, 2, 2);
+      return;
+    }
+    case 'iron': {
+      // Cold blue-grey iron plates under two riveted steel bands.
+      g.fillStyle(0x1b2331, 1);
+      g.fillRect(1, 0, 14, 21);
+      g.fillStyle(0x455568, 1);
+      g.fillRect(2, 1, 12, 19);
+      g.fillStyle(0x55697f, 1);
+      for (const x of [3, 7, 11]) g.fillRect(x, 2, 2, 17);
+      g.fillStyle(0x33414f, 1);
+      for (const x of [6, 10]) g.fillRect(x, 1, 1, 19);
+      g.fillStyle(0x7a8fa8, 1);
+      g.fillRect(2, 5, 12, 2);
+      g.fillRect(2, 15, 12, 2);
+      g.fillStyle(0xc3d3e0, 1);
+      for (const y of [5, 15]) for (const x of [4, 8, 12]) g.fillRect(x, y, 1, 1);
+      g.fillStyle(0xb9cad9, 1);
+      g.fillRect(11, 10, 2, 2);
+      return;
+    }
+    case 'stone-slab': {
+      // Warm sandstone block with a lit lintel and carved grooves.
+      g.fillStyle(0x3a2b1c, 1);
+      g.fillRect(1, 0, 14, 21);
+      g.fillStyle(0xa8855a, 1);
+      g.fillRect(2, 1, 12, 19);
+      g.fillStyle(0xc6a973, 1);
+      g.fillRect(2, 1, 12, 2);
+      g.fillStyle(0x8a6a43, 1);
+      for (const x of [5, 10]) g.fillRect(x, 3, 1, 17);
+      g.fillStyle(0x6d5233, 1);
+      g.fillRect(2, 8, 12, 2);
+      g.fillRect(2, 16, 12, 1);
+      g.fillStyle(0xd8bd85, 1);
+      g.fillRect(11, 11, 2, 2);
+      return;
+    }
+    case 'crystal': {
+      // Faceted violet crystal with bright edges and a couple of glints.
+      g.fillStyle(0x2a2340, 1);
+      g.fillRect(1, 0, 14, 21);
+      g.fillStyle(0x6a5590, 1);
+      g.fillRect(2, 1, 12, 19);
+      g.fillStyle(0x8d76b5, 1);
+      for (const x of [4, 8]) g.fillRect(x, 2, 2, 17);
+      g.fillStyle(0xc9b6ea, 1);
+      g.fillRect(6, 2, 1, 17);
+      g.fillStyle(0x463a63, 1);
+      g.fillRect(2, 6, 12, 1);
+      g.fillRect(2, 14, 12, 1);
+      g.fillStyle(0xe8dcff, 1);
+      g.fillRect(12, 3, 1, 2);
+      g.fillRect(3, 12, 1, 2);
+      g.fillStyle(0xc0a6e4, 1);
+      g.fillRect(11, 10, 2, 2);
+      return;
+    }
+    case 'basalt': {
+      // Black basalt with cooling cracks still glowing from within.
+      g.fillStyle(0x1a1518, 1);
+      g.fillRect(1, 0, 14, 21);
+      g.fillStyle(0x453b40, 1);
+      g.fillRect(2, 1, 12, 19);
+      g.fillStyle(0x574c51, 1);
+      for (const x of [3, 7, 11]) g.fillRect(x, 2, 2, 17);
+      g.fillStyle(0x2a2327, 1);
+      for (const x of [6, 10]) g.fillRect(x, 1, 1, 19);
+      g.fillStyle(0x332a2e, 1);
+      g.fillRect(2, 5, 12, 2);
+      g.fillRect(2, 15, 12, 2);
+      g.fillStyle(0xc23c22, 1);
+      for (const [x, y] of [[4, 3], [5, 4], [5, 5], [4, 6], [4, 7], [9, 9], [10, 10], [10, 11], [9, 12]]) {
+        g.fillRect(x, y, 1, 1);
+      }
+      g.fillStyle(0xffa04a, 1);
+      g.fillRect(5, 5, 1, 1);
+      g.fillRect(9, 12, 1, 1);
+      g.fillStyle(0xff8a3d, 1);
+      g.fillRect(11, 10, 2, 2);
+      return;
+    }
+  }
+}
+
+function drawSideDoor(g: Phaser.GameObjects.Graphics, style: DoorStyle): void {
+  const frame = {
+    'wood': 0x292525,
+    'iron': 0x1b2331,
+    'stone-slab': 0x3a2b1c,
+    'crystal': 0x2a2340,
+    'basalt': 0x1a1518
+  }[style];
+  const panel = {
+    'wood': 0x67401f,
+    'iron': 0x455568,
+    'stone-slab': 0xa8855a,
+    'crystal': 0x6a5590,
+    'basalt': 0x453b40
+  }[style];
+  const highlight = {
+    'wood': 0xa17435,
+    'iron': 0x7a8fa8,
+    'stone-slab': 0xc6a973,
+    'crystal': 0xc9b6ea,
+    'basalt': 0x574c51
+  }[style];
+  const seam = {
+    'wood': 0x402c1e,
+    'iron': 0x33414f,
+    'stone-slab': 0x6d5233,
+    'crystal': 0x463a63,
+    'basalt': 0x2a2327
+  }[style];
+  g.fillStyle(frame, 1);
+  g.fillRect(5, 0, 6, 21);
+  g.fillStyle(panel, 1);
+  g.fillRect(6, 1, 4, 19);
+  g.fillStyle(highlight, 1);
+  g.fillRect(6, 2, 1, 17);
+  g.fillStyle(seam, 1);
+  g.fillRect(7, 4, 3, 1);
+  g.fillRect(7, 16, 3, 1);
+  if (style === 'iron') {
+    g.fillStyle(0xc3d3e0, 1);
+    g.fillRect(8, 10, 1, 1);
+  } else if (style === 'crystal') {
+    g.fillStyle(0xe8dcff, 1);
+    g.fillRect(8, 8, 1, 2);
+  } else if (style === 'basalt') {
+    g.fillStyle(0xc23c22, 1);
+    g.fillRect(8, 9, 1, 2);
+    g.fillStyle(0xffa04a, 1);
+    g.fillRect(8, 10, 1, 1);
+  }
+}
+
+function drawDoorThreshold(g: Phaser.GameObjects.Graphics, style: DoorStyle, side: boolean): void {
+  const accent = {
+    'wood': 0x8a5a2b,
+    'iron': 0x7a8fa8,
+    'stone-slab': 0xa8855a,
+    'crystal': 0x9c86c6,
+    'basalt': 0x8a3b2a
+  }[style];
+  if (style === 'stone-slab') {
+    // A worn stone sill instead of a dotted timber doorstep.
+    g.fillStyle(0x6d5233, 1);
+    side ? g.fillRect(6, 1, 4, 14) : g.fillRect(1, 11, 14, 4);
+    g.fillStyle(accent, 1);
+    side ? g.fillRect(7, 1, 2, 13) : g.fillRect(1, 12, 14, 2);
+    g.fillStyle(0xc6a973, 1);
+    side ? g.fillRect(7, 4, 2, 1) : g.fillRect(4, 12, 2, 1);
+    return;
+  }
+  g.fillStyle(accent, 1);
+  if (side) {
+    for (let y = 1; y <= 13; y += 3) g.fillRect(7, y, 2, 2);
+  } else {
+    for (let x = 1; x <= 13; x += 3) g.fillRect(x, 12, 2, 2);
+  }
+  // A single bright glint keeps the iron, crystal and basalt sills distinct
+  // from the plain timber dots without changing the footprint.
+  const glint = { 'wood': undefined, 'iron': 0xc3d3e0, 'stone-slab': undefined, 'crystal': 0xe8dcff, 'basalt': 0xffa04a }[style];
+  if (glint !== undefined) {
+    g.fillStyle(glint, 1);
+    side ? g.fillRect(8, 7, 1, 1) : g.fillRect(7, 12, 1, 1);
+  }
 }
 
 // Draws a 16x16 round-bottom flask: cork, glass neck + bulb, colored liquid,

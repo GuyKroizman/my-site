@@ -14,7 +14,7 @@ import crystalTilesUrl from './assets/crystal-tiles.png';
 import crystalWallUrl from './assets/crystal-wall.png';
 import volcanicTilesUrl from './assets/volcanic-tiles.png';
 import volcanicWallUrl from './assets/volcanic-wall.png';
-import { dungeonThemeName } from './dungeonTheme';
+import { doorStyleName, doorTextureKeys, dungeonThemeName } from './dungeonTheme';
 import heroArtUrl from './assets/hero-color.png';
 import cultistArtUrl from './assets/monsters/cultist.png';
 import goblinArtUrl from './assets/monsters/goblin.png';
@@ -1510,10 +1510,13 @@ export class Scene0 extends Phaser.Scene {
       }
       case "secretDoor":
         return {};
-      case "door":
+      case "door": {
+        // The panel material follows the region, like the walls do.
+        const keys = doorTextureKeys(doorStyleName(this.context.floor));
         return state.door === "open"
-          ? { textureKey: "door-threshold" }
-          : { textureKey: 'door-front' };
+          ? { textureKey: keys.threshold }
+          : { textureKey: keys.front };
+      }
       case "grass":
         return { textureKey: 'tall-grass-0' };
       case "water":
@@ -1546,6 +1549,7 @@ export class Scene0 extends Phaser.Scene {
     // Reconcile on terrain changes too (e.g. a secret wall becoming a door).
     const level = dungeon.getCurrentLevel();
     const theme = dungeonThemeName(this.context.floor);
+    const doorKeys = doorTextureKeys(doorStyleName(this.context.floor));
     this.wallDecals ??= new Map();
     const wallKeys = new Set<string>();
     const raisedKeys = new Set<string>();
@@ -1587,7 +1591,7 @@ export class Scene0 extends Phaser.Scene {
       let sprite = this.featureSprites.get(key);
       const sideDoor = state.feature === 'door' && doorPassage(dungeon.getCurrentLevel(), x, y) === 'horizontal';
       const visual = sideDoor
-        ? { textureKey: state.door === 'open' ? 'door-threshold-side' : 'door-side' }
+        ? { textureKey: state.door === 'open' ? doorKeys.thresholdSide : doorKeys.side }
         : this.featureVisual(state, y);
       const visible = state.feature !== "secretDoor" && (state.feature !== "trap" || state.trap !== "hidden");
       const upright = state.feature === 'portal' || state.feature === 'grass' || (state.feature === 'door' && state.door !== 'open');

@@ -14,7 +14,12 @@ function load(path, bindings = {}) {
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const rendering = load('src/games/rogue0/rendering.ts');
 const doorTextures = new Map();
-load('src/games/rogue0/potionTextures.ts').generateDoorThresholdTexture({
+// potionTextures resolves its texture names through the theme module.
+const theme = await import('../src/games/rogue0/dungeonTheme.ts');
+load('src/games/rogue0/potionTextures.ts', {
+  doorTextureKeys: theme.doorTextureKeys,
+  doorStyleName: theme.doorStyleName
+}).generateDoorThresholdTexture({
   textures: { exists: key => doorTextures.has(key) },
   make: { graphics: () => ({
     fillStyle() {}, fillRect() {}, destroy() {},

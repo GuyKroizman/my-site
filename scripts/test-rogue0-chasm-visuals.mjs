@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 
+const theme = await import('../src/games/rogue0/dungeonTheme.ts');
+const doorBindings = { doorStyleName: theme.doorStyleName, doorTextureKeys: theme.doorTextureKeys };
+
 function evaluate(source, bindings = {}) {
   const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
   const exports = {};
@@ -188,6 +191,8 @@ const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
   }),
   dungeon: { getCurrentLevel: () => [[0]] }, wallOverhang: () => false,
   worldDepth: () => 0, actorOriginY: () => 0,
+  // Door textures are named per region by the theme module.
+  ...doorBindings,
   dungeonThemeName: () => 'stone', decalFrameFor: () => undefined,
   flatDecalFrameFor: () => undefined, DECAL_TEXTURE: 'wall-decals', UPRIGHT_LIFT: 5,
 });
