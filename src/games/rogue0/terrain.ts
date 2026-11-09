@@ -10,10 +10,12 @@ export function createTerrain() {
   const key = (x: number, y: number) => `${x},${y}`;
 
   function setFeature(x: number, y: number, feature: TerrainFeature,
-    opts: { door?: DoorState; trap?: TrapState; trapKind?: TrapKind; trapReusable?: boolean; blocksSight?: boolean } = {}): void {
+    opts: { door?: DoorState; portal?: 'closed' | 'open'; trap?: TrapState; trapKind?: TrapKind; trapReusable?: boolean; blocksSight?: boolean } = {}): void {
     const k = key(x, y);
     const stored: StoredTile = features.get(k) ?? { feature, x, y };
     stored.feature = feature;
+    if (feature === 'portal') stored.portal = opts.portal ?? stored.portal ?? 'closed';
+    else delete stored.portal;
     stored.blocksSight = opts.blocksSight;
     if (feature === 'door') {
       stored.door = opts.door ?? stored.door ?? 'closed';
@@ -93,7 +95,7 @@ export function createTerrain() {
     const tile = features.get(key(x, y));
     if (!tile) return false;
     if (tile.feature === 'door' && tile.door === 'closed') return true;
-    return tile.feature === 'chasm' || tile.feature === 'secretDoor';
+    return tile.feature === 'chasm' || tile.feature === 'secretDoor' || tile.feature === 'portal';
   }
 
   function forEachFeature(callback: (x: number, y: number, state: TileState) => void): void {

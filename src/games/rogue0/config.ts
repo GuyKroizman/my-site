@@ -1,6 +1,7 @@
 // TypeScript errors after site migration - ignoring for game functionality
 import Phaser from "phaser";
 import { Scene0 } from "./scene0";
+import { StoreScene } from './store/StoreScene';
 import type { GameContext } from "./context";
 
 export function createRogue0Config(context: GameContext): Phaser.Types.Core.GameConfig {
@@ -11,7 +12,7 @@ export function createRogue0Config(context: GameContext): Phaser.Types.Core.Game
     height: 50 * 16,
     backgroundColor: "#000000",
     pixelArt: true,
-    scene: [new Scene0(context)],
+    scene: [new Scene0(context), new StoreScene(context)],
     physics: {
       default: "arcade",
       arcade: {

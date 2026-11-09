@@ -45,7 +45,8 @@ const HELP_PAGES = [
   },
   {
     title: 'Items & Equipment',
-    body: `• Slots: weapon, armor, two rings, artifact — plus a 20-slot backpack.\n• Unidentified items show as ?potion, ?scroll, etc. Use them to learn what they are (or use a Scroll of Identify).\n• The game menu's Potions & scrolls page lists every potion and scroll in the dungeon: identified kinds by their real name, the rest only by their unknown appearance name.\n• Cursed items cannot be unequipped until you Remove Curse (or use Holy Water).\n• Scrolls of Upgrade raise an item's level.\n• Wands have limited charges — a Scroll of Recharging refills them.\n• Rings grant passive bonuses.`,
+    body: `• Slots: weapon, armor, two rings, artifact — plus a 20-slot backpack.\n• Unidentified items show as ?potion, ?scroll, etc. Use them to learn what they are (or use a Scroll of Identify).\n• The game menu's Potions & scrolls page lists every potion and scroll in the dungeon: identified kinds by their real name, the rest only by their unknown appearance name.\n• Cursed items cannot be unequipped until you Remove Curse (or use Holy Water).\n• Scrolls of Upgrade raise an item's level.\n• Wands have limited charges — a Scroll of Recharging refills them.\n• Rings grant passive bonuses.
+• Gold is spent at the store on floor 6. Sell unused backpack items there; sold items are gone for good.`,
   },
   {
     title: 'Talents',
@@ -57,7 +58,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Progress',
-    body: `• Use > (or .) to descend and < (or ,) to ascend. On mobile, tap the stairs while standing on them.\n• Visited floors keep their map, exploration, terrain changes, monsters and loot during your run. Inactive floors pause.\n• The entrance on floor 1 is sealed. Escape at the bottom floor.\n• Monsters drop gold and grant XP.\n• Leveling up raises max HP and attack.\n• Dying ends the run — plan food, health, and positioning.`,
+    body: `• Use > (or .) to descend and < (or ,) to ascend. On mobile, tap the stairs while standing on them.\n• Visited floors keep their map, exploration, terrain changes, monsters and loot during your run. Inactive floors pause.\n• The entrance on floor 1 is sealed. Escape at the bottom floor.\n• Monsters drop gold and grant XP.\n• Floor 6 holds a store portal: move into the strange door to open it, then move into it again to shop. Time is paused inside.\n• Leveling up raises max HP and attack.\n• Dying ends the run — plan food, health, and positioning.`,
   },
 ] as const
 
@@ -125,6 +126,7 @@ export default function Rogue0() {
   const [helpPage, setHelpPage] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [storeOpen, setStoreOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -177,6 +179,8 @@ export default function Rogue0() {
       setResult(r)
     }
     context.onInspectModeChange = (mode) => setInspectMode(mode)
+    // The store is its own scene/UI; hide the dungeon DOM menu over it.
+    context.onStoreOpenChange = (open) => setStoreOpen(open)
     contextRef.current = context
 
     let cancelled = false
@@ -412,7 +416,7 @@ export default function Rogue0() {
         {/could not be saved|storage.*blocked/i.test(saveStatus) && (
           <p className="rogue0-save-warning" role="alert">{saveStatus}</p>
         )}
-        <div
+        {!storeOpen && <div
           className="rogue0-game-menu"
           ref={menuRef}
           onBlur={(event) => {
@@ -477,7 +481,7 @@ export default function Rogue0() {
               </button>
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
       {helpModal}

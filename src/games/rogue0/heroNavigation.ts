@@ -163,6 +163,7 @@ export function createHeroNavigation(services: HeroControlServices) {
       // A direction key onto a revealed trap is deliberate: walk onto it and let
       // the movement trigger it. Only automatic navigation routes around traps.
       if (hasEffect(hero, 'rooted') && dungeon.entityAtTile(context, newX, newY)?.type !== 'enemy') return;
+      if (context.onPortalBump?.(newX, newY)) return;
       if (hero.tryStepIntoChasm(newX, newY)) return;
       if (dungeon.openDoor(newX, newY)) {
         hero.spendTurn('openDoor');

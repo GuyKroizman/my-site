@@ -1025,7 +1025,11 @@ click. Use it to hand-test every priority below instead of grinding to a floor.
 awarded by kills and chests but has **no use at all**. A single shop room per
 region selling Identify / Upgrade / Remove Curse / food / Ankh would convert
 three already-built systems (identification, curses, hunger) into decisions.
-Add buy/sell with a real price curve and an Ankh revival item.
+Add buy/sell with a real price curve and an Ankh revival item. The first
+concrete design is the floor-6 portal store in **`STORE.md`** (15-slot
+`shop.png` scene, buy/sell, persistent stock). **v1 is implemented**: wall door,
+store scene, pricing, buy/sell, save round-trip and five store suites. Ankh
+remains future work.
 2. **Finish Phase 8 signatures.** Remaining: monsters avoiding burning terrain,
    then Quloptsh concealment/backstab and ghoul lifesteal. Boss redesign
    (multi-phase Bone Lord) stays deferred.

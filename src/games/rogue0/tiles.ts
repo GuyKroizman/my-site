@@ -5,7 +5,7 @@
 // coordinate-keyed overlay (`"x,y"`) so doors/traps/grass/water/chasms can
 // carry per-tile state without turning the base map into a tile enum.
 
-export type TerrainFeature = "door" | "secretDoor" | "trap" | "grass" | "water" | "ice" | "chasm";
+export type TerrainFeature = "door" | "secretDoor" | "trap" | "grass" | "water" | "ice" | "chasm" | "portal";
 
 export type DoorState = "open" | "closed";
 export type TrapState = "hidden" | "visible" | "triggered";
@@ -14,6 +14,7 @@ export type TrapKind = "dart" | "arrow" | "fire" | "frost" | "teleport" | "summo
 export type TileState = {
   // Optical override for glass walls/crystal doors, independent of movement.
   blocksSight?: boolean;
+  portal?: 'closed' | 'open';
   feature: TerrainFeature;
   door?: DoorState;
   trap?: TrapState;
@@ -27,6 +28,7 @@ export type FeaturePlacement = {
   blocksSight?: boolean;
   x: number;
   y: number;
+  portal?: 'closed' | 'open';
   feature: TerrainFeature;
   door?: DoorState;
   trap?: TrapState;
@@ -77,6 +79,8 @@ export function describeTileLabel(
 ): string | undefined {
   if (!state) return undefined;
   switch (state.feature) {
+    case "portal":
+      return state.portal === 'open' ? 'Store portal' : 'Strange door';
     case "secretDoor":
       return undefined;
     case "door":
@@ -103,6 +107,10 @@ export function describeTile(
 ): string {
   if (state) {
     switch (state.feature) {
+      case "portal":
+        return state.portal === 'open'
+          ? 'An open door with a swirling portal inside. Move toward it to enter the store. Only the hero can enter.'
+          : 'A strange door. Move toward it once to open it.';
       case "secretDoor":
         return "A wall.";
       case "door":

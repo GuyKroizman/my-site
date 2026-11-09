@@ -130,7 +130,9 @@ export class UI extends Phaser.Scene {
     // b toggles the inventory window; i is a movement key (up-right diagonal).
     // Esc dismisses the topmost dialog.
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
-      if (this.context.helpOpen) return;
+      // The store scene owns all input while it is open; the level HUD must
+      // never answer its hotkeys underneath it.
+      if (this.context.storeOpen || this.context.helpOpen) return;
       const key = event.key;
       if (this.context.confirmationOpen) {
         if (key === "Escape") this.confirmationWindow?.close();

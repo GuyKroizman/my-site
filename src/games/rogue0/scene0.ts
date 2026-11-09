@@ -1,4 +1,7 @@
 import Phaser from "phaser";
+import shopArtUrl from './assets/shop.png';
+import { placeStorePortal } from './store/portal';
+import { generatePortalTexture, PORTAL_TEXTURE, portalFrame } from './portalVisuals';
 import { showSurpriseVisual, updateSurpriseVisuals, clearSurpriseVisuals } from './surpriseVisuals';
 // Vite emits content-hashed URLs, so deployed art cannot reuse an older atlas.
 import stoneTilesUrl from './assets/stone-tiles.png';
@@ -38,6 +41,9 @@ import { removeEntity } from './entity';
 import { decodeRunSave, restoreRunState, type RunState, type SavedFloor } from './runPersistence';
 import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects, occludesPlayer } from './rendering';
 import dungeon from "./dungeon";
+// Keep this after `dungeon`: saveRegistry loads the whole entity/item graph and
+// must not be the first entry into the entity → effects → dungeon cycle.
+import { ensureShopState } from './store/shopItems';
 import { isModalOpen, type GameContext } from "./context";
 import { TurnManager } from "./turnManager";
 import Skeleton from "./monsters/skelaton";
@@ -271,6 +277,7 @@ export class Scene0 extends Phaser.Scene {
   private activePointers = new Map<number, Phaser.Input.Pointer>();
   private lastPinchDist = 0;
   private stairsHinted = false;
+  private portalHinted = false;
   private panStartX = 0;
   private panStartY = 0;
   private panning = false;
@@ -282,6 +289,7 @@ export class Scene0 extends Phaser.Scene {
   }
 
   preload() {
+    this.load.image('shop-background', shopArtUrl);
     this.load.image('hero-color', heroArtUrl);
     this.load.image('cultist', cultistArtUrl);
     this.load.image('goblin', goblinArtUrl);
@@ -312,6 +320,7 @@ export class Scene0 extends Phaser.Scene {
 
   create() {
     createForegroundAtlas(this);
+    generatePortalTexture(this);
     this.events.once("shutdown", () => {
       clearMonsterSleepVisuals(this);
       clearSurpriseVisuals(this);
@@ -502,6 +511,7 @@ export class Scene0 extends Phaser.Scene {
     this.setupZoomControls();
 
     // Mobile/tap descend hook.
+    this.context.onPortalBump = (x, y) => this.tryStoreDoor(x, y);
     this.context.onDescend = () => this.tryDescend();
     this.context.onAscend = () => this.tryAscend();
     this.context.onSummonTrap = (x, y) => this.summonFromTrap(x, y);
@@ -649,6 +659,11 @@ export class Scene0 extends Phaser.Scene {
   update() {
     if (this.ended) return;
     this.updateDeepParallax();
+    const portal = this.context.portal;
+    if (portal) {
+      const sprite = this.featureSprites.get(`${portal.x},${portal.y}`);
+      sprite?.setFrame(portalFrame(terrainFor(this.context).getTileState(portal.x, portal.y)?.portal === 'open', this.time.now));
+    }
     this.updateWater(this.time.now);
     updateWandZaps(this, this.context, this.time.now, isModalOpen(this.context));
     updateGrassBurns(this, this.context, this.time.now, isModalOpen(this.context));
@@ -694,6 +709,7 @@ export class Scene0 extends Phaser.Scene {
       return;
     }
     this.checkStairs();
+    this.checkPortalHint();
     this.refreshFovIfNeeded();
     updateMonsterSleepVisuals(this, this.context.entities, this.time.now);
     updateSurpriseVisuals(this, this.context, this.time.now);
@@ -739,7 +755,7 @@ export class Scene0 extends Phaser.Scene {
     try {
       this.saveFloor();
       const graph = encodeGraph({ player: context.player, floors: this.floors,
-        floor: context.floor, kills: context.kills, messages: context.messages,
+        floor: context.floor, kills: context.kills, messages: context.messages, shop: context.shop,
         time: this.turnManager.time, nextTick: this.turnManager.nextTick,
         knowledge: saveConsumableKnowledge(context),
         bossesSlain: context.bossesSlain ?? new Set(),
@@ -813,6 +829,7 @@ export class Scene0 extends Phaser.Scene {
       restored ? (this.context.simulationTime ?? 0) - restored.savedAt : 0);
     this.resizeCamera();
     this.stairsHinted = false;
+    this.portalHinted = false;
 
     this.seen = restored?.seen ?? [];
     this.visible = new Set();
@@ -851,6 +868,10 @@ export class Scene0 extends Phaser.Scene {
     this.context.upstairsY = up.y;
     this.renderStairs(stairsPos.x, stairsPos.y);
 
+    // Uses the completed map/overlay, and also migrates already-visited floor 6.
+    const portalFeatures = tiles.snapshot();
+    this.context.portal = placeStorePortal(floor, levelArray, portalFeatures, up);
+    if (portalFeatures.length !== tiles.snapshot().length) tiles.restore(portalFeatures);
     this.syncFeatures();
 
     if (restored) {
@@ -1187,6 +1208,46 @@ export class Scene0 extends Phaser.Scene {
     this.setupFloor(floor, saved.map, arrival, saved.down, saved);
   }
 
+  private checkPortalHint(): void {
+    const portal = this.context.portal, player = this.context.player;
+    if (!portal || this.portalHinted || !player || player.x === undefined || player.y === undefined ||
+        Math.max(Math.abs(player.x - portal.x), Math.abs(player.y - portal.y)) !== 1 ||
+        !this.visible.has(`${portal.x},${portal.y}`)) return;
+    this.portalHinted = true;
+    dungeon.log(this.context, terrainFor(this.context).getTileState(portal.x, portal.y)?.portal === 'open'
+      ? 'The open doorway swirls with another place. Move toward it again to enter the store.'
+      : 'A strange door stands here. Move toward it to open it.');
+  }
+
+  private tryStoreDoor(x: number, y: number): boolean {
+    const context = this.context, portal = context.portal, player = context.player;
+    if (!portal || x !== portal.x || y !== portal.y) return false;
+    const adjacent = player !== undefined && player.x !== undefined && player.y !== undefined &&
+      Math.max(Math.abs(player.x - x), Math.abs(player.y - y)) === 1;
+    if (this.ended || isModalOpen(context) || !player?.canAct() || !adjacent ||
+        context.pendingFall || (context.pendingTrapArrows ?? 0) > 0 ||
+        context.entities.some(entity => entity.moving)) return true;
+    const terrain = terrainFor(context);
+    player.inputBuffer = []; player.walkPath = []; player.walkTargetEntity = undefined;
+    if (terrain.getTileState(x, y)?.portal !== 'open') {
+      terrain.setFeature(x, y, 'portal', { portal: 'open' });
+      this.syncFeatures();
+      dungeon.log(context, 'The strange door opens, revealing a swirling portal. Move toward it again to enter.');
+      player.spendTurn('openDoor');
+      return true;
+    }
+    ensureShopState(context);
+    player.exitCursorModes();
+    context.storeOpen = true;
+    context.onStoreOpenChange?.(true);
+    context.saveNow?.();
+    this.scene.sleep('ui-scene');
+    this.scene.launch('store-scene');
+    this.scene.bringToTop('store-scene');
+    this.scene.pause();
+    return true;
+  }
+
   private tryAscend() {
     const p = this.context.player;
     if (this.ended || isModalOpen(this.context) || !p?.canAct() ||
@@ -1432,6 +1493,8 @@ export class Scene0 extends Phaser.Scene {
     tint?: number;
   } {
     switch (state.feature) {
+      case 'portal':
+        return { textureKey: PORTAL_TEXTURE, frame: portalFrame(state.portal === 'open', this.time.now) };
       case "secretDoor":
         return {};
       case "door":
@@ -1475,7 +1538,7 @@ export class Scene0 extends Phaser.Scene {
     const raisedKeys = new Set<string>();
     for (let y = 0; y < level.length; y++) {
       for (let x = 0; x < level[y].length; x++) {
-        if (level[y][x] !== 1) continue;
+        if (level[y][x] !== 1 || tiles.getFeature(x, y) === 'portal') continue;
         const key = `${x},${y}`;
         wallKeys.add(key);
         const raised = wallOverhang(level, x, y);
@@ -1514,7 +1577,7 @@ export class Scene0 extends Phaser.Scene {
         ? { textureKey: state.door === 'open' ? 'door-threshold-side' : 'door-side' }
         : this.featureVisual(state);
       const visible = state.feature !== "secretDoor" && (state.feature !== "trap" || state.trap !== "hidden");
-      const upright = state.feature === 'grass' || (state.feature === 'door' && state.door !== 'open');
+      const upright = state.feature === 'portal' || state.feature === 'grass' || (state.feature === 'door' && state.door !== 'open');
       // Stable visual variation without consuming gameplay randomness.
       const texKey = state.feature === 'grass' ? `tall-grass-${(x * 7 + y * 11) % 3}`
         : visual.textureKey ?? (upright ? 'foreground-tiles' : 'tiles');

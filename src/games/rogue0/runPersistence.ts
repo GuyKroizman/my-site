@@ -32,6 +32,7 @@ export type SavedFloor = {
 };
 
 export type RunState = {
+  shop?: import('./store/shopModel').ShopState;
   player: BasicHero;
   floors: Map<number, SavedFloor>;
   floor: number;
@@ -125,6 +126,14 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
       }
     }
   }
+  if (run.shop !== undefined) {
+    // Reject corruption rather than silently replenishing purchased stock.
+    if (run.shop.version !== 1 || run.shop.floor !== 6 || !Array.isArray(run.shop.stock) ||
+        run.shop.stock.length !== 15 || run.shop.stock.some(slot => !slot ||
+          !Number.isSafeInteger(slot.price) || slot.price <= 0 || typeof slot.sold !== 'boolean' ||
+          (slot.sold ? slot.item !== undefined : !slot.item || slot.item.type !== 'item' ||
+            !Number.isSafeInteger(slot.item.count) || slot.item.count < 1))) throw new Error('Invalid saved store');
+  }
   const active = run.floors.get(run.floor)!;
   if (!Number.isInteger(run.player.x) || !Number.isInteger(run.player.y) ||
       active.map[run.player.y!]?.[run.player.x!] === undefined) throw new Error('Invalid saved position');
@@ -143,13 +152,15 @@ export function restoreRunState(context: GameContext, run: RunState): void {
   context.simulationTime = run.time;
   restoreConsumableKnowledge(context, run.knowledge);
   context.chasmFallenItems = run.chasmFallen;
+  context.shop = run.shop;
+  context.storeOpen = false;
   const items = [...run.player.getAllItems(), ...[...run.floors.values()].flatMap(floor => floor.entities),
     ...(run.chasmFallen ? [...run.chasmFallen.values()].flat() : [])];
   rememberIdentifiedWandTypes(context, items);
   for (const ring of [run.player.ring1, run.player.ring2]) {
     if (ring instanceof Ring) ring.onUpgrade();
   }
-  for (const item of items) {
+  for (const item of [...items, ...(run.shop?.stock.flatMap(slot => slot.item ? [slot.item] : []) ?? [])]) {
     if (item instanceof Wand) item.reconcileChargeScaling();
   }
 }

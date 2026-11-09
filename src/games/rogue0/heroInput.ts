@@ -119,6 +119,14 @@ export function createHeroInput(services: HeroControlServices) {
         context.onDescend?.();
         return;
       }
+      const portal = context.portal;
+      if (portal && x === portal.x && y === portal.y && context.visibleTiles.has(`${x},${y}`)) {
+        const adjacent = hero.x !== undefined && hero.y !== undefined &&
+          Math.max(Math.abs(hero.x - x), Math.abs(hero.y - y)) === 1;
+        if (adjacent) hero.stepManually(portal.x - hero.x!, portal.y - hero.y!);
+        else hero.setWalkTarget(portal.approachX, portal.approachY);
+        return;
+      }
       if (entity && isHostile(entity)) {
         const weapon = hero.currentWeapon();
         const ranged = weapon && weapon.range() > 0 ? weapon.attackTile || weapon.tile : false;

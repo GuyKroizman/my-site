@@ -90,6 +90,12 @@ export type GameContext = {
     y: number;
     fusion?: import('./wandFusion').WandFusionResult;
   }) => void;
+  // Store inventory lives outside floor entities and persists for the run.
+  shop?: import('./store/shopModel').ShopState;
+  storeOpen?: boolean;
+  portal?: import('./store/portal').StorePortal;
+  onPortalBump?: (x: number, y: number) => boolean;
+  onStoreOpenChange?: (open: boolean) => void;
   inventoryOpen?: boolean;
   onChooseEnchantment?: (gem: Entity) => void;
   onChooseItemTarget?: (item: Entity) => void;
@@ -145,7 +151,7 @@ export type GameContext = {
 };
 
 export function isModalOpen(context: GameContext): boolean {
-  return !!(context.inventoryOpen || context.heroModalOpen || context.logModalOpen || context.confirmationOpen || context.helpOpen ||
+  return !!(context.storeOpen || context.inventoryOpen || context.heroModalOpen || context.logModalOpen || context.confirmationOpen || context.helpOpen ||
     context.knowledgeOpen ||
     context.inspectChoices?.length || context.inspectedEntity || context.inspectedTerrain);
 }
