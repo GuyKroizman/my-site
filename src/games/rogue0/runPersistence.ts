@@ -12,6 +12,8 @@ import classes from './classes';
 import ScrollOfUpgrade from './items/ScrollOfUpgrade';
 import Ring from './items/ring';
 import Wand from './items/wand';
+import Chest from './items/chest';
+import { CHEST_TEXTURE } from './chestTextures';
 import Mimic from './monsters/mimic';
 import SwarmOfFlies from './monsters/swarmOfFlies';
 import { IceElemental } from './monsters/elemental';
@@ -87,6 +89,12 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     for (const entity of data.entities) {
       if (entity instanceof Mimic) entity.restoreLegacyStrength(floor);
       if (entity instanceof SwarmOfFlies) entity.flying = true;
+      // Older saves stored the flat tilesheet chest for both containers and
+      // dormant mimics; point them at the generated chest art.
+      if ((entity instanceof Chest || entity instanceof Mimic) && entity.textureKey !== CHEST_TEXTURE) {
+        entity.textureKey = CHEST_TEXTURE;
+        entity.tile = 0;
+      }
       // Older saves stored the ice elemental as a chest atlas frame; point it
       // back at the generated crystal art when its sprite is rebuilt.
       if (entity instanceof IceElemental && entity.textureKey !== ICE_ELEMENTAL_TEXTURE) {

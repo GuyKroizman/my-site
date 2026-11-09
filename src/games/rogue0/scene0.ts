@@ -44,6 +44,7 @@ import { TieredWeapon, TieredArmor } from "./items/tieredEquipment";
 import { bossSealsFloor, floorProgression, isBossFloor, lootTier } from "./progression";
 import { createEquipmentFind, rollFloorEquipment, NON_REMAINS_EQUIPMENT_SCALE } from './equipmentFinds';
 import { generateRemainsTexture } from './remainsTexture';
+import { generateChestTextures } from './chestTextures';
 import CursedGem from "./items/cursedGem";
 import Gem from './items/gem';
 import type { Room } from './mapgen';
@@ -363,6 +364,7 @@ export class Scene0 extends Phaser.Scene {
     generateGlyphStoneTextures(this);
     generateArmorTextures(this);
     generateRemainsTexture(this);
+    generateChestTextures(this);
     generateDoorThresholdTexture(this);
     generateWallDecalTextures(this);
     generateUnknownItemTextures(this);

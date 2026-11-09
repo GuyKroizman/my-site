@@ -903,6 +903,11 @@ Kenney frames through `tile = row * 49 + col`, so the overhaul is not close.
 - [x] Fix the mimic sprite: replaced the sword frame with the existing closed
       wooden chest (row 6, column 8). Implemented and visually verified in a
       mobile browser viewport using **Astra via Pi routing**.
+- [x] Give chests and mimics dedicated art instead of the flat two-colour
+      tilesheet chest: `chestTextures.ts` generates a banded chest (iron straps,
+      gold clasp) plus an open-jawed mimic. A dormant mimic wears the chest
+      texture exactly and swaps to the fanged frame when provoked; old saves are
+      remapped in `runPersistence.ts`.
 - [ ] Choose a cohesive 16×16 palette (dark SPD-like dungeon, warm light, one
       gold accent) and keep it consistent across all sprites.
       Partial: the five region palettes and original monster/item art move in

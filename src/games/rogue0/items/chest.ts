@@ -8,13 +8,17 @@ import Gem from './gem';
 import Ration from './ration';
 import PotionOfHealing from './PotionOfHealing';
 import { TieredWeapon, TieredArmor } from './tieredEquipment';
+import { CHEST_TEXTURE } from '../chestTextures';
 
 /** A real, non-hostile container. Contents are rolled once and saved with it. */
 export default class Chest extends Entity {
   type = 'item' as const;
   name = 'Treasure Chest';
   description = 'A wooden treasure chest. Walk into it to open it.';
+  // Legacy tilesheet frame, kept so old saves still round-trip. Rendering
+  // uses the generated banded-chest texture instead.
   tile = 6 * 49 + 8;
+  textureKey = CHEST_TEXTURE;
   isContainer = true;
   private opened = false;
   contents: Entity[];

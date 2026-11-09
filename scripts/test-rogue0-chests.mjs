@@ -19,6 +19,7 @@ const dungeon = { canStepBetween: () => passable,
 };
 const Chest = load('src/games/rogue0/items/chest.ts', { Entity, dungeon, maybeCurse: () => false,
   rollFoundUpgrade: load('src/games/rogue0/foundUpgrades.ts', { Entity }).rollFoundUpgrade,
+  CHEST_TEXTURE: 'chest-closed',
   ...rewards }).default;
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, dungeon, hasEffect: () => false, isModalOpen: () => false,
@@ -50,6 +51,8 @@ try {
   for (let roll = 0; roll < 18; roll++) {
     Math.random = () => (roll + 0.1) / 18;
     const { context, player, chest, turns, ready } = setup();
+    assert.equal(chest.textureKey, 'chest-closed', 'chests draw the generated chest art');
+    assert.equal(chest.spriteFrame, 0, 'the generated texture is a single frame');
     const content = chest.contents[0];
     assert.ok(content instanceof rewards[chestRewards[roll]]);
     assert.equal(content.x, undefined, 'contents are not floor loot before opening');

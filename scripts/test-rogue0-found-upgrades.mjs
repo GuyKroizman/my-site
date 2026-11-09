@@ -91,7 +91,7 @@ const { TieredWeapon, TieredArmor } = load('src/games/rogue0/items/tieredEquipme
 const rewards = { Gold: class extends Entity {}, Gem: class extends Entity {}, Ration: class extends Entity {}, PotionOfHealing: class extends Entity {} };
 const Chest = load('src/games/rogue0/items/chest.ts', {
   Entity, dungeon: { log() {} }, maybeCurse: () => false, rollFoundUpgrade,
-  TieredWeapon, TieredArmor, ...rewards,
+  TieredWeapon, TieredArmor, CHEST_TEXTURE: 'chest-closed', ...rewards,
 }).default;
 const originalRandom = Math.random;
 try {

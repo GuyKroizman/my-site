@@ -355,6 +355,7 @@ assert.equal(context.scene.input.enabled, true);
     applyEffect() {}, hasEffect: () => false, createStrengthenedEffect: () => ({}),
     GOBLIN_ARROW_TEXTURE: 'goblin-arrow', generateGoblinArrowTexture() {},
     CULTIST_BOLT_TEXTURE: 'cultist-bolt', generateCultistBoltTexture() {},
+    CHEST_TEXTURE: 'chest-closed', MIMIC_TEXTURE: 'mimic-revealed',
   };
   const kinds = {
     Skeleton: load('src/games/rogue0/monsters/skelaton.ts', stub).default,

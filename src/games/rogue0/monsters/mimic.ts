@@ -2,9 +2,22 @@ import Monster from "./monster";
 import type { GameContext } from "../context";
 import Gem from "../items/gem";
 import type { Entity } from '../entity';
+import { CHEST_TEXTURE, MIMIC_TEXTURE } from '../chestTextures';
 
 export default class Mimic extends Monster {
   private provoked = false;
+
+  // A dormant mimic is drawn with the exact chest texture, so the disguise is
+  // visual as well as behavioural. Provoking it swaps in the open-jawed art.
+  get spriteTextureKey(): string {
+    return this.provoked ? MIMIC_TEXTURE : CHEST_TEXTURE;
+  }
+
+  private provoke(): void {
+    if (this.provoked) return;
+    this.provoked = true;
+    this.sprite?.setTexture(MIMIC_TEXTURE);
+  }
 
   turn(): void {
     if (!this.provoked) {
@@ -16,7 +29,7 @@ export default class Mimic extends Monster {
   }
 
   onAttacked(attacker: Entity): void {
-    this.provoked = true;
+    this.provoke();
     this.wakeUp();
     if (attacker.x !== undefined && attacker.y !== undefined) {
       this.lastSeenX = attacker.x;
@@ -26,7 +39,7 @@ export default class Mimic extends Monster {
 
   takeDamage(amount: number, interruptNavigation = true): void {
     super.takeDamage(amount, interruptNavigation);
-    if (amount > 0) this.provoked = true;
+    if (amount > 0) this.provoke();
   }
 
   restoreLegacyStrength(floor: number): void {
@@ -46,7 +59,8 @@ export default class Mimic extends Monster {
       name: "Mimic",
       description: "A motionless treasure chest. It awakens and attacks only after being attacked or taking damage.",
       initiallyAwake: true, // Dormancy is not timed sleep and has no sleeping Zs.
-      tile: 6 * 49 + 8, // Closed wooden chest (row 6, column 8).
+      tile: 6 * 49 + 8, // Legacy chest frame, still saved with old runs.
+      textureKey: CHEST_TEXTURE, // Disguised as the generated chest art.
       healthPoints: 24 + tier * 8,
       movementSpeed: 1,
       attackDelay: 1,

@@ -102,7 +102,8 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   const { decodeRunSave } = load('src/games/rogue0/runPersistence.ts', {
     decodeGraph, saveRegistry: registry, restoreEffects, ScrollOfUpgrade,
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
-    Mimic: class {}, SwarmOfFlies: class {},
+    Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
+    CHEST_TEXTURE: 'chest-closed',
     IceElemental,
     ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
   });

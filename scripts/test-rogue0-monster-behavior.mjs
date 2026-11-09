@@ -38,6 +38,7 @@ const manager = new TurnManager({ log: dungeon.log, hasEffect, removeEffect });
 function sprite(x = 32, y = 32) {
   return { x, y, visible: true, width: 16, height: 16, displayWidth: 16, depth: 2,
     setScale(scale) { this.scale = scale; return this; },
+    setTexture(key) { this.texture = key; return this; },
     setOrigin(x, y) { this.origin = { x, y }; return this; } };
 }
 // Replace only actual display creation; retain real Entity timing/damage methods.
@@ -474,7 +475,9 @@ assert.equal(offspring.sprite.scale, 0.7, 'small swarm scale survives floor recr
 
 // Mimic chest dormancy is indefinite and distinct from timed monster sleep.
 {
-  const Mimic = load('src/games/rogue0/monsters/mimic.ts', { Monster, Gem: class {} }).default;
+  const Mimic = load('src/games/rogue0/monsters/mimic.ts', {
+    Monster, Gem: class {}, CHEST_TEXTURE: 'chest-closed', MIMIC_TEXTURE: 'mimic-revealed',
+  }).default;
   const combat = load('src/games/rogue0/combat.ts', {
     ...sight, hasEffect, createBleedingEffect: () => ({ id: 'bleeding' }),
     tiles: { ...tiles, getFeature: () => undefined, isGrassConcealed: () => false },
@@ -491,6 +494,7 @@ assert.equal(offspring.sprite.scale, 0.7, 'small swarm scale survives floor recr
   assert.equal(chest.maxHealthPoints, 32);
   assert.equal(chest.attackDamage, 14);
   assert.equal(chest.protection(), 1);
+  assert.equal(chest.spriteTextureKey, 'chest-closed', 'a dormant mimic wears the chest art');
   const deep = new Mimic({ ...ctx, floor: 25 }, 2, 2);
   assert.equal(deep.maxHealthPoints, 64);
   assert.equal(deep.attackDamage, 30);
@@ -512,12 +516,16 @@ assert.equal(offspring.sprite.scale, 0.7, 'small swarm scale survives floor recr
   chest.init(ctx, 2, 2);
   chest.turn();
   assert.equal(attacks, initialAttacks, 'floor revisit preserves dormancy');
+  assert.equal(chest.spriteTextureKey, 'chest-closed', 'dormancy keeps the disguise across floors');
   chest.takeDamage(1);
+  assert.equal(chest.spriteTextureKey, 'mimic-revealed', 'damage drops the disguise');
+  assert.equal(chest.sprite.texture, 'mimic-revealed', 'the live sprite swaps without waiting a turn');
   chest.turn();
   assert.equal(attacks, initialAttacks + 1, 'positive effect damage activates normal combat');
   chest.init(ctx, 2, 2);
   chest.turn();
   assert.equal(attacks, initialAttacks + 2, 'floor revisit preserves provocation');
+  assert.equal(chest.spriteTextureKey, 'mimic-revealed', 'provocation survives a floor revisit');
   const random = Math.random;
   try {
     Math.random = () => 0.5;
@@ -529,6 +537,7 @@ assert.equal(offspring.sprite.scale, 0.7, 'small swarm scale survives floor recr
       const result = combat.resolveAttack(ctx, hero, chest);
       assert.equal(result.hit, hit);
       assert.equal(result.damage, 0);
+      assert.equal(chest.spriteTextureKey, 'mimic-revealed', 'a zero-damage attack still drops the disguise');
       const before = attacks;
       chest.turn();
       assert.equal(attacks, before + 1, 'attack attempt activates chest even with no damage');
