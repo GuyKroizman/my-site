@@ -17,6 +17,7 @@ import { stashChasmFallen } from '../../src/games/rogue0/chasmDrops.ts';
 import * as combatFeedback from '../../src/games/rogue0/combatFeedback.ts';
 import * as tilePresentation from '../../src/games/rogue0/tiles.ts';
 import * as sight from '../../src/games/rogue0/fov.ts';
+import { bossArenaLayout } from '../../src/games/rogue0/bossArenas.ts';
 
 // Compatibility harness for existing isolated-method suites. Parse imports as
 // TypeScript rather than deleting them with a regex. New boundary/integration
@@ -61,7 +62,7 @@ export function loadLogic(path, bindings = {}) {
   const tryFuseWands = (...args) => bindings.tryFuseWands?.(...args);
   const dependencies = { applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
     terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation, ...actorBodies, ...footprint, ...placement, ...combatFeedback,
-    forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, tryFuseWands, heroStatsText, heroHudView, ...bindings };
+    forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, tryFuseWands, heroStatsText, heroHudView, bossArenaLayout, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));
   return exports;

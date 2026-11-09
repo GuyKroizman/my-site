@@ -65,10 +65,13 @@ has been playtested. Checked boxes mean the described implementation exists.
   outside the hero's field of view, scaling with floor depth. Boss floors
   (every fifth) are exempt: they are guardian-only arenas and stay empty once
   the guardian falls (`floorAllowsReinforcements`).
-- Boss floors are one arena hall (`bossArenaRoom`), not a room network. The
-  hall keeps 20% of its old area (32x16 instead of the earlier 72x36) and is
-  centred in the old footprint: the hero enters at the south edge, the guardian
-  sleeps at the exact centre, and the stairs sit in the far north corner. The guardian is the only monster,
+- Boss floors are one arena hall (`bossArenaRoom`), not a room network, and
+  every boss floor has its own plan (`bossArenas.ts`: rotunda, long colonnade,
+  octagonal sanctum, cruciform vault, throne hall), centred in the old
+  footprint: the hero enters at the south edge, the guardian sleeps at the
+  exact centre, and the stairs sit at the farthest open eastern tile. Floor 5's
+  16x16 rotunda keeps four 2x2 pillars 10 walkable tiles apart; the other halls
+  stand their own rocks, all clear of the middle and both approaches. The guardian is the only monster,
   and no random floor loot, cursed gem, chasm, summon trap or Skeletal Remains
   pile appears. They keep their two treasure chests, one ration and the hidden
   room's gem.

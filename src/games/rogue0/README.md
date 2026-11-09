@@ -478,10 +478,14 @@ dies, and slaying the floor-25 guardian ends the run in victory.
 
 A boss floor is not a room network: map generation carves a single **arena
 hall** behind a border of solid rock, with the guardian asleep at its exact
-centre. The standard map's hall is **32x16 tiles** — 20% of the area of the
-earlier 72x36 hall — so the fight starts without a long empty walk. The hero
-arrives at the south edge, across the hall from the guardian, and the sealed
-stairs wait in the far north corner. The arena is the guardian's alone: no
+centre. Each boss floor builds its **own hall** (`bossArenas.ts`), so the five
+guardians are fought in five different rooms: a 16x16 **pillared rotunda** on
+floor 5 (four 2x2 pillars exactly 10 tiles apart), a 24x14 **long colonnade**
+on floor 10, an 18x18 **octagonal sanctum** on floor 15, a 20x20 **cruciform
+vault** on floor 20 and a 20x20 **throne hall** ringed by eight piers on floor
+25. The hero always arrives at the south edge, across the hall from the
+guardian, and the sealed stairs wait in the farthest eastern corner. Every
+hall keeps its middle, its entrance and its exit clear. The arena is the guardian's alone: no
 wandering roster (skeletons, goblins, ghouls, brutes, Quloptsh, swarms, mimics,
 cultists, elementals, wraiths, frogs), no random floor loot, no cursed gem, no
 chasm, no bone pile and no summon trap. What it does carry is the guardian, two

@@ -1,5 +1,6 @@
 import type { FeaturePlacement, TrapKind } from './tiles';
 import type { Terrain } from './terrain';
+import { bossArenaLayout } from './bossArenas.ts';
 
 export const MAP_WIDTH = 80;
 export const MAP_HEIGHT = 50;
@@ -11,27 +12,133 @@ export function floorHasSecretRoom(floor: number): boolean {
   return floor % 5 === 0;
 }
 
-// Boss floors are one huge arena hall, not a network of rooms. Mirrors
-// progression.isBossFloor so map generation stays free of gameplay imports.
+// Boss floors are one arena hall, not a network of rooms, and every boss floor
+// builds its own hall (see bossArenas.ts). Mirrors progression.isBossFloor so
+// map generation stays free of gameplay imports.
 export function floorIsBossArena(floor: number): boolean {
   return Number.isInteger(floor) && floor > 0 && floor % 5 === 0;
 }
 
-// A boss hall used to fill the whole map. Keep only 20% of that area by
-// shrinking each span by sqrt(0.2) and centring the smaller hall in the old
-// footprint, which leaves the rock border and the northern hidden branch in
-// place. The hero still arrives at the south edge, opposite the guardian.
-export const BOSS_ARENA_AREA_FRACTION = 0.2;
-const BOSS_ARENA_SPAN_SCALE = Math.sqrt(BOSS_ARENA_AREA_FRACTION);
-
-export function bossArenaRoom(width: number, height: number): Room {
+// The hall comes from the floor's own layout, clamped to the space inside the
+// rock border and centred there. On the standard map every layout fits whole,
+// so the guardian keeps the map centre and the hidden branch keeps its room
+// above the north wall.
+export function bossArenaRoom(width: number, height: number, floor = 5): Room {
+  const layout = bossArenaLayout(floor);
   const spanW = width - 8;
   const spanH = height - 14;
-  const w = Math.max(12, Math.round(spanW * BOSS_ARENA_SPAN_SCALE));
-  const h = Math.max(10, Math.round(spanH * BOSS_ARENA_SPAN_SCALE));
+  const w = Math.max(8, Math.min(layout.width, spanW));
+  const h = Math.max(8, Math.min(layout.height, spanH));
   const x = 4 + Math.floor((spanW - w) / 2);
   const y = 12 + Math.floor((spanH - h) / 2);
   return { x, y, w, h, cx: x + Math.floor(w / 2), cy: y + Math.floor(h / 2) };
+}
+
+// Hall-local wall test of the floor's layout, clipped to the hall rectangle.
+export function isBossArenaWall(
+  room: Room,
+  floor: number,
+  x: number,
+  y: number
+): boolean {
+  const lx = x - room.x;
+  const ly = y - room.y;
+  if (lx < 0 || ly < 0 || lx >= room.w || ly >= room.h) return false;
+  return bossArenaLayout(floor).solid(lx, ly, room.w, room.h);
+}
+
+// The solid tiles a floor's layout places inside its hall: pillars, chamfers
+// and corner masses alike.
+export function bossArenaWallTiles(
+  room: Room,
+  floor: number
+): Array<{ x: number; y: number }> {
+  const walls: Array<{ x: number; y: number }> = [];
+  for (let y = room.y; y < room.y + room.h; y++) {
+    for (let x = room.x; x < room.x + room.w; x++) {
+      if (isBossArenaWall(room, floor, x, y)) walls.push({ x, y });
+    }
+  }
+  return walls;
+}
+
+// The guardian's body may stand nowhere else, so the entrance and the exit
+// both stay out of its 3x3 square.
+function arenaGuarded(room: Room, x: number, y: number): boolean {
+  return Math.abs(x - room.cx) <= 1 && Math.abs(y - room.cy) <= 1;
+}
+
+// The hero arrives at the south edge, on the hall's axis where the layout
+// leaves that tile open. Layouts that put a pillar on the axis fall back to the
+// nearest open tile in the southern half.
+export function bossArenaSpawn(
+  map: number[][],
+  room: Room
+): { x: number; y: number } {
+  const open = (x: number, y: number) =>
+    map[y]?.[x] === 0 && !arenaGuarded(room, x, y);
+
+  const preferred = { x: room.cx, y: room.y + room.h - 3 };
+  if (open(preferred.x, preferred.y)) return preferred;
+
+  let best: { x: number; y: number; d: number } | undefined;
+  for (let y = room.y + Math.floor(room.h / 2); y < room.y + room.h; y++) {
+    for (let x = room.x; x < room.x + room.w; x++) {
+      if (!open(x, y)) continue;
+      const d = Math.abs(x - preferred.x) + Math.abs(y - preferred.y);
+      if (!best || d < best.d || (d === best.d && y > best.y)) {
+        best = { x, y, d };
+      }
+    }
+  }
+  return best ? { x: best.x, y: best.y } : preferred;
+}
+
+// The sealed stairs sit at the open hall tile farthest from the entrance,
+// preferring the eastern half by Manhattan distance. That keeps the exit clear
+// of the concealed branch, which always hangs above the hall's north-west
+// corner tile, and of the guardian's square.
+export function bossArenaStairs(
+  map: number[][],
+  room: Room,
+  spawn: { x: number; y: number }
+): { x: number; y: number } {
+  const dist = new Map<string, number>([[`${spawn.x},${spawn.y}`, 0]]);
+  const queue: Array<{ x: number; y: number }> = [spawn];
+  let best: { x: number; y: number; d: number } | undefined;
+
+  while (queue.length) {
+    const { x, y } = queue.shift()!;
+    const d = dist.get(`${x},${y}`)!;
+    if (d > 0 && x >= room.cx && !arenaGuarded(room, x, y)) {
+      if (
+        !best ||
+        d > best.d ||
+        (d === best.d && (y < best.y || (y === best.y && x > best.x)))
+      ) {
+        best = { x, y, d };
+      }
+    }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (
+        nx < room.x ||
+        ny < room.y ||
+        nx >= room.x + room.w ||
+        ny >= room.y + room.h
+      ) {
+        continue;
+      }
+      if (map[ny][nx] !== 0) continue;
+      const key = `${nx},${ny}`;
+      if (dist.has(key)) continue;
+      dist.set(key, d + 1);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+
+  return best ? { x: best.x, y: best.y } : spawn;
 }
 
 // Terrain biome of a floor. Most floors mix small patches, but roughly half
@@ -64,13 +171,15 @@ export type GeneratedMap = {
   features: FeaturePlacement[];
   secretRoom?: Room;
   // Where the hero arrives when the layout dictates it (the boss arena's south
-  // edge). Ordinary floors derive the arrival tile from rooms[0].
+  // edge, on the axis where that tile is open). Ordinary floors derive the
+  // arrival tile from rooms[0].
   spawn?: { x: number; y: number };
   // Middle of the boss arena, where the guardian waits asleep.
   bossArena?: { x: number; y: number };
-  // The arena's far corner. Ordinary floors derive the exit from the arrival
-  // tile instead; the arena states it so the stairs cannot land in the stub of
-  // the hidden branch above the north wall.
+  // The arena's farthest open tile from the entrance, in its eastern half.
+  // Ordinary floors derive the exit from the arrival tile instead; the arena
+  // states it so the stairs cannot land in the stub of the hidden branch above
+  // the north wall.
   stairs?: { x: number; y: number };
 };
 
@@ -763,7 +872,9 @@ export function generateMap(floor = 1): GeneratedMap {
 
   // A boss floor is one vast arena: no room network and no chasm chamber.
   const arenaFloor = floorIsBossArena(floor);
-  const arena = arenaFloor ? bossArenaRoom(width, height) : undefined;
+  const arena = arenaFloor ? bossArenaRoom(width, height, floor) : undefined;
+  let arenaSpawn: { x: number; y: number } | undefined;
+  let arenaStairs: { x: number; y: number } | undefined;
 
   // Floors 6+ carve a big chasm chamber at a random spot: a walkable ring
   // around a noise-shaped chasm. Regular rooms fill the rest of the map and a
@@ -803,7 +914,15 @@ export function generateMap(floor = 1): GeneratedMap {
 
   if (arena) {
     carve(map, arena);
+    // The floor's own layout supplies the interior rock: pillars, chamfers and
+    // corner masses. The guardian's 3x3 body, the entrance and the stairs are
+    // all kept off those tiles.
+    for (const wall of bossArenaWallTiles(arena, floor)) {
+      map[wall.y][wall.x] = 1;
+    }
     rooms.push(arena);
+    arenaSpawn = bossArenaSpawn(map, arena);
+    arenaStairs = bossArenaStairs(map, arena, arenaSpawn);
   }
 
   for (
@@ -1062,11 +1181,11 @@ export function generateMap(floor = 1): GeneratedMap {
 
   return {
     map, rooms, features, secretRoom,
-    ...(arena
+    ...(arena && arenaSpawn && arenaStairs
       ? {
-        spawn: { x: arena.cx, y: arena.y + arena.h - 3 },
+        spawn: arenaSpawn,
         bossArena: { x: arena.cx, y: arena.cy },
-        stairs: { x: arena.x + arena.w - 1, y: arena.y }
+        stairs: arenaStairs
       }
       : {})
   };

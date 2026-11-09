@@ -9,6 +9,7 @@ import { actionCost, starvationDamageDuring } from '../src/games/rogue0/timing.t
 const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 const tiles = load('tiles');
 const fov = load('fov', tiles);
+import { bossArenaLayout } from '../src/games/rogue0/bossArenas.ts';
 const { generateMap, findFarthestWalkable, floorHasSecretRoom, floorIsBossArena, floorTerrainTheme } = load('mapgen', tiles);
 // Every floor theme must be reachable: the generator rolls one per floor.
 const themeRolls = new Set();
@@ -94,10 +95,12 @@ for (let i = 0; i < 200; i++) {
   }
   assert.ok(map[0].every(cell => cell === 1), 'northern boundary stays sealed');
   if (floorIsBossArena(floor)) {
-    // A boss floor is a single arena hall, now 20% of its old area.
+    // A boss floor is a single arena hall, and every boss floor builds its own.
     assert.equal(rooms.length, 1, `floor ${floor} is a single arena room`);
     const arena = rooms[0];
-    assert.equal(arena.w * arena.h, 512, `arena is 32x16 (${arena.w}x${arena.h})`);
+    const layout = bossArenaLayout(floor);
+    assert.deepEqual({ w: arena.w, h: arena.h }, { w: layout.width, h: layout.height },
+      `floor ${floor} carves the ${layout.id} hall (${arena.w}x${arena.h})`);
   } else {
     assert.ok(rooms.length > 1);
   }
