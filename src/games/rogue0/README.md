@@ -407,12 +407,27 @@ frozen *and* chilled, so it moves and attacks at half rate through the same
 action-cost path the AI uses. Frost plates stay armed after a monster triggers
 them; fire, dart, teleport, summon and alarm plates remain player-only, and
 levitation still bypasses all pressure plates. Re-entry refreshes the slow
-rather than stacking it. Chilled shows an ice icon in the top-left status
-row, is described in the character modal ("Moves and attacks at half speed"),
+rather than stacking it. Chilled shows an ice icon in the status column under
+the hero portrait, is described in the character modal ("Moves and attacks at half speed"),
 and covers the hero sprite in a translucent ice sheen with frost crystals —
 drawn as a separate overlay so low-health red, hit-flash white and invisibility
 alpha still work. The overlay follows movement, the walking bob and scaling,
 and it clears on expiry, death, floor change and scene shutdown.
+
+## Status icons
+
+Every active effect gets a square icon directly under the hero portrait in the
+top-left corner (28 px box, 24 px drawn art, 4 px gap, up to 16 slots), newest
+first in effect order. Each icon shows its remaining turns in the bottom-right corner (`∞` for
+curses and artifact auras that never expire) and its tooltip repeats the number
+with the effect's description. Icons wrap into a second column when the stack
+would reach the message strip, and only a viewport too small for one row hides
+them. Every effect has its own drawn 24x24 icon in `statusIconTextures.ts`
+(authored on a 12x12 grid, doubled into 2x2 blocks so it stays crisp at 1:1);
+before that the HUD borrowed tilesheet glyphs, and several statuses shared the
+same frame. Status names, durations and descriptions are formatted by
+`statusDurationLabel`/`describeEffect`, so the icon badge, tooltip and
+character modal always agree.
 
 Hunger and regeneration tick per elapsed world-time unit. Buffs keep their own
 tick phase (a two-time-unit buff applied at 0.5 expires at 2.5). Faster movement
@@ -496,10 +511,11 @@ monsters, reinforcements and loot dropped from the chasm above keep out of the
 room, so the island stays the chest's; the walkable band remains part of the
 floor network.
 
-While the hero is levitating, the status row shows the levitation icon (tap it
-for the remaining turns plus "Floats over chasms and ground hazards"), the
-character modal lists `Levitating (n)` under **Effects**, and an air overlay
-draws below the soles: five pixel downdraft streaks plus two puffs sliding
+While the hero is levitating, the status column under the portrait shows the
+levitation icon with its remaining turns (tap it for the same number plus
+"Floats over chasms and ground hazards"), the character modal lists
+`Levitating (n)` under **Effects**, and an air overlay draws below the soles:
+five pale downdraft streaks, a lit line under the soles and four puffs sliding
 outward, on a fixed 640 ms loop. Like the fire and ice overlays it is a
 separate Graphics object, so the hero's own tint and invisibility alpha are
 untouched; it follows movement, the walking bob and scaling, takes no gameplay

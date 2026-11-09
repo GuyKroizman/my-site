@@ -192,7 +192,8 @@ exist. Current implementation details in §1 supersede outdated proposals below.
 ### G1 — Status effects (`effects.ts`, new)
 A `StatusEffect` type and an `effects: StatusEffect[]` field on `Entity`.
 
-- `effect = { id, name, iconTile, duration, apply(e,c), tick(e,c), remove(e,c) }`
+- `effect = { id, name, duration, apply(e,c), tick(e,c), remove(e,c) }` (the HUD
+  icon is looked up by `id` in `statusIconTextures.ts`, not stored on the effect)
 - Effects use elapsed-world-time scheduling with independent tick phases,
   and apply/expire cleanly with message log lines. `refresh()` is not a
   once-per-action effect clock.

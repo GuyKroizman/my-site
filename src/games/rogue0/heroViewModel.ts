@@ -20,6 +20,14 @@ export function heroHudView(hero: Pick<HeroStats, 'healthPoints' | 'maxHealthPoi
   };
 }
 
+// One label for every place a remaining time is shown (status icon badge,
+// icon tooltip, character modal). Curses and artifact auras never expire, so
+// they read as ∞ instead of a misleading huge number.
+export function statusDurationLabel(effect: { duration: number; manualExpiry?: boolean }): string {
+  const infinite = effect.manualExpiry || effect.duration === Number.POSITIVE_INFINITY;
+  return infinite ? "∞" : `${effect.duration}`;
+}
+
 // The HUD portrait must show the hero's own sprite, not a legacy atlas tile:
 // actors render `spriteTextureKey`/`spriteFrame` (e.g. the custom hero art),
 // while the old icon used the raw 16×16 "tiles" frame `tile`, which is a

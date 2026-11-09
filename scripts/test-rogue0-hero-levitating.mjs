@@ -35,18 +35,19 @@ try {
   Math.random = () => { throw Error('visuals must not consume gameplay RNG'); };
   updateHeroLevitating(scene, hero, 0);
   const air = created[0];
-  assert.equal(air.rects.length, 12, 'ten downdraft rects (halo + core per lane) plus two side puffs');
-  assert.equal(air.fills.length, 12, 'each rect gets its own fill style');
+  assert.equal(air.rects.length, 15, 'ten downdraft rects (halo + core per lane), the sole line and four puffs');
+  assert.equal(air.fills.length, 15, 'each rect gets its own fill style');
   assert.equal(air.depth, 5.05, 'sits just above the hero sprite');
   for (const [, y, , h] of air.rects) {
     assert.ok(y >= FEET, 'every puff starts at or below the drawn soles');
-    assert.ok(y + h <= FEET + 12, 'the air stays just under the hero, not a cloud');
+    assert.ok(y + h <= FEET + 15, 'the air stays just under the hero, not a cloud');
   }
   for (const [x] of air.rects.slice(0, 10)) {
     assert.ok(x >= 30 && x + 2 <= 50, 'streaks leave from the footprint, allowing a one-pixel halo');
   }
+  assert.deepEqual(air.rects[10], [32, 64, 16, 1], 'a lit line joins the flow to the soles');
   assert.equal(air.fills[0].color, 0x9ad7f2, 'air is pale blue, not fire or ice');
-  assert.equal(air.fills[1].color, 0xe8fbff, 'streaks keep a bright core');
+  assert.equal(air.fills[1].color, 0xffffff, 'streaks keep a bright core');
   assert.ok(air.fills.every(f => f.alpha > 0 && f.alpha <= 1), 'alpha stays in range');
 
   // Flow: lanes travel downward and the puffs slide outward, fading as they go.
@@ -78,9 +79,9 @@ try {
   const scaledFeet = 48 + (24 - 8) * 2;
   for (const [, y] of air.rects) {
     assert.ok(y >= scaledFeet, 'scaled hero art keeps the air under the soles');
-    assert.ok(y <= scaledFeet + 14, 'scaled streaks travel the scaled distance, not a fixed one');
+    assert.ok(y <= scaledFeet + 18, 'scaled streaks travel the scaled distance, not a fixed one');
   }
-  assert.equal(air.rects[11][2], 4, 'puffs grow with the art');
+  assert.equal(air.rects[11][2], 6, 'puffs grow with the art');
   sprite.scaleX = sprite.scaleY = 1;
 
   sprite.visible = false; sprite.alpha = 0.4;

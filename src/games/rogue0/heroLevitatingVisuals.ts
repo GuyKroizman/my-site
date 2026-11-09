@@ -9,7 +9,7 @@ const STREAM_LANES: ReadonlyArray<number> = [0.18, 0.34, 0.5, 0.66, 0.82];
 // One full downdraft cycle in milliseconds; lanes are phase-shifted inside it.
 const CYCLE_MS = 640;
 // How far the pushed-down air travels below the feet at full scale.
-const TRAVEL = 7;
+const TRAVEL = 9;
 
 /**
  * Updraft below a levitating hero: short pixel streaks of air pushed down from
@@ -48,22 +48,26 @@ export function updateHeroLevitating(scene: Phaser.Scene, hero: Entity | undefin
     const phase = (cycle + index / STREAM_LANES.length) % 1;
     const fade = 1 - phase;
     const x = Math.round(left + lane * w - unit / 2);
-    const y = Math.round(feet + phase * TRAVEL * sy);
-    air.fillStyle(0x9ad7f2, 0.22 + 0.3 * fade);
-    air.fillRect(x - unit, y, unit * 2, Math.max(1, Math.round(3 * sy)));
-    air.fillStyle(0xe8fbff, 0.35 + 0.6 * fade);
-    air.fillRect(x, y, unit, Math.max(1, Math.round(2 * sy)));
+    const y = Math.round(feet + 1 + phase * TRAVEL * sy);
+    air.fillStyle(0x9ad7f2, 0.28 + 0.32 * fade);
+    air.fillRect(x - unit, y, unit * 2, Math.max(2, Math.round(5 * sy)));
+    air.fillStyle(0xffffff, 0.5 + 0.5 * fade);
+    air.fillRect(x, y, unit, Math.max(1, Math.round(3 * sy)));
   });
 
+  // A lit line right under the soles anchors the flow to the feet.
+  air.fillStyle(0xbfe6ff, 0.45);
+  air.fillRect(Math.round(left), Math.round(feet), Math.round(w), unit);
+
   // Displaced air sliding outward from the soles, fading as it spreads.
-  [[-1, 0.1], [1, 0.6]].forEach(([dir, offset]) => {
+  [[-1, 0.1], [-1, 0.6], [1, 0.35], [1, 0.85]].forEach(([dir, offset]) => {
     const phase = (cycle + offset) % 1;
     const spread = Math.round((1 + phase * 5) * unit);
     const x = dir < 0
-      ? Math.round(left - spread - unit * 2)
+      ? Math.round(left - spread - unit * 3)
       : Math.round(left + w + spread);
-    air.fillStyle(0xc9e9ff, 0.5 * (1 - phase));
-    air.fillRect(x, Math.round(feet), unit * 2, unit);
+    air.fillStyle(0xc9e9ff, 0.6 * (1 - phase));
+    air.fillRect(x, Math.round(feet + unit), unit * 3, unit);
   });
 }
 

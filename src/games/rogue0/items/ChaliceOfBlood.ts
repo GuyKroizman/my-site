@@ -87,7 +87,6 @@ export default class ChaliceOfBlood extends Entity {
     return {
       id: "chalice-regeneration",
       name: "Regeneration",
-      iconTile: 13 * 49 + 44,
       duration: Number.POSITIVE_INFINITY,
       manualExpiry: true,
       tick: (entity) => {
@@ -113,7 +112,6 @@ export default class ChaliceOfBlood extends Entity {
     return {
       id: "chalice-drain",
       name: "Life Drain",
-      iconTile: 13 * 49 + 44,
       duration: Number.POSITIVE_INFINITY,
       manualExpiry: true,
       tick: (entity) => {

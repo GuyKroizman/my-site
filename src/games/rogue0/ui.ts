@@ -7,7 +7,18 @@ import { ConfirmationWindow } from "./confirmationWindow";
 import { QuickslotPane } from "./quickslotPane";
 import { attachTooltip } from "./tooltip";
 import { describeEffect } from "./effects";
-import { heroHudView, heroPortrait } from './heroViewModel';
+import { heroHudView, heroPortrait, statusDurationLabel } from './heroViewModel';
+import {
+  STATUS_ICON_SIZE,
+  STATUS_ICON_TEXTURE,
+  generateStatusIconTextures,
+  statusIconFrame
+} from './statusIconTextures';
+import { LOG_STRIP_GAP, LOG_STRIP_HEIGHT, statusIconLayout } from './statusHudLayout';
+
+// Slots are cheap and effects are capped in practice, but leave headroom so a
+// heavily buffed hero still shows every status.
+const STATUS_ICON_SLOTS = 16;
 
 const FONT_PIXEL = "Press Start 2P";
 const FONT_MONO = "VT323";
@@ -88,10 +99,11 @@ export class UI extends Phaser.Scene {
   private statusIcons: {
     bg: Phaser.GameObjects.Rectangle;
     icon: Phaser.GameObjects.Sprite;
+    count: Phaser.GameObjects.Text;
     id: string;
   }[] = [];
-  private readonly statusIconSize = 18;
-  private readonly statusIconGap = 3;
+  private readonly statusIconSize = 28;
+  private readonly statusIconGap = 4;
 
   constructor(context: GameContext) {
     super("ui-scene");
@@ -164,6 +176,7 @@ export class UI extends Phaser.Scene {
   }
 
   buildHUD() {
+    generateStatusIconTextures(this);
     this.buildToolbar();
     this.buildStatusIcons();
     this.healthTrack = this.add.rectangle(0, 0, 140, 16, C.panel)
@@ -266,16 +279,30 @@ export class UI extends Phaser.Scene {
   }
 
   private buildStatusIcons() {
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < STATUS_ICON_SLOTS; i++) {
       const bg = this.add
         .rectangle(0, 0, this.statusIconSize, this.statusIconSize, C.panel, 1)
         .setStrokeStyle(1, C.borderStrong, 1)
         .setInteractive({ useHandCursor: true })
         .setVisible(false);
-      const icon = this.add.sprite(0, 0, "tiles", 26).setVisible(false);
+      // Every effect has its own drawn icon (see statusIconTextures): the old
+      // tilesheet frames were shared by several statuses and unreadable.
+      const icon = this.add
+        .sprite(0, 0, STATUS_ICON_TEXTURE, 0)
+        .setDisplaySize(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
+        .setVisible(false);
+      // Remaining turns sit on the icon itself, so the number is visible
+      // without opening the tooltip or the character modal.
+      const count = this.add
+        .text(0, 0, "", {
+          fontFamily: `${FONT_MONO}, monospace`, fontSize: 11, color: COL.gold,
+          stroke: '#16121c', strokeThickness: 3
+        })
+        .setOrigin(1, 1)
+        .setVisible(false);
       bg.on("pointerover", () => bg.setStrokeStyle(1, 0xf0b429, 1));
       bg.on("pointerout", () => bg.setStrokeStyle(1, C.borderStrong, 1));
-      const slot = { bg, icon, id: "" };
+      const slot = { bg, icon, count, id: "" };
       this.statusIcons.push(slot);
       attachTooltip(
         this,
@@ -290,48 +317,57 @@ export class UI extends Phaser.Scene {
   private statusTooltipLabel(slot: { id: string }): string {
     const effect = this.context.player?.effects.find((e) => e.id === slot.id);
     if (!effect) return "";
-    const infinite =
-      effect.manualExpiry || effect.duration === Number.POSITIVE_INFINITY;
-    const duration = infinite ? "∞" : `${effect.duration}`;
+    const duration = statusDurationLabel(effect);
     const detail = describeEffect(effect);
     return detail
       ? `${effect.name} (${duration}) — ${detail}`
       : `${effect.name} (${duration})`;
   }
 
+  /**
+   * A column of status icons under the hero portrait, in the top-left corner.
+   * Icons wrap into a second column when the column would reach the message
+   * strip, so a stack of buffs is never silently hidden.
+   */
   private updateStatusIcons() {
     const effects = this.context.player?.effects ?? [];
     const w = this.scale.width;
-    const { size } = getHudMetrics(w, this.scale.height);
-    const edge = 8;
-    const healthX = edge + size + 6;
-    const startX = healthX + this.healthWidth + 8;
-    const y = edge;
+    const h = this.scale.height;
+    const { size } = getHudMetrics(w, h);
     const ic = this.statusIconSize;
-    const gap = this.statusIconGap;
-    const maxX = w - 96; // keep the floor readout in the top-right clear
+    const { boxes } = statusIconLayout({
+      width: w,
+      height: h,
+      count: effects.length,
+      toolbarSize: size,
+      iconSize: ic,
+      gap: this.statusIconGap
+    });
 
     this.statusIcons.forEach((slot, i) => {
       const effect = effects[i];
-      if (!effect) {
+      const box = boxes[i];
+      if (!effect || !box) {
         slot.id = "";
         slot.bg.setVisible(false);
         slot.icon.setVisible(false);
+        slot.count.setVisible(false);
         return;
       }
 
-      const x = startX + i * (ic + gap);
-      const fits = x + ic <= maxX;
       slot.id = effect.id;
-      slot.bg.setVisible(fits);
-      slot.icon.setVisible(fits);
-      if (!fits) return;
+      slot.bg.setVisible(box.visible);
+      slot.icon.setVisible(box.visible);
+      slot.count.setVisible(box.visible);
+      if (!box.visible) return;
 
-      slot.bg.setPosition(x + ic / 2, y + ic / 2).setSize(ic, ic);
+      slot.bg.setPosition(box.x + ic / 2, box.y + ic / 2).setSize(ic, ic);
       slot.icon
-        .setPosition(x + ic / 2, y + ic / 2)
-        .setTexture("tiles", effect.iconTile)
-        .setDisplaySize(ic - 4, ic - 4);
+        .setPosition(box.x + ic / 2, box.y + ic / 2)
+        .setFrame(statusIconFrame(effect.id));
+      slot.count
+        .setPosition(box.x + ic - 2, box.y + ic - 1)
+        .setText(statusDurationLabel(effect));
     });
   }
 
@@ -516,10 +552,10 @@ export class UI extends Phaser.Scene {
     this.floorStatus?.setPosition(w - edge, edge + 36);
     // A lightweight message strip above the bottom controls, with history on tap.
     const logW = Math.min(w - 16 - size - gap, 520);
-    const logH = 48;
+    const logH = LOG_STRIP_HEIGHT;
     const logX = edge;
     this.quickslotPane?.layout(w - edge - size - gap, y + size / 2, size, gap);
-    const logY = y - logH - 6;
+    const logY = y - logH - LOG_STRIP_GAP;
     this.logPanel?.setPosition(logX, logY).setSize(logW, logH);
     this.logPanel?.setFillStyle(C.bg, 0.65);
     this.logTitle?.setVisible(false);
@@ -636,9 +672,7 @@ export class UI extends Phaser.Scene {
     if (p.effects.length) {
       text += "\n\nEffects:";
       for (const e of p.effects) {
-        const infinite =
-          e.manualExpiry || e.duration === Number.POSITIVE_INFINITY;
-        const duration = infinite ? "∞" : `${e.duration}`;
+        const duration = statusDurationLabel(e);
         const detail = describeEffect(e);
         text += detail
           ? `\n${e.name} (${duration}) — ${detail}`

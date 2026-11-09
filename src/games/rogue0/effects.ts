@@ -25,7 +25,6 @@ export type DamageType =
 export type StatusEffect = {
   id: string;
   name: string;
-  iconTile: number;
   duration: number;
   // Short, human-readable explanation shown in the character modal/tooltip.
   description?: string;
@@ -125,7 +124,6 @@ export function createBurningEffect(duration = 3): StatusEffect {
   return {
     id: "burning",
     name: "Burning",
-    iconTile: 13 * 49 + 43,
     duration,
     tick(entity) {
       const amount = 1;
@@ -140,7 +138,6 @@ export function createPoisonedEffect(duration = 3): StatusEffect {
   return {
     id: "poisoned",
     name: "Poisoned",
-    iconTile: 14 * 49 + 43,
     duration,
     tick(entity) {
       const amount = 1;
@@ -155,7 +152,6 @@ export function createBleedingEffect(duration = 3): StatusEffect {
   return {
     id: "bleeding",
     name: "Bleeding",
-    iconTile: 14 * 49 + 44,
     duration,
     tick(entity) {
       const amount = 1;
@@ -170,7 +166,6 @@ export function createRegenerationEffect(duration = 4): StatusEffect {
   return {
     id: "regeneration",
     name: "Regeneration",
-    iconTile: 13 * 49 + 44,
     duration,
     tick(entity) {
       if (entity.healthPoints >= entity.maxHealthPoints) return;
@@ -190,7 +185,6 @@ export function createFrozenEffect(duration = 1): StatusEffect {
   return {
     id: "frozen",
     name: "Frozen",
-    iconTile: 15 * 49 + 43,
     duration,
     manualExpiry: true
   };
@@ -204,7 +198,6 @@ export function createChilledEffect(duration = 10): StatusEffect {
   return {
     id: "chilled",
     name: "Chilled",
-    iconTile: 13 * 49 + 47,
     duration
   };
 }
@@ -213,7 +206,6 @@ export function createWeakenedEffect(duration = 3): StatusEffect {
   return {
     id: "weakened",
     name: "Weakened",
-    iconTile: 15 * 49 + 44,
     duration
   };
 }
@@ -222,7 +214,6 @@ export function createCrippledEffect(duration = 3): StatusEffect {
   return {
     id: "crippled",
     name: "Crippled",
-    iconTile: 16 * 49 + 43,
     duration
   };
 }
@@ -232,7 +223,6 @@ export function createStrengthenedEffect(duration = 10): StatusEffect {
   return {
     id: "strengthened",
     name: "Strengthened",
-    iconTile: 16 * 49 + 44,
     duration
   };
 }
@@ -244,7 +234,6 @@ export function createCursedEffect(): StatusEffect {
   return {
     id: "cursed",
     name: "Cursed",
-    iconTile: 17 * 49 + 43,
     duration: Number.POSITIVE_INFINITY,
     manualExpiry: true,
     tick(entity) {
@@ -264,7 +253,6 @@ export function createInvisibleEffect(duration = 10): StatusEffect {
   return {
     id: "invisible",
     name: "Invisible",
-    iconTile: 17 * 49 + 44,
     duration,
     apply(entity) {
       entity.sprite?.setAlpha(0.4);
@@ -280,7 +268,6 @@ export function createHasteEffect(duration = 8): StatusEffect {
   return {
     id: "haste",
     name: "Haste",
-    iconTile: 18 * 49 + 43,
     duration
   };
 }
@@ -291,7 +278,6 @@ export function createLevitatingEffect(duration = 20): StatusEffect {
   return {
     id: "levitating",
     name: "Levitating",
-    iconTile: 18 * 49 + 44,
     duration,
     remove(entity, context) {
       dungeon.expireLevitation(context, entity);
@@ -306,7 +292,6 @@ export function createTerrifiedEffect(duration = 4): StatusEffect {
   return {
     id: "terrified",
     name: "Terrified",
-    iconTile: 19 * 49 + 43,
     duration
   };
 }
@@ -317,26 +302,25 @@ export function createCharmedEffect(duration = 4): StatusEffect {
   return {
     id: "charmed",
     name: "Charmed",
-    iconTile: 19 * 49 + 44,
     duration
   };
 }
 
 export function createConfusedEffect(duration = 4): StatusEffect {
-  return { id: "confused", name: "Confused", iconTile: 19 * 49 + 43, duration };
+  return { id: "confused", name: "Confused", duration };
 }
 
 // Vision effects are resolved dynamically by scene0; expiry restores normal sight.
 export function createTorchEffect(duration = 100): StatusEffect {
-  return { id: "torch", name: "Torchlight", iconTile: 19 * 49 + 43, duration };
+  return { id: "torch", name: "Torchlight", duration };
 }
 
 export function createMagicalSightEffect(duration = 20): StatusEffect {
-  return { id: "magical-sight", name: "Magical Sight", iconTile: 19 * 49 + 44, duration };
+  return { id: "magical-sight", name: "Magical Sight", duration };
 }
 
 export function createMindVisionEffect(duration = 20): StatusEffect {
-  return { id: "mind-vision", name: "Mind Vision", iconTile: 19 * 49 + 44, duration };
+  return { id: "mind-vision", name: "Mind Vision", duration };
 }
 
 // Reduces sight to the current cell and lowers accuracy until expiry.
@@ -344,7 +328,6 @@ export function createBlindedEffect(duration = 4): StatusEffect {
   return {
     id: "blinded",
     name: "Blinded",
-    iconTile: 19 * 49 + 44,
     duration,
     apply(entity) {
       this.originalAccuracy = entity.accuracy;
@@ -364,7 +347,6 @@ export function createRootedEffect(duration = 3): StatusEffect {
   return {
     id: "rooted",
     name: "Rooted",
-    iconTile: 20 * 49 + 43,
     duration
   };
 }
