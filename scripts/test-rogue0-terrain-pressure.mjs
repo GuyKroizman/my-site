@@ -11,11 +11,39 @@ const tiles = load('tiles');
 const fov = load('fov', tiles);
 import { bossArenaLayout } from '../src/games/rogue0/bossArenas.ts';
 const { generateMap, findFarthestWalkable, floorHasSecretRoom, floorIsBossArena, floorTerrainTheme } = load('mapgen', tiles);
+const { floorHasChasmRoom, chasmRoomChance, floorRollsLevitationLoot, floorWantsChasmRoom } = load('mapgen', tiles);
 // Every floor theme must be reachable: the generator rolls one per floor.
 const themeRolls = new Set();
 for (let i = 0; i < 400; i++) themeRolls.add(floorTerrainTheme(2));
 assert.deepEqual([...themeRolls].sort(), ['flooded', 'neutral', 'overgrown'], 'floors roll between plain, overgrown and flooded biomes');
 assert.equal(floorTerrainTheme(1), 'neutral', 'the introduction floor stays plain stone');
+// Chasm room pacing: the early dungeon teaches levitation with a guaranteed
+// chasm room on every non-boss floor before 8, then only rolls it rarely.
+for (const floor of [1, 2, 3, 4, 6, 7]) {
+  assert.equal(floorHasChasmRoom(floor), true, `floor ${floor} always carries a chasm room`);
+  assert.equal(chasmRoomChance(floor), 1, `floor ${floor} chasm room is guaranteed`);
+}
+for (const floor of [5, 10, 15, 20]) {
+  assert.equal(floorHasChasmRoom(floor), false, `boss floor ${floor} has no chasm room`);
+  assert.equal(chasmRoomChance(floor), 0, `boss floor ${floor} never rolls a chasm room`);
+}
+for (const floor of [8, 9, 11, 12]) {
+  assert.equal(floorHasChasmRoom(floor), false, `floor ${floor} only rolls its chasm room`);
+  assert.equal(chasmRoomChance(floor), 0.05, `floor ${floor} chasm room chance is 5%`);
+}
+let roomRolls = 0;
+const roomTrials = 4000;
+for (let i = 0; i < roomTrials; i++) if (floorWantsChasmRoom(8)) roomRolls++;
+const roomRate = roomRolls / roomTrials;
+assert.ok(roomRate > 0.03 && roomRate < 0.08,
+  `deep floors roll the chasm room about 5% of the time (got ${(roomRate * 100).toFixed(1)}%)`);
+// Levitation is room-bound while the dungeon teaches it, then ordinary loot.
+for (const floor of [1, 2, 3, 4, 5, 6, 7]) {
+  assert.equal(floorRollsLevitationLoot(floor), false, `floor ${floor} only gets levitation from its chasm room`);
+}
+for (const floor of [8, 9, 10, 25]) {
+  assert.equal(floorRollsLevitationLoot(floor), true, `floor ${floor} can roll levitation as loot`);
+}
 // Contiguous same-terrain mass, used to prove patches are landscapes and not
 // single decorative tiles.
 function largestTerrainBlob(features, feature) {
@@ -120,13 +148,54 @@ for (let i = 0; i < 200; i++) {
   if (chasms.length > 0) assert.ok(chasms.length >= 2, 'chasms are multi-tile patches, never a lone tile');
   const spawn = generated.spawn ?? { x: rooms[0].cx, y: rooms[0].cy };
   const blocked = new Set(chasms.map(c => `${c.x},${c.y}`));
+  // A chasm room's treasure island is the one floor area that is deliberately
+  // unreachable on foot: levitation is the only way in.
+  const chasmRoom = generated.chasmRoom;
+  const islandKeys = new Set((chasmRoom?.island ?? []).map(t => `${t.x},${t.y}`));
   const reachable = floodReachable(map, spawn, blocked);
   for (const key of floodReachable(map, spawn, new Set())) {
-    if (blocked.has(key)) continue;
+    if (blocked.has(key) || islandKeys.has(key)) continue;
     assert.ok(reachable.has(key), `chasm cannot isolate ${key}`);
+  }
+  if (floorHasChasmRoom(floor)) {
+    assert.ok(chasmRoom, `floor ${floor} always carries a chasm room`);
+    assert.equal(chasmRoomChance(floor), 1);
+    const rect = chasmRoom.room;
+    assert.ok(rect.w >= 11 && rect.h >= 11, 'the room is big enough for a moat and an island');
+    assert.ok(islandKeys.has(`${chasmRoom.reward.x},${chasmRoom.reward.y}`),
+      'the treasure chest anchor sits on the chasm room island');
+    for (const tile of chasmRoom.island) {
+      assert.ok(islandKeys.has(`${tile.x},${tile.y}`));
+      assert.equal(tiles.getFeature(tile.x, tile.y), undefined, 'the island holds no chasm or other feature');
+      assert.ok(!reachable.has(`${tile.x},${tile.y}`), 'the island has no land route from the spawn');
+      // Every island edge is moat or wall: the chasm cannot be walked around.
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const key = `${tile.x + dx},${tile.y + dy}`;
+        const solid = map[tile.y + dy][tile.x + dx] === 1;
+        assert.ok(solid || blocked.has(key) || islandKeys.has(key),
+          `island tile ${tile.x},${tile.y} is only reached through the moat`);
+      }
+    }
+    for (const tile of chasmRoom.chasm) {
+      assert.equal(tiles.getFeature(tile.x, tile.y), 'chasm', 'the moat is chasm terrain');
+    }
+    const approach = `${chasmRoom.approach.x},${chasmRoom.approach.y}`;
+    assert.ok(reachable.has(approach), 'the guaranteed potion is on the reachable band');
+    assert.ok(!blocked.has(approach) && !islandKeys.has(approach), 'the potion never lies on the moat or the island');
+    assert.equal(tiles.getFeature(chasmRoom.approach.x, chasmRoom.approach.y), undefined,
+      'the potion tile carries no door, trap or terrain feature');
+  } else if (!floorIsBossArena(floor) && floor >= 8) {
+    // Deep floors roll the chasm room rarely; when they do, the structure holds.
+    if (chasmRoom) {
+      assert.ok(islandKeys.has(`${chasmRoom.reward.x},${chasmRoom.reward.y}`));
+      assert.ok(reachable.has(`${chasmRoom.approach.x},${chasmRoom.approach.y}`));
+    }
+  } else {
+    assert.equal(chasmRoom, undefined, `floor ${floor} has no chasm room`);
   }
   const stairs = findFarthestWalkable(map, spawn.x, spawn.y, map[0].length, (sx, sy) => tiles.getFeature(sx, sy) === 'chasm');
   assert.notEqual(tiles.getFeature(stairs.x, stairs.y), 'chasm', 'stairs never land on a chasm');
+  assert.ok(!islandKeys.has(`${stairs.x},${stairs.y}`), 'stairs never land on the chasm room island');
   assert.ok(features.some(f => f.trapKind === 'arrow' && f.trap === 'visible'));
   for (const f of features.filter(f => f.feature === 'trap')) {
     assert.equal(!!f.trapReusable, ['frost', 'teleport', 'alarm'].includes(f.trapKind));

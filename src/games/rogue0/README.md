@@ -477,6 +477,25 @@ saved entities: descending, ascending or reloading preserves them, and a
 restored floor that was already empty (for example from an older save) is
 refilled on arrival.
 
+## Chasm rooms and levitation
+
+Some floors hide a **chasm room**: an 11-15 tile chamber whose interior is a
+two-tile walkable band around a two-tile moat, with a treasure island in the
+middle. The island has no land route to the band — only levitation (or flight)
+crosses the moat — and it holds a treasure chest. The band carries the floor's
+guaranteed **Potion of Levitation**, unidentified like any other potion, lying
+beside the moat.
+
+The early dungeon teaches the rule: every non-boss floor **before floor 8**
+(1, 2, 3, 4, 6, 7) always generates a chasm room, and those floors never roll
+levitation as ordinary loot — that room's potion is the only one they carry.
+From **floor 8** on, a chasm room appears only 5% of the time, and levitation
+can also be found as ordinary floor loot whether or not that floor's room
+spawned. Boss floors are a single arena and never have one. Random content,
+monsters, reinforcements and loot dropped from the chasm above keep out of the
+room, so the island stays the chest's; the walkable band remains part of the
+floor network.
+
 ## Run length and equipment progression
 
 A run has **25 floors**. Floors **5, 10, 15, 20 and 25** are boss floors, each

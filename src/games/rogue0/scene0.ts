@@ -105,8 +105,10 @@ import { reinforceFloor, type ReinforcementKind } from "./monsterReinforcements"
 import {
   generateMap,
   findFarthestWalkable,
-  randomWalkableTiles
+  randomWalkableTiles,
+  floorRollsLevitationLoot
 } from "./mapgen";
+import type { ChasmRoom } from "./mapgen";
 import { computeFOV, resolveVision } from "./fov";
 import { hasEffect, removeEffect } from "./effects";
 import { sfx } from "./audio";
@@ -172,7 +174,6 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   [PotionOfLiquidFlame, 3],
   [PotionOfToxicGas, 2],
   [PotionOfInvisibility, 2],
-  [PotionOfLevitation, 2],
   [PotionOfExperience, 2],
   [ScrollOfTeleport, 2],
   [ScrollOfRage, 2],
@@ -190,6 +191,16 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   [FangOfTheBeast, 1],
   [Shoe, 1]
 ];
+
+// The floor's random loot table. Levitation is deliberately absent while the
+// dungeon still teaches the chasm rule through a chasm room: floors 1-7 only
+// ever hand it out as that floor's guaranteed room reward. Once the teaching
+// floors are behind the hero it joins ordinary loot, room or no room.
+function floorLootTable(floor: number): Array<[LootClass, number]> {
+  return floorRollsLevitationLoot(floor)
+    ? [...LOOT_TABLE, [PotionOfLevitation, 2] as [LootClass, number]]
+    : LOOT_TABLE;
+}
 
 function weightedPick(table: Array<[LootClass, number]>): LootClass {
   const total = table.reduce((sum, [, w]) => sum + w, 0);
@@ -246,6 +257,7 @@ export class Scene0 extends Phaser.Scene {
   // their different anchoring and depth in sync when terrain changes.
   private wallDecals = new Map<string, { sprite: Phaser.GameObjects.Sprite; raised: boolean }>();
   private secretRoom?: Room;
+  private chasmRoom?: ChasmRoom;
   // Middle of a boss floor's arena. The guardian is placed here, asleep, so the
   // hall stays a single open fight instead of a loot scatter.
   private bossArena?: { x: number; y: number };
@@ -777,6 +789,9 @@ export class Scene0 extends Phaser.Scene {
     clearWandZaps(this);
     clearWandFusionVisuals(this);
     this.context.floor = floor;
+    // A restored floor brings its own chasm-room population back from the
+    // save; the generation-time room only describes the floor being built.
+    if (restored) this.chasmRoom = undefined;
     this.context.poisonClouds = restoreGas(restored?.poisonClouds,
       restored ? (this.context.simulationTime ?? 0) - restored.savedAt : 0);
     this.resizeCamera();
@@ -870,6 +885,9 @@ export class Scene0 extends Phaser.Scene {
       [this.context.upstairsX, this.context.upstairsY]]) {
       if (spot[0] !== undefined && spot[1] !== undefined) reserved.add(`${spot[0]},${spot[1]}`);
     }
+    // Loot dropped into the chasm above must not land on the chasm room's
+    // island: that reward stays the chest the room placed there.
+    this.reserveChasmRoomTiles(reserved);
     for (const item of placeChasmFallen(this.context, levelArray, reserved, MAX_VISIBLE_X)) {
       dungeon.log(this.context, `${item.displayName} lies on the floor, fallen from the chasm above.`);
     }
@@ -898,6 +916,7 @@ export class Scene0 extends Phaser.Scene {
     const tiles = terrainFor(this.context);
     const generated = generateMap(floor);
     this.secretRoom = generated.secretRoom;
+    this.chasmRoom = generated.chasmRoom;
     this.bossArena = generated.bossArena;
     const levelArray = generated.map;
 
@@ -1092,6 +1111,9 @@ export class Scene0 extends Phaser.Scene {
     if (context.upstairsX !== undefined && context.upstairsY !== undefined) {
       exclude.add(`${context.upstairsX},${context.upstairsY}`);
     }
+    // Never repopulate the chasm room: its island is meant to be empty of
+    // pursuers and its band is the only clean path to the guaranteed potion.
+    this.reserveChasmRoomTiles(exclude);
 
     const candidates = randomWalkableTiles(
       level,
@@ -1733,6 +1755,17 @@ export class Scene0 extends Phaser.Scene {
     }
   }
 
+  // The chasm room is reserved as a unit: its band must stay clear for the
+  // approach potion, and nothing may be stranded on the island or route a
+  // spawn onto the moat.
+  private reserveChasmRoomTiles(reserved: Set<string>): void {
+    const room = this.chasmRoom?.room;
+    if (!room) return;
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) reserved.add(`${x},${y}`);
+    }
+  }
+
   private spawnFloorContent(floor: number, levelArray: number[][], spawn: { x: number; y: number }) {
     const context = this.context;
 
@@ -1740,6 +1773,19 @@ export class Scene0 extends Phaser.Scene {
       `${spawn.x},${spawn.y}`,
       `${this.context.stairsX},${this.context.stairsY}`
     ]);
+
+    // A chasm room's island holds a chest that only levitation can reach, and
+    // the walkable band carries the guaranteed Potion of Levitation that pays
+    // for the crossing. The whole chamber is reserved so random loot, monsters
+    // and terrain never crowd the approach or spill onto the island.
+    if (this.chasmRoom) {
+      const room = this.chasmRoom;
+      this.reserveChasmRoomTiles(exclude);
+      exclude.add(`${room.approach.x},${room.approach.y}`);
+      exclude.add(`${room.reward.x},${room.reward.y}`);
+      context.entities.push(new PotionOfLevitation(context, room.approach.x, room.approach.y));
+      context.entities.push(new Chest(context, room.reward.x, room.reward.y));
+    }
 
     // The hidden room holds a single ordinary upgrade gem at its center.
     // Reserve the whole room and its two-tile access corridor from random
@@ -1911,8 +1957,9 @@ export class Scene0 extends Phaser.Scene {
 
     // Random loot drawn from a weighted, SPD-style table. Upgrade scrolls are
     // deliberately absent from this table; their 15-per-run budget is fixed.
+    const lootTable = floorLootTable(floor);
     for (let l = 0; l < itemCount; l++) {
-      const Loot = weightedPick(LOOT_TABLE);
+      const Loot = weightedPick(lootTable);
       spawnOne((x, y) => {
         const item = Loot === TieredWeapon || Loot === TieredArmor
           ? new Loot(context, x, y, lootTier(floor))

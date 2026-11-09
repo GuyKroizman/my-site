@@ -549,6 +549,15 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       inspect secrecy, search-only discovery, levitation bypass and saved-floor
       state. Terrain/stair/monster suites cover activation, safe placement,
       range, investigation and persistence. Visual playtesting remains deferred.
+- [x] Chasm room: an 11-15 tile chamber ringed by a walkable band around a
+      two-tile moat, with a treasure island that only levitation can reach (a
+      chest on the island, the floor's guaranteed Potion of Levitation on the
+      band beside the moat, unidentified like any other potion). Every non-boss
+      floor before 8 (1, 2, 3, 4, 6, 7) always generates one and never rolls
+      levitation as ordinary loot; floors 8+ roll a chasm room 5% of the time
+      and may also find levitation as normal loot. Boss arenas never carry one.
+      Corridors route around the moat, the island is excluded from the floor's
+      connectivity rule and from random content/reinforcements.
 - [x] Functional levitation: chasm traversal for keyboard/auto-walk, no ground
       trap/water/grass contact, and world-time expiry. Over a chasm, expiry
       makes the player fall to the next floor and take ceil(max HP / 3) damage,

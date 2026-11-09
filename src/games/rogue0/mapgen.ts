@@ -19,6 +19,45 @@ export function floorIsBossArena(floor: number): boolean {
   return Number.isInteger(floor) && floor > 0 && floor % 5 === 0;
 }
 
+// --- Chasm room pacing ------------------------------------------------------
+//
+// A chasm room is a small chamber whose interior is a walkable band around a
+// two-tile moat, with a treasure island in the middle. The island has no land
+// route to the band, so the floor that owns a chasm room also carries a
+// guaranteed Potion of Levitation (see scene0): the room is the dungeon's
+// chasm lesson. Every non-boss floor before CHASM_ROOM_TEACHING_FLOORS always
+// has one; past that the deep dungeon only rolls it rarely, and levitation
+// joins the ordinary loot table regardless of whether a room spawned.
+export const CHASM_ROOM_TEACHING_FLOORS = 8;
+export const DEEP_CHASM_ROOM_CHANCE = 0.05;
+
+// Floors whose chasm room is guaranteed rather than rolled.
+export function floorHasChasmRoom(floor: number): boolean {
+  return Number.isInteger(floor) && floor > 0 &&
+    floor < CHASM_ROOM_TEACHING_FLOORS && !floorIsBossArena(floor);
+}
+
+// Probability that a floor generates a chasm room. Boss floors are one arena
+// hall, so they never carry one whatever their depth.
+export function chasmRoomChance(floor: number): number {
+  if (!Number.isInteger(floor) || floor <= 0 || floorIsBossArena(floor)) return 0;
+  return floor < CHASM_ROOM_TEACHING_FLOORS ? 1 : DEEP_CHASM_ROOM_CHANCE;
+}
+
+export function floorWantsChasmRoom(floor: number): boolean {
+  const chance = chasmRoomChance(floor);
+  if (chance <= 0) return false;
+  if (chance >= 1) return true;
+  return Math.random() < chance;
+}
+
+// Levitation is a puzzle key while the chasm room teaches it: floors 1-7 hand
+// it out only through that floor's chasm room. Once the teaching floors are
+// behind the hero it can also be found as ordinary loot on any deeper floor.
+export function floorRollsLevitationLoot(floor: number): boolean {
+  return Number.isFinite(floor) && floor >= CHASM_ROOM_TEACHING_FLOORS;
+}
+
 // The hall comes from the floor's own layout, clamped to the space inside the
 // rock border and centred there. On the standard map every layout fits whole,
 // so the guardian keeps the map centre and the hidden branch keeps its room
@@ -165,11 +204,27 @@ export type Room = {
   cy: number;
 };
 
+// A chasm room: the room, its moat and the unreachable treasure island.
+// scene0 turns `reward` and `approach` into the floor's chest and guaranteed
+// Potion of Levitation, and reserves the whole room from random content.
+export type ChasmRoom = {
+  room: Room;
+  // Moat tiles; also emitted as `chasm` feature placements.
+  chasm: Array<{ x: number; y: number }>;
+  // Island floor: no cardinal land route to the band around the moat.
+  island: Array<{ x: number; y: number }>;
+  // Island centre, where the treasure chest waits.
+  reward: { x: number; y: number };
+  // Walkable band tile beside the moat where the levitation potion lies.
+  approach: { x: number; y: number };
+};
+
 export type GeneratedMap = {
   map: number[][];
   rooms: Room[];
   features: FeaturePlacement[];
   secretRoom?: Room;
+  chasmRoom?: ChasmRoom;
   // Where the hero arrives when the layout dictates it (the boss arena's south
   // edge, on the axis where that tile is open). Ordinary floors derive the
   // arrival tile from rooms[0].
@@ -421,6 +476,51 @@ function growOrganicChasm(room: Room, seed: number): Set<string> {
   return chasm;
 }
 
+// --- Chasm room chamber -----------------------------------------------------
+//
+// Carves a room whose interior is a two-tile walkable band (the room border and
+// the ring inside it) around a two-tile moat, with a solid floor island in the
+// middle. Corridors can enter anywhere on the band (it stays a loop), but the
+// island is only reachable by levitation or flight: there is no land route
+// around the moat.
+const CHASM_ROOM_MIN_SIZE = 11; // 11x11 gives a 3x3 island
+const CHASM_ROOM_MAX_SIZE = 15;
+const CHASM_ROOM_MOAT = 2;
+
+function carveChasmRoom(map: number[][], room: Room): {
+  chasm: Array<{ x: number; y: number }>;
+  island: Array<{ x: number; y: number }>;
+} {
+  carve(map, room);
+  // Two walkable bands (the room border and the ring inside it), then the
+  // moat, then the island.
+  const inset = CHASM_ROOM_MOAT + 2;
+  const islandRect = {
+    x: room.x + inset,
+    y: room.y + inset,
+    w: room.w - inset * 2,
+    h: room.h - inset * 2
+  };
+  const chasm: Array<{ x: number; y: number }> = [];
+  const island: Array<{ x: number; y: number }> = [];
+
+  for (let y = room.y + 1; y < room.y + room.h - 1; y++) {
+    for (let x = room.x + 1; x < room.x + room.w - 1; x++) {
+      if (x >= islandRect.x && x < islandRect.x + islandRect.w &&
+          y >= islandRect.y && y < islandRect.y + islandRect.h) {
+        island.push({ x, y });
+        continue;
+      }
+      // The outer ring stays walkable so a corridor can enter from any side.
+      if (x === room.x + 1 || x === room.x + room.w - 2 ||
+          y === room.y + 1 || y === room.y + room.h - 2) continue;
+      chasm.push({ x, y });
+    }
+  }
+
+  return { chasm, island };
+}
+
 // --- Chasm-aware room connection --------------------------------------------
 
 // Shortest carved path between two points that routes around `forbidden` tiles
@@ -474,15 +574,13 @@ function connectRoomsSpanning(
   map: number[][],
   anchors: Array<{ x: number; y: number }>,
   forbidden: Set<string>,
-  rooms: Room[],
-  chasmRoom: Room | undefined,
+  anchorRooms: Array<Room | undefined>,
   doorways: Set<string>
 ): void {
   if (anchors.length < 2) return;
   const connected = new Set<number>([0]);
 
-  const roomFor = (i: number): Room | undefined =>
-    i < rooms.length ? rooms[i] : chasmRoom;
+  const roomFor = (i: number): Room | undefined => anchorRooms[i];
 
   while (connected.size < anchors.length) {
     let best: { ci: number; ui: number; d: number } | null = null;
@@ -630,19 +728,20 @@ function growTerrainCover(
 // Returns true when every walkable floor tile (map === 0) not listed in
 // `blocked` is reachable from any other via cardinal steps. Chasms are the
 // only permanently blocking feature for this check: doors can be opened, and
-// grass/water/traps do not block ground travel.
-function isFloorConnected(map: number[][], blocked: Set<string>): boolean {
+// grass/water/traps do not block ground travel. `ignore` holds deliberately
+// isolated floor, such as a chasm room's treasure island.
+function isFloorConnected(map: number[][], blocked: Set<string>,
+  ignore: Set<string> = new Set()): boolean {
   const h = map.length;
   const w = map[0].length;
   let sx = -1;
   let sy = -1;
   for (let y = 0; y < h && sx < 0; y++) {
     for (let x = 0; x < w; x++) {
-      if (map[y][x] === 0 && !blocked.has(`${x},${y}`)) {
-        sx = x;
-        sy = y;
-        break;
-      }
+      if (map[y][x] !== 0 || blocked.has(`${x},${y}`) || ignore.has(`${x},${y}`)) continue;
+      sx = x;
+      sy = y;
+      break;
     }
   }
   if (sx < 0) return true;
@@ -657,7 +756,7 @@ function isFloorConnected(map: number[][], blocked: Set<string>): boolean {
       if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
       if (map[ny][nx] !== 0) continue;
       const key = `${nx},${ny}`;
-      if (blocked.has(key) || visited.has(key)) continue;
+      if (blocked.has(key) || ignore.has(key) || visited.has(key)) continue;
       visited.add(key);
       queue.push([nx, ny]);
     }
@@ -665,9 +764,9 @@ function isFloorConnected(map: number[][], blocked: Set<string>): boolean {
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (map[y][x] === 0 && !blocked.has(`${x},${y}`) && !visited.has(`${x},${y}`)) {
-        return false;
-      }
+      if (map[y][x] !== 0 || blocked.has(`${x},${y}`)) continue;
+      if (ignore.has(`${x},${y}`) || visited.has(`${x},${y}`)) continue;
+      return false;
     }
   }
   return true;
@@ -880,7 +979,7 @@ export function generateMap(floor = 1): GeneratedMap {
   // around a noise-shaped chasm. Regular rooms fill the rest of the map and a
   // spanning network of corridors links everything without crossing the chasm.
   const bigChasm = floor >= 6 && !arenaFloor;
-  let chasmRoom: Room | undefined;
+  let bigChasmRoom: Room | undefined;
   let chasmTiles: Set<string> | undefined;
 
   if (bigChasm) {
@@ -897,7 +996,7 @@ export function generateMap(floor = 1): GeneratedMap {
       height - roomH - 2
     );
 
-    chasmRoom = {
+    bigChasmRoom = {
       x,
       y,
       w: roomW,
@@ -905,12 +1004,44 @@ export function generateMap(floor = 1): GeneratedMap {
       cx: Math.floor(x + roomW / 2),
       cy: Math.floor(y + roomH / 2)
     };
-    carve(map, chasmRoom);
-    chasmTiles = growOrganicChasm(chasmRoom, Math.floor(Math.random() * 1_000_000));
+    carve(map, bigChasmRoom);
+    chasmTiles = growOrganicChasm(bigChasmRoom, Math.floor(Math.random() * 1_000_000));
   }
 
   const maxRooms = floor === 1 ? 7 : 14;
   const maxAttempts = 200;
+
+  // A chasm room: a small chamber whose walkable ring surrounds a chasm moat
+  // and a treasure island. It is placed before the ordinary rooms so they keep
+  // their distance, and before corridors so paths can be routed around the
+  // moat. Its island is deliberately unreachable on foot.
+  let chasmRoomRect: Room | undefined;
+  let chasmRoomMoat: Array<{ x: number; y: number }> = [];
+  let chasmRoomIsland: Array<{ x: number; y: number }> = [];
+  if (floorWantsChasmRoom(floor)) {
+    for (let attempt = 0; attempt < 80 && !chasmRoomRect; attempt++) {
+      const span = CHASM_ROOM_MAX_SIZE - CHASM_ROOM_MIN_SIZE + 1;
+      const w = CHASM_ROOM_MIN_SIZE + Math.floor(Math.random() * span);
+      const h = CHASM_ROOM_MIN_SIZE + Math.floor(Math.random() * span);
+      if (width < w + 6 || height < h + 14) continue;
+      const x = 2 + Math.floor(Math.random() * (width - w - 4));
+      // Stay below the northern band that secret rooms and the map edge need.
+      const y = 11 + Math.floor(Math.random() * (height - h - 12));
+      const candidate: Room = {
+        x, y, w, h,
+        cx: Math.floor(x + w / 2),
+        cy: Math.floor(y + h / 2)
+      };
+      if (rooms.some((r) => roomOverlaps(candidate, r))) continue;
+      if (bigChasmRoom && roomOverlaps(candidate, bigChasmRoom)) continue;
+      chasmRoomRect = candidate;
+    }
+    if (chasmRoomRect) {
+      const carved = carveChasmRoom(map, chasmRoomRect);
+      chasmRoomMoat = carved.chasm;
+      chasmRoomIsland = carved.island;
+    }
+  }
 
   if (arena) {
     carve(map, arena);
@@ -947,7 +1078,8 @@ export function generateMap(floor = 1): GeneratedMap {
     };
 
     const overlaps =
-      (chasmRoom ? roomOverlaps(room, chasmRoom) : false) ||
+      (bigChasmRoom ? roomOverlaps(room, bigChasmRoom) : false) ||
+      (chasmRoomRect ? roomOverlaps(room, chasmRoomRect) : false) ||
       rooms.some((r) => roomOverlaps(room, r));
 
     if (overlaps) continue;
@@ -973,21 +1105,55 @@ export function generateMap(floor = 1): GeneratedMap {
   // get a door exactly once, including organic rooms and the chasm chamber.
   const doorways = new Set<string>();
 
-  if (bigChasm && chasmRoom && chasmTiles) {
+  // Both chasm features are forbidden ground for corridors: the big chamber's
+  // interior and the chasm room's moat. Walls are fair game, so the room's
+  // walkable band still reaches the network.
+  const chasmGround = new Set<string>([
+    ...(chasmTiles ?? []),
+    ...chasmRoomMoat.map((tile) => `${tile.x},${tile.y}`)
+  ]);
+
+  if (bigChasm && bigChasmRoom && chasmTiles) {
     // Regular rooms anchor on their centres; the chasm chamber anchors on its
     // walkable ring so corridors enter the room without touching the chasm.
     const anchors = [
       ...rooms.map((r) => ({ x: r.cx, y: r.cy })),
-      { x: chasmRoom.x + 1, y: chasmRoom.cy }
+      { x: bigChasmRoom.x + 1, y: bigChasmRoom.cy }
     ];
-    connectRoomsSpanning(map, anchors, chasmTiles, rooms, chasmRoom, doorways);
+    connectRoomsSpanning(map, anchors, chasmGround, [...rooms, bigChasmRoom], doorways);
   } else {
     for (let i = 1; i < rooms.length; i++) {
       connect(map, rooms[i - 1], rooms[i], doorways);
     }
   }
 
-  if (chasmRoom) rooms.push(chasmRoom);
+  if (chasmRoomRect) {
+    // The chasm room's band joins the nearest room. The moat stays forbidden,
+    // so the corridor can never become a land bridge to the island.
+    const anchor = { x: chasmRoomRect.x + 1, y: chasmRoomRect.cy };
+    let nearest: Room | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const room of rooms) {
+      const distance = Math.abs(room.cx - anchor.x) + Math.abs(room.cy - anchor.y);
+      if (distance >= nearestDistance) continue;
+      nearest = room;
+      nearestDistance = distance;
+    }
+    const path = nearest
+      ? bfsConnectPath(map, chasmGround, anchor.x, anchor.y, nearest.cx, nearest.cy)
+      : null;
+    if (path) {
+      for (const [x, y] of path) map[y][x] = 0;
+      const exit = exitDoorwayFromPath(chasmRoomRect, path);
+      if (exit) doorways.add(`${exit.x},${exit.y}`);
+      if (nearest) {
+        const enter = enterDoorwayFromPath(nearest, path);
+        if (enter) doorways.add(`${enter.x},${enter.y}`);
+      }
+    }
+  }
+
+  if (bigChasmRoom) rooms.push(bigChasmRoom);
 
   // --- Terrain feature placement (procedural floors only) ---
   const features: FeaturePlacement[] = [];
@@ -1006,13 +1172,18 @@ export function generateMap(floor = 1): GeneratedMap {
 
   // The big chasm overlays the chamber's interior floor, leaving the
   // surrounding ring walkable. Reserve those tiles before doors and terrain
-  // so nothing else ever spawns on the chasm.
+  // so nothing else ever spawns on the chasm. The chasm room's moat is emitted
+  // in the same pass: the band around it stays clear for the approach potion.
   if (chasmTiles) {
     for (const key of chasmTiles) {
       const [x, y] = key.split(",").map(Number);
       features.push({ x, y, feature: "chasm" });
       used.add(key);
     }
+  }
+  for (const tile of chasmRoomMoat) {
+    features.push({ x: tile.x, y: tile.y, feature: "chasm" });
+    used.add(`${tile.x},${tile.y}`);
   }
 
   // A closed door marks an entrance where a corridor meets a room, but only
@@ -1025,6 +1196,39 @@ export function generateMap(floor = 1): GeneratedMap {
     if (!isStraightDoorway(map, x, y)) continue;
     features.push({ x, y, feature: "door" });
     used.add(key);
+  }
+
+  // The chasm room's reward and its key: the chest sits on the island centre
+  // and the guaranteed levitation potion lies on the band beside the moat, as
+  // close to the island as a walkable tile allows.
+  let chasmRoom: ChasmRoom | undefined;
+  if (chasmRoomRect) {
+    const islandKeys = new Set(chasmRoomIsland.map((t) => `${t.x},${t.y}`));
+    const reward = {
+      x: chasmRoomRect.x + Math.floor(chasmRoomRect.w / 2),
+      y: chasmRoomRect.y + Math.floor(chasmRoomRect.h / 2)
+    };
+    const ring: Array<{ x: number; y: number }> = [];
+    for (let y = chasmRoomRect.y; y < chasmRoomRect.y + chasmRoomRect.h; y++) {
+      for (let x = chasmRoomRect.x; x < chasmRoomRect.x + chasmRoomRect.w; x++) {
+        const key = `${x},${y}`;
+        if (map[y][x] !== 0 || used.has(key) || islandKeys.has(key)) continue;
+        ring.push({ x, y });
+      }
+    }
+    ring.sort((a, b) =>
+      (Math.abs(a.x - reward.x) + Math.abs(a.y - reward.y)) -
+      (Math.abs(b.x - reward.x) + Math.abs(b.y - reward.y))
+    );
+    const approach = ring[0] ?? { x: chasmRoomRect.x + 1, y: chasmRoomRect.cy };
+    used.add(`${approach.x},${approach.y}`);
+    chasmRoom = {
+      room: chasmRoomRect,
+      chasm: chasmRoomMoat.slice(),
+      island: chasmRoomIsland.slice(),
+      reward,
+      approach
+    };
   }
 
   // A couple of hidden traps. A boss floor is a guardian arena, so the summon
@@ -1056,9 +1260,9 @@ export function generateMap(floor = 1): GeneratedMap {
   const reserved = new Set(rooms.map((r) => `${r.cx},${r.cy}`));
   // Keep the small random chasm patches out of the big chasm chamber so its
   // ring remains a clean walkable loop around the one large chasm.
-  if (chasmRoom) {
-    for (let y = chasmRoom.y; y < chasmRoom.y + chasmRoom.h; y++) {
-      for (let x = chasmRoom.x; x < chasmRoom.x + chasmRoom.w; x++) {
+  if (bigChasmRoom) {
+    for (let y = bigChasmRoom.y; y < bigChasmRoom.y + bigChasmRoom.h; y++) {
+      for (let x = bigChasmRoom.x; x < bigChasmRoom.x + bigChasmRoom.w; x++) {
         reserved.add(`${x},${y}`);
       }
     }
@@ -1068,6 +1272,19 @@ export function generateMap(floor = 1): GeneratedMap {
     const secretApproachX = map[secretApproachY].indexOf(0);
     if (secretApproachX >= 0) reserved.add(`${secretApproachX},${secretApproachY}`);
   }
+  // The chasm room is its own structure, not one of `rooms`, so keep random
+  // patches out of its chamber entirely.
+  if (chasmRoomRect) {
+    for (let y = chasmRoomRect.y; y < chasmRoomRect.y + chasmRoomRect.h; y++) {
+      for (let x = chasmRoomRect.x; x < chasmRoomRect.x + chasmRoomRect.w; x++) {
+        reserved.add(`${x},${y}`);
+      }
+    }
+  }
+
+  // The island is deliberately unreachable, so it is excluded from the
+  // "floor stays connected" check rather than making the check always fail.
+  const chasmRoomIslandKeys = new Set(chasmRoomIsland.map((t) => `${t.x},${t.y}`));
 
   const chasmPatchCount = arenaFloor ? 0 : 1 + (Math.random() < 0.4 ? 1 : 0);
   for (let p = 0; p < chasmPatchCount; p++) {
@@ -1092,7 +1309,7 @@ export function generateMap(floor = 1): GeneratedMap {
         if (f.feature === "chasm") blocked.add(`${f.x},${f.y}`);
       }
 
-      if (!isFloorConnected(map, blocked)) continue;
+      if (!isFloorConnected(map, blocked, chasmRoomIslandKeys)) continue;
 
       for (const t of patch) {
         features.push({ x: t.x, y: t.y, feature: "chasm" });
@@ -1180,7 +1397,7 @@ export function generateMap(floor = 1): GeneratedMap {
   }
 
   return {
-    map, rooms, features, secretRoom,
+    map, rooms, features, secretRoom, chasmRoom,
     ...(arena && arenaSpawn && arenaStairs
       ? {
         spawn: arenaSpawn,

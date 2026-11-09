@@ -118,6 +118,7 @@ for (const name of ['FireElemental', 'IceElemental', 'ShockElemental']) {
 const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
 let walkableTiles = mapgen.randomWalkableTiles;
 bindings.randomWalkableTiles = (...args) => walkableTiles(...args);
+bindings.floorRollsLevitationLoot = mapgen.floorRollsLevitationLoot;
 let currentMap;
 bindings.dungeon = { getCurrentLevel: () => currentMap, log() {} };
 bindings.sfx = { stairs() {} };
@@ -138,8 +139,9 @@ for (let run = 0; run < 5; run++) {
   for (let floor = 1; floor <= 25; floor++) {
     const scene = Object.create(Scene0.prototype);
     const generated = mapgen.generateMap(floor);
-    const { map, rooms, secretRoom } = generated;
+    const { map, rooms, secretRoom, chasmRoom } = generated;
     scene.secretRoom = secretRoom;
+    scene.chasmRoom = chasmRoom;
     scene.bossArena = generated.bossArena;
     currentMap = map;
     const spawn = generated.spawn ?? { x: rooms[0].cx, y: rooms[0].cy };
@@ -169,7 +171,37 @@ for (let run = 0; run < 5; run++) {
     assert.equal(count('ScrollOfUpgrade'), spec.upgradeScrolls);
     assert.equal(count('Boss'), progression.isBossFloor(floor) ? 1 : 0, `boss floor ${floor}`);
     assert.ok(count('Ration') >= 1);
-    assert.equal(count('Chest'), 2, 'two real treasure chests accompany the encounter roster');
+    assert.equal(count('Chest'), chasmRoom ? 3 : 2,
+      'two real treasure chests accompany the encounter roster, plus the chasm room treasure');
+    // A chasm room always carries exactly one Potion of Levitation on its
+    // walkable band, and its extra chest waits on the otherwise unreachable
+    // island. Floors 1-7 never roll levitation as ordinary loot.
+    const levitations = items.filter(item => item.kind === 'PotionOfLevitation');
+    if (chasmRoom) {
+      const roomPotions = levitations.filter(item =>
+        item.x === chasmRoom.approach.x && item.y === chasmRoom.approach.y);
+      assert.equal(roomPotions.length, 1,
+        `floor ${floor} chasm room carries the guaranteed levitation potion on its band`);
+      // The item classes are fakes here, so only assert that generation never
+      // forces identification on the instance.
+      assert.ok(!roomPotions[0].identified,
+        'the chasm room potion stays unidentified like every other potion');
+      if (floor < 8) {
+        assert.equal(levitations.length, 1,
+          `floor ${floor} hands out levitation only through its chasm room`);
+      }
+      const islandKeys = new Set(chasmRoom.island.map(tile => `${tile.x},${tile.y}`));
+      const islandChest = items.find(item => item.kind === 'Chest' &&
+        islandKeys.has(`${item.x},${item.y}`));
+      assert.ok(islandChest, 'the chasm room treasure chest waits on the island');
+      assert.deepEqual({ x: islandChest.x, y: islandChest.y }, chasmRoom.reward);
+    } else if (floor < 8) {
+      assert.equal(levitations.length, 0,
+        `floor ${floor} has no levitation potion without a chasm room`);
+    } else {
+      assert.ok(levitations.length <= 3,
+        `floor ${floor} may roll levitation as ordinary loot, never more than its loot slots`);
+    }
     assert.equal(count('SkeletalRemains'), progression.isBossFloor(floor) ? 0 : 1,
       'one searchable bone pile per non-boss floor');
     const bonusFinds = items.filter(item => item.bonusFind);
@@ -250,6 +282,7 @@ for (const [floor, expected] of [[1, 1], [2, 0], [3, 1], [4, 1], [5, 0], [6, 1],
   const generated = mapgen.generateMap(floor);
   const { map, rooms, secretRoom } = generated;
   scene.secretRoom = secretRoom;
+  scene.chasmRoom = generated.chasmRoom;
   scene.bossArena = generated.bossArena;
   currentMap = map;
   const spawn = generated.spawn ?? { x: rooms[0].cx, y: rooms[0].cy };
@@ -260,6 +293,10 @@ for (const [floor, expected] of [[1, 1], [2, 0], [3, 1], [4, 1], [5, 0], [6, 1],
   scene.spawnFloorContent(floor, map, spawn);
   const scrolls = scene.context.entities.filter(item => item.kind === 'ScrollOfUpgrade');
   assert.equal(scrolls.length, expected, `floor ${floor} keeps its SoU quota without shuffled tiles`);
+  if (generated.chasmRoom) {
+    assert.equal(scene.context.entities.filter(item => item.kind === 'PotionOfLevitation').length, 1,
+      'the chasm room potion is placed even when no shuffled tiles are available');
+  }
   const occupied = new Set(scene.context.entities.map(item => `${item.x},${item.y}`));
   assert.equal(occupied.size, scene.context.entities.length, 'fallback spawns never overlap');
 }
