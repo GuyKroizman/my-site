@@ -508,12 +508,14 @@ crosses the moat — and it holds a treasure chest. The band carries the floor's
 guaranteed **Potion of Levitation**, unidentified like any other potion, lying
 beside the moat.
 
-The early dungeon teaches the rule: every non-boss floor **before floor 8**
-(1, 2, 3, 4, 6, 7) always generates a chasm room, and those floors never roll
-levitation as ordinary loot — that room's potion is the only one they carry.
-From **floor 8** on, a chasm room appears only 5% of the time, and levitation
-can also be found as ordinary floor loot whether or not that floor's room
-spawned. Boss floors are a single arena and never have one. Random content,
+The early dungeon teaches the rule: a run gives its chasm room to **one** of
+floors 1, 2, 3, 4, 6, 7, rolled at random when the run starts and stored in the
+run save. That floor always generates the room; the floors above it never do,
+and floors below it roll one only 5% of the time. Those early floors never roll
+levitation as ordinary loot — the room's potion is the only one they carry.
+From **floor 8** on levitation can also be found as ordinary floor loot
+whether or not that floor's room spawned. Boss floors are a single arena and
+never have one. Random content,
 monsters, reinforcements and loot dropped from the chasm above keep out of the
 room, so the island stays the chest's; the walkable band remains part of the
 floor network.

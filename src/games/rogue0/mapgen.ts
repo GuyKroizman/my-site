@@ -25,34 +25,57 @@ export function floorIsBossArena(floor: number): boolean {
 // two-tile moat, with a treasure island in the middle. The island has no land
 // route to the band, so the floor that owns a chasm room also carries a
 // guaranteed Potion of Levitation (see scene0): the room is the dungeon's
-// chasm lesson. Every non-boss floor before CHASM_ROOM_TEACHING_FLOORS always
-// has one; past that the deep dungeon only rolls it rarely, and levitation
-// joins the ordinary loot table regardless of whether a room spawned.
+// chasm lesson.
+//
+// A run gives its chasm room to exactly one of the early floors, rolled at
+// random when the run starts and carried in the run save so every later floor
+// agrees with the ones already built. Shallower floors never have one; deeper
+// floors only roll it rarely, and levitation joins the ordinary loot table
+// past CHASM_ROOM_TEACHING_FLOORS regardless of whether a room spawned.
 export const CHASM_ROOM_TEACHING_FLOORS = 8;
 export const DEEP_CHASM_ROOM_CHANCE = 0.05;
 
-// Floors whose chasm room is guaranteed rather than rolled.
-export function floorHasChasmRoom(floor: number): boolean {
-  return Number.isInteger(floor) && floor > 0 &&
-    floor < CHASM_ROOM_TEACHING_FLOORS && !floorIsBossArena(floor);
+// Floors that may own the run's chasm room. Floor 5 is the first boss arena, so
+// it is not a candidate; the roll is otherwise uniform.
+export const CHASM_ROOM_FLOORS: readonly number[] = [1, 2, 3, 4, 6, 7];
+
+// The floor a fresh run gives its chasm room to. Rolled once and stored in the
+// run save (see scene0 / runPersistence).
+export function pickChasmRoomFloor(): number {
+  return CHASM_ROOM_FLOORS[Math.floor(Math.random() * CHASM_ROOM_FLOORS.length)];
 }
 
-// Probability that a floor generates a chasm room. Boss floors are one arena
-// hall, so they never carry one whatever their depth.
-export function chasmRoomChance(floor: number): number {
+// A saved run may only name one of the candidate floors as its chasm floor.
+export function isChasmRoomFloor(floor: unknown): boolean {
+  return typeof floor === 'number' && CHASM_ROOM_FLOORS.includes(floor);
+}
+
+// Floors whose chasm room is guaranteed rather than rolled: only the run's own
+// chasm floor. Boss floors are one arena hall, so they never carry one.
+export function floorHasChasmRoom(floor: number, chasmRoomFloor: number): boolean {
+  return Number.isInteger(floor) && !floorIsBossArena(floor) &&
+    floor === chasmRoomFloor;
+}
+
+// Probability that a floor generates a chasm room, given the floor this run
+// gave the room to: certain on that floor, 5% on every deeper floor, never on
+// a shallower floor and never in a boss arena.
+export function chasmRoomChance(floor: number, chasmRoomFloor: number): number {
   if (!Number.isInteger(floor) || floor <= 0 || floorIsBossArena(floor)) return 0;
-  return floor < CHASM_ROOM_TEACHING_FLOORS ? 1 : DEEP_CHASM_ROOM_CHANCE;
+  if (!isChasmRoomFloor(chasmRoomFloor)) return 0;
+  if (floor < chasmRoomFloor) return 0;
+  return floor === chasmRoomFloor ? 1 : DEEP_CHASM_ROOM_CHANCE;
 }
 
-export function floorWantsChasmRoom(floor: number): boolean {
-  const chance = chasmRoomChance(floor);
+export function floorWantsChasmRoom(floor: number, chasmRoomFloor: number): boolean {
+  const chance = chasmRoomChance(floor, chasmRoomFloor);
   if (chance <= 0) return false;
   if (chance >= 1) return true;
   return Math.random() < chance;
 }
 
-// Levitation is a puzzle key while the chasm room teaches it: floors 1-7 hand
-// it out only through that floor's chasm room. Once the teaching floors are
+// Levitation is a puzzle key while the chasm room teaches it: floors before 8
+// hand it out only through that floor's chasm room. Once those floors are
 // behind the hero it can also be found as ordinary loot on any deeper floor.
 export function floorRollsLevitationLoot(floor: number): boolean {
   return Number.isFinite(floor) && floor >= CHASM_ROOM_TEACHING_FLOORS;
@@ -960,7 +983,12 @@ function addPillars(map: number[][], room: Room, maxPillars: number): void {
   }
 }
 
-export function generateMap(floor = 1): GeneratedMap {
+// `chasmRoomFloor` is the one floor this run gives its chasm room to. Scene0
+// passes the value it keeps in the run save; a bare call rolls a fresh one.
+export function generateMap(
+  floor = 1,
+  chasmRoomFloor: number = pickChasmRoomFloor()
+): GeneratedMap {
   // The introductory floor has half the area and half the rooms.
   const width = floor === 1 ? 50 : MAP_WIDTH;
   const height = floor === 1 ? 40 : MAP_HEIGHT;
@@ -1018,7 +1046,7 @@ export function generateMap(floor = 1): GeneratedMap {
   let chasmRoomRect: Room | undefined;
   let chasmRoomMoat: Array<{ x: number; y: number }> = [];
   let chasmRoomIsland: Array<{ x: number; y: number }> = [];
-  if (floorWantsChasmRoom(floor)) {
+  if (floorWantsChasmRoom(floor, chasmRoomFloor)) {
     for (let attempt = 0; attempt < 80 && !chasmRoomRect; attempt++) {
       const span = CHASM_ROOM_MAX_SIZE - CHASM_ROOM_MIN_SIZE + 1;
       const w = CHASM_ROOM_MIN_SIZE + Math.floor(Math.random() * span);

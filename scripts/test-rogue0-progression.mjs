@@ -119,6 +119,8 @@ const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
 let walkableTiles = mapgen.randomWalkableTiles;
 bindings.randomWalkableTiles = (...args) => walkableTiles(...args);
 bindings.floorRollsLevitationLoot = mapgen.floorRollsLevitationLoot;
+bindings.pickChasmRoomFloor = mapgen.pickChasmRoomFloor;
+bindings.CHASM_ROOM_FLOORS = mapgen.CHASM_ROOM_FLOORS;
 let currentMap;
 bindings.dungeon = { getCurrentLevel: () => currentMap, log() {} };
 bindings.sfx = { stairs() {} };
@@ -135,10 +137,12 @@ bindings.createEquipmentFind = (...args) => Object.assign(equipmentFinds.createE
 const { Scene0 } = load('src/games/rogue0/scene0.ts', bindings);
 for (let run = 0; run < 5; run++) {
   equipmentRoll = run % 2 ? equipmentFinds.FLOOR_EQUIPMENT_CHANCE : 0;
+  // One run settles its chasm room on a single early floor.
+  const chasmRoomFloor = mapgen.pickChasmRoomFloor();
   const totals = { strength: 0, upgrades: 0, bosses: 0 };
   for (let floor = 1; floor <= 25; floor++) {
     const scene = Object.create(Scene0.prototype);
-    const generated = mapgen.generateMap(floor);
+    const generated = mapgen.generateMap(floor, chasmRoomFloor);
     const { map, rooms, secretRoom, chasmRoom } = generated;
     scene.secretRoom = secretRoom;
     scene.chasmRoom = chasmRoom;
@@ -182,6 +186,11 @@ for (let run = 0; run < 5; run++) {
         item.x === chasmRoom.approach.x && item.y === chasmRoom.approach.y);
       assert.equal(roomPotions.length, 1,
         `floor ${floor} chasm room carries the guaranteed levitation potion on its band`);
+      // Only the run's own chasm floor is certain; deeper floors get there 5%
+      // of the time.
+      if (floor === chasmRoomFloor) {
+        assert.ok(mapgen.floorHasChasmRoom(floor, chasmRoomFloor));
+      }
       // The item classes are fakes here, so only assert that generation never
       // forces identification on the instance.
       assert.ok(!roomPotions[0].identified,

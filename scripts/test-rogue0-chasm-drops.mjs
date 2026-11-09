@@ -7,6 +7,9 @@ import { stashChasmFallen, placeChasmFallen } from '../src/games/rogue0/chasmDro
 import { createInventoryActions } from '../src/games/rogue0/inventory.ts';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 
+// The run decoder validates its saved chasm floor with these.
+const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
+
 function item(name = 'Gem') {
   const sprite = { destroyed: false, destroy() { this.destroyed = true; } };
   return { type: 'item', name, displayName: name, count: 1, effects: [], sprite };
@@ -277,6 +280,8 @@ const openMap = (w = 4, h = 2) => Array.from({ length: h }, () => Array(w).fill(
     IceElemental: class {}, ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
     restoreEffects: effects => effects,
     restoreConsumableKnowledge() {}, rememberIdentifiedWandTypes() {},
+    isChasmRoomFloor: mapgen.isChasmRoomFloor,
+    pickChasmRoomFloor: mapgen.pickChasmRoomFloor,
   });
   const floorData = { savedAt: 0, map: [[0]], seen: [[true]], features: [], entities: [],
     up: { x: 0, y: 0 }, down: { x: 0, y: 0 } };
@@ -299,6 +304,8 @@ const openMap = (w = 4, h = 2) => Array.from({ length: h }, () => Array(w).fill(
   assert.equal(recovered.sprite, undefined, 'sprite is rebuilt when it lands');
   restoreRunState(context, run);
   assert.equal(context.chasmFallenItems.get(4)[0], recovered, 'the scene resumes with the same queue');
+  assert.ok(mapgen.isChasmRoomFloor(context.chasmRoomFloor),
+    'a resumed run keeps a usable chasm floor for the floors it has not built yet');
   context.floor = 4;
   assert.deepEqual(placeChasmFallen(context, openMap(3, 3), new Set(), 3), [recovered],
     'a reloaded fall still lands on the floor below');

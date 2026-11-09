@@ -18,6 +18,7 @@ import Mimic from './monsters/mimic';
 import SwarmOfFlies from './monsters/swarmOfFlies';
 import { IceElemental } from './monsters/elemental';
 import { ICE_ELEMENTAL_TEXTURE } from './monsters/iceElementalTexture';
+import { isChasmRoomFloor, pickChasmRoomFloor } from './mapgen';
 
 export type SavedFloor = {
   savedAt: number;
@@ -38,6 +39,10 @@ export type RunState = {
   // Boss floors whose guardian died. Optional so v1 saves written before boss
   // floors were sealed still load.
   bossesSlain?: Set<number>;
+  // The floor this run gave its chasm room to. Optional so saves written while
+  // every early floor carried one still load; the scene rolls a fresh value for
+  // them, which only matters for floors not yet built.
+  chasmRoomFloor?: number;
   messages: string[];
   time: number;
   nextTick: number;
@@ -79,6 +84,10 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     for (const floor of run.bossesSlain) {
       if (!Number.isInteger(floor) || floor < 1 || floor > 25) throw new Error('Invalid saved run');
     }
+  }
+  // A saved chasm floor must be one the generator would have rolled itself.
+  if (run.chasmRoomFloor !== undefined && !isChasmRoomFloor(run.chasmRoomFloor)) {
+    throw new Error('Invalid saved run');
   }
   for (const [floor, data] of run.floors) {
     if (!Number.isInteger(floor) || floor < 1 || floor > 25 || !data ||
@@ -129,6 +138,7 @@ export function restoreRunState(context: GameContext, run: RunState): void {
   context.floor = run.floor;
   context.kills = run.kills;
   context.bossesSlain = run.bossesSlain ?? new Set();
+  context.chasmRoomFloor = run.chasmRoomFloor ?? pickChasmRoomFloor();
   context.messages = run.messages;
   context.simulationTime = run.time;
   restoreConsumableKnowledge(context, run.knowledge);

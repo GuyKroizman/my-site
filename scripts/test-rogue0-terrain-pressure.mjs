@@ -11,32 +11,59 @@ const tiles = load('tiles');
 const fov = load('fov', tiles);
 import { bossArenaLayout } from '../src/games/rogue0/bossArenas.ts';
 const { generateMap, findFarthestWalkable, floorHasSecretRoom, floorIsBossArena, floorTerrainTheme } = load('mapgen', tiles);
-const { floorHasChasmRoom, chasmRoomChance, floorRollsLevitationLoot, floorWantsChasmRoom } = load('mapgen', tiles);
+const {
+  floorHasChasmRoom, chasmRoomChance, floorRollsLevitationLoot, floorWantsChasmRoom,
+  pickChasmRoomFloor, isChasmRoomFloor, CHASM_ROOM_FLOORS, DEEP_CHASM_ROOM_CHANCE
+} = load('mapgen', tiles);
 // Every floor theme must be reachable: the generator rolls one per floor.
 const themeRolls = new Set();
 for (let i = 0; i < 400; i++) themeRolls.add(floorTerrainTheme(2));
 assert.deepEqual([...themeRolls].sort(), ['flooded', 'neutral', 'overgrown'], 'floors roll between plain, overgrown and flooded biomes');
 assert.equal(floorTerrainTheme(1), 'neutral', 'the introduction floor stays plain stone');
-// Chasm room pacing: the early dungeon teaches levitation with a guaranteed
-// chasm room on every non-boss floor before 8, then only rolls it rarely.
-for (const floor of [1, 2, 3, 4, 6, 7]) {
-  assert.equal(floorHasChasmRoom(floor), true, `floor ${floor} always carries a chasm room`);
-  assert.equal(chasmRoomChance(floor), 1, `floor ${floor} chasm room is guaranteed`);
+// Chasm room pacing: a run gives its chasm room to exactly one of the early
+// floors (1, 2, 3, 4, 6, 7 - never the floor-5 boss arena), and only deeper
+// floors may roll another, rarely. Shallower floors never carry one.
+assert.deepEqual([...CHASM_ROOM_FLOORS], [1, 2, 3, 4, 6, 7],
+  'the chasm room is offered to the early non-boss floors');
+const pickedFloors = new Set();
+for (let i = 0; i < 4000; i++) pickedFloors.add(pickChasmRoomFloor());
+assert.deepEqual([...pickedFloors].sort((a, b) => a - b), [1, 2, 3, 4, 6, 7],
+  'a fresh run settles its chasm room on one of those floors at random');
+for (const floor of [1, 2, 3, 4, 6, 7]) assert.equal(isChasmRoomFloor(floor), true);
+for (const floor of [undefined, 0, 5, 8, 10, 25, 1.5, '3', null]) {
+  assert.equal(isChasmRoomFloor(floor), false, `floor ${String(floor)} can never own the run's chasm room`);
 }
-for (const floor of [5, 10, 15, 20]) {
-  assert.equal(floorHasChasmRoom(floor), false, `boss floor ${floor} has no chasm room`);
-  assert.equal(chasmRoomChance(floor), 0, `boss floor ${floor} never rolls a chasm room`);
-}
-for (const floor of [8, 9, 11, 12]) {
-  assert.equal(floorHasChasmRoom(floor), false, `floor ${floor} only rolls its chasm room`);
-  assert.equal(chasmRoomChance(floor), 0.05, `floor ${floor} chasm room chance is 5%`);
+for (const chasmFloor of CHASM_ROOM_FLOORS) {
+  assert.equal(chasmRoomChance(chasmFloor, chasmFloor), 1, `the run's chasm floor (${chasmFloor}) is guaranteed`);
+  assert.equal(floorHasChasmRoom(chasmFloor, chasmFloor), true);
+  for (const floor of [1, 2, 3, 4, 6, 7]) {
+    if (floor === chasmFloor) continue;
+    if (floor < chasmFloor) {
+      assert.equal(chasmRoomChance(floor, chasmFloor), 0, `floor ${floor} is shallower than the chasm floor ${chasmFloor}`);
+      assert.equal(floorHasChasmRoom(floor, chasmFloor), false);
+    } else {
+      assert.equal(chasmRoomChance(floor, chasmFloor), DEEP_CHASM_ROOM_CHANCE,
+        `floor ${floor} is deeper than the chasm floor ${chasmFloor}, so it only rolls one`);
+      assert.equal(floorHasChasmRoom(floor, chasmFloor), false);
+    }
+  }
+  // Every shallower floor stays empty, every deeper floor rolls 5%.
+  for (let floor = 1; floor <= 25; floor++) {
+    if (floorIsBossArena(floor)) {
+      assert.equal(floorHasChasmRoom(floor, chasmFloor), false, `boss floor ${floor} has no chasm room`);
+      assert.equal(chasmRoomChance(floor, chasmFloor), 0, `boss floor ${floor} never rolls a chasm room`);
+    } else if (floor > chasmFloor) {
+      assert.equal(chasmRoomChance(floor, chasmFloor), DEEP_CHASM_ROOM_CHANCE,
+        `floor ${floor} sits below the chasm floor ${chasmFloor} and rolls 5%`);
+    }
+  }
 }
 let roomRolls = 0;
 const roomTrials = 4000;
-for (let i = 0; i < roomTrials; i++) if (floorWantsChasmRoom(8)) roomRolls++;
+for (let i = 0; i < roomTrials; i++) if (floorWantsChasmRoom(8, 3)) roomRolls++;
 const roomRate = roomRolls / roomTrials;
 assert.ok(roomRate > 0.03 && roomRate < 0.08,
-  `deep floors roll the chasm room about 5% of the time (got ${(roomRate * 100).toFixed(1)}%)`);
+  `floors below the chasm floor roll the room about 5% of the time (got ${(roomRate * 100).toFixed(1)}%)`);
 // Levitation is room-bound while the dungeon teaches it, then ordinary loot.
 for (const floor of [1, 2, 3, 4, 5, 6, 7]) {
   assert.equal(floorRollsLevitationLoot(floor), false, `floor ${floor} only gets levitation from its chasm room`);
@@ -105,8 +132,9 @@ function isStraightDoorway(map, d) {
 for (let i = 0; i < 200; i++) {
   tiles.clearAllFeatures();
   const floor = i % 25 + 1;
+  const chasmRoomFloor = CHASM_ROOM_FLOORS[i % CHASM_ROOM_FLOORS.length];
   const hasSecret = floorHasSecretRoom(floor);
-  const generated = generateMap(floor);
+  const generated = generateMap(floor, chasmRoomFloor);
   const { map, rooms, features, secretRoom } = generated;
   if (hasSecret) {
     assert.ok(secretRoom, 'band floors generate a secret corridor leading to a treasure room');
@@ -157,9 +185,9 @@ for (let i = 0; i < 200; i++) {
     if (blocked.has(key) || islandKeys.has(key)) continue;
     assert.ok(reachable.has(key), `chasm cannot isolate ${key}`);
   }
-  if (floorHasChasmRoom(floor)) {
-    assert.ok(chasmRoom, `floor ${floor} always carries a chasm room`);
-    assert.equal(chasmRoomChance(floor), 1);
+  if (floorHasChasmRoom(floor, chasmRoomFloor)) {
+    assert.ok(chasmRoom, `floor ${floor} carries the run's chasm room (chasm floor ${chasmRoomFloor})`);
+    assert.equal(chasmRoomChance(floor, chasmRoomFloor), 1);
     const rect = chasmRoom.room;
     assert.ok(rect.w >= 11 && rect.h >= 11, 'the room is big enough for a moat and an island');
     assert.ok(islandKeys.has(`${chasmRoom.reward.x},${chasmRoom.reward.y}`),
@@ -184,14 +212,16 @@ for (let i = 0; i < 200; i++) {
     assert.ok(!blocked.has(approach) && !islandKeys.has(approach), 'the potion never lies on the moat or the island');
     assert.equal(tiles.getFeature(chasmRoom.approach.x, chasmRoom.approach.y), undefined,
       'the potion tile carries no door, trap or terrain feature');
-  } else if (!floorIsBossArena(floor) && floor >= 8) {
-    // Deep floors roll the chasm room rarely; when they do, the structure holds.
+  } else if (!floorIsBossArena(floor) && floor > chasmRoomFloor) {
+    // Floors below the run's chasm floor roll the room rarely; when they do,
+    // the same structure holds.
     if (chasmRoom) {
       assert.ok(islandKeys.has(`${chasmRoom.reward.x},${chasmRoom.reward.y}`));
       assert.ok(reachable.has(`${chasmRoom.approach.x},${chasmRoom.approach.y}`));
     }
   } else {
-    assert.equal(chasmRoom, undefined, `floor ${floor} has no chasm room`);
+    assert.equal(chasmRoom, undefined,
+      `floor ${floor} lies above the run's chasm floor ${chasmRoomFloor} and has no chasm room`);
   }
   const stairs = findFarthestWalkable(map, spawn.x, spawn.y, map[0].length, (sx, sy) => tiles.getFeature(sx, sy) === 'chasm');
   assert.notEqual(tiles.getFeature(stairs.x, stairs.y), 'chasm', 'stairs never land on a chasm');
@@ -259,6 +289,24 @@ assert.ok(biggestGrass >= 20, `overgrown floors grow big connected grass (larges
 assert.ok(biggestWater >= 20, `flooded floors grow big connected water (largest ${biggestWater})`);
 assert.ok(grassTiles / 200 >= 4, `grass is a regular floor feature (avg ${(grassTiles / 200).toFixed(1)} tiles)`);
 assert.ok(waterTiles / 200 >= 4, `water is a regular floor feature (avg ${(waterTiles / 200).toFixed(1)} tiles)`);
+// One run, one chasm room: whatever floor the run settled on, the room is
+// generated there and never on a shallower floor.
+for (const chasmRoomFloor of CHASM_ROOM_FLOORS) {
+  for (let floor = 1; floor <= 7; floor++) {
+    if (floorIsBossArena(floor)) continue;
+    tiles.clearAllFeatures();
+    const generated = generateMap(floor, chasmRoomFloor);
+    if (floor === chasmRoomFloor) {
+      assert.ok(generated.chasmRoom,
+        `a run with chasm floor ${chasmRoomFloor} always builds the room there`);
+      assert.equal(generated.chasmRoom.room.w * generated.chasmRoom.room.h > 0, true);
+    } else if (floor < chasmRoomFloor) {
+      assert.equal(generated.chasmRoom, undefined,
+        `floor ${floor} stays free of chasm rooms when the run's chasm floor is ${chasmRoomFloor}`);
+    }
+  }
+}
+tiles.clearAllFeatures();
 function actor(type, x, y, hp = 10) {
   return { type, x, y, healthPoints: hp, name: type, protection: () => 0,
     takeDamage(n) { this.healthPoints -= n; } };

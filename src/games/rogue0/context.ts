@@ -44,6 +44,10 @@ export type GameContext = {
   // Boss floors whose guardian has already been defeated. The stairs (and every
   // other route below) stay sealed until the current floor is in this set.
   bossesSlain?: Set<number>;
+  // The one floor this run gives its chasm room to, rolled at run start from
+  // mapgen's CHASM_ROOM_FLOORS and persisted in the run save. Shallower floors
+  // never carry a chasm room; deeper floors only roll one rarely.
+  chasmRoomFloor?: number;
   // Optional floor lighting override; deeper floors default to dark.
   darkLevel?: boolean;
   maxFloor: number;

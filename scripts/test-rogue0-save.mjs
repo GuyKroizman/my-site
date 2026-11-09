@@ -93,6 +93,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   const legacyIce = new IceElemental();
   Object.assign(legacyIce, { x: 0, y: 0, healthPoints: 16 });
   const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, IceElemental };
+  const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
   const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
     bossesSlain: new Set([5, 10]),
     knowledge: { appearances: [], known: [] }, floors: new Map([[1, {
@@ -106,6 +107,10 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     CHEST_TEXTURE: 'chest-closed',
     IceElemental,
     ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
+    // The run decoder validates the saved chasm floor against the generator's
+    // own candidate list, so it uses the real helpers.
+    isChasmRoomFloor: mapgen.isChasmRoomFloor,
+    pickChasmRoomFloor: mapgen.pickChasmRoomFloor,
   });
   const save = { version: 1, heroClass: 'Warrior', floor: 1, graph };
   const run = decodeRunSave(save, {});
@@ -114,6 +119,29 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.deepEqual(run.player.inputBuffer, []);
   assert.throws(() => decodeRunSave({ ...save, heroClass: 'unknown' }, {}), /Invalid saved run/);
   assert.throws(() => decodeRunSave({ ...save, version: 999 }, {}), /Invalid saved run/);
+  // The run's one chasm floor survives a reload, and only a floor the generator
+  // would have rolled itself is accepted.
+  assert.equal(run.chasmRoomFloor, undefined, 'saves that predate the roll simply omit it');
+  for (const chasmRoomFloor of mapgen.CHASM_ROOM_FLOORS) {
+    const roundTrip = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1,
+      messages: [], bossesSlain: new Set(), chasmRoomFloor,
+      knowledge: { appearances: [], known: [] }, floors: new Map([[1, {
+        map: [[0]], seen: [[true]], features: [], entities: [], savedAt: 0,
+        up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
+      }]]) }, registry);
+    const decoded = decodeRunSave({ ...save, graph: JSON.parse(JSON.stringify(roundTrip)) }, {});
+    assert.equal(decoded.chasmRoomFloor, chasmRoomFloor, `floor ${chasmRoomFloor} survives the save graph`);
+  }
+  for (const bad of [5, 8, 0, 25]) {
+    const corrupt = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1,
+      messages: [], bossesSlain: new Set(), chasmRoomFloor: bad,
+      knowledge: { appearances: [], known: [] }, floors: new Map([[1, {
+        map: [[0]], seen: [[true]], features: [], entities: [], savedAt: 0,
+        up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
+      }]]) }, registry);
+    assert.throws(() => decodeRunSave({ ...save, graph: JSON.parse(JSON.stringify(corrupt)) }, {}),
+      /Invalid saved run/, `floor ${bad} cannot own the run's chasm room`);
+  }
   assert.equal(restored.requiresItemTarget, true);
   assert.equal(restored.itemTargetTitle, 'UPGRADE: CHOOSE ITEM');
   assert.match(restored.description, /choose/);

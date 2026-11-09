@@ -108,7 +108,9 @@ import {
   generateMap,
   findFarthestWalkable,
   randomWalkableTiles,
-  floorRollsLevitationLoot
+  floorRollsLevitationLoot,
+  pickChasmRoomFloor,
+  CHASM_ROOM_FLOORS
 } from "./mapgen";
 import type { ChasmRoom } from "./mapgen";
 import { computeFOV, resolveVision } from "./fov";
@@ -390,6 +392,12 @@ export class Scene0 extends Phaser.Scene {
       }
     }
     const active: SavedFloor | undefined = resumed?.floors.get(resumed.floor);
+    // A fresh run rolls the one floor that owns its chasm room; a resumed run
+    // restores the floor its save already generated with, so floors built
+    // later agree with the ones cached in the save.
+    if (!resumed && this.context.chasmRoomFloor === undefined) {
+      this.context.chasmRoomFloor = pickChasmRoomFloor();
+    }
     const { levelArray, spawn, stairs } = active
       ? { levelArray: active.map, spawn: { x: resumed!.player.x!, y: resumed!.player.y! }, stairs: active.down }
       : this.generateLevel(this.context.floor);
@@ -737,6 +745,9 @@ export class Scene0 extends Phaser.Scene {
         time: this.turnManager.time, nextTick: this.turnManager.nextTick,
         knowledge: saveConsumableKnowledge(context),
         bossesSlain: context.bossesSlain ?? new Set(),
+        // The run's one chasm floor rides in the save so a reload cannot roll a
+        // second chasm room onto a floor that has not been built yet.
+        chasmRoomFloor: context.chasmRoomFloor,
         // Items still falling toward a lower floor survive the checkpoint.
         chasmFallen: context.chasmFallenItems ?? new Map() }, saveRegistry);
       const serialized = JSON.stringify(graph);
@@ -922,11 +933,20 @@ export class Scene0 extends Phaser.Scene {
     stairs: { x: number; y: number };
   } {
     const tiles = terrainFor(this.context);
-    const generated = generateMap(floor);
+    const chasmRoomFloor = this.context.chasmRoomFloor ??= pickChasmRoomFloor();
+    const generated = generateMap(floor, chasmRoomFloor);
     this.secretRoom = generated.secretRoom;
     this.chasmRoom = generated.chasmRoom;
     this.bossArena = generated.bossArena;
     const levelArray = generated.map;
+
+    // A run promises one chasm room. If the floor chosen for it could not fit
+    // the chamber, hand the promise to the next candidate floor rather than
+    // silently losing the dungeon's chasm lesson.
+    if (floor === chasmRoomFloor && !generated.chasmRoom) {
+      const next = CHASM_ROOM_FLOORS.find(candidate => candidate > floor);
+      if (next !== undefined) this.context.chasmRoomFloor = next;
+    }
 
     this.applyFeatures(generated.features);
 
