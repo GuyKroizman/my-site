@@ -21,6 +21,7 @@ import grass2Url from './assets/tall-grass-2.png';
 import { updateHeroAnimation } from './heroAnimation';
 import { updateHeroBurning, clearHeroBurning } from './heroBurningVisuals';
 import { updateHeroChilled, clearHeroChilled } from './heroChilledVisuals';
+import { updateHeroLevitating, clearHeroLevitating } from './heroLevitatingVisuals';
 import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisuals';
@@ -316,6 +317,7 @@ export class Scene0 extends Phaser.Scene {
       clearGrassBurns(this);
       clearHeroBurning(this);
       clearHeroChilled(this);
+      clearHeroLevitating(this);
       clearWandZaps(this);
       clearWandFusionVisuals(this);
       clearGasVisuals(this);
@@ -663,6 +665,7 @@ export class Scene0 extends Phaser.Scene {
     updateHeroAnimation(this.context.player, this.time.now);
     updateHeroBurning(this, this.context.player, this.time.now);
     updateHeroChilled(this, this.context.player, this.time.now);
+    updateHeroLevitating(this, this.context.player, this.time.now);
     if (isModalOpen(this.context)) {
       this.autosave();
       if (this.context.player) {
@@ -788,6 +791,7 @@ export class Scene0 extends Phaser.Scene {
     clearGrassBurns(this);
     clearHeroBurning(this);
     clearHeroChilled(this);
+    clearHeroLevitating(this);
     clearWandZaps(this);
     clearWandFusionVisuals(this);
     this.context.floor = floor;

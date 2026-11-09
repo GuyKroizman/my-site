@@ -496,6 +496,16 @@ monsters, reinforcements and loot dropped from the chasm above keep out of the
 room, so the island stays the chest's; the walkable band remains part of the
 floor network.
 
+While the hero is levitating, the status row shows the levitation icon (tap it
+for the remaining turns plus "Floats over chasms and ground hazards"), the
+character modal lists `Levitating (n)` under **Effects**, and an air overlay
+draws below the soles: five pixel downdraft streaks plus two puffs sliding
+outward, on a fixed 640 ms loop. Like the fire and ice overlays it is a
+separate Graphics object, so the hero's own tint and invisibility alpha are
+untouched; it follows movement, the walking bob and scaling, takes no gameplay
+RNG, and clears on expiry, death, floor change and scene shutdown
+(`heroLevitatingVisuals.ts`).
+
 ## Run length and equipment progression
 
 A run has **25 floors**. Floors **5, 10, 15, 20 and 25** are boss floors, each
