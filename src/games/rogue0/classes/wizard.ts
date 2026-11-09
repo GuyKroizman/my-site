@@ -3,7 +3,7 @@ import BasicHero from "./basicHero";
 import type { GameContext } from "../context";
 import scrollofFireball from "../items/scrolloffireball";
 import scrollofLightning from "../items/scrolloflightning";
-import MinorHealPotion from "../items/minorHealPotion";
+import PotionOfHealing from "../items/PotionOfHealing";
 import { TieredWeapon } from "../items/tieredEquipment";
 
 export default class Wizard extends BasicHero {
@@ -26,8 +26,7 @@ export default class Wizard extends BasicHero {
     this.addItem(dagger);
     this.addItem(fireball);
     this.addItem(lightning);
-    this.addItem(new MinorHealPotion(context));
-    this.addItem(new MinorHealPotion(context));
+    this.addItem(new PotionOfHealing(context));
     this.equipItem(dagger);
 
     this.vulnerability = { physical: 1 };

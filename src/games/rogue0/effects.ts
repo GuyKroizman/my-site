@@ -36,6 +36,11 @@ export type StatusEffect = {
   manualExpiry?: boolean;
   // Serializable state used to undo blindness without a closure-only value.
   originalAccuracy?: number;
+  // Potion of Healing bookkeeping: health still to be delivered and the
+  // amount each tick pays out. Kept on the effect so a save/load resumes with
+  // the unspent healing intact.
+  remainingHeal?: number;
+  healPerTick?: number;
   apply?(entity: Entity, context: GameContext): void;
   tick?(entity: Entity, context: GameContext): void;
   remove?(entity: Entity, context: GameContext): void;
@@ -179,6 +184,62 @@ export function createRegenerationEffect(duration = 4): StatusEffect {
       // Routine healing is reflected in the health display.
     }
   };
+}
+
+// Potion of Healing: the whole draught is paid out over a handful of turns
+// rather than in one instant, so a flask drunk mid-fight keeps mending. The
+// amount was already capped to the hero's missing health when it was drunk.
+// manualExpiry keeps unspent healing from evaporating at full health.
+export const POTION_HEAL_TICKS = 10;
+
+export function createPotionHealingEffect(duration = POTION_HEAL_TICKS, totalHeal = 0): StatusEffect {
+  return {
+    id: "potion-healing",
+    name: "Mending",
+    description: "Recovering health over time from a Potion of Healing.",
+    duration,
+    manualExpiry: true,
+    remainingHeal: totalHeal,
+    healPerTick: Math.max(1, Math.ceil(totalHeal / duration)),
+    tick(entity) {
+      if (!this.remainingHeal || this.remainingHeal <= 0) {
+        removeEffect(entity, "potion-healing");
+        return;
+      }
+      if (entity.healthPoints >= entity.maxHealthPoints) return;
+
+      const amount = Math.min(
+        this.healPerTick ?? 1,
+        this.remainingHeal,
+        entity.maxHealthPoints - entity.healthPoints
+      );
+      entity.healthPoints += amount;
+      this.remainingHeal -= amount;
+      spawnEntityFloatingText(entity, `+${amount}`, "#6aff6a");
+      if (this.remainingHeal <= 0) removeEffect(entity, "potion-healing");
+    }
+  };
+}
+
+// Timed penalties a Potion of Healing washes away immediately. Permanent or
+// structural conditions (curses, the frozen action lock, levitation) are
+// deliberately absent: the flask cures, it does not dispel everything.
+const CURABLE_DEBUFF_IDS = new Set([
+  "burning", "poisoned", "bleeding", "chilled", "weakened", "crippled",
+  "blinded", "rooted", "confused", "terrified"
+]);
+
+export function cureDebuffs(entity: Entity): string[] {
+  const cured: string[] = [];
+  for (const effect of [...entity.effects]) {
+    if (!CURABLE_DEBUFF_IDS.has(effect.id)) continue;
+    const index = entity.effects.indexOf(effect);
+    if (index === -1) continue;
+    entity.effects.splice(index, 1);
+    effect.remove?.(entity, entity.context);
+    cured.push(effect.name);
+  }
+  return cured;
 }
 
 export function createFrozenEffect(duration = 1): StatusEffect {
@@ -356,6 +417,7 @@ const EFFECT_DESCRIPTIONS: Record<string, string> = {
   poisoned: "Takes 1 poison damage per turn.",
   bleeding: "Takes 1 physical damage per turn.",
   regeneration: "Restores 1 health per turn.",
+  "potion-healing": "Recovers health over time from a Potion of Healing.",
   frozen: "Loses one scheduled action.",
   chilled: "Moves and attacks at half speed.",
   weakened: "Deals 1 less attack damage.",

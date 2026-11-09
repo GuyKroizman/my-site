@@ -37,6 +37,7 @@ export const STATUS_ICON_PALETTES: Record<string, StatusIconPalette> = {
   poisoned: { ink: 0x63cc55, light: 0xc4ffb0, dark: 0x2c6f28 },
   bleeding: { ink: 0xd8353f, light: 0xff9aa0, dark: 0x7d1420 },
   regeneration: { ink: 0x57d977, light: 0xd6ffdf, dark: 0x1f7a3a },
+  'potion-healing': { ink: 0x35c75f, light: 0xcaffd8, dark: 0x187a34 },
   frozen: { ink: 0x8fe3ff, light: 0xe8fbff, dark: 0x2f7f9c },
   chilled: { ink: 0x6fb7e8, light: 0xd2ecff, dark: 0x2a5f86 },
   weakened: { ink: 0xb85a6a, light: 0xffb3bf, dark: 0x6a2634 },
@@ -118,6 +119,21 @@ const GLYPHS: Record<string, readonly string[]> = {
     '.....###....',
     '.....###....',
     '.....###....',
+    '............',
+    '............'
+  ],
+  // Heart: the potion's slow, steady mending rather than the cross's pulse.
+  'potion-healing': [
+    '............',
+    '..###..###..',
+    '.####..####.',
+    '####++++####',
+    '############',
+    '.##########.',
+    '..########..',
+    '...######...',
+    '....####....',
+    '.....##.....',
     '............',
     '............'
   ],

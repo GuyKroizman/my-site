@@ -12,13 +12,11 @@ import Chest from './items/chest';
 import SkeletalRemains from './items/skeletalRemains';
 import CursedGem from './items/cursedGem';
 import FangOfTheBeast from './items/FangOfTheBeast';
-import FullHealPotion from './items/fullHealPotion';
 import Gem from './items/gem';
 import Gold from './items/gold';
 import Hammer from './items/hammer';
 import HolyPotion from './items/holyPotion';
 import LongSword from './items/longSword';
-import MinorHealPotion from './items/minorHealPotion';
 import PotionOfExperience from './items/PotionOfExperience';
 import PotionOfFrost from './items/PotionOfFrost';
 import PotionOfHealing from './items/PotionOfHealing';
@@ -87,13 +85,15 @@ export const saveRegistry: Registry = {
   'item:skeletal-remains': SkeletalRemains,
   './items/cursedGem.ts:default': CursedGem,
   './items/FangOfTheBeast.ts:default': FangOfTheBeast,
-  './items/fullHealPotion.ts:default': FullHealPotion,
+  // The old Minor/Full Heal Potions were folded into the one Potion of
+  // Healing. Their wire IDs stay and resolve to it so existing runs load.
+  './items/fullHealPotion.ts:default': PotionOfHealing,
   './items/gem.ts:default': Gem,
   './items/gold.ts:default': Gold,
   './items/hammer.ts:default': Hammer,
   './items/holyPotion.ts:default': HolyPotion,
   './items/longSword.ts:default': LongSword,
-  './items/minorHealPotion.ts:default': MinorHealPotion,
+  './items/minorHealPotion.ts:default': PotionOfHealing,
   './items/PotionOfExperience.ts:default': PotionOfExperience,
   './items/PotionOfFrost.ts:default': PotionOfFrost,
   './items/PotionOfHealing.ts:default': PotionOfHealing,

@@ -50,8 +50,6 @@ import CursedGem from "./items/cursedGem";
 import Gem from './items/gem';
 import type { Room } from './mapgen';
 import HolyPotion from "./items/holyPotion";
-import FullHealPotion from "./items/fullHealPotion";
-import MinorHealPotion from "./items/minorHealPotion";
 import Shoe from "./items/Shoe";
 import ScrollOfIdentify from "./items/ScrollOfIdentify";
 import ScrollOfUpgrade from "./items/ScrollOfUpgrade";
@@ -165,10 +163,10 @@ type LootClass = any;
 
 const LOOT_TABLE: Array<[LootClass, number]> = [
   [Ration, 16],
-  [MinorHealPotion, 8],
-  [PotionOfHealing, 6],
+  // Potion of Healing is the dungeon's only healing potion and a rare floor
+  // find: swarms of flies are its reliable source. Keep this weight low.
+  [PotionOfHealing, 1],
   [HolyPotion, 4],
-  [FullHealPotion, 4],
   [ScrollOfIdentify, 4],
   // Bone piles are the main gear source; random armor and weapons are a third
   // as likely as before.

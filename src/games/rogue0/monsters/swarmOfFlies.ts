@@ -1,4 +1,3 @@
-import Phaser from "phaser";
 import Monster from "./monster";
 import type { GameContext } from "../context";
 import { forgetInspectedEntity } from "../context.ts";
@@ -7,13 +6,14 @@ import type { DamageType } from "../effects";
 import dungeon from "../dungeon";
 import { terrainFor } from '../terrain';
 import { swarmTurn } from "../ai";
-import Gold from "../items/gold";
 import { announceDeath } from "../combatFeedback";
 import PotionOfHealing from "../items/PotionOfHealing";
 import { FLY_SWARM_TEXTURE, generateFlySwarmTexture } from "./flySwarmTexture";
 
-// Flies are farmed for healing potions; this is the per-kill drop chance.
-const HEALING_POTION_DROP_CHANCE = 0.2;
+// Flies are the dungeon's reliable source of the Potion of Healing, so a swarm
+// drops nothing else. This is the per-kill chance; a swarm that splits into
+// offspring can pay out more than once.
+const HEALING_POTION_DROP_CHANCE = 0.33;
 
 export default class SwarmOfFlies extends Monster {
   constructor(context: GameContext, x?: number, y?: number, offspring = false, splitHealth?: number) {
@@ -69,13 +69,6 @@ export default class SwarmOfFlies extends Monster {
       const potion = new PotionOfHealing(context, x, y);
       context.entities.push(potion);
       announceDeath(context, this, `${this.name} was killed, dropping ${potion.name}.`);
-      return;
-    }
-
-    if (this.gold > 0 && Phaser.Math.Between(1, 4) === 1) {
-      const pile = new Gold(context, x, y, this.gold);
-      context.entities.push(pile);
-      announceDeath(context, this, `${this.name} was killed, dropping ${pile.name}.`);
       return;
     }
 

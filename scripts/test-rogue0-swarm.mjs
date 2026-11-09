@@ -112,18 +112,34 @@ function setup(swarmX = 5, swarmY = 3) {
     'a 1-health swarm cannot split');
 }
 
-// Kills drop a Potion of Healing on a favorable roll.
+// Kills drop only a Potion of Healing, at a 33% chance.
 {
   const { context, swarm } = setup();
   const oldRandom = Math.random;
   try {
-    Math.random = () => 0.1;
+    Math.random = () => 0.32; // just below the 0.33 threshold
     swarm.onDestroy();
   } finally {
     Math.random = oldRandom;
   }
   assert.equal(context.entities.some(e => e.name === 'Potion of Healing'), true,
     'killed swarm drops a healing potion');
+  assert.equal(context.kills, 1, 'kills are still counted');
+}
+
+// Flies never carry gold: an unlucky roll drops nothing at all.
+{
+  const { context, swarm } = setup();
+  swarm.gold = 10;
+  const oldRandom = Math.random;
+  try {
+    Math.random = () => 0.34; // just above the 0.33 threshold
+    swarm.onDestroy();
+  } finally {
+    Math.random = oldRandom;
+  }
+  assert.equal(context.entities.length, 2,
+    'a failed roll drops neither a potion nor gold');
   assert.equal(context.kills, 1, 'kills are still counted');
 }
 

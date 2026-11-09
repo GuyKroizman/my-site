@@ -29,11 +29,14 @@ import { loadLogic } from './lib/rogue0-logic-loader.mjs';
     classNames.set(ident, file);
   }
   // Distinct identifiers are distinct ids; the only repeats must be the same
-  // class exposed under a second historical key (the elemental aliases).
+  // class exposed under a historical key (elemental aliases and the two
+  // retired healing potions, now one Potion of Healing).
   assert.ok(classNames.size > 50, 'every registry class is inspected');
   assert.equal(aliases.get('FireElemental'), 2, 'elemental aliases still share one id');
+  assert.equal(aliases.get('PotionOfHealing'), 3,
+    'Minor Heal Potion and Full Heal Potion load as the one Potion of Healing');
   assert.deepEqual([...aliases].filter(([, count]) => count > 1).map(([ident]) => ident),
-    ['FireElemental'], 'no other registry key collapses onto a different class');
+    ['PotionOfHealing', 'FireElemental'], 'no other registry key collapses onto a different class');
 }
 
 function findClassFile(ident) {

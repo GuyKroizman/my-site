@@ -136,10 +136,26 @@ over and open it. Opening takes one use-action turn without moving the hero;
 its reward appears on the floor for normal pickup, even if the backpack is full.
 Chests cannot be carried. Each chest contains gold, a ration, a gem, a healing
 potion, or floor-tier equipment, rolled once when the chest is generated.
-Equipment is rare: the four non-gear rewards share sixteen of eighteen rolls,
-while a weapon and armor take one each.
+Equipment is uncommon: gold takes five of eighteen rolls, rations and gems four
+each, the rare Potion of Healing a single roll, and a weapon and armor two each.
 Contents and opened state persist through travel and browser saves. Previously
 visited floors are not repopulated with new chests.
+
+## Healing potions and swarms of flies
+
+The dungeon has exactly one healing potion. **Potion of Healing** restores 80% of
+the hero's maximum health plus 14, paid out over the next ten world-time ticks,
+and immediately cures non-permanent debuffs (burning, poison, bleeding, chilled,
+crippled, weakened, blinded, rooted, confused, terrified). The amount is capped
+to the health missing when the flask is drunk, so it never banks a delayed full
+heal, and unspent healing resumes after a save/load.
+
+Swarms of flies are its reliable source: every killed swarm has a **33%** chance
+to drop one, and flies drop nothing else. Floor generation keeps the potion
+rare — one weighted random-loot entry (weight 1) and one slot in eighteen for
+chests — so a level almost never hands one out on its own. The two legacy
+Minor Heal Potion and Full Heal Potion classes were folded into it; old saves
+still load those items as the one Potion of Healing.
 
 Mimics stay dormant until attacked or damaged. Their stats now scale across the
 five dungeon regions: 32–64 HP, 14–30 damage, 1–3 protection, and 6-tile vision.
@@ -579,7 +595,7 @@ Weapon damage at tier `t`,
 upgrade `u` ranges from `t + u` to `5t + (t + 1)u`; armor absorbs `2t + tu`.
 The playable hero is the **Warrior**, who starts with a basic Sword equipped;
 the disabled class picker's Wizard starts with a tier-1 Dagger plus two scrolls
-(Fireball, Lightning) and two Minor Heal Potions in the backpack; the scrolls
+(Fireball, Lightning) and a Potion of Healing in the backpack; the scrolls
 are weapon-slot items, so equipping one swaps it in for the dagger. Class
 starting gear otherwise retains its previous stats. Armor replaces a shield in
 the same slot. Both gems and upgrade scrolls support the new gear. Armor now has
