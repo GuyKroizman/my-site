@@ -13,14 +13,14 @@ export const MIMIC_TEXTURE = 'mimic-revealed';
 
 const SIZE = 16;
 
-// Palette taken from the dungeon tilesheet (stone/wood/iron/gold) plus one
-// darker-than-outline maw colour so the open mouth still separates from the
-// sprite's own dark edge.
+// Palette taken from the dungeon tilesheet (stone/iron/gold) with warmer,
+// browner wood tones than the tilesheet's salmon, plus one darker-than-outline
+// maw colour so the open mouth still separates from the sprite's own dark edge.
 const PALETTE: Record<string, number> = {
   o: 0x24161f, // outline
-  w: 0xbf7958, // wood
-  h: 0xd89d7c, // lit wood
-  d: 0x7a444a, // shaded wood / plinth
+  w: 0x92602f, // wood
+  h: 0xb37f4a, // lit wood
+  d: 0x533517, // shaded wood / plinth
   i: 0xcfc6b8, // iron band
   j: 0x8c8374, // iron shadow
   g: 0xf4b41b, // gold clasp
