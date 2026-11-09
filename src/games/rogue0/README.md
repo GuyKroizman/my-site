@@ -136,6 +136,8 @@ over and open it. Opening takes one use-action turn without moving the hero;
 its reward appears on the floor for normal pickup, even if the backpack is full.
 Chests cannot be carried. Each chest contains gold, a ration, a gem, a healing
 potion, or floor-tier equipment, rolled once when the chest is generated.
+Equipment is rare: the four non-gear rewards share sixteen of eighteen rolls,
+while a weapon and armor take one each.
 Contents and opened state persist through travel and browser saves. Previously
 visited floors are not repopulated with new chests.
 
@@ -174,11 +176,14 @@ Regression coverage is `npm run test:rogue0:glyph-stones`, also part of
 
 ## Ground equipment and skeletal remains
 
-Every newly generated non-boss floor has an independent **30%** chance of one
+Every newly generated non-boss floor has an independent **10%** chance of one
 extra weapon or armor on the ground (equal chance of either). This supplements
 existing weighted loot and guaranteed progression gear. Every fifth floor is
-excluded from this bonus roll. Finds use the existing depth-based tier spread,
-+0–+3 found-upgrade rolls and normal curse chance, and start unidentified. The
+excluded from this bonus roll. Bone piles are the main equipment source, so all
+armor and weapons found outside them — this bonus roll, random floor loot and
+chest rewards — are a third as likely as before. Finds use the existing
+depth-based tier spread, +0–+3 found-upgrade rolls and normal curse chance, and
+start unidentified. The
 weapon/armor type and tier are recognizable, but the upgrade level is shown as
 `?` until the item is identified — by a Scroll of Identify, or by extended use
 (thirty landed attacks for a weapon, thirty blows taken for armor). Equipping
@@ -188,15 +193,17 @@ Unidentified rings and artifacts keep even their type hidden while worn.
 
 Each non-boss floor also contains one **Skeletal Remains** bone pile. Walk or
 tap-to-walk into it to search, spending one use-action turn without moving.
-There is an **80%** equipment chance; otherwise the pile is empty. If its item is
-cursed, a separate **50%** roll determines whether an awake Wraith rises from the
-pile. Non-cursed finds and empty piles never summon one. Loot stays on the ground,
-including with a full backpack, and the Wraith guards its tile until it moves or
-is defeated. Contents and haunting are rolled once at generation and saved;
-searching, reloading or revisiting never rerolls them or replenishes searched piles.
-Existing visited floors are not retroactively populated.
+Every pile holds one weapon or armor. If that find is cursed, an awake Wraith
+rises from the pile as well; non-cursed finds never summon one. Loot stays on
+the ground, including with a full backpack, and the Wraith guards its tile
+until it moves or is defeated. Contents and haunting are rolled once at
+generation and saved; searching, reloading or revisiting never rerolls them or
+replenishes searched piles. Existing visited floors are not retroactively
+populated.
 
-Odds live in `equipmentFinds.ts`. Regression coverage:
+The ground-equipment odds live in `equipmentFinds.ts`; the shared one-third
+non-remains gear scale also feeds the random loot table and chest rolls.
+Regression coverage:
 `npm run test:rogue0:equipment-finds` and the progression suite.
 
 ## Ring upgrades

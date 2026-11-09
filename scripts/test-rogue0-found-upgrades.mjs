@@ -95,7 +95,11 @@ const Chest = load('src/games/rogue0/items/chest.ts', {
 }).default;
 const originalRandom = Math.random;
 try {
-  for (const [contentRoll, upgradeRoll, expected] of [[0.7, 0.999, 3], [0.7, 0, 0], [0.9, 0.999, 3], [0.9, 0, 0]]) {
+  // Chests roll 18 reward slots: 16 is a weapon, 17 is armor.
+  for (const [contentRoll, upgradeRoll, expected] of [
+    [16.5 / 18, 0.999, 3], [16.5 / 18, 0, 0],
+    [17.5 / 18, 0.999, 3], [17.5 / 18, 0, 0]
+  ]) {
     const scripted = [contentRoll, upgradeRoll, upgradeRoll];
     Math.random = () => scripted.shift() ?? 0;
     const chest = new Chest({ floor: 1, messages: [] }, 1, 1);

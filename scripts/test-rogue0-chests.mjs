@@ -40,14 +40,21 @@ function setup() {
 }
 const originalRandom = Math.random;
 try {
-  for (let roll = 0; roll < 6; roll++) {
-    Math.random = () => (roll + 0.1) / 6;
+  // 18 slots: each non-gear reward takes four, while gear keeps one each so
+  // chest equipment is a third as common as before.
+  const chestRewards = [
+    ...Array(4).fill('Gold'), ...Array(4).fill('Ration'),
+    ...Array(4).fill('Gem'), ...Array(4).fill('PotionOfHealing'),
+    'TieredWeapon', 'TieredArmor'
+  ];
+  for (let roll = 0; roll < 18; roll++) {
+    Math.random = () => (roll + 0.1) / 18;
     const { context, player, chest, turns, ready } = setup();
     const content = chest.contents[0];
-    assert.ok(content instanceof rewards[['Gold', 'Ration', 'Gem', 'PotionOfHealing', 'TieredWeapon', 'TieredArmor'][roll]]);
+    assert.ok(content instanceof rewards[chestRewards[roll]]);
     assert.equal(content.x, undefined, 'contents are not floor loot before opening');
-    if (roll >= 4) assert.equal(content.value, 3, 'equipment matches floor tier');
-    if (roll === 0) assert.equal(content.value, 25);
+    if (roll >= 16) assert.equal(content.value, 3, 'equipment matches floor tier');
+    if (roll < 4) assert.equal(content.value, 25);
     assert.equal(player.addItem(chest), false, 'chests cannot enter inventory');
     ready(false); assert.equal(chest.openContainer(), false); ready(true);
     player.x = 0; assert.equal(chest.openContainer(), false, 'must be adjacent'); player.x = 1;

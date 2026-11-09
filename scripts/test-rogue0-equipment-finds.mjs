@@ -38,10 +38,9 @@ function sequence(values) {
     return values.shift();
   };
 }
-function setup({ equipment = true, armor = false, cursed = false, hauntRoll = 0 } = {}) {
-  // Equipment chance, kind, tier, upgrade, curse chance, curse ID, haunt chance.
-  sequence(equipment ? [0, armor ? 0.5 : 0, 0.5, 0.99, cursed ? 0 : 0.99,
-    ...(cursed ? [0, hauntRoll] : [])] : [finds.REMAINS_EQUIPMENT_CHANCE]);
+function setup({ armor = false, cursed = false } = {}) {
+  // Kind, tier, upgrade, curse chance, and (when cursed) curse ID.
+  sequence([armor ? 0.5 : 0, 0.5, 0.99, cursed ? 0 : 0.99, ...(cursed ? [0] : [])]);
   const context = { floor: 11, messages: [], entities: [], visibleTiles: new Set() };
   let turns = 0, ready = true;
   const player = Object.assign(Object.create(Hero.prototype), {
@@ -58,64 +57,57 @@ function setup({ equipment = true, armor = false, cursed = false, hauntRoll = 0 
 }
 
 try {
-  assert.equal(finds.FLOOR_EQUIPMENT_CHANCE, 0.3);
-  assert.equal(finds.REMAINS_EQUIPMENT_CHANCE, 0.8);
-  assert.equal(finds.CURSED_REMAINS_WRAITH_CHANCE, 0.5);
+  assert.equal(finds.FLOOR_EQUIPMENT_CHANCE, 0.1);
+  assert.equal(finds.NON_REMAINS_EQUIPMENT_SCALE, 1 / 3);
+  assert.equal(finds.REMAINS_EQUIPMENT_CHANCE, undefined, 'bone piles no longer roll for emptiness');
+  assert.equal(finds.CURSED_REMAINS_WRAITH_CHANCE, undefined, 'cursed loot always summons');
   for (let floor = 1; floor <= 25; floor++) {
-    assert.equal(finds.rollFloorEquipment(floor, () => 0.299999), !progression.isBossFloor(floor));
-    assert.equal(finds.rollFloorEquipment(floor, () => 0.3), false);
+    assert.equal(finds.rollFloorEquipment(floor, () => 0.099999), !progression.isBossFloor(floor));
+    assert.equal(finds.rollFloorEquipment(floor, () => 0.1), false);
   }
-  for (const equipment of [false, true]) {
-    for (const armor of [false, true]) {
-      for (const cursed of [false, true]) {
-        for (const hauntRoll of [0, 0.499999, 0.5, 0.999]) {
-          const { context, player, remains, turns, ready } = setup({ equipment, armor, cursed, hauntRoll });
-          const item = remains.contents[0];
-          if (equipment) {
-            assert.ok(item instanceof gear[armor ? 'TieredArmor' : 'TieredWeapon']);
-            assert.equal(item.tier, 3);
-            assert.equal(item.level, 3);
-            assert.equal(item.identified, false);
-            assert.equal(item.cursed, cursed);
-            assert.equal(item.curseDescription, '');
-            assert.equal(item.x, undefined);
-          }
-          assert.equal(player.addItem(remains), false, 'bone piles cannot be picked up');
-          ready(false); assert.equal(remains.openContainer(), false); ready(true);
-          player.x = 0; assert.equal(remains.openContainer(), false); player.x = 1;
-          passable = false; assert.equal(remains.openContainer(), false); passable = true;
-          player.walkPath = [{ x: 2, y: 1 }]; player.inputBuffer = ['ArrowRight'];
-          assert.equal(remains.openContainer(), true, 'full backpack still allows searching');
-          assert.equal(turns(), 1);
-          assert.deepEqual([player.x, player.y], [1, 1]);
-          assert.equal(player.walkPath.length, 0);
-          assert.equal(player.inputBuffer.length, 0);
-          assert.ok(!context.entities.includes(remains));
-          const wraiths = context.entities.filter(e => e instanceof Wraith);
-          const haunted = equipment && cursed && hauntRoll < 0.5;
-          assert.equal(wraiths.length, Number(haunted), 'only cursed equipment can summon, with strict 50% boundary');
-          if (haunted) {
-            const wraith = wraiths[0];
-            assert.equal(context.entities[0], wraith, 'enemy takes priority over loot on the tile');
-            assert.deepEqual([wraith.x, wraith.y], [2, 1]);
-            assert.equal(wraith.sleepTurnsRemaining, 0);
-            assert.equal(wraith.awareOfPlayer, true);
-            assert.equal(wraith.nextActionTime, 42);
-            assert.equal(wraith.damageType, 'magic');
-          }
-          if (equipment) {
-            assert.ok(context.entities.includes(item));
-            assert.deepEqual([item.x, item.y], [2, 1]);
-            assert.equal(item.identified, false, 'search does not identify the reward');
-          } else assert.match(context.messages[0], /nothing/);
-          // Physical gear intentionally shows its type/tier/upgrade before identification;
-          // only curse knowledge is hidden in Rogue0's existing equipment model.
-          if (equipment && cursed) assert.ok(context.messages.every(text => !text.includes(item.curseId)),
-            'search logs do not reveal the named curse');
-          ready(true); assert.equal(remains.openContainer(), false);
-          assert.equal(turns(), 1, 'search cannot be repeated');
-        }
+  for (const armor of [false, true]) {
+    for (const cursed of [false, true]) {
+      const { context, player, remains, turns, ready } = setup({ armor, cursed });
+      const item = remains.contents[0];
+      assert.equal(remains.contents.length, 1, 'every bone pile holds loot');
+      assert.ok(item instanceof gear[armor ? 'TieredArmor' : 'TieredWeapon']);
+      assert.equal(item.tier, 3);
+      assert.equal(item.level, 3);
+      assert.equal(item.identified, false);
+      assert.equal(item.cursed, cursed);
+      assert.equal(item.curseDescription, '');
+      assert.equal(item.x, undefined);
+      assert.equal(player.addItem(remains), false, 'bone piles cannot be picked up');
+      ready(false); assert.equal(remains.openContainer(), false); ready(true);
+      player.x = 0; assert.equal(remains.openContainer(), false); player.x = 1;
+      passable = false; assert.equal(remains.openContainer(), false); passable = true;
+      player.walkPath = [{ x: 2, y: 1 }]; player.inputBuffer = ['ArrowRight'];
+      assert.equal(remains.openContainer(), true, 'full backpack still allows searching');
+      assert.equal(turns(), 1);
+      assert.deepEqual([player.x, player.y], [1, 1]);
+      assert.equal(player.walkPath.length, 0);
+      assert.equal(player.inputBuffer.length, 0);
+      assert.ok(!context.entities.includes(remains));
+      const wraiths = context.entities.filter(e => e instanceof Wraith);
+      assert.equal(wraiths.length, Number(cursed), 'cursed bone-pile gear always summons a Wraith');
+      if (cursed) {
+        const wraith = wraiths[0];
+        assert.equal(context.entities[0], wraith, 'enemy takes priority over loot on the tile');
+        assert.deepEqual([wraith.x, wraith.y], [2, 1]);
+        assert.equal(wraith.sleepTurnsRemaining, 0);
+        assert.equal(wraith.awareOfPlayer, true);
+        assert.equal(wraith.nextActionTime, 42);
+        assert.equal(wraith.damageType, 'magic');
       }
+      assert.ok(context.entities.includes(item));
+      assert.deepEqual([item.x, item.y], [2, 1]);
+      assert.equal(item.identified, false, 'search does not identify the reward');
+      // Physical gear intentionally shows its type/tier/upgrade before identification;
+      // only curse knowledge is hidden in Rogue0's existing equipment model.
+      if (cursed) assert.ok(context.messages.every(text => !text.includes(item.curseId)),
+        'search logs do not reveal the named curse');
+      ready(true); assert.equal(remains.openContainer(), false);
+      assert.equal(turns(), 1, 'search cannot be repeated');
     }
   }
   for (const mode of ['keyboard', 'auto-walk']) {
@@ -130,20 +122,27 @@ try {
   const registry = { 'item:skeletal-remains': SkeletalRemains, ...gear, Wraith };
   // Registry contains constructors only, not exported texture constants.
   delete registry.ARMOR_TEXTURES;
-  for (const options of [{ equipment: false }, {}, { cursed: true, hauntRoll: 0 }, { cursed: true, hauntRoll: 0.5 }]) {
+  for (const options of [{}, { armor: true }, { cursed: true }]) {
     const { context, remains } = setup(options);
     const encoded = JSON.parse(JSON.stringify(encodeGraph([remains], registry)));
     Math.random = () => { throw Error('save/load/search must not reroll contents or haunting'); };
     const restored = decodeGraph(encoded, registry, entity => { entity.context = context; });
     context.entities = restored;
     assert.ok(restored[0] instanceof SkeletalRemains);
+    assert.equal(restored[0].contents.length, 1, 'saved bone piles keep their loot');
     assert.equal(restored[0].openContainer(), true);
-    assert.equal(context.entities.filter(e => e instanceof Wraith).length,
-      options.cursed && options.hauntRoll < 0.5 ? 1 : 0);
+    assert.equal(context.entities.filter(e => e instanceof Wraith).length, options.cursed ? 1 : 0);
     const afterSearch = decodeGraph(JSON.parse(JSON.stringify(encodeGraph(context.entities, registry))), registry);
     assert.ok(afterSearch.every(e => !(e instanceof SkeletalRemains)), 'searched piles stay gone after reload');
   }
   assert.match(fs.readFileSync('src/games/rogue0/saveRegistry.ts', 'utf8'), /'item:skeletal-remains': SkeletalRemains/);
-  assert.match(fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8'), /generateRemainsTexture\(this\)/);
+  const sceneSource = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
+  assert.match(sceneSource, /generateRemainsTexture\(this\)/);
+  assert.match(sceneSource, /11 \* NON_REMAINS_EQUIPMENT_SCALE/,
+    'random weapon loot uses the one-third scale');
+  assert.match(sceneSource, /4 \* NON_REMAINS_EQUIPMENT_SCALE/,
+    'random armor loot uses the one-third scale');
+  assert.match(fs.readFileSync('src/games/rogue0/items/chest.ts', 'utf8'), /Math\.random\(\) \* 18/,
+    'chest gear rolls use eighteen reward slots');
 } finally { Math.random = originalRandom; }
-console.log('Rogue0 equipment finds: floor odds/boss exclusions, unidentified tiered gear, remains rewards, conditional 50% Wraith, turn costs, controls and persistence passed');
+console.log('Rogue0 equipment finds: lowered non-remains gear odds, always-full bone piles, guaranteed cursed Wraith, turn costs, controls and persistence passed');

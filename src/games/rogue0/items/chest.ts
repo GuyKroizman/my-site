@@ -22,18 +22,20 @@ export default class Chest extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     const tier = Math.max(1, Math.min(5, Math.ceil((context.floor ?? 1) / 5)));
-    const roll = Math.floor(Math.random() * 6);
+    // 18 slots share the four non-gear rewards evenly; a weapon and armor keep
+    // one slot each, making chest equipment a third as likely as before.
+    const roll = Math.floor(Math.random() * 18);
     const weapon = new TieredWeapon(context, undefined, undefined, tier);
     const armor = new TieredArmor(context, undefined, undefined, tier);
     rollFoundUpgrade(weapon);
     rollFoundUpgrade(armor);
     maybeCurse(weapon);
     maybeCurse(armor);
-    this.contents = [roll === 0 ? new Gold(context, undefined, undefined, 10 + tier * 5)
-      : roll === 1 ? new Ration(context)
-      : roll === 2 ? new Gem(context)
-      : roll === 3 ? new PotionOfHealing(context)
-      : roll === 4 ? weapon
+    this.contents = [roll < 4 ? new Gold(context, undefined, undefined, 10 + tier * 5)
+      : roll < 8 ? new Ration(context)
+      : roll < 12 ? new Gem(context)
+      : roll < 16 ? new PotionOfHealing(context)
+      : roll === 16 ? weapon
       : armor];
     this.init(context, x, y);
   }

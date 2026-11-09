@@ -42,7 +42,7 @@ import { TurnManager } from "./turnManager";
 import Skeleton from "./monsters/skelaton";
 import { TieredWeapon, TieredArmor } from "./items/tieredEquipment";
 import { bossSealsFloor, floorProgression, isBossFloor, lootTier } from "./progression";
-import { createEquipmentFind, rollFloorEquipment } from './equipmentFinds';
+import { createEquipmentFind, rollFloorEquipment, NON_REMAINS_EQUIPMENT_SCALE } from './equipmentFinds';
 import { generateRemainsTexture } from './remainsTexture';
 import CursedGem from "./items/cursedGem";
 import Gem from './items/gem';
@@ -163,8 +163,10 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   [HolyPotion, 4],
   [FullHealPotion, 4],
   [ScrollOfIdentify, 4],
-  [TieredWeapon, 11],
-  [TieredArmor, 4],
+  // Bone piles are the main gear source; random armor and weapons are a third
+  // as likely as before.
+  [TieredWeapon, 11 * NON_REMAINS_EQUIPMENT_SCALE],
+  [TieredArmor, 4 * NON_REMAINS_EQUIPMENT_SCALE],
   [ScrollOfRemoveCurse, 3],
   [PotionOfFrost, 3],
   [PotionOfLiquidFlame, 3],

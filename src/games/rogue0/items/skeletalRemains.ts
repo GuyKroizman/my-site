@@ -2,15 +2,13 @@ import { Entity } from '../entity';
 import type { GameContext } from '../context';
 import dungeon from '../dungeon';
 import Wraith from '../monsters/wraith';
-import {
-  createEquipmentFind, REMAINS_EQUIPMENT_CHANCE, CURSED_REMAINS_WRAITH_CHANCE,
-} from '../equipmentFinds';
+import { createEquipmentFind } from '../equipmentFinds';
 
 /** Contents and haunting are rolled once, then persisted even before searching. */
 export default class SkeletalRemains extends Entity {
   type = 'item' as const;
   name = 'Skeletal Remains';
-  description = 'A pile of old bones. Walk into it to search for equipment. Cursed finds may awaken a Wraith.';
+  description = 'A pile of old bones. Walk into it to search for equipment. Cursed finds awaken a Wraith.';
   textureKey = 'skeletal-remains';
   isContainer = true;
   private searched = false;
@@ -19,8 +17,9 @@ export default class SkeletalRemains extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.contents = Math.random() < REMAINS_EQUIPMENT_CHANCE ? [createEquipmentFind(context)] : [];
-    this.haunted = this.contents.some(item => item.cursed) && Math.random() < CURSED_REMAINS_WRAITH_CHANCE;
+    // Every pile holds one weapon or armor; cursed gear always raises a Wraith.
+    this.contents = [createEquipmentFind(context)];
+    this.haunted = this.contents.some(item => item.cursed);
     this.init(context, x, y);
   }
 
