@@ -2,11 +2,13 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('rings');
 import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
-const { Entity, identify, upgrade, removeEntity } = load('src/games/rogue0/entity.ts');
+const { Entity, identify, upgrade, removeEntity, saveConsumableKnowledge, restoreConsumableKnowledge,
+  RING_APPEARANCES } = load('src/games/rogue0/entity.ts');
 Entity.prototype.init = function(context) { this.context = context; };
 const Ring = load('src/games/rogue0/items/ring.ts', { Entity, identify }).default;
 const classes = Object.fromEntries(['Accuracy', 'Evasion', 'Elements', 'Haste', 'Might'].map(name =>
   [name, load(`src/games/rogue0/items/RingOf${name}.ts`, { Ring }).default]));
+const { RING_GEM_COLORS, generateRingTextures } = load('src/games/rogue0/ringTextures.ts');
 const Scroll = load('src/games/rogue0/items/ScrollOfUpgrade.ts', { Entity, identify, upgrade, removeEntity, Wand: class {} }).default;
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const { encodeGraph, decodeGraph } = load('src/games/rogue0/saveCodec.ts');
@@ -29,6 +31,67 @@ function check(name, p, level) {
   assert.equal(p.movementSpeed, name === 'Haste' ? 2 + level * 0.5 : 1);
   assert.equal(Hero.prototype.attack.call(p), name === 'Might' ? 3 + level : 1);
   assert.equal(actionCost(p, 'attack'), 1, 'Haste rings do not speed attacks');
+}
+// Every ring kind gets a different gem colour; the colour assignment is shared
+// by copies of the kind within a run and restored from the save.
+{
+  const context = { messages: [] };
+  const appearances = Object.fromEntries(Object.entries(classes).map(([name, Type]) =>
+    [name, new Type(context).spriteTextureKey]));
+  const keys = Object.values(appearances);
+  assert.equal(new Set(keys).size, keys.length, 'each ring kind has a different gem');
+  for (const key of keys) {
+    assert.ok(RING_APPEARANCES.includes(key), `${key} is a generated ring appearance`);
+    assert.match(key, /^ring-\d+$/);
+  }
+  const might = new classes.Might(context);
+  assert.equal(might.unidentifiedTextureKey, might.spriteTextureKey,
+    'the gem colour is visible before identification');
+  assert.match(might.displayName, /^Ring “.+” \?$/, 'the name and upgrade level stay hidden');
+  assert.equal(new classes.Might(context).spriteTextureKey, appearances.Might,
+    'copies of the same ring kind share the colour');
+  assert.equal(new classes.Might(context).unidentifiedName, might.unidentifiedName,
+    'copies of the same ring kind share the alias');
+  assert.equal(new Set(Object.entries(classes).map(([name, Type]) => new Type(context).unidentifiedName)).size,
+    keys.length, 'gem colours give each ring kind a distinct alias');
+
+  const knowledge = saveConsumableKnowledge(context);
+  const resumed = { messages: [] };
+  restoreConsumableKnowledge(resumed, knowledge);
+  for (const [name, Type] of Object.entries(classes)) {
+    assert.equal(new Type(resumed).spriteTextureKey, appearances[name],
+      `${name} keeps its gem colour after resume`);
+  }
+}
+// The generated textures and the appearance keys must describe the same set.
+{
+  const textures = new Map();
+  const scene = {
+    textures: { exists: key => textures.has(key), remove: key => textures.delete(key) },
+    make: { graphics: () => {
+      const g = {
+        fillStyle: () => g, fillCircle: () => g, fillRect: () => g,
+        generateTexture: (key, width, height) => { textures.set(key, { width, height }); },
+        destroy: () => {},
+      };
+      return g;
+    } },
+  };
+  generateRingTextures(scene);
+  assert.deepEqual([...textures.keys()], [...RING_APPEARANCES],
+    'one generated texture per assignable ring appearance');
+  assert.equal(RING_GEM_COLORS.length, RING_APPEARANCES.length,
+    'ringTextures.ts and entity.ts list the same number of appearances');
+  assert.equal(new Set(RING_GEM_COLORS).size, RING_GEM_COLORS.length, 'gem colours are unique');
+  for (const { width, height } of textures.values()) assert.deepEqual([width, height], [16, 16]);
+}
+// Custom artwork on ring-slot items is never replaced by a generated colour.
+{
+  const custom = Object.assign(new Entity(), {
+    context: { messages: [] }, equipSlot: 'ring', textureKey: 'custom-ring', identified: false,
+  });
+  assert.equal(custom.spriteTextureKey, 'custom-ring');
+  assert.equal(custom.unidentifiedTextureKey, 'custom-ring');
 }
 for (const [name, Type] of Object.entries(classes)) {
   const { context, player } = setup();

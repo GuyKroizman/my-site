@@ -18,8 +18,8 @@ export default abstract class Ring extends Entity {
   tier = 1;
   equipSlot: "ring" = "ring";
   protected locallyIdentified = false;
-  // Use the same ring artwork on the floor and after identification as in
-  // the unidentified inventory slot; the configured tiles are character art.
+  // Rings draw the shared gold-ring marker; the gem colour is assigned per run
+  // by the appearance map (entity.ts / ringTextures.ts), like potion colours.
   textureKey = "unknown-ring";
 
   private passiveApplied = false;

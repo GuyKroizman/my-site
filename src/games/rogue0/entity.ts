@@ -62,6 +62,14 @@ export function rememberIdentifiedWandTypes(context: GameContext, items: Iterabl
 }
 const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror', 'recharging'];
 
+// Rings use the same shuffled-appearance rule as potions: the gem colour says
+// which ring it is, but the colour-to-ring mapping is rerolled for every run.
+// Keep this list in step with RING_GEM_COLORS in ringTextures.ts.
+export const RING_APPEARANCES: readonly string[] =
+  Array.from({ length: 8 }, (_, i) => `ring-${i}`);
+
+// Any item category whose artwork is a run-specific shuffled appearance.
+export type AppearanceCategory = 'potion' | 'scroll' | 'ring';
 export type ConsumableCategory = 'potion' | 'scroll';
 
 // Every potion and scroll that can be generated, by true name. The knowledge
@@ -169,17 +177,33 @@ export function prewarmConsumableAppearances(context: GameContext): void {
   }
 }
 
-function consumableAppearance(item: Entity): string | undefined {
-  const category = item.textureKey?.startsWith('potion-') ? 'potion'
-    : item.textureKey?.startsWith('scroll-') ? 'scroll' : undefined;
-  if (!category || !item.context) return item.textureKey;
+function itemAppearanceCategory(item: Entity): AppearanceCategory | undefined {
+  const key = item.textureKey;
+  if (key?.startsWith('potion-')) return 'potion';
+  if (key?.startsWith('scroll-')) return 'scroll';
+  if (key?.startsWith('ring-')) return 'ring';
+  // Rings use the shared gold-ring marker before and after identification;
+  // their gem colour comes from the per-run assignment, not the marker.
+  if (item.equipSlot === 'ring' && (key === undefined || key === 'unknown-ring')) return 'ring';
+  return undefined;
+}
+
+// Shuffled appearance for this item's kind, or undefined when the item uses
+// bespoke artwork (wands, artifacts, physical gear).
+function appearanceIdentity(item: Entity): string | undefined {
+  const category = itemAppearanceCategory(item);
+  if (!category || !item.context) return undefined;
   return assignConsumableAppearance(item.context, category, item.name);
+}
+
+function consumableAppearance(item: Entity): string | undefined {
+  return appearanceIdentity(item) ?? item.textureKey;
 }
 
 // One-to-one appearance assignment per run, shared by all copies of a kind.
 function assignConsumableAppearance(
   context: GameContext,
-  category: ConsumableCategory,
+  category: AppearanceCategory,
   name: string
 ): string {
   let assignments = consumableAppearances.get(context);
@@ -192,6 +216,7 @@ function assignConsumableAppearance(
   if (assigned) return assigned;
   const keys = category === 'potion'
     ? Array.from({ length: 12 }, (_, i) => `potion-${i}`)
+    : category === 'ring' ? RING_APPEARANCES
     : scrollAppearances.map(glyph => `scroll-${glyph}`);
   const used = new Set(assignments.values());
   const available = keys.filter(key => !used.has(key));
@@ -420,8 +445,7 @@ export abstract class Entity {
     // Wands keep their existing type-based aliases, independent of charges,
     // upgrades, location or equipment slot. Do not assign them potion artwork.
     const identity = this.textureKey?.startsWith('wand-') ? `junk:${this.name}`
-      : consumableKind(this) && this.context ? consumableAppearance(this)!
-      : `${this.equipSlot}:${this.name}`;
+      : appearanceIdentity(this) ?? `${this.equipSlot}:${this.name}`;
     return appearanceLabel(identity);
   }
 
@@ -472,7 +496,9 @@ export abstract class Entity {
       case "weapon":
         return /wand/i.test(this.name) ? "unknown-wand" : "unknown-item";
       case "ring":
-        return "unknown-ring";
+        // Keep the assigned gem colour, like potion colour, before and after
+        // identification. Bare rings without artwork use the plain marker.
+        return this.textureKey ? this.spriteTextureKey : "unknown-ring";
       case "artifact":
         return "unknown-artifact";
       default:

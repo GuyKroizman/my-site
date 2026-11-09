@@ -213,6 +213,13 @@ upgrade level secret. Equipping reveals only whether the ring is cursed. Thirty
 world-time ticks worn, or a Scroll of Identify, reveals the ring type and its
 upgrade level. Artifacts follow the same rule.
 
+Each ring kind draws a different coloured gem, and the ring-to-gem-colour
+mapping is shuffled for every run exactly like potion colours. The gem stays
+visible before and after identification, all copies of a kind share it, and the
+assignment is stored with the run's consumable appearances, so saving and
+resuming never reroll it. Generated artwork lives in `ringTextures.ts`; the
+assignable keys are `RING_APPEARANCES` in `entity.ts`.
+
 Ring bonuses scale with upgrade level and update immediately while equipped:
 
 | Ring | Level 0 | Gain per upgrade |

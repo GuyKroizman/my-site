@@ -115,6 +115,7 @@ import { computeFOV, resolveVision } from "./fov";
 import { hasEffect, removeEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
+import { generateRingTextures } from "./ringTextures";
 import { generateGlyphStoneTextures } from './glyphStoneTextures';
 import { dropTrampledGlyphStone } from './glyphStoneDrop';
 import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
@@ -363,6 +364,7 @@ export class Scene0 extends Phaser.Scene {
     generateGoblinArrowTexture(this);
     generateCultistBoltTexture(this);
     generatePotionTextures(this);
+    generateRingTextures(this);
     generateGlyphStoneTextures(this);
     generateArmorTextures(this);
     generateRemainsTexture(this);
