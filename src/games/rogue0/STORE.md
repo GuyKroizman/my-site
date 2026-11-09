@@ -9,8 +9,8 @@ once, during `scene0.preload`, so the store opens without a loading pause.
 
 Goal: fix the run's biggest open gap — gold has no sink — with one authored
 store on floor 6. The store is a separate full-screen scene, not a dungeon
-room: a strange door in a floor-6 wall opens onto a portal, and a shop UI built
-on `shop.png` replaces the level.
+room: a strange free-standing door in the middle of a floor-6 room opens onto a
+portal, and a shop UI built on `shop.png` replaces the level.
 
 ---
 
@@ -32,9 +32,11 @@ Landed files:
 
 Verified so far:
 
-- Floor 6 always places one wall-mounted portal; floors 5/7 do not.
-- Closed portal (frame 0) → first bump opens it (frame 1+) and costs one
-  open-door action → second bump enters; `q`/Leave resumes exactly.
+- Floor 6 always places one free-standing portal door in an open room; floors
+  5/7 do not.
+- Closed front/back portal (frames 0/9) → first bump opens it (frames 1–8 or
+  10–17) and costs one open-door action → second bump enters; `q`/Leave resumes
+  exactly. The hero can walk behind the door and sees the back panel.
 - Buy and sell update gold/backpack/stock; selling does not identify; cursed
   items pay half.
 - Arrow keys, mouse clicks, Buy/Sell modals and the Store's own toolbar work;
@@ -42,9 +44,10 @@ Verified so far:
 - Reload while on floor 6 restores the sold stock, backpack, gold and the open
   door state.
 - `npm run test:rogue0`, `npm run test:rogue0:store` and `npm run build` pass.
-- Headless Chromium checks covered the two-step bump, enter/leave, buy/sell,
-  keyboard navigation, mouse click, HP/hunger freeze during the store, and
-  save/reload.
+- Headless Chromium checks covered walking around and behind the free-standing
+  door, front/back frames, the two-step bump from behind, enter/leave,
+  buy/sell, keyboard navigation, mouse click, HP/hunger freeze during the
+  store, and save/reload.
 
 Not yet verified: real touch gestures, 360 × 640 portrait layout, a live gold
 economy playtest, and the final production-site visual pass.
@@ -82,7 +85,8 @@ economy playtest, and the final production-site visual pass.
    swirling portal animation fills the open frame. This costs one action, like
    an ordinary door. The log says what happened.
 3. Moving into the open doorway again enters the store. The hero never stands
-   on the portal tile — the door is set into a wall.
+   on the door tile — it stands free in the room, and the hero can walk around
+   and stand behind it to see the back panel.
 4. The dungeon scene pauses, the level HUD sleeps, and the store scene opens
    with a short fade.
 5. Grid selection starts on the first shelf slot. `hjkl`/arrows move, `Enter`
@@ -107,44 +111,43 @@ no immediate re-entry after a reload.
 
 - `SHOP_FLOOR = 6` lives in `store/shopStock.ts`; `placeStorePortal` checks it
   and no gameplay/Phaser import is involved.
-- The portal is a **door mounted in a wall**, not a walkable floor tile and not
-  a free-standing object. The hero interacts from the adjacent floor tile.
-- `generateMap(6, ...)` places exactly one `portal` feature after corridors are
-  carved and before traps/terrain:
-  - choose a wall tile on a room perimeter with **exactly one orthogonal floor
-    neighbour** (the approach tile); the other three neighbours are walls;
-  - the approach tile must be inside a room, not a corridor, door, trap, chasm,
-    grass or water tile;
-  - exclude the big chasm chamber, the chasm room and the secret room band;
-  - prefer at least 10 tiles (Manhattan) from the spawn room centre, so the
-    portal is something to find rather than the first thing seen;
-  - if no room wall qualifies, relax the distance first, then allow a wall tile
-    with two floor neighbours (one is the approach);
-  - never carve the wall or open a passage: the map, connectivity, pathfinding,
-    FOV and monster routes are unchanged.
-- Push it into `features`, mark the tile reserved from wall decoration, and
-  return it as `portal` alongside `secretRoom`/`chasmRoom` in `GeneratedMap`.
-- Portal coordinates are exposed as `context.portalX/portalY` by scanning the
-  feature list in `setupFloor` (so restored floors work too).
+- The portal is a **free-standing door in an open room tile**, facing the
+  viewer (south). The hero can walk around it and stand behind it.
+- `scene0.setupFloor` places exactly one `portal` feature on floor 6, using the
+  completed map and the existing feature overlay:
+  - choose a reachable floor tile with a **clear 3×3 ring** of floor and no
+    other features (so the hero can walk behind and around it);
+  - prefer the open centre of a room (largest 5×5 open score), not a corridor;
+  - avoid the spawn, stairs and upstairs tiles, and stay at least 10 tiles from
+    the spawn when possible;
+  - the map tile stays floor (`0`); the portal feature makes it non-walkable
+    for occupancy/pathfinding, so actors route around it;
+  - if no full 3×3 area exists, fall back to a tile whose four cardinal
+    neighbours are clear, still guaranteeing a front and a back tile.
+- Push it into `features`; return `{ x, y, approachX, approachY }` with the
+  approach directly south (front).
+- `context.portal` is set from the feature list in `setupFloor` (so restored
+  floors work too). The path grid is updated to make the door tile unwalkable
+  on fresh floors, where it was built before the feature was placed.
 
 ### 3.2 Rendering
 
 - `tiles.ts`: add `"portal"` to `TerrainFeature` plus a state field
   `portal?: "closed" | "open"` on `TileState`/`FeaturePlacement`. The feature is
-  always non-walkable; the map tile behind it is a wall.
-- New `portalVisuals.ts` generates a door unlike the ordinary wooden door:
-  - **closed:** a carved stone/dark-metal door with a violet sigil, front and
-    side variants chosen with a `portalPassage` helper that mirrors
-    `doorPassage`;
-  - **open:** the door panels are drawn back and the open frame contains a
-    multi-frame vortex (stone frame, teal/violet spiral); four frames advance in
-    `scene0.update` while visible;
-  - a soft additive glow sits behind the vortex; the closed→open change plays
-    one short flash/swing before settling into the loop.
-- Register the textures in `scene0.create()` with the other generators. In
-  `featureVisual()`, return the closed or open key based on `state.portal`.
+  non-walkable; the map tile remains floor.
+- New `portalVisuals.ts` generates a free-standing door unlike the ordinary
+  wooden door:
+  - **closed front:** a carved stone/dark-metal door with a violet sigil;
+  - **closed back:** a plain darker panel with a handle;
+  - **open front/back:** the door panels are drawn back and the frame contains
+    an 8-frame vortex (stone frame, teal/violet spiral); frames advance in
+    `scene0.update` while visible.
+- Register the textures in `scene0.create()`. In `featureVisual()` and the
+  portal update, choose the front frame when the hero is south of the door and
+  the back frame when the hero is north (`player.y < portal.y`).
   `syncFeatures` treats it as upright (`actorOriginY`, feet-anchored, terrain
-  depth) and skips wall decals on a portal tile.
+  depth), so the door occludes a hero behind it and the hero occludes it from
+  the front. No wall decal is involved because the tile is floor.
 - Inspect text:
   - closed: “A strange door. It is unlike the others in this dungeon.”
   - open: “An open doorway with a swirling portal inside. Only you can pass
@@ -217,12 +220,12 @@ this.scene.stop();                 // stop itself last
 
 ### 3.4 “Only the hero can enter”
 
-- The portal lives on a wall tile, so no actor can occupy it and pathfinding
-  never routes through it. Monsters cannot reach, open or enter it.
+- The door occupies a floor tile but blocks occupancy, so no actor can stand on
+  it. Actors can walk around and behind it; monsters cannot open or enter it.
 - Only the hero's bump handler calls `tryStoreDoor`; it checks `context.player`,
   adjacency to the portal and floor 6.
-- If a monster stands on the approach tile, the hero must deal with it first;
-  the portal itself is never blocked in a way that can strand the run.
+- If a monster stands on the front or back tile, the hero must deal with it
+  first; the clear 3×3 ring keeps the door reachable from other sides.
 - Sleeping scene 0 means nothing can follow the hero inside. On return the
   floor is exactly as frozen.
 
@@ -230,10 +233,11 @@ this.scene.stop();                 // stop itself last
 
 - The portal is part of the floor's `features` snapshot, including its
   closed/open state, so it round-trips with normal floor saves automatically.
-- Old saves restored on floor 6 with no portal: run a one-time migration in
-  `setupFloor` — find a qualifying wall with the pure helper, then
-  `terrain.setFeature(x, y, 'portal', { portal: 'closed' })`, autosave.
-  No map tile is modified. Floors below are unaffected.
+- Old saves restored on floor 6 with no portal, or with the earlier wall-door
+  version: `placeStorePortal` removes an invalid wall portal and adds a
+  free-standing room door, preserving the old open state. `setupFloor` restores
+  the feature snapshot and updates the path grid; autosave follows. Floors
+  below are unaffected.
 - `context.shop` is written in the autosave root (see §11); saves without it
   load unchanged and generate stock on first entry.
 
@@ -270,8 +274,8 @@ hero or monsters.
   (≈ 89 × 45 px), so the whole cell is a comfortable touch target.
 - Item icon: 16 × 16 art scaled to fit ~42 × 42 px inside the cell, centred,
   bottom-aligned 3 px above the board. Cap at 3× so pixel art stays crisp.
-- Selection: 2 px gold inset frame + 5 % scale-up. Hover uses the same frame
-  thinner. Sold-out slot: dark peg + small “SOLD”.
+- Selection: 2 px gold inset frame; hover selects the slot. Sold-out slot:
+  empty peg + small “SOLD”.
 - Price is shown in the item modal and in the toolbar message; the shelves
   stay free of permanent price clutter. The modal is the source of truth.
 
@@ -514,7 +518,7 @@ drops or chest gold — do not make the shop cheaper by default.
 | Leave and re-enter | Same stock, sold slots stay sold; the door stays open |
 | Reload while in store | Run restores in front of the portal; store is closed; door state and stock are intact |
 | Reload on an old save without `shop` | Stock generated on first entry and saved |
-| Save from before portals | Portal migrated onto the current floor 6 wall |
+| Save from before portals / wall-door saves | Portal migrated to a floor-6 room tile, preserving its open state |
 | Level HUD inside the store | None: sleep/inspect/search/hero modal/log/quickslots are unavailable; no use/equip |
 | Window resized / orientation change | Store re-lays out; selection and modal survive |
 | Hero quits to the start screen from the store | `saveNow` flushes first; buy/sell history is already saved |
@@ -593,7 +597,7 @@ type GameContext = {
 | `store/shopPricing.ts` | category/override table, buy/sell formulas, stack/cursed modifiers (pure) |
 | `store/shopStock.ts` | `planShopStock` (pure descriptors), row pools, `SHOP_FLOOR` |
 | `store/shopItems.ts` | `ensureShopState`: constructs/fills the persisted stock from the registry (browser-only) |
-| `store/portal.ts` | random wall-door placement and existing-portal lookup (pure) |
+| `store/portal.ts` | random free-standing room-door placement, existing-portal lookup and old wall-door migration (pure) |
 | `store/shopModel.ts` | `ShopState` helpers and buy/sell transaction results (no Phaser) |
 | `store/StoreScene.ts` | Phaser scene: background, shelves, selection, toolbar, modals, input, layout |
 | `portalVisuals.ts` | closed/open door art (front + side), 4-frame portal vortex, glow, and `portalPassage` orientation helper |
@@ -607,7 +611,7 @@ type GameContext = {
 | `terrain.ts` | `setFeature` accepts portal state; portal is blocking |
 | `heroNavigation.ts` | bump hook before `openDoor` |
 | `heroInput.ts` | tap an adjacent portal / walk to its approach |
-| `scene0.ts` | load `shop.png`, generate the portal atlas, `featureVisual`/`syncFeatures` closed/open case, frame animation, skip wall decals, placement, adjacency hint, `tryStoreDoor`, entry/exit + pause, old-save migration, autosave `shop` |
+| `scene0.ts` | load `shop.png`, generate the portal atlas, `featureVisual`/`syncFeatures` front/back closed/open frames, frame animation, room placement, path-grid update, adjacency hint, `tryStoreDoor`, entry/exit + pause, old-save migration, autosave `shop` |
 | `ui.ts` | HUD hotkeys are ignored while `storeOpen` |
 | `context.ts` | `shop`, `storeOpen`, `onStoreOpenChange`, `portalX/Y`, `onEnterStore`; `isModalOpen` includes store |
 | `runPersistence.ts` | `RunState.shop` and restore |
@@ -659,11 +663,14 @@ All suites start with `recordTestRun('<name>')` and are added to
      references intact.
 5. **`test-rogue0-portal.mjs`**
    - `placeStorePortal` only on floor 6; floors 5, 7, 12 return `undefined`;
-   - 20 `generateMap(6)` rolls: exactly one portal feature, on a **wall tile**,
-     with a reachable orthogonal floor neighbour, and the map was not carved
-     (the portal tile stays `1` and is not walkable);
+   - 20 `generateMap(6)` rolls: exactly one portal feature, on a **floor tile**
+     with a clear 3×3 ring, a front tile and a walk-behind tile, and the map
+     tile stays `0`;
    - revisits return the existing portal and never append a second one;
    - terrain snapshot/restore keeps `portal: 'open' | 'closed'`;
+   - front/back frame mapping: closed 0/9, open 1–8/10–17;
+   - an old wall-mounted portal is replaced by a room door and keeps its open
+     state;
    - `isModalOpen({storeOpen:true})` is true.
    - The first bump (open-door turn) and second bump (enter) are verified
      manually in the browser; they need the scene's turn manager.
@@ -682,8 +689,10 @@ disabled states, reload while shopping, buy→sell gold math.
 ## 14. Acceptance criteria
 
 - [ ] Floor 6 always generates exactly one portal door; no other floor has one.
-- [ ] The portal is a wall door, not a walkable tile. First bump opens it and
-      reveals the animated vortex; second bump enters. Monsters cannot use it.
+- [ ] The portal is a free-standing door on a floor-6 room tile, facing south.
+      The hero can walk behind it and sees the back panel. First bump opens it
+      and reveals the animated vortex; second bump enters. Monsters cannot use
+      it.
 - [ ] The store uses `shop.png` with 15 items exactly on the three shelves,
       5 per row, and no item overlaps a shelf board.
 - [ ] Inside the store there is no level HUD: no sleep, inspect/search, hero
@@ -707,7 +716,8 @@ disabled states, reload while shopping, buy→sell gold math.
 Decided in this design review (no longer open):
 
 - Two-step bump entry: first bump opens the door, second enters.
-- The portal is a wall door; the hero never occupies its tile.
+- The portal is a free-standing room door; the hero never occupies its tile
+  and can walk behind it.
 - Selling never identifies an item.
 - Cursed items sell at half price.
 - The store has its own UI; the level HUD (sleep/inspect/hero modal/etc.) is
@@ -731,7 +741,7 @@ Still open:
 
 1. Pure modules + tests: `shopPricing`, `storeLayout`, `shopStock.plan`,
    `shopModel` (no Phaser). This locks the economy and geometry early.
-2. Portal: `tiles`/`terrain` feature + state, `store/portal.ts` wall
+2. Portal: `tiles`/`terrain` feature + state, `store/portal.ts` room
    placement, `portalVisuals`, `heroNavigation` bump + tap,
    `scene0.tryStoreDoor`, render/animations/inspect/hint, entry/exit + pause,
    migration. Test with the scenario harness on floor 6.

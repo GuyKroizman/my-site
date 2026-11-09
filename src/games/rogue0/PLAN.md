@@ -1027,7 +1027,7 @@ region selling Identify / Upgrade / Remove Curse / food / Ankh would convert
 three already-built systems (identification, curses, hunger) into decisions.
 Add buy/sell with a real price curve and an Ankh revival item. The first
 concrete design is the floor-6 portal store in **`STORE.md`** (15-slot
-`shop.png` scene, buy/sell, persistent stock). **v1 is implemented**: wall door,
+`shop.png` scene, buy/sell, persistent stock). **v1 is implemented**: free-standing room door,
 store scene, pricing, buy/sell, save round-trip and five store suites. Ankh
 remains future work.
 2. **Finish Phase 8 signatures.** Remaining: monsters avoiding burning terrain,

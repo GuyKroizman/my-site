@@ -662,7 +662,9 @@ export class Scene0 extends Phaser.Scene {
     const portal = this.context.portal;
     if (portal) {
       const sprite = this.featureSprites.get(`${portal.x},${portal.y}`);
-      sprite?.setFrame(portalFrame(terrainFor(this.context).getTileState(portal.x, portal.y)?.portal === 'open', this.time.now));
+      const player = this.context.player;
+      const back = player !== undefined && player.y !== undefined && player.y < portal.y;
+      sprite?.setFrame(portalFrame(terrainFor(this.context).getTileState(portal.x, portal.y)?.portal === 'open', this.time.now, back));
     }
     this.updateWater(this.time.now);
     updateWandZaps(this, this.context, this.time.now, isModalOpen(this.context));
@@ -870,8 +872,15 @@ export class Scene0 extends Phaser.Scene {
 
     // Uses the completed map/overlay, and also migrates already-visited floor 6.
     const portalFeatures = tiles.snapshot();
-    this.context.portal = placeStorePortal(floor, levelArray, portalFeatures, up);
-    if (portalFeatures.length !== tiles.snapshot().length) tiles.restore(portalFeatures);
+    this.context.portal = placeStorePortal(floor, levelArray, portalFeatures, up, {
+      avoid: [up, { x: spawn.x, y: spawn.y }, { x: stairsPos.x, y: stairsPos.y }]
+    });
+    if (this.context.portal) {
+      tiles.restore(portalFeatures);
+      // The map tile stays floor (the door is a prop), but actors route around
+      // it. A fresh floor builds its path grid before this placement.
+      dungeon.getPathGrid()?.setWalkableAt(this.context.portal.x, this.context.portal.y, false);
+    }
     this.syncFeatures();
 
     if (restored) {
@@ -1486,15 +1495,19 @@ export class Scene0 extends Phaser.Scene {
     this.wallDecals.clear();
   }
 
-  private featureVisual(state: tiles.TileState): {
+  private featureVisual(state: tiles.TileState, featureY: number): {
     tile?: number;
     textureKey?: string;
     frame?: number;
     tint?: number;
   } {
     switch (state.feature) {
-      case 'portal':
-        return { textureKey: PORTAL_TEXTURE, frame: portalFrame(state.portal === 'open', this.time.now) };
+      case 'portal': {
+        const player = this.context.player;
+        const back = player !== undefined && player.y !== undefined && player.y < featureY;
+        return { textureKey: PORTAL_TEXTURE,
+          frame: portalFrame(state.portal === 'open', this.time.now, back) };
+      }
       case "secretDoor":
         return {};
       case "door":
@@ -1575,7 +1588,7 @@ export class Scene0 extends Phaser.Scene {
       const sideDoor = state.feature === 'door' && doorPassage(dungeon.getCurrentLevel(), x, y) === 'horizontal';
       const visual = sideDoor
         ? { textureKey: state.door === 'open' ? 'door-threshold-side' : 'door-side' }
-        : this.featureVisual(state);
+        : this.featureVisual(state, y);
       const visible = state.feature !== "secretDoor" && (state.feature !== "trap" || state.trap !== "hidden");
       const upright = state.feature === 'portal' || state.feature === 'grass' || (state.feature === 'door' && state.door !== 'open');
       // Stable visual variation without consuming gameplay randomness.
