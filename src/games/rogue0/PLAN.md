@@ -684,15 +684,19 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       Visual and balance playtesting remain deferred.
 - [x] Lightning wand arcs into adjacent actors. A successful lightning-wand zap
       dealing positive shock damage to an enemy arcs once into every living
-      grounded actor adjacent to that target (cardinally or diagonally)—including
-      the hero, who takes damage for standing next to the bolt. Secondary arc
-      damage is `ceil(primary damage dealt / 2)`, reduced by shock resistance and
+      actor adjacent to that target (cardinally or diagonally), even airborne—
+      including the hero. Secondary arc damage is now
+      `ceil(primary damage dealt * 1.5)`, reduced by shock resistance and
       increased by shock vulnerability; physical armor does not apply. No
       recursive arcs, extra crits/on-hit effects, charges or action costs; the
       primary target is never hit twice and secondary deaths use normal removal.
       The fire/ice wands never arc. `test-rogue0-lightning-arc.mjs` covers
       adjacency, diagonals, resistances, caster risk, deaths and wand dispatch.
-      Visual and balance playtesting remain deferred.
+      Connected water extends the splash at 50% damage, without double-hitting
+      adjacent actors. Animated secondary bolts originate at the struck target
+      after primary impact; projectile tests cover callback-enqueued arcs,
+      travel, fog, modal pause and cleanup. Visual/balance playtesting remains
+      deferred.
 - [x] Lingering poison clouds: Toxic Gas potions release a cloud that expands
       one cardinal ring per world-time unit (clipped by walls/closed doors) up to
       a radius-3 diamond, whether drunk or thrown, including throws at empty

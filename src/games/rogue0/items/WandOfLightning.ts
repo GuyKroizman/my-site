@@ -8,7 +8,7 @@ export default class WandOfLightning extends Wand {
       context,
       {
         name: "Wand of Lightning",
-        description: "Zaps its target with lightning, weakening their blows and arcing into adjacent enemies (and you, if adjacent).",
+        description: "Zaps its target with lightning, weakening their blows. Arcs deal 150% damage to adjacent creatures, including you. Water carries shock through the connected pool. Bottled lightning does not spare its caster.",
         tile: 15 * 49 + 44,
         attackTile: 10 * 49 + 19,
         damageType: "shock",

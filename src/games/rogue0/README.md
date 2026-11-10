@@ -354,12 +354,22 @@ weapon and attack normally.
 
 ## Lightning wand arcs
 
-The Wand of Lightning arcs from a struck enemy into every living grounded
-actor adjacent to it (cardinally or diagonally) — including the hero, who takes
-damage for standing next to the bolt. Secondary arc damage is `ceil(primary
-damage / 2)`, reduced by shock resistance and increased by shock vulnerability;
-physical armor does not apply. Arcs do not chain recursively, never hit the
-primary target a second time, and add no extra action cost or charge use.
+The Wand of Lightning arcs from a struck enemy into every living actor
+adjacent to it (cardinally or diagonally), including airborne creatures and the
+hero. Adjacent arc damage is **`ceil(primary damage × 1.5)`**, reduced by shock
+resistance and increased by shock vulnerability; physical armor does not apply.
+
+If the target is standing in water, shock also reaches every grounded creature
+in the same cardinally connected pool, including the hero, for `ceil(primary
+damage / 2)` before shock resistance/vulnerability. Dry ground, ice, walls and
+separate pools break water conduction; flying/levitating avoids water damage,
+but not direct adjacent arcs. Adjacent creatures receive only the stronger arc,
+not an additional water hit.
+
+Animated electrical bolts travel from the struck target to secondary victims
+when the primary bolt impacts, including on a lethal primary hit. Secondary
+bolts are hidden outside visible tiles. Arcs do not chain recursively, never
+hit the primary target a second time, and add no extra action cost or charge use.
 
 ## Wand fusion
 

@@ -67,6 +67,8 @@ export type GameContext = {
   onFrostTerrain?: (x: number, y: number) => number;
   // Called only after a successful shock hit has applied its primary damage.
   onShockWater?: (target: Entity, damage: number) => void;
+  // Cosmetic secondary bolts; damage is resolved once by the shock splash.
+  onShockArc?: (zap: WandZap) => void;
   poisonClouds?: PoisonCloud[];
   // Items (or an enemy's loot) that fell into a chasm, keyed by the floor they
   // will land on. The scene fills this queue when the receiving floor is built.

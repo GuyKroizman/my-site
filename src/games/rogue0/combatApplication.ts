@@ -9,8 +9,10 @@ export type AttackApplication = {
   applyEffect: (target: Entity, effect: StatusEffect) => void;
   removeEffect: (target: Entity, id: string) => void;
   removeEntity: (context: GameContext, target: Entity) => void;
+  // Override generic water conduction for attacks with their own shock splash.
+  onShock?: (target: Entity, damage: number) => void;
   // After damage/invisibility/water conduction, before status effects. Used for
-  // attack messages, weapon/armor curses, and the lightning wand's secondary arc.
+  // attack messages and weapon/armor curses.
   onHit?: () => void;
   afterEffects?: () => void;
   // Wands historically do not invoke physical-hit reactions. Keep that policy
@@ -33,7 +35,7 @@ export function applyAttackResult(
     if (attacker.type === 'player' && attacker.effects.some(effect => effect.id === 'invisible')) {
       hooks.removeEffect(attacker, 'invisible');
     }
-    if (result.damageType === 'shock') context.onShockWater?.(victim, result.damage);
+    if (result.damageType === 'shock') (hooks.onShock ?? context.onShockWater)?.(victim, result.damage);
   }
 
   hooks.onHit?.();

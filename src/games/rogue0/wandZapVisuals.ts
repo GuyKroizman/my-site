@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import type { GameContext, WandZap } from './context';
 
-type Bolt = WandZap & { age: number; duration: number; impacted?: boolean; onImpact?: () => void };
+type Bolt = WandZap & { age: number; duration: number; impacted?: boolean; onImpact?: () => void; secondary?: boolean };
 
 // Distance-scaled flight time; the bolt's onImpact callback fires at exactly
 // this age, so a wand's damage lands when the bolt head reaches its target.
@@ -9,29 +9,41 @@ export function wandZapDuration(zap: WandZap): number {
   const distance = Math.hypot(zap.toX - zap.fromX, zap.toY - zap.fromY);
   return Math.min(420, 160 + distance * 18);
 }
-type State = { bolts: Bolt[]; graphic: Phaser.GameObjects.Graphics; lastTime: number };
+type State = { bolts: Bolt[]; graphic: Phaser.GameObjects.Graphics; lastTime: number; updating?: boolean };
 const states = new WeakMap<Phaser.Scene, State>();
 
 export function showWandZap(scene: Phaser.Scene, context: GameContext, zap: WandZap, onImpact?: () => void): void {
+  enqueueBolt(scene, context, zap, false, onImpact);
+}
+
+export function showShockArc(scene: Phaser.Scene, context: GameContext, zap: WandZap): void {
+  enqueueBolt(scene, context, zap, true);
+}
+
+function enqueueBolt(scene: Phaser.Scene, context: GameContext, zap: WandZap, secondary: boolean, onImpact?: () => void): void {
   let state = states.get(scene);
   if (!state) {
     state = { bolts: [], graphic: scene.add.graphics().setDepth(98), lastTime: scene.time.now };
     states.set(scene, state);
   }
   // Presentation only: no RNG, damage, actor readiness or simulation deadlines.
-  state.bolts.push({ ...zap, age: 0, duration: wandZapDuration(zap), impacted: false, onImpact });
-  if (state.bolts.length > 32) state.bolts.shift();
-  updateWandZaps(scene, context, scene.time.now, false);
+  state.bolts.push({ ...zap, age: 0, duration: wandZapDuration(zap), impacted: false, onImpact, secondary });
+  // Impact callbacks can enqueue many arcs. Do not recursively update or drop
+  // a primary bolt (and its pending damage callback) to make room for them.
+  if (!state.updating) updateWandZaps(scene, context, scene.time.now, false);
 }
 
 export function updateWandZaps(scene: Phaser.Scene, context: GameContext, now: number, paused: boolean): void {
   const state = states.get(scene);
-  if (!state) return;
+  if (!state || state.updating) return;
   const elapsed = Math.max(0, now - state.lastTime);
   state.lastTime = now;
   const g = state.graphic;
   g.clear();
-  state.bolts = state.bolts.filter(bolt => {
+  state.updating = true;
+  const current = state.bolts;
+  state.bolts = [];
+  const remaining = current.filter(bolt => {
     if (!paused) bolt.age += elapsed;
     if (!bolt.impacted && bolt.age >= bolt.duration) {
       bolt.impacted = true;
@@ -51,12 +63,14 @@ export function updateWandZaps(scene: Phaser.Scene, context: GameContext, now: n
       // projectile reveals no terrain, and the player still sees the shot.
       const inSight = context.visibleTiles.has(`${Math.floor(x / 16)},${Math.floor(y / 16)}`) &&
         context.visibleTiles.has(`${Math.floor((x + size - 1) / 16)},${Math.floor((y + size - 1) / 16)}`);
+      // Unlike an aimed projectile, splash must not reveal unseen victims.
+      if (bolt.secondary && !inSight) return;
       g.fillStyle(tint, alpha * (inSight ? 1 : 0.35)).fillRect(x, y, size, size);
     };
     if (bolt.age < bolt.duration) {
       const progress = bolt.age / bolt.duration;
       const head = progress * length;
-      const tail = Math.min(head, shock ? 38 : 24);
+      const tail = Math.min(head, bolt.secondary ? length : shock ? 38 : 24);
       for (let offset = tail; offset >= 0; offset -= 2) {
         const fraction = (head - offset) / length;
         const zig = shock ? Math.sin((head - offset) * 0.8 + Math.floor(bolt.age / 45)) * 2 : 0;
@@ -82,6 +96,8 @@ export function updateWandZaps(scene: Phaser.Scene, context: GameContext, now: n
     }
     return true;
   });
+  state.bolts.unshift(...remaining);
+  state.updating = false;
   if (!state.bolts.length) clearWandZaps(scene);
 }
 

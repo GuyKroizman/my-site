@@ -623,10 +623,10 @@ export default class BasicHero extends Entity implements HeroControlHost {
             removeEffect: (target, id) => removeEffect(target, id),
             removeEntity: (ctx, target) => removeEntity(ctx, target),
             notifyVictim: false, applyZeroDamage: true,
+            onShock: item.arcsToAdjacent()
+              ? (target, damage) => dungeon.conductShockAdjacent(context, target, damage)
+              : undefined,
             onHit: () => {
-              if (result.damageType === "shock" && result.damage > 0 && item.arcsToAdjacent()) {
-                dungeon.conductShockAdjacent(context, enemy, result.damage);
-              }
               announceHit(context, enemy,
                 `${item.displayName}: ${result.surprise ? "surprise, " : ""}${result.crit ? "critical, " : ""}${result.damage} damage.`,
                 result.damage > 0);

@@ -1016,7 +1016,7 @@ const dungeon = {
     return true;
   },
 
-  conductShock: function (context: GameContext, target: Entity, primaryDamage: number): void {
+  conductShock: function (context: GameContext, target: Entity, primaryDamage: number, excluded: ReadonlySet<Entity> = new Set()): void {
     const tiles = terrainFor(context);
     if (!Number.isFinite(primaryDamage) || primaryDamage <= 0 ||
         target.x === undefined || target.y === undefined || target.isFlying ||
@@ -1032,7 +1032,7 @@ const dungeon = {
     }
     // Snapshot victims before deaths/drop hooks mutate the entity list. No recursive
     // attacks, hit effects, crits or accuracy rolls: each secondary victim is hit once.
-    const victims = context.entities.filter(e => e !== target &&
+    const victims = context.entities.filter(e => e !== target && !excluded.has(e) &&
       (e.type === "player" || e.type === "enemy") && e.healthPoints > 0 &&
       e.x !== undefined && e.y !== undefined && connected.has(`${e.x},${e.y}`) &&
       !e.isFlying);
@@ -1041,18 +1041,17 @@ const dungeon = {
       if (!context.entities.includes(victim) || victim.healthPoints <= 0) continue;
       const damage = Math.max(0, baseDamage - (victim.resistance.shock ?? 0) + (victim.vulnerability.shock ?? 0));
       if (damage > 0) victim.takeDamage(damage);
+      context.onShockArc?.({ fromX: target.x, fromY: target.y, toX: victim.x!, toY: victim.y!, damageType: "shock" });
       announceHit(context, victim,
         `Water conducts lightning into ${victim.type === "player" ? "you" : victim.name} for ${damage} shock damage.`, damage > 0);
       if (victim.healthPoints <= 0) removeEntity(context, victim);
     }
   },
 
-  // The lightning wand arcs once into every living grounded actor adjacent to
-  // the struck target — including the caster, who takes damage for standing
-  // next to the bolt. Secondary damage is ceil(primary / 2), reduced by shock
-  // resistance and increased by shock vulnerability, exactly like water
-  // conduction. No recursive arcs, crits, on-hit effects, charges or action
-  // cost; the primary target is never hit twice and deaths use normal removal.
+  // Airborne actors can be struck by direct arcs too. Water extends the splash
+  // to grounded actors throughout the connected pool. Adjacent actors take the
+  // stronger 150% arc instead of stacking it with the 50% water hit. Snapshot
+  // before death hooks run; no recursive arcs, extra charges or action cost.
   conductShockAdjacent: function (context: GameContext, target: Entity, primaryDamage: number): void {
     if (!Number.isFinite(primaryDamage) || primaryDamage <= 0 ||
         target.x === undefined || target.y === undefined) return;
@@ -1060,13 +1059,15 @@ const dungeon = {
     const ty = target.y;
     const victims = context.entities.filter(e => e !== target &&
       (e.type === "player" || e.type === "enemy") && e.healthPoints > 0 &&
-      e.x !== undefined && e.y !== undefined && !e.isFlying &&
+      e.x !== undefined && e.y !== undefined &&
       Math.max(Math.abs(e.x - tx), Math.abs(e.y - ty)) <= 1);
-    const baseDamage = Math.ceil(primaryDamage / 2);
+    this.conductShock(context, target, primaryDamage, new Set(victims));
+    const baseDamage = Math.ceil(primaryDamage * 1.5);
     for (const victim of victims) {
       if (!context.entities.includes(victim) || victim.healthPoints <= 0) continue;
       const damage = Math.max(0, baseDamage - (victim.resistance.shock ?? 0) + (victim.vulnerability.shock ?? 0));
       if (damage > 0) victim.takeDamage(damage);
+      context.onShockArc?.({ fromX: tx, fromY: ty, toX: victim.x!, toY: victim.y!, damageType: "shock" });
       announceHit(context, victim,
         `Lightning arcs into ${victim.type === "player" ? "you" : victim.name} for ${damage} shock damage.`, damage > 0);
       if (victim.healthPoints <= 0) removeEntity(context, victim);

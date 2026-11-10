@@ -25,7 +25,7 @@ import { updateHeroAnimation } from './heroAnimation';
 import { updateHeroBurning, clearHeroBurning } from './heroBurningVisuals';
 import { updateHeroChilled, clearHeroChilled } from './heroChilledVisuals';
 import { updateHeroLevitating, clearHeroLevitating } from './heroLevitatingVisuals';
-import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
+import { showWandZap, showShockArc, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
@@ -335,6 +335,7 @@ export class Scene0 extends Phaser.Scene {
       clearGasVisuals(this);
       this.context.onGrassBurn = undefined;
       this.context.onWandZap = undefined;
+      this.context.onShockArc = undefined;
       this.context.onLiquidFlameShatter = undefined;
       this.context.onMonsterRemoved = undefined;
       this.chasmMaskGraphics?.destroy();
@@ -443,6 +444,7 @@ export class Scene0 extends Phaser.Scene {
     this.context.onSurpriseAttack = (target) => showSurpriseVisual(this, target);
     this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);
     this.context.onWandZap = (zap, onImpact) => showWandZap(this, this.context, zap, onImpact);
+    this.context.onShockArc = zap => showShockArc(this, this.context, zap);
     this.context.onLiquidFlameShatter = event => {
       // Sound follows the drawn animation, so an off-screen shatter stays silent.
       if (showLiquidFlameShatter(this, this.context, event) && event.fusion) sfx.wandFusion();

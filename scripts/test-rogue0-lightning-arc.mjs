@@ -34,7 +34,9 @@ const Hero = load('classes/basicHero', { Entity, dungeon, resolveAttack, removeE
 function setup() {
   tiles.clearAllFeatures(); removed.length = 0;
   dungeon.currentLevel = Array.from({ length: 8 }, () => Array(10).fill(0));
-  const context = { entities: [], messages: [], visibleTiles: new Set(), simulationTime: 4.5 };
+  const context = { entities: [], messages: [], visibleTiles: new Set(), simulationTime: 4.5, arcs: [] };
+  context.onShockArc = zap => context.arcs.push(zap);
+  context.onShockWater = (target, damage) => dungeon.conductShock(context, target, damage);
   return context;
 }
 function actor(context, x, y, type = 'enemy', hp = 20) {
@@ -55,11 +57,14 @@ function actor(context, x, y, type = 'enemy', hp = 20) {
   const flying = actor(ctx, 4, 2); flying.effects.push({ id: 'levitating' });
   dungeon.conductShockAdjacent(ctx, target, 5);
   assert.equal(target.healthPoints, 20, 'primary target never double hit');
-  for (const victim of [north, diagonal, west, player]) {
-    assert.equal(victim.healthPoints, 17, 'cardinal and diagonal adjacency both conduct');
+  for (const victim of [north, diagonal, west, player, flying]) {
+    assert.equal(victim.healthPoints, 12, 'cardinal/diagonal arcs deal ceil(150%) including airborne actors');
     assert.equal(victim.damageCalls, 1, 'each adjacent actor hit exactly once');
   }
-  for (const skipped of [far, item, corpse, flying]) assert.equal(skipped.damageCalls, 0, 'non-adjacent/item/corpse/flying actors skipped');
+  for (const skipped of [far, item, corpse]) assert.equal(skipped.damageCalls, 0, 'non-adjacent/item/corpse actors skipped');
+  assert.equal(ctx.arcs.length, 5);
+  assert.ok(ctx.arcs.every(zap => zap.fromX === 3 && zap.fromY === 3 && zap.damageType === 'shock'));
+  assert.ok(ctx.arcs.some(zap => zap.toX === player.x && zap.toY === player.y), 'visible arc back to caster');
   assert.equal(ctx.simulationTime, 4.5, 'arcing has no extra action cost');
 }
 {
@@ -70,9 +75,9 @@ function actor(context, x, y, type = 'enemy', hp = 20) {
   const armored = actor(ctx, 4, 2); armored.protection = () => 100;
   const immune = actor(ctx, 2, 3); immune.resistance.shock = 99;
   dungeon.conductShockAdjacent(ctx, target, 5);
-  assert.equal(resistant.healthPoints, 19, 'shock resistance reduces the arc');
-  assert.equal(vulnerable.healthPoints, 15, 'shock vulnerability increases the arc');
-  assert.equal(armored.healthPoints, 17, 'physical armor does not absorb the arc');
+  assert.equal(resistant.healthPoints, 14, 'shock resistance reduces the arc');
+  assert.equal(vulnerable.healthPoints, 10, 'shock vulnerability increases the arc');
+  assert.equal(armored.healthPoints, 12, 'physical armor does not absorb the arc');
   assert.equal(immune.damageCalls, 0, 'fully absorbed arcs never heal or damage');
 }
 for (const reason of ['zero', 'negative', 'nan']) {
@@ -110,7 +115,50 @@ for (const arc of [true, false]) {
       getAllItems: () => [wand], spendTurn() {}, refreshUI() {} });
     hero.throwAt(2, 2);
     assert.equal(wand.charges, 0, 'arcs do not consume extra charges');
-    assert.equal(secondary.healthPoints, mode === 'shock' && arc ? 17 : 20, `arc=${arc}/${mode}`);
+    assert.equal(secondary.healthPoints, mode === 'shock' && arc ? 12 : 20, `arc=${arc}/${mode}`);
   }
 }
-console.log('Rogue0 lightning wand arcs: adjacency, diagonals, resistance, flight, caster risk, deaths and dispatch passed');
+// Full wand impact: pool-wide splash, stronger adjacent hit, no double damage,
+// and arc events only after the primary projectile arrives (even on a kill).
+{
+  const ctx = setup();
+  for (let x = 1; x <= 6; x++) tiles.setFeature(x, 2, 'water');
+  const target = actor(ctx, 2, 2, 'enemy', 5);
+  const adjacent = actor(ctx, 3, 2);
+  const distant = actor(ctx, 6, 2);
+  const dry = actor(ctx, 6, 3);
+  const isolated = actor(ctx, 6, 5); tiles.setFeature(6, 5, 'water');
+  const flying = actor(ctx, 5, 2); flying.effects.push({ id: 'levitating' });
+  const hero = actor(ctx, 1, 2, 'player');
+  const wand = new LightningWand();
+  Object.assign(hero, { zapping: true, canAct: () => true,
+    getAllItems: () => [wand], spendTurn() {}, refreshUI() {} });
+  ctx.throwItem = wand;
+  let impact;
+  ctx.onWandZap = (_zap, callback) => { impact = callback; };
+  result = { hit: true, damage: 5, damageType: 'shock', appliedEffects: [] };
+  Hero.prototype.throwAt.call(hero, 2, 2);
+  assert.equal(adjacent.damageCalls, 0);
+  assert.equal(ctx.arcs.length, 0, 'no secondary arcs before primary impact');
+  impact();
+  assert.equal(target.healthPoints, 0);
+  assert.ok(removed.includes(target));
+  assert.equal(adjacent.healthPoints, 12);
+  assert.equal(hero.healthPoints, 12, 'adjacent hero gets the stronger arc, not both hits');
+  assert.equal(distant.healthPoints, 17, 'connected water extends beyond adjacency');
+  for (const e of [adjacent, hero, distant]) assert.equal(e.damageCalls, 1);
+  for (const e of [dry, isolated, flying]) assert.equal(e.damageCalls, 0);
+  assert.equal(ctx.arcs.length, 3, 'one visible bolt event per secondary target');
+  assert.equal(wand.charges, 0);
+  assert.equal(hero.moving, false);
+}
+// A non-adjacent hero is also vulnerable anywhere in the same pool.
+{
+  const ctx = setup();
+  for (let x = 1; x <= 6; x++) tiles.setFeature(x, 2, 'water');
+  const target = actor(ctx, 1, 2), hero = actor(ctx, 6, 2, 'player');
+  dungeon.conductShockAdjacent(ctx, target, 6);
+  assert.equal(hero.healthPoints, 17);
+  assert.equal(ctx.arcs.length, 1);
+}
+console.log('Rogue0 lightning wand arcs: boosted adjacency, water, visuals, resistance, flight, caster risk, deaths and dispatch passed');
