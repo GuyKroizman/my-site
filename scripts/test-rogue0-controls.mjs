@@ -8,6 +8,7 @@ import { createHeroNavigation } from '../src/games/rogue0/heroNavigation.ts';
 import { createHeroTargeting } from '../src/games/rogue0/heroTargeting.ts';
 import { createHeroInput } from '../src/games/rogue0/heroInput.ts';
 import { cursorDirection } from '../src/games/rogue0/heroControlRules.ts';
+import { createInventoryActions } from '../src/games/rogue0/inventory.ts';
 
 // Import whole production modules: only world/rendering boundaries are faked.
 function fixture() {
@@ -174,8 +175,8 @@ assert.equal(cursorDirection('I'), undefined, 'uppercase diagonals retain their 
 }
 
 // Walls are free; a revealed trap is a deliberate step; closed doors are
-// separate actions; pickup and movement share one action, while full
-// backpacks/chests don't move the hero.
+// separate actions; pickup and movement share one action. Full backpacks
+// leave loot on the floor without blocking movement; chests still stop the hero.
 {
   const f = fixture(); f.state.wall = true;
   f.hero.processInput('l'); assert.equal(f.hero.nextActionTime, 0);
@@ -193,16 +194,40 @@ assert.equal(cursorDirection('I'), undefined, 'uppercase diagonals retain their 
 }
 for (const method of ['manual', 'auto']) {
   const f = fixture();
-  const item = { type: 'item', x: 2, y: 1, displayName: 'Amulet' };
+  const item = { type: 'item', x: 2, y: 1, displayName: 'Amulet', sprite: {} };
   f.context.entities.push(item);
+  const carried = { name: 'Sword', equipSlot: 'weapon' };
+  f.hero.backpack = [carried];
+  f.hero.capacity = 1;
+  const inventory = createInventoryActions({
+    log: f.dungeon.log,
+    clearFloorSprite(_context, item) { item.sprite = undefined; },
+  });
+  f.hero.addItem = item => inventory.addItem(f.hero, item);
   const act = () => {
     if (method === 'manual') f.hero.processInput('l');
     else { f.hero.setWalkTarget(2, 1); f.hero.stepAutoWalk(); }
   };
-  f.hero.acceptPickup = false; act();
-  assert.equal(f.hero.nextActionTime, 0); assert.equal(f.hero.x, 1);
-  f.hero.acceptPickup = true; act();
-  assert.deepEqual(f.hero.actions, ['move']); assert.equal(f.hero.x, 2);
+  act();
+  assert.equal(f.hero.nextActionTime, 1, `${method}: stepping onto uncollected loot costs one move`);
+  assert.equal(f.hero.x, 2, `${method}: a full backpack does not block movement`);
+  assert.equal(f.hero.canAct(), false);
+  assert.deepEqual(f.hero.backpack, [carried]);
+  assert.deepEqual(f.state.pickups, []);
+  assert.ok(f.context.entities.includes(item));
+  assert.deepEqual([item.x, item.y], [2, 1]);
+  assert.ok(item.sprite, 'uncollected loot keeps its floor sprite');
+  assert.deepEqual(f.context.messages, ['Your backpack is full.']);
+
+  // Walk off the item, make room, and return to collect the same floor item.
+  ready(f); f.hero.processInput('h');
+  assert.equal(f.hero.x, 1);
+  f.hero.backpack = [];
+  ready(f); act();
+  assert.deepEqual(f.hero.actions, ['move', 'move', 'move']); assert.equal(f.hero.x, 2);
+  assert.equal(f.hero.nextActionTime, 3);
+  assert.deepEqual(f.hero.backpack, [item]);
+  assert.deepEqual([item.x, item.y, item.sprite], [undefined, undefined, undefined]);
   assert.deepEqual(f.state.pickups, [item]);
   assert.equal(f.context.messages[0], 'You picked up an Amulet.');
   const chest = { type: 'item', x: 3, y: 1, isContainer: true,
@@ -210,7 +235,7 @@ for (const method of ['manual', 'auto']) {
   f.context.entities.push(chest); ready(f);
   if (method === 'manual') f.hero.processInput('l');
   else { f.hero.setWalkTarget(3, 1); f.hero.stepAutoWalk(); }
-  assert.equal(f.hero.x, 2); assert.deepEqual(f.hero.actions, ['move', 'use']);
+  assert.equal(f.hero.x, 2); assert.deepEqual(f.hero.actions, ['move', 'move', 'move', 'use']);
 }
 
 // Rooted heroes can attack but not move. Confusion delegates to one stumble;

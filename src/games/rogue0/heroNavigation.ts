@@ -115,9 +115,10 @@ export function createHeroNavigation(services: HeroControlServices) {
         if (hero.addItem(entity)) {
           dungeon.itemPicked(entity);
           dungeon.log(hero.context, pickupMessage(entity));
-          hero.spendTurn('move');
-          dungeon.moveEntityTo(hero.context, hero, step.x, step.y);
         }
+        // A rejected pickup leaves the item on the floor, not an obstacle.
+        hero.spendTurn('move');
+        dungeon.moveEntityTo(hero.context, hero, step.x, step.y);
         return;
       }
       if (dungeon.openDoor(step.x, step.y)) {
@@ -187,8 +188,6 @@ export function createHeroNavigation(services: HeroControlServices) {
           if (hero.addItem(entity)) {
             dungeon.itemPicked(entity);
             dungeon.log(context, pickupMessage(entity));
-          } else {
-            newX = oldX; newY = oldY;
           }
         } else {
           newX = oldX; newY = oldY;
