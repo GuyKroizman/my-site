@@ -178,7 +178,13 @@ const Ring = itemClass('ring');
   sibling.level = 2;
   const offFloor = new Lightning(ctx); offFloor.x = 3; offFloor.y = 8;
   assert.equal(sibling.identified, false);
-  for (let zap = 0; zap < EQUIPMENT_IDENTIFY_USES; zap++) originals[2].damage();
+  for (let zap = 1; zap <= 15; zap++) {
+    originals[2].refill();
+    originals[2].damage();
+    assert.equal(originals[2].equipmentUses, zap, 'each zap counts as one use');
+    assert.equal(originals[2].identified, zap === 15, `wand identifies on zap 15, not ${zap < 15 ? zap : 'later'}`);
+    assert.equal(sibling.identified, zap === 15, 'copies learn the type at the same threshold');
+  }
   for (const copy of [originals[2], sibling, offFloor, new Lightning(ctx)]) assert.equal(copy.identified, true);
   assert.equal(sibling.displayName, 'Wand of Lightning +2');
   assert.equal(originals[0].identified, false);

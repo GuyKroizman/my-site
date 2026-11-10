@@ -445,7 +445,10 @@ export abstract class Entity {
   learnEquipmentFromUse(): void {
     if (this.identified || !this.isUpgradable) return;
     this.equipmentUses = (this.equipmentUses ?? 0) + 1;
-    if (this.equipmentUses >= EQUIPMENT_IDENTIFY_USES) identify(this);
+    // Wands need half as many uses as other equipment to reveal their magic.
+    const requiredUses = this.textureKey?.startsWith('wand-')
+      ? EQUIPMENT_IDENTIFY_USES / 2 : EQUIPMENT_IDENTIFY_USES;
+    if (this.equipmentUses >= requiredUses) identify(this);
   }
 
   // Consumable labels follow their shuffled appearance, not their true identity.
