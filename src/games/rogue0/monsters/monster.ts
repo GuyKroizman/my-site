@@ -6,6 +6,7 @@ import type { DamageType } from "../effects";
 import { announceDeath } from "../combatFeedback";
 import { enemyTurn, enemyCanSeePlayer } from "../ai";
 import { actorOrigin } from "../rendering";
+import { playMonsterDeath } from './monsterDeathVisuals';
 import Gold from "../items/gold";
 import { stashChasmFallen } from "../chasmDrops";
 import { bodyDistance } from "../actorBodies.ts";
@@ -210,6 +211,10 @@ export default class Monster extends Entity {
 
   range() {
     return this.rangeValue;
+  }
+
+  playDeathAnimation(sprite: Phaser.GameObjects.Sprite): boolean {
+    return playMonsterDeath(this.context, sprite, this.name, this.x, this.y, this.footprint);
   }
 
   onDestroy() {

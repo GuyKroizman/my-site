@@ -2,6 +2,8 @@
 // the hero, never moves, grants no XP/loot, and fades on its own. Enemies may
 // waste attacks on it (see ai.ts), but it is never a valid target for the hero.
 
+import type Phaser from 'phaser';
+import { playMonsterDeath } from './monsterDeathVisuals';
 import { Entity, removeEntity } from "../entity";
 import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
@@ -60,6 +62,10 @@ export default class MirrorImage extends Entity {
 
   damage() {
     return 0;
+  }
+
+  playDeathAnimation(sprite: Phaser.GameObjects.Sprite): boolean {
+    return playMonsterDeath(this.context, sprite, this.name, this.x, this.y);
   }
 
   onDestroy() {
