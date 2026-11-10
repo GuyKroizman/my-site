@@ -14,6 +14,7 @@ function evaluate(source, bindings = {}) {
 }
 const water = evaluate(fs.readFileSync('src/games/rogue0/waterVisuals.ts', 'utf8').replace(/^import.*;\n/gm, ''));
 const { WATER_TEXTURE, WATER_FRAMES, waterPixels, waterFrame, waterShoreMask, generateWaterTexture } = water;
+const ice = evaluate(fs.readFileSync('src/games/rogue0/iceVisuals.ts', 'utf8').replace(/^import.*;\n/gm, ''));
 assert.equal(waterShoreMask(0, 0, () => false), 15);
 assert.equal(waterPixels(15, 0)[0], -1, 'isolated puddles have transparent rounded corners');
 assert.notEqual(waterPixels(0, 0)[0], -1, 'connected interiors have no gaps');
@@ -52,11 +53,12 @@ assert.equal(atlas.size, 128); assert.equal(writes, 128); assert.equal(refreshes
 
 // Exercise real terrain reconciliation and visual updates, including freezing.
 let state = { feature: 'water' };
+const neighbors = new Map();
 const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 const methods = source.slice(source.indexOf('  private featureVisual('), source.indexOf('  private makeArrowTexture()'));
 const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
-  ...water, tiles: { FeatureTiles: { water: 206 } },
-  terrainFor: () => ({ getFeature: () => state?.feature,
+  ...water, ...ice, tiles: { FeatureTiles: { water: 206 } },
+  terrainFor: () => ({ getFeature: (x, y) => x === 0 && y === 0 ? state?.feature : neighbors.get(`${x},${y}`),
     forEachFeature(fn) { if (state) fn(0, 0, state); } }),
   dungeon: { getCurrentLevel: () => [[0]] }, wallOverhang: () => false,
   worldDepth: () => 0, actorOriginY: () => 0,
@@ -83,12 +85,21 @@ Object.assign(s, { context: { map: { tileToWorldX: x => x * 16, tileToWorldY: y 
 s.syncFeatures();
 assert.equal(sprite.texture, WATER_TEXTURE);
 assert.equal(s.waterSprites.size, 1);
-s.updateWater(180); assert.equal(sprite.frame, 1);
+s.updateWater(180); assert.equal(sprite.frame, waterFrame(15, 0, 0, 180));
 sprite.visible = false; s.updateWater(360);
-assert.equal(sprite.visible, false); assert.equal(sprite.frame, 1, 'animation cannot reveal hidden tiles');
+assert.equal(sprite.visible, false); assert.equal(sprite.frame, waterFrame(15, 0, 0, 180), 'animation cannot reveal hidden tiles');
 state = { feature: 'ice' }; s.syncFeatures();
-assert.equal(s.waterSprites.size, 0); assert.equal(sprite.texture, 'tiles');
-s.updateWater(540); assert.equal(sprite.frame, 206, 'frozen water stops animating');
+assert.equal(s.waterSprites.size, 0); assert.equal(sprite.texture, ice.ICE_TEXTURE);
+s.updateWater(540); assert.equal(sprite.frame, ice.iceFrame(15, 0, 0), 'frozen water stops animating');
+neighbors.set('1,0', 'ice'); s.syncFeatures();
+assert.equal(sprite.frame, ice.iceFrame(13, 0, 0), 'adjacent frozen tiles lose the shared rim');
+neighbors.set('1,0', 'water'); s.syncFeatures();
+assert.equal(sprite.frame, ice.iceFrame(15, 0, 0), 'thawing a neighbor restores the exposed ice edge');
+neighbors.clear();
+state = { feature: 'water' }; s.syncFeatures();
+assert.equal(sprite.texture, WATER_TEXTURE, 'thaw restores the water texture');
+assert.equal(s.waterSprites.size, 1, 'thawed water rejoins animation');
+s.updateWater(720); assert.equal(sprite.frame, waterFrame(15, 0, 0, 720));
 state = null; s.syncFeatures();
 assert.equal(sprite.destroyed, true); assert.equal(s.featureSprites.size, 0);
 console.log('Rogue0 water: shoreline masks, pixel atlas, deterministic animation, visibility, freezing and terrain cleanup passed');

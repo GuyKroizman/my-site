@@ -29,6 +29,7 @@ import { showWandZap, updateWandZaps, clearWandZaps } from './wandZapVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
+import { ICE_TEXTURE, generateIceTexture, iceShoreMask, iceFrame } from './iceVisuals';
 import {
   CHASM_TEXTURE, CHASM_MARGIN, CHASM_SIZE, CHASM_DEEP_TEXTURE, CHASM_DEEP_DEPTH,
   CHASM_SURFACE_DEPTH, chasmParallaxOffset, generateChasmTexture, generateChasmDeepTexture,
@@ -384,6 +385,7 @@ export class Scene0 extends Phaser.Scene {
     generateWallDecalTextures(this);
     generateUnknownItemTextures(this);
     generateWaterTexture(this);
+    generateIceTexture(this);
     generateChasmTexture(this);
     generateChasmDeepTexture(this);
     generateTrapTextures(this);
@@ -1524,7 +1526,7 @@ export class Scene0 extends Phaser.Scene {
       case "water":
         return { textureKey: WATER_TEXTURE };
       case "ice":
-        return { tile: tiles.FeatureTiles.water, tint: 0xbbeeff };
+        return { textureKey: ICE_TEXTURE };
       case "chasm":
         // Rim, cliff face and floor shadow atlas; the cell interior stays void.
         return { textureKey: CHASM_TEXTURE };
@@ -1602,10 +1604,13 @@ export class Scene0 extends Phaser.Scene {
         : visual.textureKey ?? (upright ? 'foreground-tiles' : 'tiles');
       const mask = state.feature === 'water'
         ? waterShoreMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'water')
-        : state.feature === 'chasm'
-          ? chasmMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'chasm')
-          : 0;
+        : state.feature === 'ice'
+          ? iceShoreMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'ice')
+          : state.feature === 'chasm'
+            ? chasmMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'chasm')
+            : 0;
       const frame = state.feature === 'water' ? waterFrame(mask, x, y, this.time.now)
+        : state.feature === 'ice' ? iceFrame(mask, x, y)
         : state.feature === 'chasm' ? chasmFrame(mask)
         : visual.frame ?? (visual.textureKey ? 0 : (visual.tile ?? 0));
 
