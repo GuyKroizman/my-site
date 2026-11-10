@@ -1,9 +1,15 @@
+import type Phaser from "phaser";
 import Monster from "./monster";
+import { playSkeletonDeath } from "./skeletonDeathVisuals";
 import type { GameContext } from "../context";
 import HolyPotion from "../items/holyPotion";
 import BerserkPotion from "../items/berserkPotion";
 
 export default class Skeleton extends Monster {
+  playDeathAnimation(sprite: Phaser.GameObjects.Sprite): boolean {
+    return playSkeletonDeath(this.context, sprite);
+  }
+
   constructor(context: GameContext, x?: number, y?: number) {
     super(context, {
       name: "Skeleton",

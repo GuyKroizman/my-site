@@ -612,6 +612,9 @@ export abstract class Entity {
 
   abstract onDestroy(): void;
 
+  // Presentation-only override. Returning true transfers sprite cleanup to it.
+  playDeathAnimation?(sprite: Phaser.GameObjects.Sprite): boolean;
+
   createUI?(options: { scene: Phaser.Scene, x: number, y: number, width?: number }): number;
 
   // Ticks this entity's status effects once per unit of world time. Death from a status
@@ -646,15 +649,17 @@ export function removeEntity(context: GameContext, entity: Entity) {
   if (sprite) {
     context.scene?.tweens.killTweensOf(sprite);
 
-    // Fade and shrink the sprite out before destroying it.
-    context.scene?.tweens.add({
-      targets: sprite,
-      alpha: 0,
-      scaleX: 0.5,
-      scaleY: 0.5,
-      duration: 180,
-      onComplete: () => sprite.destroy()
-    });
+    if (!entity.playDeathAnimation?.(sprite)) {
+      // Other entities retain the default fade and shrink.
+      context.scene?.tweens.add({
+        targets: sprite,
+        alpha: 0,
+        scaleX: 0.5,
+        scaleY: 0.5,
+        duration: 180,
+        onComplete: () => sprite.destroy()
+      });
+    }
   }
 
   // onDestroy may drop loot at the entity's position, so keep x/y intact
