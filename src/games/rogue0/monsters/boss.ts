@@ -8,9 +8,9 @@ import { BOSS_TEXTURE, generateBossTexture } from "./bossTexture";
 import { resolveFootprint } from "../footprint.ts";
 import type { Footprint } from "../footprint.ts";
 
-// The 1.5x blob art spans more than one cell. A 3x3 centre-anchored footprint
-// is the physical creature: movement, hits, projectiles and inspection all use
-// these nine cells. The class-level constant is restore-safe (prototype getter).
+// A 3x3 centre-anchored footprint is the physical creature: movement, hits,
+// projectiles and inspection all use these nine cells. The artwork fills the
+// same rectangle. The class-level constant is restore-safe (prototype getter).
 export const BOSS_FOOTPRINT: Footprint = resolveFootprint({
   width: 3, height: 3, anchor: 'center'
 });
@@ -41,7 +41,7 @@ export default class Boss extends Monster {
       resistance: { physical: 2 },
       xp: 25,
       range: 0,
-      scale: 1.5,
+      scale: 2,
       loot: [Gem, HolyPotion, PotionOfHealing]
     }, x, y);
 
@@ -49,6 +49,18 @@ export default class Boss extends Monster {
     // on any wound or noise, when the hero is close enough to be seen, or after
     // this many elapsed time units if the hero simply waits it out.
     this.sleepTurnsRemaining = BOSS_ARENA_DORMANCY;
+  }
+
+  init(context: GameContext, x?: number, y?: number) {
+    super.init(context, x, y);
+    if (!this.sprite) return;
+    // Unlike upright single-cell actors, the blob fills its ground footprint.
+    // Keep the sprite at the usual tile anchor for movement/tweens, but place
+    // its top-left at the footprint's top-left and draw all three rows. Do this
+    // on every init so old saves with spriteScale=1.5 also get the corrected art.
+    const fp = this.footprint;
+    this.sprite.setDisplaySize(fp.width * 16, fp.height * 16);
+    this.sprite.setOrigin(fp.originX / fp.width, fp.originY / fp.height);
   }
 
   onHitEffects() {

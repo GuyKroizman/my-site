@@ -254,8 +254,8 @@ assert.deepEqual(actorOrigin(16, 16, 1), { x: 0, y: 0 }, 'ordinary actors keep t
 assert.deepEqual(actorOrigin(16, 16, 0.7), { x: 0, y: 0 }, 'small actors keep the legacy anchor');
 {
   const origin = actorOrigin(24, 24, 1.5);
-  assert.equal(origin.x * 36, 10, 'the 36px boss is shifted left so its centre is the tile centre');
-  assert.equal((1 - origin.y) * 36, 16, 'the boss feet land on the cell bottom');
+  assert.equal(origin.x * 36, 10, 'ordinary oversized upright art stays centred on its cell');
+  assert.equal((1 - origin.y) * 36, 16, 'ordinary upright art keeps its feet on the cell bottom');
 }
 // The wide body, not just the artwork, keeps the hero out of the boss.
 assert.equal(bodyDistance({ x: 10, y: 10, bodyRadius: 1 }, { x: 12, y: 10 }), 1,
@@ -275,7 +275,7 @@ const bodyEntities = [
 assert.equal(actorBodyAtTile(bodyEntities, 11, 11), bodyEntities[0]);
 assert.equal(actorBodyAtTile(bodyEntities, 19, 19), undefined, 'items never own extra cells');
 
-const bossRect = { x: -10, y: -20, width: 36, height: 36 };
+const bossRect = { x: -16, y: -16, width: 48, height: 48 };
 const heroRect = { x: 0, y: -16, width: 16, height: 16 };
 assert.equal(occludesPlayer(bossRect, 5, heroRect, 4), true,
   'a front boss covering the hero triggers transparency');
@@ -292,6 +292,20 @@ const drawn = BOSS_PIXELS.join('').replace(/\./g, '');
 assert.ok(drawn.length >= 380, `the blob fills most of its frame (${drawn.length}/576 pixels)`);
 for (const pixel of new Set(drawn)) {
   assert.equal(typeof BOSS_PALETTE[pixel], 'number', `palette covers '${pixel}'`);
+}
+// Each occupied tile is visibly filled, including the four corner tiles.
+for (let ty = 0; ty < 3; ty++) {
+  for (let tx = 0; tx < 3; tx++) {
+    const pixels = BOSS_PIXELS.slice(ty * 8, ty * 8 + 8)
+      .map(row => row.slice(tx * 8, tx * 8 + 8)).join('');
+    assert.ok(pixels.replace(/\./g, '').length >= 56,
+      `body tile ${tx},${ty} is at least 7/8 visibly filled`);
+  }
+}
+for (const edge of [BOSS_PIXELS[0], BOSS_PIXELS.at(-1),
+  BOSS_PIXELS.map(row => row[0]).join(''), BOSS_PIXELS.map(row => row.at(-1)).join('')]) {
+  assert.ok(edge.replace(/\./g, '').length >= 18,
+    'the silhouette reaches every footprint edge without transparent padding');
 }
 // One eye, one pupil, a row of teeth: the three features the art is named for.
 assert.ok(drawn.includes('w') && drawn.includes('p'), 'the blob has a visible eye');
@@ -338,11 +352,11 @@ const { Entity } = load('src/games/rogue0/entity.ts', {
   CURSE_FLAVOR: {}
 });
 Entity.prototype.init = function(context, x, y) {
-  Object.assign(this, { context, x, y, sprite: undefined });
+  Object.assign(this, { context, x, y, sprite: context.makeTestSprite?.(x, y) });
 };
 const dungeonStub = { getCurrentLevel: () => Array.from({ length: 9 }, () => Array(9).fill(0)), log() {} };
 const Monster = load('src/games/rogue0/monsters/monster.ts', {
-  Entity,
+  Entity, actorOrigin,
   enemyTurn() {},
   enemyCanSeePlayer() {},
   dungeon: dungeonStub,
@@ -373,6 +387,44 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   assert.equal(boss.healthPoints, 60, 'the arena rework keeps the guardian stats');
   boss.takeDamage(1);
   assert.equal(boss.sleeping, false, 'any wound wakes it');
+}
+
+// The actual Boss.init path, both fresh and restored, draws exactly the body
+// bounds. A sprite double models Phaser's size/origin math without WebGL.
+{
+  const context = {
+    makeTestSprite(x, y) {
+      return {
+        x: x * 16, y: y * 16, width: BOSS_TEXTURE_SIZE, height: BOSS_TEXTURE_SIZE,
+        setScale(scale) { this.displayWidth = this.width * scale; this.displayHeight = this.height * scale; },
+        setDisplaySize(w, h) { this.displayWidth = w; this.displayHeight = h; },
+        setOrigin(x, y) { this.originX = x; this.originY = y; },
+        getBounds() {
+          return { x: this.x - this.originX * this.displayWidth,
+            y: this.y - this.originY * this.displayHeight,
+            width: this.displayWidth, height: this.displayHeight };
+        }
+      };
+    }
+  };
+  const boss = new Boss.default(context, 10, 10);
+  const expected = { x: 9 * 16, y: 9 * 16, width: 48, height: 48 };
+  assert.deepEqual(boss.sprite.getBounds(), expected, 'fresh boss art exactly matches its 3x3 body');
+  assert.equal(boss.range(), 0, 'the guardian still has no ranged attack');
+  for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
+    assert.equal(bodyDistance(boss, { x: 10 + dx * 2, y: 10 + dy * 2 }), 1,
+      'melee adjacency still starts immediately outside the drawn body');
+    assert.equal(bodyDistance(boss, { x: 10 + dx * 3, y: 10 + dy * 3 }), 2,
+      'an empty tile between hero and body is still outside melee reach');
+  }
+  // Save restoration bypasses the constructor and can carry the old scale.
+  const restored = Object.assign(Object.create(Boss.default.prototype), boss,
+    { sprite: undefined, spriteScale: 1.5 });
+  restored.init(context, 10, 10);
+  assert.deepEqual(restored.sprite.getBounds(), expected, 'old saves get the corrected size and origin');
+  restored.init(context, 14, 12);
+  assert.deepEqual(restored.sprite.getBounds(), { x: 13 * 16, y: 11 * 16, width: 48, height: 48 },
+    'floor re-entry retains the footprint alignment without accumulating offsets');
 }
 
 // --- Scene wiring -----------------------------------------------------------
