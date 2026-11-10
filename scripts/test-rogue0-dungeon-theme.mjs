@@ -2,21 +2,18 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('dungeon-theme');
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import ts from 'typescript';
-const exports = {};
-new Function('exports', ts.transpile(fs.readFileSync('src/games/rogue0/dungeonTheme.ts', 'utf8'), {
-  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
-}))(exports);
+import { dungeonTheme } from '../src/games/rogue0/dungeonTheme.ts';
 const expected = [
   ...Array(4).fill('stone'), ...Array(5).fill('crypt'),
   ...Array(5).fill('sandstone'), ...Array(5).fill('crystal'),
   ...Array(6).fill('volcanic'),
 ];
-// Every floor in both directions, including each region boundary and revisits.
+// Each floor and both out-of-range fallbacks. This pure lookup has no revisit
+// state; repeating the same assertions in reverse adds no coverage.
 const floors = Array.from({ length: 25 }, (_, i) => i + 1);
-for (const floor of [...floors, ...floors.toReversed(), 0, 26]) {
+for (const floor of [...floors, 0, 26]) {
   const prefix = expected[floor - 1] ?? 'stone';
-  assert.deepEqual(exports.dungeonTheme(floor), { tiles: `${prefix}-tiles`, wall: `${prefix}-wall` });
+  assert.deepEqual(dungeonTheme(floor), { tiles: `${prefix}-tiles`, wall: `${prefix}-wall` });
   for (const name of [`${prefix}-tiles`, `${prefix}-wall`]) {
     assert.ok(fs.existsSync(`src/games/rogue0/assets/${name}.png`));
   }
@@ -39,4 +36,4 @@ for (const theme of ['crypt', 'sandstone', 'crystal', 'volcanic']) {
     assert.notDeepEqual(image, original);
   }
 }
-console.log('Dungeon themes: all 25 floors, region boundaries, revisits, atlas sizes and both render paths passed');
+console.log('Dungeon themes: all 25 floors, region boundaries, fallbacks, atlas sizes and render wiring smoke checks passed');

@@ -118,10 +118,10 @@ has been playtested. Checked boxes mean the described implementation exists.
   with elapsed world time, effects retain their own tick phase, and skill
   cooldowns use absolute timestamps. See `README.md`, `timing.ts` and
   `turnManager.ts`; do not reintroduce per-action status/hunger ticking.
-- Regression: `npm run test:rogue0` runs **52** headless suites (53 files,
-  including the separate browser `test-rogue0-save-browser.mjs`). The last full
-  run and the production build passed at the time of this update. Results append
-  to `logs/rogue0-tests.jsonl`; query with `npm run test:rogue0:history`.
+- Regression: `npm run test:rogue0` runs the headless suites, including save
+  serialization and restoration tests. Browser save/resume wiring is checked
+  manually. Results append to `logs/rogue0-tests.jsonl`; query with
+  `npm run test:rogue0:history`.
 - **Local scenario harness (Phase 17, dev only):** a dev-gated title-screen panel
   authors a start state (floor, class/level/HP/hunger/gold/talents, exact
   inventory, explicit monster set) that `scenario.ts` applies to the first

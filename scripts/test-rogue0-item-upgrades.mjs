@@ -27,14 +27,7 @@ for (const equipSlot of ['weapon', 'armor', 'ring', 'artifact', 'consumable', 'j
     }
   }
 }
-// All inventory surfaces must use those same getters, not generic unknown icons.
-for (const file of ['inventoryWindow.ts', 'quickslotPane.ts']) {
-  const source = fs.readFileSync(`src/games/rogue0/${file}`, 'utf8');
-  assert.doesNotMatch(source, /unidentifiedTextureKey/, `${file} must preserve floor artwork`);
-  assert.match(source, /item\.spriteTextureKey/);
-  assert.match(source, /item\.spriteFrame/);
-  assert.doesNotMatch(source, /item\.identified\s*&&\s*item\.tint/);
-}
+// Inventory/quickslot artwork is exercised by their presentation suites.
 // Upgrading reveals physical stats, but must not identify the curse status.
 const unknownGear = Object.assign(new Entity(), {
   context: { messages: [] }, type: 'item', equipSlot: 'weapon',

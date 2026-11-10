@@ -233,4 +233,38 @@ assert.equal(hero.context.throwItem, undefined);
 assert.equal(wand.charges, 1, 'abandoning a zap through the backpack spends no charge');
 assert.equal(hero.turns, 1, 'abandoning a zap through the backpack spends no turn');
 inventory.close();
-console.log('Rogue0 quickslot eligibility, selection, cleanup and independent wand targeting/projectile events passed');
+// Exercise refresh output rather than grepping quickslotPane.ts for getters.
+// Reuse the same icon to catch stale tint when a slot changes items.
+const { QuickslotPane } = load('src/games/rogue0/quickslotPane.ts', { Wand });
+let displayed;
+const icon = {
+  setVisible(value) { this.visible = value; },
+  setTexture(key, frame) { this.key = key; this.frame = frame; },
+  clearTint() { this.tint = undefined; },
+  setTint(value) { this.tint = value; },
+};
+const label = { setText(value) { this.text = value; } };
+const pane = Object.assign(Object.create(QuickslotPane.prototype), {
+  context: { player: { quickslotItem: () => displayed } }, slots: [{ icon, label }],
+});
+for (const identified of [false, true]) {
+  for (const [key, frame] of [['custom-item', 0], ['tiles', 123]]) {
+    displayed = Object.freeze({ identified, count: 2, tint: 0xabc123,
+      spriteTextureKey: key, spriteFrame: frame, unidentifiedTextureKey: 'wrong-placeholder' });
+    pane.refresh();
+    assert.deepEqual([icon.visible, icon.key, icon.frame, icon.tint, label.text],
+      [true, key, frame, displayed.tint, '2']);
+    displayed = { ...displayed, tint: undefined, count: 1 };
+    pane.refresh();
+    assert.equal(icon.tint, undefined, 'replacing a tinted item clears the old tint');
+    assert.equal(label.text, '');
+  }
+}
+displayed = Object.assign(Object.create(Wand.prototype), { charges: 3, count: 1 });
+pane.refresh();
+assert.equal(label.text, '3', 'wands show charges, not stack count');
+displayed = undefined;
+pane.refresh();
+assert.equal(icon.visible, false, 'empty slot hides its previous item');
+assert.equal(label.text, '+');
+console.log('Rogue0 quickslot eligibility, selection, cleanup, item artwork and independent wand targeting/projectile events passed');

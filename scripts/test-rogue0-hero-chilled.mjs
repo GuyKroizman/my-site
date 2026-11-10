@@ -1,12 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('hero-chilled');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
-const source = fs.readFileSync('src/games/rogue0/heroChilledVisuals.ts', 'utf8').replace(/^import.*;\n/gm, '');
-const exports = {};
-new Function('exports', ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports);
-const { updateHeroChilled, clearHeroChilled } = exports;
+import { updateHeroChilled, clearHeroChilled } from '../src/games/rogue0/heroChilledVisuals.ts';
 const created = [];
 const scene = { add: { graphics() {
   const sheet = { rects: [], fills: [], destroyed: false,

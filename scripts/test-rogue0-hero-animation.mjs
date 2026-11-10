@@ -1,12 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('hero-animation');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
-const source = fs.readFileSync('src/games/rogue0/heroAnimation.ts', 'utf8').replace(/^import .*;$/gm, '');
-const exports = {};
-new Function('exports', ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports);
-const { updateHeroAnimation: update } = exports;
+import { updateHeroAnimation as update } from '../src/games/rogue0/heroAnimation.ts';
 function sprite() {
   return { x: 32, y: 48, flipX: false, displayOriginX: 0, displayOriginY: 0,
     setFlipX(v) { this.flipX = v; },

@@ -41,10 +41,9 @@ function setup() {
 }
 const originalRandom = Math.random;
 try {
-  // 18 slots: each non-gear reward takes four, while gear keeps one each so
-  // chest equipment is a third as common as before.
-// 18 slots: gold takes five, rations and gems four each, a single slot holds
-// the rare Potion of Healing, and two each go to weapon and armor.
+  // Sweep all reward slots, but test container interactions only once per
+  // reward category rather than repeating them for every weighted duplicate.
+  // Gold takes five slots, rations and gems four, healing one, and gear two each.
   const chestRewards = [
     ...Array(5).fill('Gold'), ...Array(4).fill('Ration'),
     ...Array(4).fill('Gem'), 'PotionOfHealing',
@@ -52,14 +51,20 @@ try {
   ];
   for (let roll = 0; roll < 18; roll++) {
     Math.random = () => (roll + 0.1) / 18;
-    const { context, player, chest, turns, ready } = setup();
-    assert.equal(chest.textureKey, 'chest-closed', 'chests draw the generated chest art');
-    assert.equal(chest.spriteFrame, 0, 'the generated texture is a single frame');
+    const { chest } = setup();
+    assert.equal(chest.contents.length, 1);
     const content = chest.contents[0];
-    assert.ok(content instanceof rewards[chestRewards[roll]]);
+    assert.ok(content instanceof rewards[chestRewards[roll]], `reward slot ${roll}`);
     assert.equal(content.x, undefined, 'contents are not floor loot before opening');
     if (roll >= 14) assert.equal(content.value, 3, 'equipment matches floor tier');
     if (roll < 5) assert.equal(content.value, 25);
+  }
+  for (const category of new Set(chestRewards)) {
+    Math.random = () => (chestRewards.indexOf(category) + 0.1) / 18;
+    const { context, player, chest, turns, ready } = setup();
+    const content = chest.contents[0];
+    assert.equal(chest.textureKey, 'chest-closed', 'chests draw the generated chest art');
+    assert.equal(chest.spriteFrame, 0, 'the generated texture is a single frame');
     assert.equal(player.addItem(chest), false, 'chests cannot enter inventory');
     ready(false); assert.equal(chest.openContainer(), false); ready(true);
     player.x = 0; assert.equal(chest.openContainer(), false, 'must be adjacent'); player.x = 1;

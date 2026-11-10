@@ -1,12 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('wand-projectiles');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
-const source = fs.readFileSync('src/games/rogue0/wandZapVisuals.ts', 'utf8').replace(/^import.*;\n/gm, '');
-const exports = {};
-new Function('exports', ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports);
-const { showWandZap, updateWandZaps, clearWandZaps } = exports;
+import { showWandZap, updateWandZaps, clearWandZaps } from '../src/games/rogue0/wandZapVisuals.ts';
 const graphics = [];
 const scene = { time: { now: 0 }, add: { graphics() {
   const g = { rects: [], setDepth(depth) { this.depth = depth; return this; },

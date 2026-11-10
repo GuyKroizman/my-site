@@ -58,13 +58,11 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
 - `saveRegistry.ts` is an explicit table of **permanent wire IDs**. Existing
   path-looking IDs are historical constants, not computed filenames. Moving a
   class changes its import, never its ID. Keep aliases for older saves; give new
-  classes semantic IDs. The browser suite checks the historical ID fixture and
-  detects unregistered entity classes.
+  classes semantic IDs.
 - `scripts/lib/rogue0-logic-loader.mjs` is the shared compatibility harness for
   isolated suites that still inject fakes. It parses imports with TypeScript
   rather than deleting them with a regex. It is not an integration test.
-  New renderer-independent boundary tests import complete modules normally;
-  the Chromium suite exercises real game-module wiring and save/resume.
+  New renderer-independent boundary tests import complete modules normally.
   These tests use native TypeScript imports (Node 22.18+ or Node 24+).
 
 Run `npm run test:rogue0` for all headless suites, or
@@ -84,17 +82,34 @@ map, FOV/LOS, grass cover, optical overrides, grid/spawn filtering, trap policie
 and detached save snapshots. It imports complete production modules directly.
 Legacy terrain/FOV fixtures also use those modules through the compatibility
 adapter; the log, monster, swarm and progression suites now share its AST loader.
-The Chromium suite also checks
-the live HUD/inventory after resume, free modal opening/closing, cleared pending
-controls, repeated input binding with real Phaser listeners, separate scene
-schedulers/terrain, isolated sight/combat/gas, terrain snapshots, fractional
-clock/deadline restoration, and fresh runtime state on same-page resume. Test history is appended automatically.
+Test history is appended automatically.
 
 Further incremental work: separate projectile resolution and scene rendering,
 replace the remaining isolated source loaders, and move dungeon map/grid/layer
 and terrain-change callbacks to run-owned state. Save
 field selection also remains graph-based; changes to persisted fields still
 need compatibility handling.
+
+## Maintaining the tests
+
+- Keep regressions for player-visible behavior, state ownership, save compatibility
+  and rendering lifecycle. A suite with no recorded failures is not automatically
+  redundant; history counts executions, not unique bugs or coverage.
+- Import production modules directly when they work without Phaser. The hero
+  animation/status overlays, wand projectile visuals, dungeon theme and found
+  upgrade rules do this; use the shared AST loader only for legacy fake-boundary
+  tests. Neither those fakes nor source-text smoke checks prove browser wiring.
+- Prefer rendered output and state assertions to matching source text. Inventory
+  and quickslot suites check actual icon texture/frame/tint; item-upgrades owns
+  floor item presentation, not duplicate UI source checks.
+- For weighted choices, test exact boundaries against independently specified
+  expected outcomes rather than copying production weights or sampling thousands
+  of rolls. Chest rewards cover every slot; opening behavior runs once per reward
+  category. Found-upgrade cases assert weapon and armor classes separately.
+- Run `npm run test:rogue0` after changes. For deliberate broken-code checks, set
+  `ROGUE0_TEST_PURPOSE=mutation` (or `verification`) and keep the appended history.
+  Real browser reload/Continue and Phaser scene lifecycle are not covered by
+  these headless suites; check those manually when changing save/resume wiring.
 
 ## Browser saves
 
@@ -123,10 +138,6 @@ Clearing site data removes the save. Saves are local, not account/cloud synced;
 play a run in one tab at a time.
 
 Regression tests: `npm run test:rogue0:save` (also in `npm run test:rogue0`).
-Optional real-browser suite: with a Vite dev server running, use
-`node scripts/test-rogue0-save-browser.mjs`. It requires Playwright and Chromium;
-`PLAYWRIGHT_MODULE`, `CHROMIUM_PATH` and `ROGUE0_URL` override their defaults.
-The browser suite uses an isolated profile, never your existing saved run.
 
 ## Treasure chests and mimics
 

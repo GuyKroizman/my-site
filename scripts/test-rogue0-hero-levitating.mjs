@@ -1,12 +1,7 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('hero-levitating');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
-const source = fs.readFileSync('src/games/rogue0/heroLevitatingVisuals.ts', 'utf8').replace(/^import.*;\n/gm, '');
-const exports = {};
-new Function('exports', ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports);
-const { updateHeroLevitating, clearHeroLevitating } = exports;
+import { updateHeroLevitating, clearHeroLevitating } from '../src/games/rogue0/heroLevitatingVisuals.ts';
 const created = [];
 const scene = { add: { graphics() {
   const sheet = { rects: [], fills: [], destroyed: false,

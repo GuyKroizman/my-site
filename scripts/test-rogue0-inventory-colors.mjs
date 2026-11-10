@@ -2,15 +2,10 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('inventory-colors');
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import fs from 'node:fs';
-import ts from 'typescript';
-const source = fs.readFileSync('src/games/rogue0/inventoryWindow.ts', 'utf8').replace(/^import.*;$/gm, '');
-const exports = {};
-new Function('exports', 'attachTooltip', ts.transpile(source, {
-  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
-}))(exports, () => {});
+import { loadLogic } from './lib/rogue0-logic-loader.mjs';
+const { InventoryWindow } = loadLogic('src/games/rogue0/inventoryWindow.ts', { attachTooltip() {} });
 function render(item, equipped = false, selected = false) {
-  const children = [], tweens = [];
+  const children = [], tweens = [], icons = [];
   const make = () => Object.assign(new EventEmitter(), {
     setOrigin() { return this; }, setStrokeStyle() { return this; },
     setInteractive() { return this; }, setAlpha(alpha) { this.alpha = alpha; return this; },
@@ -18,7 +13,12 @@ function render(item, equipped = false, selected = false) {
   const scene = {
     add: {
       rectangle(x, y, w, h, color) { return Object.assign(make(), { color }); },
-      sprite: make, text: make,
+      sprite(x, y, key, frame) {
+        const icon = Object.assign(make(), { key, frame });
+        icons.push(icon);
+        return icon;
+      },
+      text: make,
     },
     tweens: { add(config) {
       const tween = { ...config, remove() { this.removed = true; } };
@@ -26,10 +26,10 @@ function render(item, equipped = false, selected = false) {
       return tween;
     } },
   };
-  const ui = new exports.InventoryWindow(scene, { player: { slotOf: () => equipped ? 'weapon' : undefined } });
+  const ui = new InventoryWindow(scene, { player: { slotOf: () => equipped ? 'weapon' : undefined } });
   ui.winRoot = { add: child => children.push(child) };
   ui.renderCell(0, 0, item, selected);
-  return { children, tweens };
+  return { children, tweens, icons };
 }
 const item = { identified: false, cursed: false, count: 1 };
 const unknown = render(item);
@@ -50,4 +50,15 @@ for (const selected of [false, true]) {
 }
 assert.equal(render({ ...item, cursed: true }, true).tweens.length, 1);
 assert.equal(render(undefined).children[0].color, 0x16121c);
-console.log('Rogue0 inventory curse colors, hidden status, selection and pulse cleanup passed');
+// Check rendered output, not the spelling of getter calls in the source.
+// Identification must not replace visible floor art with a generic unknown icon.
+for (const identified of [false, true]) {
+  for (const [key, frame] of [['custom-item', 0], ['tiles', 123]]) {
+    const item = Object.freeze({ identified, count: 1, tint: 0xabc123,
+      spriteTextureKey: key, spriteFrame: frame, unidentifiedTextureKey: 'wrong-placeholder' });
+    const { icons } = render(item);
+    assert.equal(icons.length, 1);
+    assert.deepEqual([icons[0].key, icons[0].frame, icons[0].tint], [key, frame, item.tint]);
+  }
+}
+console.log('Rogue0 inventory curse colors, hidden status, selection, pulse cleanup and item artwork passed');
