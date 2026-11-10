@@ -25,11 +25,13 @@ export default class Boss extends Monster {
   // rectangle without instantiating the guardian.
   static readonly footprint: Footprint = BOSS_FOOTPRINT;
 
+  get terrorImmune(): boolean { return true; }
+
   constructor(context: GameContext, x?: number, y?: number) {
     if (context.scene) generateBossTexture(context.scene);
     super(context, {
       name: "Bone Lord",
-      description: "A mountain of gelatinous flesh with one great eye and a mouth full of fangs. The guardian of the dungeon depths. Extremely dangerous.",
+      description: "A mountain of gelatinous flesh with one great eye and a mouth full of fangs. The guardian of the dungeon depths. Immune to terror. Extremely dangerous.",
       tile: 0,
       textureKey: BOSS_TEXTURE,
       healthPoints: 60,

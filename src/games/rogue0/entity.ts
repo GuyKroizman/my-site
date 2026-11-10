@@ -233,6 +233,8 @@ export abstract class Entity {
   flying: boolean = false;
   // Poison-immune creatures (e.g. the Deadly Frog) ignore the poisoned status.
   poisonImmune: boolean = false;
+  // Prototype getters keep innate terror immunity intact when restoring saves.
+  get terrorImmune(): boolean { return false; }
   // Time required for an attack; weapons override this independently of walking.
   attackDelay: number = 1;
   nextActionTime: number = 0;

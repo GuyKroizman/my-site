@@ -389,6 +389,47 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   assert.equal(boss.sleeping, false, 'any wound wakes it');
 }
 
+// Terror immunity is enforced for every source, including scrolls, and survives
+// restoration without running the boss constructor. Other debuffs still work.
+{
+  const { applyEffect, createTerrifiedEffect, createWeakenedEffect, hasEffect } =
+    load('src/games/rogue0/effects.ts');
+  const messages = [];
+  const removed = [];
+  const ScrollOfTerror = load('src/games/rogue0/items/ScrollOfTerror.ts', {
+    Entity, applyEffect, createTerrifiedEffect,
+    dungeon: { log: (_context, message) => messages.push(message) },
+    removeEntity: (_context, entity) => removed.push(entity)
+  }).default;
+  const context = {
+    entities: [], messages: [], visibleTiles: new Set(['10,10']),
+    player: { x: 10, y: 14, removeItem: item => removed.push(item) }
+  };
+  const boss = new Boss.default(context, 10, 10);
+  const restored = Object.assign(Object.create(Boss.default.prototype), boss, { effects: [] });
+  for (const guardian of [boss, restored]) {
+    assert.equal(guardian.terrorImmune, true);
+    applyEffect(guardian, createTerrifiedEffect(4));
+    assert.equal(hasEffect(guardian, 'terrified'), false, 'boss rejects terror at effect application');
+    applyEffect(guardian, createWeakenedEffect(3));
+    assert.equal(hasEffect(guardian, 'weakened'), true, 'immunity does not block other debuffs');
+    context.entities = [guardian];
+    const scroll = new ScrollOfTerror(context);
+    scroll.equip();
+    assert.equal(hasEffect(guardian, 'terrified'), false, 'scroll cannot terrify a boss');
+    assert.equal(messages.at(-1), 'Bone Lord is immune to terror!');
+    assert.deepEqual(removed.slice(-2), [scroll, scroll], 'immune targets still consume the scroll');
+  }
+  const enemy = new Entity();
+  enemy.init(context, 10, 10);
+  enemy.name = 'Ordinary enemy';
+  context.entities = [enemy];
+  new ScrollOfTerror(context).equip();
+  assert.equal(hasEffect(enemy, 'terrified'), true, 'ordinary enemies remain vulnerable');
+  assert.equal(enemy.effects.find(effect => effect.id === 'terrified').duration, 4);
+  assert.equal(messages.at(-1), 'Ordinary enemy is struck with terror!');
+}
+
 // The actual Boss.init path, both fresh and restored, draws exactly the body
 // bounds. A sprite double models Phaser's size/origin math without WebGL.
 {

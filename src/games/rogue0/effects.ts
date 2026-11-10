@@ -72,6 +72,7 @@ export function applyEffect(entity: Entity, effect: StatusEffect): void {
   // A poison-immune creature (e.g. the Deadly Frog) shrugs off every poison
   // source, not just the cloud it exhales.
   if (effect.id === "poisoned" && entity.poisonImmune) return;
+  if (effect.id === "terrified" && entity.terrorImmune) return;
   // Repeated frost applications still affect terrain, even if already frozen.
   if (effect.id === "frozen" && entity.x !== undefined && entity.y !== undefined) {
     entity.context.onFrostTerrain?.(entity.x, entity.y);

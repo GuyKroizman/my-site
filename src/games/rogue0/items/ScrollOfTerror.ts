@@ -41,8 +41,12 @@ export default class ScrollOfTerror extends Entity {
     }
 
     if (target) {
-      applyEffect(target, createTerrifiedEffect(4));
-      dungeon.log(this.context, `${target.name} is struck with terror!`);
+      if (target.terrorImmune) {
+        dungeon.log(this.context, `${target.name} is immune to terror!`);
+      } else {
+        applyEffect(target, createTerrifiedEffect(4));
+        dungeon.log(this.context, `${target.name} is struck with terror!`);
+      }
     } else {
       dungeon.log(this.context, "No enemy in sight to terrify.");
     }
