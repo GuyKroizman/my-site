@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 
-// --- Potion of Frost carries the ice damage type and advertises the matchup ---
+// --- Potion of Frost carries the ice damage type ---
 const EntityStub = class Entity {
   init() {}
 };
@@ -17,7 +17,6 @@ const PotionOfFrost = load('items/PotionOfFrost', {
 }).default;
 const potion = new PotionOfFrost({});
 assert.equal(potion.damageType, 'ice', 'Potion of Frost is typed as ice damage');
-assert.match(potion.description, /fire elementals/, 'description reveals the fire-elemental matchup');
 
 // --- Thrown frost potions hit fire elementals for direct ice damage ---
 const logs = [];

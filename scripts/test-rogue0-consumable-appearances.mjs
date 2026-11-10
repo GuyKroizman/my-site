@@ -1,14 +1,9 @@
 import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('consumable-appearances');
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import ts from 'typescript';
-const source = fs.readFileSync('src/games/rogue0/entity.ts', 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-const exports = {};
-const rendering = {};
-new Function('exports', ts.transpile(fs.readFileSync('src/games/rogue0/rendering.ts', 'utf8'), { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(rendering);
-new Function('exports', ...Object.keys(rendering), ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports, ...Object.values(rendering));
-const { Entity, identify, resetConsumableAppearances } = exports;
+import { loadLogic } from './lib/rogue0-logic-loader.mjs';
+import * as rendering from '../src/games/rogue0/rendering.ts';
+const { Entity, identify, resetConsumableAppearances } = loadLogic('src/games/rogue0/entity.ts', rendering);
 const context = {
   messages: [],
   map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },

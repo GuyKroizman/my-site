@@ -61,7 +61,9 @@ Deployed [here](https://hidden-smoke-7075.fly.dev/games/rogue0/rogue0)
   classes semantic IDs.
 - `scripts/lib/rogue0-logic-loader.mjs` is the shared compatibility harness for
   isolated suites that still inject fakes. It parses imports with TypeScript
-  rather than deleting them with a regex. It is not an integration test.
+  rather than deleting them with a regex. Compiled source is cached per process,
+  but each evaluation gets fresh module state and injected dependencies; editing
+  source invalidates the cache. It is not an integration test.
   New renderer-independent boundary tests import complete modules normally.
   These tests use native TypeScript imports (Node 22.18+ or Node 24+).
 
@@ -91,6 +93,49 @@ field selection also remains graph-based; changes to persisted fields still
 need compatibility handling.
 
 ## Maintaining the tests
+
+Use focused suites while editing, then the full suite before finishing:
+
+```bash
+npm run test:rogue0 -- --list                 # discover suites, no execution
+npm run test:rogue0 -- movement vision        # exact suite names; no hidden dependency selection
+npm run test:rogue0 -- save frost-potion      # focused run, includes startup timing
+npm run test:rogue0:store                    # store group
+npm run test:rogue0                          # all suites, each in its own process
+npm run test:rogue0 -- --fail-fast            # optional; default reports all failures
+npm run test:rogue0:history -- --summary
+```
+
+The runner discovers `scripts/test-rogue0-*.mjs`, rejects unknown names before
+running anything, never retries a failure, and exits nonzero if any selected
+suite fails. It logs one result per process, including syntax/import failures
+before test initialization. `test-tooling` verifies selection, logging and
+classification with isolated, explicitly labelled verification fixtures.
+
+`logs/rogue0-tests.jsonl` retains suite results. New runner results include a
+`runId`, `batchId` and `timingScope: "process"` (startup/imports included).
+`logs/rogue0-test-batches.jsonl` records elapsed batch wall time and per-suite
+results, including failures and suites not reached with `--fail-fast`. Batch
+timing starts inside the runner; it excludes npm/runner startup. Existing
+single-suite npm shortcuts and direct `node scripts/test-rogue0-….mjs` commands
+still log in-process timings. Those and older history exclude static imports;
+do not sum them to estimate command wall time. Killing the runner itself can
+prevent final records from being written.
+
+To record a diagnosed failure, use its ID from the runner output or full history:
+
+```bash
+npm run test:rogue0:history -- classify <failure-id> test-bug "Incorrect fixture; corrected its expected state."
+```
+
+Categories are `game-bug`, `test-bug`, `environment`, `intended-change`, and
+`unknown`. Include evidence and the resolution, or say explicitly that it is
+not yet fixed. Classifications append to
+`logs/rogue0-test-classifications.jsonl`; correcting one appends another record,
+with the latest annotation used for reports. The original failure is never
+rewritten, removed, or converted to a pass. Older records get stable IDs without
+migration. Undiagnosed history stays unclassified rather than being guessed
+from exception types. All three history files are local and git-ignored.
 
 - Keep regressions for player-visible behavior, state ownership, save compatibility
   and rendering lifecycle. A suite with no recorded failures is not automatically

@@ -2,7 +2,7 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('save');
 import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
-const { encodeGraph, decodeGraph } = load('src/games/rogue0/saveCodec.ts');
+import { encodeGraph, decodeGraph } from '../src/games/rogue0/saveCodec.ts';
 const { Entity, saveConsumableKnowledge, restoreConsumableKnowledge } = load('src/games/rogue0/entity.ts');
 Entity.prototype.init = function(context, x, y) { Object.assign(this, { context, x, y }); };
 const { TieredWeapon, TieredArmor } = load('src/games/rogue0/items/tieredEquipment.ts', {
@@ -144,7 +144,8 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   }
   assert.equal(restored.requiresItemTarget, true);
   assert.equal(restored.itemTargetTitle, 'UPGRADE: CHOOSE ITEM');
-  assert.match(restored.description, /choose/);
+  assert.equal(restored.description, new ScrollOfUpgrade(savedContext).description,
+    'legacy help text is migrated to the current item description');
   assert.equal(restored.count, 3);
   assert.equal(restored.identified, true);
   const savedIce = run.floors.get(1).entities[0];

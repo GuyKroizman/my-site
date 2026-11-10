@@ -2,20 +2,13 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('consumable-knowledge');
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import ts from 'typescript';
 import { isModalOpen } from '../src/games/rogue0/context.ts';
-
-// entity.ts imports Phaser for types only, so load it with imports stripped
-// (the same harness the appearance suite uses) to test the knowledge listing.
-const source = fs.readFileSync('src/games/rogue0/entity.ts', 'utf8').replace(/^import[\s\S]*?;\s*/gm, '');
-const exports = {};
-const rendering = {};
-new Function('exports', ts.transpile(fs.readFileSync('src/games/rogue0/rendering.ts', 'utf8'), { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(rendering);
-new Function('exports', ...Object.keys(rendering), ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }))(exports, ...Object.values(rendering));
+import * as rendering from '../src/games/rogue0/rendering.ts';
+import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 const {
   Entity, identify, consumableKnowledge, appearanceLabel, resetConsumableAppearances,
   prewarmConsumableAppearances, CONSUMABLE_NAMES,
-} = exports;
+} = loadLogic('src/games/rogue0/entity.ts', rendering);
 
 const context = {
   messages: [],

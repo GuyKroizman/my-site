@@ -19,6 +19,23 @@ import * as tilePresentation from '../../src/games/rogue0/tiles.ts';
 import * as sight from '../../src/games/rogue0/fov.ts';
 import { bossArenaLayout } from '../../src/games/rogue0/bossArenas.ts';
 
+// Cache only compilation, never exports or fixture state. Some large suites
+// evaluate the same module repeatedly with different fake dependencies.
+const compiled = new Map();
+function compileLogic(path) {
+  const source = fs.readFileSync(path, 'utf8');
+  const cached = compiled.get(path);
+  if (cached?.source === source) return cached.js;
+  const parsed = ts.createSourceFile(path, source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+  const stripped = ts.factory.updateSourceFile(parsed,
+    parsed.statements.filter(statement => !ts.isImportDeclaration(statement)));
+  const js = ts.transpileModule(ts.createPrinter().printFile(stripped), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }
+  }).outputText;
+  compiled.set(path, { source, js });
+  return js;
+}
+
 // Compatibility harness for existing isolated-method suites. Parse imports as
 // TypeScript rather than deleting them with a regex. New boundary/integration
 // tests should use normal module imports; this intentionally retains old fakes.
@@ -35,14 +52,7 @@ export function loadLogic(path, bindings = {}) {
     computeFOV: (map, x, y, radius, ignoreObstacles) =>
       sight.computeFOV(map, x, y, radius, ignoreObstacles, bindings),
   };
-  const parsed = ts.createSourceFile(path, fs.readFileSync(path, 'utf8'),
-    ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
-  const stripped = ts.factory.updateSourceFile(parsed,
-    parsed.statements.filter(statement => !ts.isImportDeclaration(statement)));
-  const source = ts.createPrinter().printFile(stripped);
-  const js = ts.transpileModule(source, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS }
-  }).outputText;
+  const js = compileLogic(path);
   // Use the real extracted operations with each legacy fixture's existing
   // effects/audio/log fakes. New inventory/view suites import modules directly.
   const heroInventory = createInventoryActions({
