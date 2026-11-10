@@ -13,6 +13,16 @@ export const ARMOR_TEXTURES = [
   "armor-plate"
 ] as const;
 
+// Tier 1 keeps its original dagger atlas frame. Higher tiers have dedicated
+// pixel art, shared by floor sprites, equipment slots and inventory icons.
+export const WEAPON_TEXTURES = [
+  undefined,
+  "weapon-shortsword",
+  "weapon-broadsword",
+  "weapon-greatsword",
+  "weapon-greataxe"
+] as const;
+
 // Initial progression curves, independent of hero XP. Legacy class starting
 // equipment remains usable; these are the dungeon's complete tiered roster.
 export class TieredWeapon extends Entity {
@@ -26,7 +36,8 @@ export class TieredWeapon extends Entity {
     this.tier = Math.max(1, Math.min(5, Math.floor(tier)));
     this.name = ["Dagger", "Shortsword", "Broadsword", "Greatsword", "Greataxe"][this.tier - 1];
     this.attackDelay = [0.8, 1, 1, 1.2, 1.4][this.tier - 1];
-    this.tile = 328; // Existing weapon art until the dedicated art pass.
+    this.textureKey = WEAPON_TEXTURES[this.tier - 1];
+    this.tile = 328; // Tier-1 dagger; higher tiers use their dedicated textures.
     this.init(context, x, y);
   }
 

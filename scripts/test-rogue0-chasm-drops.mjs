@@ -275,6 +275,7 @@ const openMap = (w = 4, h = 2) => Array.from({ length: h }, () => Array(w).fill(
     decodeGraph, saveRegistry: registry,
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
     ScrollOfUpgrade: SavedGem, Ring: class {}, Wand: class {},
+    TieredWeapon: class {}, WEAPON_TEXTURES: [],
     Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
     CHEST_TEXTURE: 'chest-closed',
     IceElemental: class {}, ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',

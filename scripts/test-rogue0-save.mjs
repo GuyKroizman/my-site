@@ -5,7 +5,7 @@ import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { encodeGraph, decodeGraph } from '../src/games/rogue0/saveCodec.ts';
 const { Entity, saveConsumableKnowledge, restoreConsumableKnowledge } = load('src/games/rogue0/entity.ts');
 Entity.prototype.init = function(context, x, y) { Object.assign(this, { context, x, y }); };
-const { TieredWeapon, TieredArmor } = load('src/games/rogue0/items/tieredEquipment.ts', {
+const { TieredWeapon, TieredArmor, WEAPON_TEXTURES } = load('src/games/rogue0/items/tieredEquipment.ts', {
   Entity, Phaser: { Math: { Between: (_min, max) => max } },
 });
 const effects = load('src/games/rogue0/effects.ts', { spawnEntityFloatingText() {}, dungeon: {} });
@@ -88,11 +88,18 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   const scroll = new ScrollOfUpgrade(savedContext);
   Object.assign(scroll, { requiresItemTarget: false, itemTargetTitle: 'CLEANSE: CHOOSE ITEM',
     description: 'Upgrades your equipped weapon.', count: 3, locallyIdentified: true });
-  hero.backpack = [scroll];
+  const legacyWeapons = [1, 2, 3, 4, 5].map(tier => {
+    const item = new TieredWeapon(savedContext, undefined, undefined, tier);
+    delete item.textureKey; // Saved before the dedicated weapon art existed.
+    item.level = 2;
+    return item;
+  });
+  hero.backpack = [scroll, ...legacyWeapons];
+  hero.weapon = legacyWeapons[4];
   class IceElemental { constructor() { Object.assign(this, { type: 'enemy', tile: 6 * 49 + 9 }); } }
   const legacyIce = new IceElemental();
   Object.assign(legacyIce, { x: 0, y: 0, healthPoints: 16 });
-  const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, IceElemental };
+  const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, IceElemental, TieredWeapon };
   const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
   const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
     bossesSlain: new Set([5, 10]),
@@ -101,7 +108,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
       up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
     }]]) }, registry);
   const { decodeRunSave } = load('src/games/rogue0/runPersistence.ts', {
-    decodeGraph, saveRegistry: registry, restoreEffects, ScrollOfUpgrade,
+    decodeGraph, saveRegistry: registry, restoreEffects, ScrollOfUpgrade, TieredWeapon, WEAPON_TEXTURES,
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
     Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
     CHEST_TEXTURE: 'chest-closed',
@@ -115,6 +122,12 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   const save = { version: 1, heroClass: 'Warrior', floor: 1, graph };
   const run = decodeRunSave(save, {});
   assert.deepEqual([...run.bossesSlain], [5, 10], 'slain boss floors survive the save graph');
+  for (const item of run.player.backpack.slice(1)) {
+    assert.equal(item.textureKey, WEAPON_TEXTURES[item.tier - 1], 'legacy weapons acquire tier art');
+    assert.equal(item.spriteFrame, item.tier === 1 ? 328 : 0);
+    assert.equal(item.level, 2, 'art migration preserves upgrades');
+  }
+  assert.equal(run.player.weapon, run.player.backpack[5], 'equipped weapon keeps the shared item reference');
   const restored = run.player.backpack[0];
   assert.deepEqual(run.player.inputBuffer, []);
   assert.throws(() => decodeRunSave({ ...save, heroClass: 'unknown' }, {}), /Invalid saved run/);

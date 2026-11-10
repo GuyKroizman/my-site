@@ -13,6 +13,7 @@ import ScrollOfUpgrade from './items/ScrollOfUpgrade';
 import Ring from './items/ring';
 import Wand from './items/wand';
 import Chest from './items/chest';
+import { TieredWeapon, WEAPON_TEXTURES } from './items/tieredEquipment';
 import { CHEST_TEXTURE } from './chestTextures';
 import Mimic from './monsters/mimic';
 import SwarmOfFlies from './monsters/swarmOfFlies';
@@ -59,6 +60,11 @@ export type RunState = {
 export function decodeRunSave(save: RunSave, context: GameContext, registry: Registry = saveRegistry): RunState {
   const run: RunState = decodeGraph(save.graph, registry, (entity: Entity) => {
     entity.context = context;
+    // Decode visits every item, including equipped/carried weapons, container
+    // contents, shop stock and pending chasm drops, not only floor entities.
+    if (entity instanceof TieredWeapon) {
+      entity.textureKey = WEAPON_TEXTURES[entity.tier - 1];
+    }
     if (entity instanceof ScrollOfUpgrade) {
       const defaults = new ScrollOfUpgrade(context);
       Object.assign(entity, {

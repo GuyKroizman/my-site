@@ -126,6 +126,7 @@ import { generateGlyphStoneTextures } from './glyphStoneTextures';
 import { dropTrampledGlyphStone } from './glyphStoneDrop';
 import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
+import { generateWeaponTextures } from "./weaponTextures";
 import { prewarmConsumableAppearances, resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
 import type { Entity } from "./entity";
 import { maybeCurse } from "./curses";
@@ -376,6 +377,7 @@ export class Scene0 extends Phaser.Scene {
     generateRingTextures(this);
     generateGlyphStoneTextures(this);
     generateArmorTextures(this);
+    generateWeaponTextures(this);
     generateRemainsTexture(this);
     generateChestTextures(this);
     generateDoorThresholdTexture(this);
