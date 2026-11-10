@@ -307,11 +307,15 @@ export abstract class Entity {
   // Opt-in for physical weapons/armor; wands and utility gear are exempt.
   usesStrength: boolean = false;
 
+  get baseRequiredStrength(): number {
+    return this.usesStrength ? 8 + 2 * this.tier : 0;
+  }
+
   get requiredStrength(): number {
     if (!this.usesStrength) return 0;
     // Upgrade milestones +1, +3, +6, +10, ... each remove one requirement.
     const reduction = Math.floor((Math.sqrt(8 * Math.max(0, this.level) + 1) - 1) / 2);
-    return Math.max(0, 8 + 2 * this.tier - reduction);
+    return Math.max(0, this.baseRequiredStrength - reduction);
   }
 
   strengthDescription(strength: number): string {
@@ -419,8 +423,15 @@ export abstract class Entity {
     return '';
   }
 
+  // Recognizable gear can show its level-zero stats without exposing upgrades.
+  get unupgradedDescription(): string {
+    return "You recognize the make, but its upgrade level stays hidden until you have used it in combat.";
+  }
+
   get displayDescription(): string {
-    return [this.baseDescription, this.curseDescription].filter(Boolean).join('\n\n');
+    const description = this.isPhysicalEquipment && !this.identified
+      ? this.unupgradedDescription : this.baseDescription;
+    return [description, this.curseDescription].filter(Boolean).join('\n\n');
   }
 
   // True for items whose upgrade level is a meaningful, hidden property.

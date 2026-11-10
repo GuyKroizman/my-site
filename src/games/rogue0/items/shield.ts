@@ -21,6 +21,10 @@ export default class Shield extends Entity {
   }
 
 
+  get unupgradedDescription(): string {
+    return `This tier-${this.tier} armor absorbs 1 physical damage and requires ${this.baseRequiredStrength} strength to use properly.`;
+  }
+
   get baseDescription(): string {
     return `A basic shield. Gives +${this.protection()} protection.`;
   }

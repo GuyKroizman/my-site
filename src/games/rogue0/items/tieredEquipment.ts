@@ -30,6 +30,10 @@ export class TieredWeapon extends Entity {
     this.init(context, x, y);
   }
 
+  get unupgradedDescription(): string {
+    return `This tier-${this.tier} melee weapon deals ${this.tier}-${5 * this.tier} damage and requires ${this.baseRequiredStrength} strength to use properly.`;
+  }
+
   get minDamage(): number { return this.tier + this.level; }
   get maxDamage(): number { return 5 * this.tier + (this.tier + 1) * this.level; }
   get baseDescription(): string {
@@ -66,6 +70,10 @@ export class TieredArmor extends Entity {
     this.textureKey = ARMOR_TEXTURES[this.tier - 1];
     this.tile = 776; // Fallback only; the generated armor texture is what renders.
     this.init(context, x, y);
+  }
+
+  get unupgradedDescription(): string {
+    return `This tier-${this.tier} armor absorbs ${2 * this.tier} physical damage and requires ${this.baseRequiredStrength} strength to use properly.`;
   }
 
   get baseDescription(): string {

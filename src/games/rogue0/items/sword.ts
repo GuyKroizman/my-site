@@ -6,6 +6,10 @@ import type { EntityType } from "../entity";
 export default class Sword extends Entity{
 
   name: string = "A Sword";
+  get unupgradedDescription(): string {
+    return `This tier-${this.tier} melee weapon deals 1-5 damage and requires ${this.baseRequiredStrength} strength to use properly.`;
+  }
+
   get baseDescription(): string {
     return `A basic sword. Causes between ${1 + this.level} and ${5 + (this.tier + 1) * this.level} damage.`;
   }

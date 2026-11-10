@@ -490,8 +490,7 @@ export class InventoryWindow {
     const description = item.identified
       ? [item.displayDescription, item.strengthDescription(player.strength)].filter(Boolean).join("\n")
       : item.isPhysicalEquipment
-        ? ["You recognize the make, but its upgrade level stays hidden until you have used it in combat.",
-            item.curseDescription].filter(Boolean).join("\n\n")
+        ? item.displayDescription
         : [item instanceof Wand
             ? "An unidentified wand. Its kind of magic and upgrade level are unknown."
             : "You have not identified this item.", item.curseDescription].filter(Boolean).join('\n\n');

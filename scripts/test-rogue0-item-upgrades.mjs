@@ -315,6 +315,25 @@ for (const [name, min, max] of equipment) {
   identify(item);
   assert.equal(item.context.messages[0], `Identified: ${item.name}`);
 }
+// Legacy starting weapons and shields also show only base stats when unknown.
+for (const [name, min, max] of equipment.slice(0, 4)) {
+  const item = new (itemClass(name))({ messages: [] });
+  item.identified = false;
+  item.level = 6;
+  assert.equal(item.displayDescription,
+    `This tier-1 melee weapon deals ${min}-${max} damage and requires 10 strength to use properly.`);
+  assert.equal(item.level, 6);
+  assert.equal(item.requiredStrength, 7);
+}
+{
+  const shield = new Shield({ messages: [] });
+  shield.identified = false;
+  shield.level = 6;
+  assert.equal(shield.displayDescription,
+    'This tier-1 armor absorbs 1 physical damage and requires 10 strength to use properly.');
+  assert.equal(shield.protection(), 7, 'description does not alter actual protection');
+}
+
 // Every physical weapon and armor uses tier-sensitive upgrade gains, including
 // legacy starting gear. Scroll spell damage must keep its separate flat curve.
 for (let tier = 1; tier <= 5; tier++) {

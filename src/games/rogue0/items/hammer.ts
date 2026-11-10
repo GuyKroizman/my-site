@@ -21,6 +21,10 @@ export default class Hammer extends Entity {
     equip() {
     }
 
+    get unupgradedDescription(): string {
+      return `This tier-${this.tier} melee weapon deals 3-8 damage and requires ${this.baseRequiredStrength} strength to use properly.`;
+    }
+
     get baseDescription(): string {
       return `A basic war hammer. Causes between ${3 + this.level} and ${8 + (this.tier + 1) * this.level} damage. Slow attack (${this.attackDelay} time).`;
     }

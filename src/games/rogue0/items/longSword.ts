@@ -5,6 +5,10 @@ import type { GameContext } from "../context";
 
 export default class LongSword extends Entity {
   name: string = "A Long Sword";
+  get unupgradedDescription(): string {
+    return `This tier-${this.tier} melee weapon deals 4-8 damage and requires ${this.baseRequiredStrength} strength to use properly.`;
+  }
+
   get baseDescription(): string {
     return `A long sword. Causes between ${4 + this.level} and ${8 + (this.tier + 1) * this.level} damage.`;
   }

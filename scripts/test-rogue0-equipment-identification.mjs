@@ -47,6 +47,35 @@ function gear(ctx, equipSlot, level = 2) {
   });
 }
 
+// Unknown gear shows level-zero stats, never the hidden upgrade's damage or
+// reduced strength requirement. Armor currently absorbs a fixed amount.
+const { TieredWeapon, TieredArmor } = load('items/tieredEquipment', { Entity });
+for (let tier = 1; tier <= 5; tier++) {
+  for (const Gear of [TieredWeapon, TieredArmor]) {
+    const item = new Gear({ messages: [] }, undefined, undefined, tier);
+    const stats = Gear === TieredWeapon
+      ? `melee weapon deals ${tier}-${5 * tier} damage`
+      : `armor absorbs ${2 * tier} physical damage`;
+    const expected = `This tier-${tier} ${stats} and requires ${8 + 2 * tier} strength to use properly.`;
+    for (const level of [0, 1, 2, 3, 6, 10]) {
+      item.level = level;
+      assert.equal(item.displayDescription, expected);
+      assert.equal(item.level, level, 'describing an item must not change its upgrade');
+      assert.equal(item.identified, false, 'describing an item must not identify it');
+    }
+    assert.ok(item.requiredStrength < item.baseRequiredStrength,
+      'actual upgraded strength requirement remains lower than the displayed base requirement');
+    item.cursed = true;
+    assert.equal(item.displayDescription, expected, 'unknown curses stay hidden');
+    item.curseScanned = true;
+    assert.equal(item.displayDescription, `${expected}\n\nA glyph stone reveals that this item is cursed.`);
+    item.cursed = false;
+    item.curseScanned = false;
+    item.identified = true;
+    assert.equal(item.displayDescription, item.baseDescription, 'identification reveals upgraded stats');
+  }
+}
+
 // A landed swing teaches an unknown weapon; equipping alone never did.
 {
   const ctx = setup();
