@@ -65,6 +65,7 @@ export type GameContext = {
   onMonsterRemoved?: (entity: Entity) => void;
   // Frost effects notify terrain without coupling effect scheduling to rendering.
   onFrostTerrain?: (x: number, y: number) => number;
+  onPotionSplash?: (event: { cells: Array<{ x: number; y: number }>; kind: 'fire' | 'frost' }) => void;
   // Called only after a successful shock hit has applied its primary damage.
   onShockWater?: (target: Entity, damage: number) => void;
   // Cosmetic secondary bolts; damage is resolved once by the shock splash.

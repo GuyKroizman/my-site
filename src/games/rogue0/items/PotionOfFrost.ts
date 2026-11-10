@@ -14,7 +14,7 @@ export default class PotionOfFrost extends Entity {
     this.tile = 13 * 49 + 43;
     this.textureKey = "potion-blue";
     this.name = "Potion of Frost";
-    this.description = "Cold to the touch. Throw it to freeze and chill; fire elementals take ice damage. Drinking it freezes you.";
+    this.description = "Cold to the touch. Thrown, it freezes and chills a 4x4 splash and ices over water; fire elementals take ice damage. Drinking it freezes you.";
     this.consumable = true;
     this.damageType = "ice";
 

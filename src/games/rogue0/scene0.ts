@@ -337,6 +337,7 @@ export class Scene0 extends Phaser.Scene {
       this.context.onWandZap = undefined;
       this.context.onShockArc = undefined;
       this.context.onLiquidFlameShatter = undefined;
+      this.context.onPotionSplash = undefined;
       this.context.onMonsterRemoved = undefined;
       this.chasmMaskGraphics?.destroy();
       this.chasmMaskGraphics = undefined;
@@ -445,6 +446,17 @@ export class Scene0 extends Phaser.Scene {
     this.context.onGrassBurn = cells => showGrassBurn(this, this.context, cells);
     this.context.onWandZap = (zap, onImpact) => showWandZap(this, this.context, zap, onImpact);
     this.context.onShockArc = zap => showShockArc(this, this.context, zap);
+    this.context.onPotionSplash = ({ cells, kind }) => {
+      const map = this.context.map;
+      if (!map) return;
+      const splash = this.add.graphics().setDepth(249);
+      splash.fillStyle(kind === 'fire' ? 0xff7722 : 0x99ddff, 0.55);
+      for (const cell of cells) {
+        if (!this.context.visibleTiles.has(`${cell.x},${cell.y}`)) continue;
+        splash.fillRect(map.tileToWorldX(cell.x)!, map.tileToWorldY(cell.y)!, map.tileWidth, map.tileHeight);
+      }
+      this.tweens.add({ targets: splash, alpha: 0, duration: 450, onComplete: () => splash.destroy() });
+    };
     this.context.onLiquidFlameShatter = event => {
       // Sound follows the drawn animation, so an off-screen shatter stays silent.
       if (showLiquidFlameShatter(this, this.context, event) && event.fusion) sfx.wandFusion();

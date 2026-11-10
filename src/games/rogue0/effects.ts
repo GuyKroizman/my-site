@@ -68,13 +68,14 @@ export function hasEffect(entity: Entity, effectId: string): boolean {
   return entity.effects.some((e) => e.id === effectId);
 }
 
-export function applyEffect(entity: Entity, effect: StatusEffect): void {
+export function applyEffect(entity: Entity, effect: StatusEffect, affectTerrain = true): void {
   // A poison-immune creature (e.g. the Deadly Frog) shrugs off every poison
   // source, not just the cloud it exhales.
   if (effect.id === "poisoned" && entity.poisonImmune) return;
   if (effect.id === "terrified" && entity.terrorImmune) return;
-  // Repeated frost applications still affect terrain, even if already frozen.
-  if (effect.id === "frozen" && entity.x !== undefined && entity.y !== undefined) {
+  // Area splashes handle their own bounded terrain footprint. Other frost
+  // sources still affect nearby water, even if the actor is already frozen.
+  if (affectTerrain && effect.id === "frozen" && entity.x !== undefined && entity.y !== undefined) {
     entity.context.onFrostTerrain?.(entity.x, entity.y);
   }
   // Recovery lasts until an actual action is committed, not a timer: even

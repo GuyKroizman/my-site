@@ -14,7 +14,7 @@ export default class PotionOfLiquidFlame extends Entity {
     this.tile = 13 * 49 + 42;
     this.textureKey = "potion-red";
     this.name = "Potion of Liquid Flame";
-    this.description = "Sets you on fire when drunk.";
+    this.description = "Sets you on fire when drunk. Thrown, it shatters into a 4x4 blaze that burns everything caught in it.";
     this.consumable = true;
 
     this.init(context, x, y);

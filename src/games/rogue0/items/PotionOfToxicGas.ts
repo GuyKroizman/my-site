@@ -14,7 +14,7 @@ export default class PotionOfToxicGas extends Entity {
     this.tile = 13 * 49 + 41;
     this.textureKey = "potion-green";
     this.name = "Potion of Toxic Gas";
-    this.description = "Poisons you and releases a spreading toxic cloud.";
+    this.description = "Poisons you and releases a spreading toxic cloud. Thrown, it shatters into the same cloud, centred off a closed door.";
     this.consumable = true;
 
     this.init(context, x, y);

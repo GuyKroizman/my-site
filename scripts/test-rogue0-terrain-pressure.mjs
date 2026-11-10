@@ -338,7 +338,7 @@ assert.equal(ctx.entities.length, 0, 'lethal trap removes victim');
 const { Entity } = load('entity', { actionCost: load('timing').actionCost });
 const Hero = load('classes/basicHero', {
   Entity, dungeon, ...fov, Wand: class {}, hasEffect: () => false,
-  getFeature: tiles.getFeature,
+  tiles, getFeature: tiles.getFeature,
   removeEntity: (ctx, e) => { ctx.entities = ctx.entities.filter(v => v !== e); }
 }).default;
 ctx = setup([actor('enemy', 4, 3)]);
@@ -589,11 +589,17 @@ for (const Item of [Potion, Gem]) {
     assert.equal(item.x, undefined);
     if (!hitEnemy) {
       const landed = ctx.entities.find(e => e.x === 3 && e.y === 3);
-      assert.ok(landed instanceof Item, 'split retains potion/gem behavior');
-      assert.notEqual(landed, item);
-      assert.equal(landed.count, 1);
-      assert.equal(landed.level, item.level);
-      assert.equal(landed.identified, item.identified);
+      if (Item === Potion) {
+        assert.equal(landed, undefined, 'a thrown potion shatters instead of resting');
+        assert.equal(ctx.entities.filter(e => e.type === 'item').length, 1,
+          'the shattered flask leaves only the original backpack stack');
+      } else {
+        assert.ok(landed instanceof Item, 'split retains gem behavior');
+        assert.notEqual(landed, item);
+        assert.equal(landed.count, 1);
+        assert.equal(landed.level, item.level);
+        assert.equal(landed.identified, item.identified);
+      }
     } else {
       assert.equal(ctx.entities.filter(e => e.type === 'item').length, 1,
         'consumed projectile leaves only the original backpack stack');
@@ -603,8 +609,13 @@ for (const Item of [Potion, Gem]) {
   const { hero, ctx, item } = throwingHero(1, Item);
   hero.throwAt(3, 3);
   assert.equal(hero.backpack.length, 0, 'last unit leaves inventory');
-  assert.equal(ctx.entities.find(e => e.x === 3 && e.y === 3), item);
-  assert.equal(item.count, 1);
+  if (Item === Potion) {
+    assert.equal(ctx.entities.includes(item), false, 'the last potion shatters');
+    assert.equal(ctx.entities.filter(e => e.type === 'item').length, 0);
+  } else {
+    assert.equal(ctx.entities.find(e => e.x === 3 && e.y === 3), item);
+    assert.equal(item.count, 1);
+  }
 }
 
 // A thrown item landing on a chasm falls in and is lost, never resting on the
@@ -1422,6 +1433,7 @@ for (const trapKind of ['dart', 'fire', 'frost', 'teleport', 'arrow', 'summon', 
   thrower.placeItemOnGround = () => assert.fail('frost splash must be consumed');
   const potion = { type: 'item', consumable: true, name: 'Potion of Frost' };
   ctx.entities.push(potion);
+  ctx.currentLevel = flightDungeon.currentLevel;
   tiles.setFeature(4, 4, 'water');
   thrower.resolveThrowLanding(potion, 4, 4);
   assert.equal(tiles.getFeature(4, 4), 'ice');

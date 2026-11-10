@@ -24,6 +24,7 @@ import { splitStackItem, type EquipSlotKey } from '../inventory';
 import { placeFloorItem } from '../itemPresentation';
 import { stashChasmFallen } from '../chasmDrops';
 import { tryFuseWands } from '../wandFusion';
+import { potionSplashCells } from '../potionSplash';
 import { heroStatsText } from '../heroViewModel';
 
 import { heroControlsFor } from '../heroControls';
@@ -726,6 +727,14 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
   private resolveThrowLanding(item: Entity, tx: number, ty: number): void {
     const context = this.context;
+    const potion = item.consumable && (item.textureKey?.startsWith('potion-') || /potion/i.test(item.name));
+    // Objects open ordinary doors and stop there, before glyph-stone magic.
+    if (!potion && terrainFor(context).getDoorState?.(tx, ty) === 'closed' && dungeon.openDoor(tx, ty)) {
+      dungeon.log(context, `${item.displayName} knocks the door open.`);
+      this.placeItemOnGround(item, tx, ty, true);
+      dungeon.triggerArrowTrap(context, tx, ty);
+      return;
+    }
     // Stones such as Blink resolve themselves at the destination and never
     // rest on the floor.
     if (item.onThrownLand?.(tx, ty)) {
@@ -753,9 +762,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
         dungeon.triggerArrowTrap(context, tx, ty);
         return;
       }
-      this.applyThrownPotion(item, target);
-      removeEntity(context, item);
-      dungeon.triggerArrowTrap(context, tx, ty);
+      this.shatterPotion(item, tx, ty, target);
       return;
     }
 
@@ -770,29 +777,61 @@ export default class BasicHero extends Entity implements HeroControlHost {
       return;
     }
 
-    if (item.consumable && item.name === "Potion of Toxic Gas" && context.onCreatePoisonGas?.(tx, ty)) {
-      removeEntity(context, item);
-      dungeon.triggerArrowTrap(context, tx, ty);
-      return;
-    }
-    // Liquid Flame shatters on impact. A flask to the right of two matching
-    // horizontal wands burns them together before the flame dies out.
-    if (item.consumable && item.name === "Potion of Liquid Flame") {
-      const fusion = tryFuseWands(context, tx, ty);
-      removeEntity(context, item);
-      context.onLiquidFlameShatter?.({ x: tx, y: ty, fusion });
-      if (!fusion) dungeon.log(context, `${item.displayName} shatters on the floor.`);
-      dungeon.triggerArrowTrap(context, tx, ty);
-      return;
-    }
-    // Frost can prepare a terrain hazard without needing a living target.
-    if (item.consumable && item.name === "Potion of Frost" && context.onFrostTerrain?.(tx, ty)) {
-      removeEntity(context, item);
-      dungeon.triggerArrowTrap(context, tx, ty);
+    if (potion) {
+      this.shatterPotion(item, tx, ty);
       return;
     }
     this.placeItemOnGround(item, tx, ty);
     dungeon.triggerArrowTrap(context, tx, ty);
+  }
+
+  private shatterPotion(item: Entity, x: number, y: number, target?: Entity): void {
+    const context = this.context;
+    const terrain = terrainFor(context);
+    const level = context.currentLevel?.length ? context.currentLevel : (dungeon.getCurrentLevel?.() ?? []);
+    const { origin, cells } = potionSplashCells(level, terrain, x, y, this.x!, this.y!);
+    const fire = item.name === 'Potion of Liquid Flame';
+    const frost = item.name === 'Potion of Frost';
+    if (fire || frost) {
+      // Damage can remove actors. Snapshot and affect each wide body only once.
+      const victims = context.entities.filter(actor =>
+        (actor.type === 'player' || actor.type === 'enemy') && actor.healthPoints > 0 &&
+        actor.x !== undefined && actor.y !== undefined &&
+        (actor === target || cells.some(cell => footprintContains(
+          actorFootprint(actor), actor.x!, actor.y!, cell.x, cell.y))));
+      for (const actor of victims) this.applyThrownPotion(item, actor, false, false);
+      let changed = false;
+      for (const cell of cells) {
+        const feature = terrain.getFeature(cell.x, cell.y);
+        if (fire && feature === 'grass') {
+          terrain.clearFeature(cell.x, cell.y);
+          changed = true;
+        } else if (frost && feature === 'water') {
+          terrain.setFeature(cell.x, cell.y, 'ice');
+          changed = true;
+        }
+      }
+      if (changed) dungeon.onTerrainChanged?.();
+      context.onPotionSplash?.({ cells, kind: fire ? 'fire' : 'frost' });
+      if (fire) {
+        const fusion = tryFuseWands(context, x, y);
+        context.onLiquidFlameShatter?.({ x, y, fusion });
+        if (!fusion) dungeon.log(context, `${item.displayName} shatters on the floor.`);
+      } else {
+        dungeon.log(context, `${item.displayName} shatters in a burst of frost.`);
+      }
+    } else if (item.name === 'Potion of Toxic Gas') {
+      if (target) applyEffect(target, createPoisonedEffect(4));
+      // The same expanding, dissipating cloud used by the Deadly Frog.
+      context.onCreatePoisonGas?.(origin.x, origin.y);
+      dungeon.log(context, `${item.displayName} shatters, releasing a cloud of poison gas.`);
+    } else if (target) {
+      this.applyThrownPotion(item, target);
+    } else {
+      dungeon.log(context, 'It splashes harmlessly.');
+    }
+    removeEntity(context, item);
+    dungeon.triggerArrowTrap(context, x, y);
   }
 
   // A thrown object is not a melee attack. Non-consumables never damage the
@@ -807,12 +846,13 @@ export default class BasicHero extends Entity implements HeroControlHost {
     enemy.onAttacked?.(this);
   }
 
-  private applyThrownPotion(item: Entity, enemy: Entity): void {
+  private applyThrownPotion(
+    item: Entity, enemy: Entity, affectTerrain = true, announce = true
+  ): void {
     const context = this.context;
-    dungeon.log(
-      context,
-      `You throw ${item.displayName} at ${enemy.name}.`
-    );
+    if (announce) {
+      dungeon.log(context, `You throw ${item.displayName} at ${enemy.name}.`);
+    }
 
     const name = item.name.toLowerCase();
     if (name.includes("liquid flame")) {
@@ -836,11 +876,11 @@ export default class BasicHero extends Entity implements HeroControlHost {
         if (enemy.healthPoints <= 0) {
           removeEntity(context, enemy);
         } else {
-          applyEffect(enemy, createFrozenEffect(1));
+          applyEffect(enemy, createFrozenEffect(1), affectTerrain);
           applyEffect(enemy, createChilledEffect());
         }
       } else {
-        applyEffect(enemy, createFrozenEffect(1));
+        applyEffect(enemy, createFrozenEffect(1), affectTerrain);
         applyEffect(enemy, createChilledEffect());
       }
     } else {
