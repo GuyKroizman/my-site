@@ -133,7 +133,14 @@ export const sfx = {
   gameover(): void {
     [392, 330, 262, 196].forEach((f, i) => tone(f, 0.2, 'square', 0.09, i * 0.16));
   },
-  equip(): void {
+  equip(cursed = false): void {
+    if (cursed) {
+      // A dissonant downward sting as the curse binds, not the normal click.
+      tone(220, 0.3, 'sawtooth', 0.065, 0, 55);
+      tone(311, 0.24, 'square', 0.045, 0, 78);
+      tone(110, 0.18, 'sine', 0.08, 0.12, 55);
+      return;
+    }
     tone(1000, 0.04, 'square', 0.045);
   },
   // Two wands burn together: a crackle, the two wands sliding into each other

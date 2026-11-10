@@ -6,6 +6,7 @@ import { createInventoryActions, canStackItems, splitStackItem } from '../src/ga
 import { clearFloorSprite, clearItemUI, placeFloorItem } from '../src/games/rogue0/itemPresentation.ts';
 import { heroStatsText, heroHudView, heroPortrait } from '../src/games/rogue0/heroViewModel.ts';
 import { encodeGraph, decodeGraph } from '../src/games/rogue0/saveCodec.ts';
+import { sfx, setMuted } from '../src/games/rogue0/audio.ts';
 
 // No source stripping, injected class bodies, Phaser, DOM, or global dungeon.
 let constructions = 0;
@@ -33,9 +34,10 @@ class Owner {
   canAct() { return this.actionReady; }
   spendTurn(action) { this.actions.push(action); this.nextActionTime++; this.actionReady = false; }
 }
+const equipSounds = [];
 const inventory = createInventoryActions({
   log(context, message) { context.messages.unshift(message); },
-  equipSound() {},
+  equipSound(cursed) { equipSounds.push(cursed); },
   removeEntity(context, item) {
     context.events.push('remove');
     context.entities = context.entities.filter(entity => entity !== item);
@@ -143,6 +145,19 @@ function gear(slot = 'weapon', overrides = {}) {
   assert.equal(owner.nextActionTime, 1);
 }
 
+// Every equipment kind selects its sound by curse state, not identification.
+for (const slot of ['weapon', 'armor', 'ring', 'artifact']) {
+  for (const cursed of [false, true]) {
+    for (const identified of [false, true]) {
+      const owner = new Owner();
+      const item = carry(owner, gear(slot, { cursed, identified }));
+      const before = equipSounds.length;
+      inventory.equipItem(owner, item);
+      assert.deepEqual(equipSounds.slice(before), [cursed], `${slot}: exactly one matching equip sound`);
+    }
+  }
+}
+
 // Guards are free: unavailable turns, stale references, unsuitable slots and curses.
 {
   const owner = new Owner();
@@ -154,6 +169,7 @@ function gear(slot = 'weapon', overrides = {}) {
   const replacement = carry(owner, gear());
   owner.actionReady = true;
   const time = owner.nextActionTime;
+  const soundsBeforeGuards = equipSounds.length;
   inventory.equipItem(owner, replacement);
   inventory.unequipItem(owner, cursed);
   inventory.dropItem(owner, cursed);
@@ -172,6 +188,7 @@ function gear(slot = 'weapon', overrides = {}) {
   inventory.dropItem(owner, replacement);
   assert.ok(owner.backpack.includes(replacement));
   assert.equal(owner.nextActionTime, time);
+  assert.equal(equipSounds.length, soundsBeforeGuards, 'blocked actions play no equip sound');
 }
 
 // Ring placement uses two distinct slots; ownership is queried by identity.
@@ -380,4 +397,47 @@ function gear(slot = 'weapon', overrides = {}) {
   assert.doesNotMatch(ui, /add\.sprite\(0, 0, "tiles", p \? p\.tile : 26\)/,
     'toolbar portrait must not use the legacy atlas tile');
 }
+// Cursed equipment gets a descending dissonant sting instead of the normal
+// short click. Both variants obey the game's existing mute switch.
+{
+  const oscillators = [];
+  class FakeParam {
+    setValueAtTime(value) { this.value = value; }
+    exponentialRampToValueAtTime(value) { this.ramp = value; }
+  }
+  class FakeAudioContext {
+    currentTime = 0;
+    state = 'running';
+    destination = {};
+    createOscillator() {
+      const osc = { frequency: new FakeParam(), connect() {}, start() {}, stop() {} };
+      oscillators.push(osc);
+      return osc;
+    }
+    createGain() { return { gain: new FakeParam(), connect() {} }; }
+  }
+  const previousWindow = globalThis.window;
+  globalThis.window = { AudioContext: FakeAudioContext };
+  try {
+    sfx.equip(false);
+    assert.equal(oscillators.length, 1, 'normal equip retains its single click');
+    assert.equal(oscillators[0].frequency.value, 1000);
+    oscillators.length = 0;
+    sfx.equip(true);
+    assert.equal(oscillators.length, 3, 'cursed equip replaces the click with a layered sting');
+    assert.ok(oscillators.every(osc => osc.frequency.ramp < osc.frequency.value),
+      'the curse tones slide downward');
+    assert.ok(oscillators.some(osc => osc.type === 'sawtooth'));
+    oscillators.length = 0;
+    setMuted(true);
+    sfx.equip(false);
+    sfx.equip(true);
+    assert.equal(oscillators.length, 0, 'muting silences both equip sounds');
+  } finally {
+    setMuted(false);
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+}
+
 console.log('Rogue0 inventory core: storage, stacking, gold, equipment/passive order, curse guards, costs, drops, consumption, cleansing, save identity, owner isolation, presentation and HUD passed');

@@ -23,7 +23,7 @@ export type InventoryOwner = Entity & {
 
 export type InventoryServices = {
   log(context: GameContext, message: string): void;
-  equipSound(): void;
+  equipSound(cursed: boolean): void;
   removeEntity(context: GameContext, entity: Entity): void;
   removeEffect(entity: Entity, id: string): void;
   clearFloorSprite(context: GameContext, item: Entity): void;
@@ -93,7 +93,7 @@ export function createInventoryActions(services: InventoryServices) {
         ? `${item.displayName} is cursed and cannot be removed until its curse is lifted.`
         : `${item.displayName} is not cursed.`);
     }
-    services.equipSound();
+    services.equipSound(item.cursed);
   }
 
   function onUnequip(owner: InventoryOwner, item: Entity): void {

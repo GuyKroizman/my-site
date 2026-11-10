@@ -8,6 +8,6 @@ import { clearFloorSprite, clearItemUI, placeFloorItem } from './itemPresentatio
 // Stateless runtime wiring. No controller is stored on the hero or in saves.
 export const heroInventory = createInventoryActions({
   log: (context, message) => dungeon.log(context, message),
-  equipSound: () => sfx.equip(),
+  equipSound: cursed => sfx.equip(cursed),
   removeEntity, removeEffect, clearFloorSprite, clearItemUI, placeFloorItem,
 });
