@@ -5,6 +5,8 @@
 // coordinate-keyed overlay (`"x,y"`) so doors/traps/grass/water/chasms can
 // carry per-tile state without turning the base map into a tile enum.
 
+import { Sheet } from './spriteFrames.ts';
+
 export type TerrainFeature = "door" | "secretDoor" | "trap" | "grass" | "water" | "ice" | "chasm" | "portal";
 
 export type DoorState = "open" | "closed";
@@ -39,10 +41,10 @@ export type FeaturePlacement = {
 // Placeholder tile indices picked from colored.png for the remaining flat
 // features. Traps have their own generated plate atlas (trapVisuals.ts).
 export const FeatureTiles = {
-  doorClosed: 150,
-  doorOpen: 301,
-  grass: 7, // Grass blades (row 0, column 7), not a tree.
-  water: 206
+  doorClosed: Sheet.doorClosed,
+  doorOpen: Sheet.doorOpen,
+  grass: Sheet.grass,
+  water: Sheet.water
 } as const;
 
 const TRAP_LABELS: Record<TrapKind, string> = {

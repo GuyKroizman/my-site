@@ -2,6 +2,7 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import { applyEffect, createInvisibleEffect } from "../effects";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class PotionOfInvisibility extends Entity {
   type: EntityType = "item";
@@ -11,7 +12,7 @@ export default class PotionOfInvisibility extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = 13 * 49 + 40;
+    this.tile = Sheet.potionOfInvisibility;
     this.textureKey = "potion-blue";
     this.name = "Potion of Invisibility";
     this.description = "Makes you invisible for a short time.";

@@ -2,6 +2,7 @@
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity } from "../entity";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class Axe extends Entity {
   type: EntityType = "item";
@@ -12,7 +13,7 @@ export default class Axe extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = 7 * 49 + 39;
+    this.tile = Sheet.axe;
     this.name = "An Axe";
 
     this.init(context, x, y);

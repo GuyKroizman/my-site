@@ -2,6 +2,7 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import { applyEffect, createBurningEffect } from "../effects";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class PotionOfLiquidFlame extends Entity {
   type: EntityType = "item";
@@ -11,7 +12,7 @@ export default class PotionOfLiquidFlame extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = 13 * 49 + 42;
+    this.tile = Sheet.potionOfLiquidFlame;
     this.textureKey = "potion-red";
     this.name = "Potion of Liquid Flame";
     this.description = "Sets you on fire when drunk. Thrown, it shatters into a 4x4 blaze that burns everything caught in it.";

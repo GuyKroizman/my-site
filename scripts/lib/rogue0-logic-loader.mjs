@@ -17,6 +17,8 @@ import { stashChasmFallen } from '../../src/games/rogue0/chasmDrops.ts';
 import { potionSplashCells } from '../../src/games/rogue0/potionSplash.ts';
 import * as combatFeedback from '../../src/games/rogue0/combatFeedback.ts';
 import * as tilePresentation from '../../src/games/rogue0/tiles.ts';
+// Pure constant table of legacy sheet frames; safe for every fixture to share.
+import * as spriteFrames from '../../src/games/rogue0/spriteFrames.ts';
 import * as sight from '../../src/games/rogue0/fov.ts';
 import { bossArenaLayout } from '../../src/games/rogue0/bossArenas.ts';
 import { playMonsterDeath } from '../../src/games/rogue0/monsters/monsterDeathVisuals.ts';
@@ -74,7 +76,7 @@ export function loadLogic(path, bindings = {}) {
   const tryFuseWands = (...args) => bindings.tryFuseWands?.(...args);
   const dependencies = { applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
     terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation, ...actorBodies, ...footprint, ...placement, ...combatFeedback,
-    forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, potionSplashCells, tryFuseWands, heroStatsText, heroHudView, bossArenaLayout, playMonsterDeath, ...bindings };
+    forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, potionSplashCells, tryFuseWands, heroStatsText, heroHudView, bossArenaLayout, playMonsterDeath, ...spriteFrames, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));
   return exports;

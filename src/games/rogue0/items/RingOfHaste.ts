@@ -1,5 +1,6 @@
 import Ring from "./ring";
 import type { GameContext } from "../context";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class RingOfHaste extends Ring {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -8,7 +9,7 @@ export default class RingOfHaste extends Ring {
       {
         name: "Ring of Haste",
         description: "Doubles movement speed while equipped. Does not speed up attacks.",
-        tile: 4 * 49 + 27
+        tile: Sheet.ringOfHaste
       },
       x,
       y

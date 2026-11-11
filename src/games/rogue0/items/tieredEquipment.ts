@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { Entity, type EntityType, type EquipSlot } from "../entity";
 import type { GameContext } from "../context";
+import { Sheet } from '../spriteFrames.ts';
 
 // One generated texture per armor tier, drawn at runtime by armorTextures.ts.
 // Keeping the keys here lets the simulation tests load this module without
@@ -37,7 +38,7 @@ export class TieredWeapon extends Entity {
     this.name = ["Dagger", "Shortsword", "Broadsword", "Greatsword", "Greataxe"][this.tier - 1];
     this.attackDelay = [0.8, 1, 1, 1.2, 1.4][this.tier - 1];
     this.textureKey = WEAPON_TEXTURES[this.tier - 1];
-    this.tile = 328; // Tier-1 dagger; higher tiers use their dedicated textures.
+    this.tile = Sheet.dagger; // Tier-1 dagger; higher tiers use their dedicated textures.
     this.init(context, x, y);
   }
 
@@ -79,7 +80,7 @@ export class TieredArmor extends Entity {
     this.tier = Math.max(1, Math.min(5, Math.floor(tier)));
     this.name = ["Cloth Armor", "Leather Armor", "Mail Armor", "Scale Armor", "Plate Armor"][this.tier - 1];
     this.textureKey = ARMOR_TEXTURES[this.tier - 1];
-    this.tile = 776; // Fallback only; the generated armor texture is what renders.
+    this.tile = Sheet.shield; // Fallback only; the generated armor texture is what renders.
     this.init(context, x, y);
   }
 

@@ -3,6 +3,7 @@ import type { GameContext } from "../context";
 import Axe from "../items/axe";
 import Shield from "../items/shield";
 import BasicHero from "./basicHero";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class Dwarf extends BasicHero {
   constructor(context: GameContext, x: number, y: number) {
@@ -14,7 +15,7 @@ export default class Dwarf extends BasicHero {
       "A stout defender. Passive (Dwarven Armor): +1 armor and physical resistance.";
     this.healthPoints = 35;
     this.maxHealthPoints = 35;
-    this.tile = 9 * 49 + 29;
+    this.tile = Sheet.dwarf;
 
     const axe = new Axe(context);
     const shield = new Shield(context);

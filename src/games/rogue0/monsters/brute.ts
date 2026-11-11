@@ -3,6 +3,7 @@ import type { GameContext } from "../context";
 import Gem from "../items/gem";
 import BerserkPotion from "../items/berserkPotion";
 import { applyEffect, createStrengthenedEffect } from "../effects";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class Brute extends Monster {
   private enraged = false;
@@ -11,7 +12,7 @@ export default class Brute extends Monster {
     super(context, {
       name: "Brute",
       description: "A hulking brute. Slow, but hits very hard.",
-      tile: 6 * 49 + 28,
+      tile: Sheet.brute,
       healthPoints: 36,
       movementSpeed: 1,
       attackDelay: 1,

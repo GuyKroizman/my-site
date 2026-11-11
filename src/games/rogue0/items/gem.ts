@@ -2,13 +2,14 @@
 import { Entity, removeEntity, upgrade } from "../entity";
 import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class Gem extends Entity {
   name: string = "Gem";
   description: string = "Use to permanently upgrade a weapon or armor.";
   consumable = true;
   type: EntityType = "item";
-  tile = 4 * 49 + 23;
+  tile = Sheet.gem;
   tier = 1;
   equipSlot: "consumable" = "consumable";
 

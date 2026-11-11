@@ -3,6 +3,7 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import dungeon from "../dungeon";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class Ration extends Entity {
   type: EntityType = "item";
@@ -12,7 +13,7 @@ export default class Ration extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = 14 * 49 + 34;
+    this.tile = Sheet.ration;
     this.name = "Ration of Food";
     this.description = "A ration of bread and dried food. Fills your hunger.";
     this.consumable = true;

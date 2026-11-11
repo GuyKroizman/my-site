@@ -3,6 +3,7 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity, upgrade, identify } from "../entity";
 import Wand from "./wand";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class ScrollOfUpgrade extends Entity {
   name: string = "Scroll of Upgrade";
@@ -13,7 +14,7 @@ export default class ScrollOfUpgrade extends Entity {
   noItemTargetsMessage = "You have no items that can be upgraded.";
   moving: boolean = false;
   type: EntityType = "item";
-  tile = 15 * 49 + 36;
+  tile = Sheet.scrollOfUpgrade;
   textureKey = "scroll-upgrade";
   consumable = true;
   protected locallyIdentified = false;

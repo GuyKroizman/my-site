@@ -2,6 +2,7 @@
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class ScrollOfRemoveCurse extends Entity {
   name: string = "Scroll of Remove Curse";
@@ -11,7 +12,7 @@ export default class ScrollOfRemoveCurse extends Entity {
   noItemTargetsMessage = "You have no other items to cleanse.";
   moving: boolean = false;
   type: EntityType = "item";
-  tile = 15 * 49 + 37;
+  tile = Sheet.scrollOfRemoveCurse;
   textureKey = "scroll-remove-curse";
   consumable = true;
   protected locallyIdentified = false;

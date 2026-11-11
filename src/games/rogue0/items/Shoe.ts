@@ -3,6 +3,7 @@ import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
 import { Entity} from "../entity";
 import dungeon from "../dungeon";
+import { Sheet } from '../spriteFrames.ts';
 
 
 export default class Shoe extends Entity {
@@ -10,7 +11,7 @@ export default class Shoe extends Entity {
   description: string = "A shoe";
   moving: boolean = false;
   type: EntityType = "item";
-  tile: number = 19 * 49 + 32;
+  tile: number = Sheet.shoe;
   tier = 1;
   equipSlot: "junk" = "junk";
 

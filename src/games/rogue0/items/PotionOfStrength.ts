@@ -2,6 +2,7 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import dungeon from "../dungeon";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class PotionOfStrength extends Entity {
   type: EntityType = "item";
@@ -11,7 +12,7 @@ export default class PotionOfStrength extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = 13 * 49 + 39;
+    this.tile = Sheet.potionOfStrength;
     this.textureKey = "potion-red";
     this.name = "Potion of Strength";
     this.description = "Permanently grants +1 Strength.";

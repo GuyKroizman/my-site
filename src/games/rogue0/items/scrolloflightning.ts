@@ -2,6 +2,7 @@
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity } from "../entity";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class ScrollOfLightning extends Entity {
   type: EntityType = "item";
@@ -12,9 +13,9 @@ export default class ScrollOfLightning extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
 
-    this.tile = 15 * 49 + 34;
+    this.tile = Sheet.scrollOfLightning;
     this.name = "Scroll of Lightning";
-    this.attackTile = 413;
+    this.attackTile = Sheet.lightningBolt;
     this.damageType = "shock";
 
     this.init(context, x, y);

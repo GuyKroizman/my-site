@@ -1,6 +1,7 @@
 import Wand from "./wand";
 import type { GameContext } from "../context";
 import { createChilledEffect, createFrozenEffect } from "../effects";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class WandOfFrost extends Wand {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -9,8 +10,8 @@ export default class WandOfFrost extends Wand {
       {
         name: "Wand of Frost",
         description: "Freezes its target in a blast of ice.",
-        tile: 15 * 49 + 43,
-        attackTile: 10 * 49 + 18,
+        tile: Sheet.wandOfFrost,
+        attackTile: Sheet.frostProjectile,
         damageType: "ice",
         charges: 3
       },

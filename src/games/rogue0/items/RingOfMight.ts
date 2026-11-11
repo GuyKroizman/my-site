@@ -1,5 +1,6 @@
 import Ring from "./ring";
 import type { GameContext } from "../context";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class RingOfMight extends Ring {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -8,7 +9,7 @@ export default class RingOfMight extends Ring {
       {
         name: "Ring of Might",
         description: "Grants +2 damage while equipped.",
-        tile: 4 * 49 + 28
+        tile: Sheet.ringOfMight
       },
       x,
       y

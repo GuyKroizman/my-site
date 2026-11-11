@@ -2,13 +2,14 @@ import Monster from "./monster";
 import type { GameContext } from "../context";
 import Shoe from "../items/Shoe";
 import { createWeakenedEffect } from "../effects";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class Quloptsh extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
     super(context, {
       name: "Quloptsh",
       description: "A calm, stealthy assassin that weakens its prey.",
-      tile: 6 * 49 + 30,
+      tile: Sheet.quloptsh,
       healthPoints: 12,
       movementSpeed: 1,
       attackDelay: 1,

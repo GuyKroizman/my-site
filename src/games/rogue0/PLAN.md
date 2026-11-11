@@ -903,7 +903,7 @@ sandstone, crystal, volcanic), tall grass, and original art for the cultist and
 goblin are checked-in PNGs; potions, scrolls, wand projectiles, elementals, fly
 swarms, wraith, chest, wall decals and water are generated at runtime. Several
 monsters (skeleton, ghoul, brute, Quloptsh, Bone Lord) and most items still read
-Kenney frames through `tile = row * 49 + col`, so the overhaul is not close.
+Kenney frames through named `Sheet` entries, so the overhaul is not close.
 
 - [x] Fix the mimic sprite: replaced the sword frame with the existing closed
       wooden chest (row 6, column 8). Implemented and visually verified in a
@@ -923,9 +923,12 @@ Kenney frames through `tile = row * 49 + col`, so the overhaul is not close.
       (red heal potion, wands, rings, food, scrolls, …).
       Landed: floors/walls (5 regions), tall grass, cultist, goblin, potions,
       scrolls, wand projectiles, elementals, swarm, wraith, chest, decals.
-- [ ] Replace the `tile = row*49 + col` magic numbers with named `textureKey`s
-      (already started for the generated potions); store art as generated
-      textures or a new atlas.
+- [x] Replace the `tile = row*49 + col` magic numbers with named frames:
+      `spriteFrames.ts` owns the sheet layout and a `Sheet` table of 55 names,
+      every call site says `Sheet.potionOfHealing` and the legacy indices are
+      pinned by `test-rogue0-sprite-frames.mjs`. Still open from this item:
+      storing the art as generated textures or a new atlas, which is the
+      remaining acceptance work (the keys are named, the art is still Kenney).
 - [ ] Keep `pixelArt: true` so zoomed 16×16 sprites stay crisp; pair with the
       zoomable camera (Phase 15 follow-up).
 - **Acceptance:** no Kenney leftovers; every entity/item has a distinct,

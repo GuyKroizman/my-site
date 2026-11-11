@@ -1,4 +1,5 @@
 import type BasicHero from './classes/basicHero';
+import { Sheet } from './spriteFrames.ts';
 
 type HeroStats = Pick<BasicHero, 'level' | 'xp' | 'strength' | 'healthPoints' |
   'maxHealthPoints' | 'hunger' | 'maxHunger' | 'hungerState' | 'gold' |
@@ -37,6 +38,6 @@ type HeroSprite = Pick<BasicHero, 'spriteTextureKey' | 'spriteFrame'>;
 export function heroPortrait(hero: HeroSprite | undefined): { textureKey: string; frame: number } {
   return {
     textureKey: hero?.spriteTextureKey ?? 'tiles',
-    frame: hero?.spriteFrame ?? 26,
+    frame: hero?.spriteFrame ?? Sheet.heroFallback,
   };
 }

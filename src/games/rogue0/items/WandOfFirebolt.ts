@@ -2,6 +2,7 @@ import Wand from "./wand";
 import type { GameContext } from "../context";
 import type { Entity } from "../entity";
 import { createBurningEffect } from "../effects";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class WandOfFirebolt extends Wand {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -10,8 +11,8 @@ export default class WandOfFirebolt extends Wand {
       {
         name: "Wand of Firebolt",
         description: "Hurls a bolt of fire that ignites its target.",
-        tile: 15 * 49 + 42,
-        attackTile: 10 * 49 + 15,
+        tile: Sheet.wandOfFirebolt,
+        attackTile: Sheet.flameProjectile,
         damageType: "fire",
         charges: 3
       },

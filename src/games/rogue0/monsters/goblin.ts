@@ -2,6 +2,7 @@ import Monster from "./monster";
 import type { GameContext } from "../context";
 import { createBleedingEffect } from "../effects";
 import { GOBLIN_ARROW_TEXTURE, generateGoblinArrowTexture } from "../projectileTextures";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class Goblin extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -21,7 +22,7 @@ export default class Goblin extends Monster {
       xp: 5,
       range: 5,
       meleeDamage: 2,
-      attackTile: 10 * 49 + 15,
+      attackTile: Sheet.goblinRangedAttack,
       projectileTexture: GOBLIN_ARROW_TEXTURE,
       // Loot is currency only: curse relief belongs to the Scroll of Remove
       // Curse, which goblins never carry.

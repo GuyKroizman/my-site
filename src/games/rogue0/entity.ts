@@ -11,6 +11,7 @@ import { CURSE_NAMES, CURSE_FLAVOR } from "./curseData";
 import type { CurseId } from "./curseData";
 import { TILE_FOOTPRINT } from "./footprint.ts";
 import type { Footprint } from "./footprint.ts";
+import { Sheet } from './spriteFrames.ts';
 
 export type EntityType = "player" | "enemy" | "item";
 
@@ -251,7 +252,7 @@ export abstract class Entity {
   UISprite?: Phaser.GameObjects.Sprite;
   UIText?: Phaser.GameObjects.Text;
   context!: GameContext;
-  attackTile: number = 11 * 49 + 11;
+  attackTile: number = Sheet.defaultAttack;
   projectileTexture?: string;
   tint: number | undefined = undefined;
   // Optional texture key (e.g. generated potion flasks). Falls back to "tiles".

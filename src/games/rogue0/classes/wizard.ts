@@ -5,6 +5,7 @@ import scrollofFireball from "../items/scrolloffireball";
 import scrollofLightning from "../items/scrolloflightning";
 import PotionOfHealing from "../items/PotionOfHealing";
 import { TieredWeapon } from "../items/tieredEquipment";
+import { Sheet } from '../spriteFrames.ts';
 
 export default class Wizard extends BasicHero {
   constructor(context : GameContext, x: number, y: number) {
@@ -16,7 +17,7 @@ export default class Wizard extends BasicHero {
       "A volatile spellcaster. Passive (Elemental Mastery): +1 damage with fire/shock/magic attacks.";
     this.healthPoints = 20;
     this.maxHealthPoints = 20;
-    this.tile = 49 + 24;
+    this.tile = Sheet.wizard;
 
     // The hero always starts armed: a tier-1 Dagger fills the weapon slot,
     // while the scrolls stay in the backpack as swappable ranged weapons.
