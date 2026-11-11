@@ -1,3 +1,6 @@
+// Must stay first: game modules read the `Phaser` global at call time, and the
+// shim has to be installed before any of them are evaluated.
+import './phaserGlobal.ts'
 import React, { Suspense, type ReactNode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
