@@ -9,9 +9,15 @@ export function dungeonThemeName(floor: number): string {
   return theme;
 }
 
-export function dungeonTheme(floor: number): { tiles: string; wall: string } {
-  const theme = dungeonThemeName(floor);
-  return { tiles: `${theme}-tiles`, wall: `${theme}-wall` };
+/** Tile index of the wall face inside a theme sheet. Each sheet is a 33x16
+ * strip of two 16px tiles with 1px spacing: floor at 0, wall face at 1. The
+ * same grid feeds the spritesheet frames, so the frame index matches the
+ * tilemap index and one image per theme serves both the tilemap layer and the
+ * raised wall sprites. */
+export const WALL_TILE = 1;
+
+export function dungeonTheme(floor: number): { tiles: string; wallFrame: number } {
+  return { tiles: `${dungeonThemeName(floor)}-tiles`, wallFrame: WALL_TILE };
 }
 
 /** Door artwork per region: oak on floors 1-4, banded iron on 6-9, sandstone

@@ -5,16 +5,17 @@ import { generatePortalTexture, PORTAL_TEXTURE, portalFrame } from './portalVisu
 import { showSurpriseVisual, updateSurpriseVisuals, clearSurpriseVisuals } from './surpriseVisuals';
 // Vite emits content-hashed URLs, so deployed art cannot reuse an older atlas.
 import stoneTilesUrl from './assets/stone-tiles.png';
-import stoneWallUrl from './assets/stone-wall.png';
 import cryptTilesUrl from './assets/crypt-tiles.png';
-import cryptWallUrl from './assets/crypt-wall.png';
 import sandstoneTilesUrl from './assets/sandstone-tiles.png';
-import sandstoneWallUrl from './assets/sandstone-wall.png';
 import crystalTilesUrl from './assets/crystal-tiles.png';
-import crystalWallUrl from './assets/crystal-wall.png';
 import volcanicTilesUrl from './assets/volcanic-tiles.png';
-import volcanicWallUrl from './assets/volcanic-wall.png';
-import { doorStyleName, doorTextureKeys, dungeonThemeName } from './dungeonTheme';
+import { doorStyleName, doorTextureKeys, dungeonThemeName, WALL_TILE } from './dungeonTheme';
+
+// One sheet per theme holds both the floor tile and the wall face. Loading it
+// as a spritesheet keeps the frame index equal to the tilemap tile index, so
+// the raised wall sprites reuse the same art instead of a second PNG.
+const THEME_SHEET = { frameWidth: 16, frameHeight: 16, spacing: 1 };
+
 import heroArtUrl from './assets/hero-color.png';
 import cultistArtUrl from './assets/monsters/cultist.png';
 import goblinArtUrl from './assets/monsters/goblin.png';
@@ -299,16 +300,11 @@ export class Scene0 extends Phaser.Scene {
     this.load.image('cultist', cultistArtUrl);
     this.load.image('goblin', goblinArtUrl);
     [grass0Url, grass1Url, grass2Url].forEach((url, i) => this.load.image(`tall-grass-${i}`, url));
-    this.load.image('stone-tiles', stoneTilesUrl);
-    this.load.image('stone-wall', stoneWallUrl);
-    this.load.image('crypt-tiles', cryptTilesUrl);
-    this.load.image('crypt-wall', cryptWallUrl);
-    this.load.image('sandstone-tiles', sandstoneTilesUrl);
-    this.load.image('sandstone-wall', sandstoneWallUrl);
-    this.load.image('crystal-tiles', crystalTilesUrl);
-    this.load.image('crystal-wall', crystalWallUrl);
-    this.load.image('volcanic-tiles', volcanicTilesUrl);
-    this.load.image('volcanic-wall', volcanicWallUrl);
+    this.load.spritesheet('stone-tiles', stoneTilesUrl, THEME_SHEET);
+    this.load.spritesheet('crypt-tiles', cryptTilesUrl, THEME_SHEET);
+    this.load.spritesheet('sandstone-tiles', sandstoneTilesUrl, THEME_SHEET);
+    this.load.spritesheet('crystal-tiles', crystalTilesUrl, THEME_SHEET);
+    this.load.spritesheet('volcanic-tiles', volcanicTilesUrl, THEME_SHEET);
     this.load.image("ration", "/rogue0/items/ration.png");
     this.load.image("chalice-of-blood", "/rogue0/items/chalice-of-blood.png");
     this.load.image("fang-of-the-beast", "/rogue0/items/fang-of-the-beast.png");
@@ -1587,7 +1583,7 @@ export class Scene0 extends Phaser.Scene {
         if (raised) {
           raisedKeys.add(key);
           if (!this.wallSprites.has(key)) {
-            const sprite = this.add.sprite(x * 16, y * 16, `${theme}-wall`)
+            const sprite = this.add.sprite(x * 16, y * 16, `${theme}-tiles`, WALL_TILE)
               .setOrigin(0, UPRIGHT_LIFT / 16)
               .setDepth(worldDepth(y * 16, 'terrain'));
             this.wallSprites.set(key, sprite);

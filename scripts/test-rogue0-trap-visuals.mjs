@@ -181,7 +181,7 @@ const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
   worldDepth: () => 0, actorOriginY: () => 0,
   // Door textures are named per region by the theme module.
   ...doorBindings,
-  dungeonThemeName: () => 'stone', decalFrameFor: () => undefined,
+  dungeonThemeName: () => 'stone', WALL_TILE: 0, decalFrameFor: () => undefined,
   flatDecalFrameFor: () => undefined, DECAL_TEXTURE: 'wall-decals', UPRIGHT_LIFT: 5,
 });
 const s = new TestScene();

@@ -29,9 +29,10 @@ import type { DamageType, StatusEffect } from "./effects";
 import { actorBodyAtTile, actorFootprint, bodyOverlapsAt } from "./actorBodies.ts";
 import { footprintBounds, footprintContains, footprintTiles, footprintsOverlap } from "./footprint.ts";
 
+// Tile index of the floor in every theme sheet. The wall index comes from
+// dungeonTheme(), so the sheet layout is described in exactly one place.
 export const Sprites = {
-  floor: 0,
-  wall: 49 * 13
+  floor: 0
 };
 
 const tileSize = 16;
@@ -78,8 +79,9 @@ const dungeon = {
       diagonalMovement: PF.DiagonalMovement.Always
     });
 
+    const theme = dungeonTheme(context.floor);
     const level0 = levelArray.map((r) =>
-      r.map((t) => (t == 1 ? Sprites.wall : Sprites.floor))
+      r.map((t) => (t == 1 ? theme.wallFrame : Sprites.floor))
     );
 
     const config = {
@@ -102,7 +104,7 @@ const dungeon = {
 
     const tileset = context.map.addTilesetImage(
       "tiles",
-      dungeonTheme(context.floor).tiles,
+      theme.tiles,
       tileSize,
       tileSize,
       0,

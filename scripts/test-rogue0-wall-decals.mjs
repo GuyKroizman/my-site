@@ -124,7 +124,7 @@ const byName = new Map(THEMES.map((t) => [t, 0]));
 for (let floor = 1; floor <= 25; floor++) {
   const name = dungeonThemeName(floor);
   assert.ok(THEMES.includes(name));
-  assert.deepEqual(dungeonTheme(floor), { tiles: `${name}-tiles`, wall: `${name}-wall` });
+  assert.equal(dungeonTheme(floor).tiles, `${name}-tiles`);
   for (let x = 0; x < 12; x++) for (let y = 0; y < 12; y++) if (decalFrameFor(name, x, y) !== undefined) byName.set(name, byName.get(name) + 1);
 }
 for (const [theme, count] of byName) assert.ok(count > 0, `${theme} walls get decorated floors`);
