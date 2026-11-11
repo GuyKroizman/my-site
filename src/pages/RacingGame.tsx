@@ -33,7 +33,7 @@ const EMPTY_FIRE_WEAPON_UI_STATE: FireWeaponUiState = {
 function DesktopBlockScreen() {
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900">
-      <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white">
+      <header className="shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white">
         <h1 className="text-lg font-semibold">Racing Game</h1>
         <Link to="/" className="text-base text-blue-400 underline hover:text-blue-300">
           Back to Home
@@ -476,7 +476,7 @@ export default function RacingGame() {
             </defs>
           </svg>
           <div
-            className={`flex-1 w-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 z-20 ${isExitingMenu ? 'opacity-0' : 'opacity-100'}`}
+            className={`flex-1 w-full flex items-center justify-center bg-linear-to-br from-gray-800 to-gray-900 z-20 ${isExitingMenu ? 'opacity-0' : 'opacity-100'}`}
             style={{
               transition: 'opacity 800ms ease-out, filter 800ms ease-out',
               filter: isExitingMenu ? 'url(#racing-menu-pixelate)' : 'none',

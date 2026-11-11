@@ -63,7 +63,7 @@ export default function FloatyMcHandface() {
 
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden relative">
-      <div className="flex justify-between items-center p-4 bg-gray-900 text-white flex-shrink-0 z-10">
+      <div className="flex justify-between items-center p-4 bg-gray-900 text-white shrink-0 z-10">
         <div>
           <h1 className="text-2xl font-bold">Floaty McHandface</h1>
           <p className="text-sm text-gray-400">VR - Put on your headset and push around!</p>

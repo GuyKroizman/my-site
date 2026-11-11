@@ -12,14 +12,14 @@ export function ContractDialog({ dialog, onContinue }: ContractDialogProps) {
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/90 px-3 py-3 md:px-4 md:py-4">
       <div className="max-w-5xl w-full rounded-2xl border border-white/10 bg-neutral-950/95 p-3 shadow-2xl md:p-8">
         <div className="grid grid-cols-[minmax(120px,0.78fr)_minmax(0,1fr)] items-stretch gap-3 md:grid-cols-[320px_minmax(0,1fr)] md:gap-6">
-          <div className="relative flex min-h-[56svh] items-end justify-center overflow-hidden rounded-2xl border border-cyan-300/20 bg-gradient-to-b from-cyan-500/5 to-fuchsia-500/5 p-2 md:min-h-[260px] md:p-4">
+          <div className="relative flex min-h-[56svh] items-end justify-center overflow-hidden rounded-2xl border border-cyan-300/20 bg-linear-to-b from-cyan-500/5 to-fuchsia-500/5 p-2 md:min-h-[260px] md:p-4">
             <img
               src="/racing/contractor.png"
               alt="Contractor"
               className="h-full max-h-[70svh] w-full object-contain object-bottom drop-shadow-[0_0_28px_rgba(34,211,238,0.3)] md:max-h-[420px]"
             />
           </div>
-          <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/10 bg-black/55 p-3 shadow-xl backdrop-blur-sm md:bg-white/5 md:p-6 md:shadow-none">
+          <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/10 bg-black/55 p-3 shadow-xl backdrop-blur-xs md:bg-white/5 md:p-6 md:shadow-none">
             <div className="space-y-2 md:space-y-4">
               {dialog.lines.map((line, index) => (
                 <p
