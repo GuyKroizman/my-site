@@ -31,7 +31,7 @@ import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisu
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
 import { ICE_TEXTURE, generateIceTexture, iceShoreMask, iceFrame } from './iceVisuals';
 import {
-  CHASM_TEXTURE, CHASM_MARGIN, CHASM_SIZE, CHASM_DEEP_TEXTURE, CHASM_DEEP_DEPTH,
+  CHASM_TEXTURE, CHASM_CELL, CHASM_MARGIN, CHASM_SIZE, CHASM_DEEP_TEXTURE, CHASM_DEEP_DEPTH,
   CHASM_SURFACE_DEPTH, chasmParallaxOffset, generateChasmTexture, generateChasmDeepTexture,
   chasmMask, chasmFrame
 } from './chasmVisuals';
@@ -257,11 +257,13 @@ export class Scene0 extends Phaser.Scene {
   private featureSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private waterSprites = new Map<string, { sprite: Phaser.GameObjects.Sprite; x: number; y: number; mask: number }>();
   private lastWaterStep = -1;
-  // Masked floor glimpsed at the bottom of chasms. It slides slower than the
-  // world (parallax), so it is a sibling layer, not part of the rim sprites.
-  private deepLayer?: Phaser.GameObjects.TileSprite;
-  private chasmMaskGraphics?: Phaser.GameObjects.Graphics;
-  private chasmMaskSignature = '';
+  // Floor glimpsed at the bottom of chasms. It slides slower than the world
+  // (parallax), so it is a sibling layer, not part of the rim sprites. Phaser 4
+  // only supports geometry masks in Canvas mode, so each chasm cell gets its
+  // own 16px window onto the same repeating texture instead of one mesh-wide
+  // layer clipped by a mask (which drew over the whole floor).
+  private deepCells?: Map<string, Phaser.GameObjects.TileSprite>;
+  private chasmCellSignature = '';
   private wallSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
   // Sparse wall decoration, keyed like the raised wall sprites above. Raised
   // faces (corridor side) and flat wall tops share the map; the flag keeps
@@ -339,10 +341,8 @@ export class Scene0 extends Phaser.Scene {
       this.context.onLiquidFlameShatter = undefined;
       this.context.onPotionSplash = undefined;
       this.context.onMonsterRemoved = undefined;
-      this.chasmMaskGraphics?.destroy();
-      this.chasmMaskGraphics = undefined;
-      this.deepLayer = undefined;
-      this.chasmMaskSignature = '';
+      this.clearDeepCells();
+      this.chasmCellSignature = '';
     });
     this.context.scene = this;
     resetConsumableAppearances(this.context);
@@ -1671,48 +1671,51 @@ export class Scene0 extends Phaser.Scene {
     this.syncDeepLayer(chasmCells);
   }
 
-  /** One mask per floor clipped to the chasm cells. Chasms never change, so
-   * the mask is rebuilt only when the set changes (a new floor). */
+  /** One deep-window sprite per chasm cell. Chasms never change, so the set is
+   * rebuilt only when it changes (a new floor or a collapsed wall). */
   private syncDeepLayer(cells: Set<string>): void {
-    if (cells.size === 0) {
-      this.deepLayer?.setVisible(false);
-      return;
-    }
-    const map = this.context.map;
-    if (!map) return;
-
-    if (!this.deepLayer) {
-      this.deepLayer = this.add
-        .tileSprite(0, 0, map.widthInPixels, map.heightInPixels, CHASM_DEEP_TEXTURE)
-        .setOrigin(0, 0)
-        .setDepth(CHASM_DEEP_DEPTH);
-    } else if (this.deepLayer.width !== map.widthInPixels || this.deepLayer.height !== map.heightInPixels) {
-      this.deepLayer.setPosition(0, 0).setSize(map.widthInPixels, map.heightInPixels);
-    }
-    this.deepLayer.setVisible(true);
-
     const signature = [...cells].sort().join('|');
-    if (signature === this.chasmMaskSignature) return;
-    this.chasmMaskSignature = signature;
-    this.chasmMaskGraphics?.destroy();
-    const mask = this.make.graphics({ x: 0, y: 0 }, false);
-    mask.fillStyle(0xffffff, 1);
-    for (const key of cells) {
-      const [x, y] = key.split(',').map(Number);
-      mask.fillRect(x * 16, y * 16, 16, 16);
+    if (signature === this.chasmCellSignature) return;
+    this.chasmCellSignature = signature;
+
+    this.deepCells ??= new Map();
+    for (const [key, sprite] of this.deepCells) {
+      if (!cells.has(key)) {
+        sprite.destroy();
+        this.deepCells.delete(key);
+      }
     }
-    this.chasmMaskGraphics = mask;
-    this.deepLayer.setMask(mask.createGeometryMask());
+    for (const key of cells) {
+      if (this.deepCells.has(key)) continue;
+      const [x, y] = key.split(',').map(Number);
+      this.deepCells.set(key, this.add
+        .tileSprite(x * CHASM_CELL, y * CHASM_CELL, CHASM_CELL, CHASM_CELL, CHASM_DEEP_TEXTURE)
+        .setOrigin(0)
+        .setDepth(CHASM_DEEP_DEPTH));
+    }
     this.updateDeepParallax();
   }
 
   /** The hole is fixed in the world; the floor below slides at a fraction of
-   * the camera speed, which is the whole depth illusion. */
+   * the camera speed, which is the whole depth illusion. Each window samples
+   * the repeating texture at its own world position, so the pattern stays
+   * continuous across neighbouring cells (local u + tilePosition = worldX +
+   * offset), exactly like one full-map layer would. */
   private updateDeepParallax(): void {
-    const layer = this.deepLayer;
-    if (!layer || !layer.visible) return;
-    layer.tilePositionX = chasmParallaxOffset(this.cameras.main.scrollX);
-    layer.tilePositionY = chasmParallaxOffset(this.cameras.main.scrollY);
+    if (!this.deepCells?.size) return;
+    const camera = this.cameras.main;
+    const offsetX = chasmParallaxOffset(camera.scrollX);
+    const offsetY = chasmParallaxOffset(camera.scrollY);
+    for (const sprite of this.deepCells.values()) {
+      sprite.tilePositionX = offsetX + sprite.x;
+      sprite.tilePositionY = offsetY + sprite.y;
+    }
+  }
+
+  private clearDeepCells(): void {
+    if (!this.deepCells) return;
+    for (const sprite of this.deepCells.values()) sprite.destroy();
+    this.deepCells.clear();
   }
 
   /** One decal sprite per decorated wall cell. Raised faces share the wall

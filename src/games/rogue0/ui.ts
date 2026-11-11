@@ -84,7 +84,9 @@ export class UI extends Phaser.Scene {
 
   private logPanel: Phaser.GameObjects.Rectangle | undefined;
   private logTitle: Phaser.GameObjects.Text | undefined;
-  private logClip: Phaser.GameObjects.Graphics | undefined;
+  private logCropWidth = 0;
+  private logCropHeight = 0;
+  private lastLogText = '';
   private logWindow: LogWindow | undefined;
   private confirmationWindow: ConfirmationWindow | undefined;
   private toolbar: ToolbarButton[] = [];
@@ -389,11 +391,10 @@ export class UI extends Phaser.Scene {
       lineSpacing: 2,
       wordWrap: { width: 400, useAdvancedWrap: true }
     });
-    this.logClip = this.make.graphics({ x: 0, y: 0 });
-    this.log.setMask(this.logClip.createGeometryMask());
+    // Phaser 4 only supports geometry masks in Canvas mode, so the strip is
+    // clipped with a crop over the text texture instead of a mask.
     this.events.once("shutdown", () => {
-      this.log?.clearMask(true);
-      this.logClip?.destroy();
+      this.log?.setCrop();
     });
   }
 
@@ -563,7 +564,7 @@ export class UI extends Phaser.Scene {
     this.logTitle?.setVisible(false);
     this.log?.setPosition(logX + 4, logY + 4);
     this.log?.setWordWrapWidth(logW - 8);
-    this.logClip?.clear().fillStyle(0xffffff).fillRect(logX + 4, logY + 4, logW - 8, logH - 8);
+    this.clipLogStrip(logW - 8, logH - 8);
     this.logWindow?.layout();
     this.confirmationWindow?.layout();
     this.knowledgeWindow?.layout();
@@ -626,6 +627,16 @@ export class UI extends Phaser.Scene {
     this.heroBackdrop?.setVisible(false);
   }
 
+  /** The strip is a fixed window over the message text; scrolling history lives
+   * in the log window. Cropping replaces the geometry mask, which Phaser 4 only
+   * supports in Canvas mode. */
+  private clipLogStrip(width: number, height: number): void {
+    this.logCropWidth = width;
+    this.logCropHeight = height;
+    if (!this.log) return;
+    this.log.setCrop(0, 0, width, Math.min(height, this.log.height));
+  }
+
   update() {
     if (!this.log) return;
 
@@ -634,7 +645,13 @@ export class UI extends Phaser.Scene {
           ? `Target ${this.context.throwItem.displayName}: tap an enemy to select it, tap it again (or Enter) to fire. Move the cursor past your sight to zap into the dark; walls and closed doors still block the bolt. Tap the wand again to fire at the highlighted foe. Open the backpack or press Esc to cancel.`
           : `Target ${this.context.throwItem?.displayName ?? "item"}: tap any tile in sight, or move cursor + Enter. Esc cancels.`
         : undefined;
-    this.log.setText(hint ?? this.context.messages.join("\n"));
+    const logText = hint ?? this.context.messages.join("\n");
+    // A new string rebuilds the text texture, which drops the crop with it.
+    if (logText !== this.lastLogText) {
+      this.lastLogText = logText;
+      this.log.setText(logText);
+      this.clipLogStrip(this.logCropWidth, this.logCropHeight);
+    }
     const player = this.context.player;
     if (player) {
       const view = heroHudView(player, this.context.floor);

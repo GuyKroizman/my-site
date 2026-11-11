@@ -19,7 +19,7 @@ export class LogWindow {
   private newer: Phaser.GameObjects.Text;
   private older: Phaser.GameObjects.Text;
   private indicator: Phaser.GameObjects.Text;
-  private clip: Phaser.GameObjects.Graphics;
+  private bodyCrop = { width: 0, height: 0 };
   private pages: string[] = [];
   private page = 0;
   private snapshot: string[] = [];
@@ -38,16 +38,16 @@ export class LogWindow {
     this.older = text("Older ›", "#f0b429").setOrigin(1, 0).setInteractive({ useHandCursor: true });
     this.indicator = text("").setOrigin(0.5, 0);
     this.root.add([this.backdrop, this.panel, this.title, this.body, this.closeButton, this.newer, this.older, this.indicator]);
-    this.clip = scene.make.graphics({ x: 0, y: 0 });
-    this.body.setMask(this.clip.createGeometryMask());
+    // Phaser 4 only supports geometry masks in Canvas mode; crop the body text
+    // to the panel window instead (pages are sized to fit, the crop is a guard
+    // for long wrapped messages).
     this.backdrop.on("pointerup", () => this.close());
     this.closeButton.on("pointerup", () => this.close());
     this.newer.on("pointerup", () => { this.page = Math.max(0, this.page - 1); this.render(); });
     this.older.on("pointerup", () => { this.page = Math.min(this.pages.length - 1, this.page + 1); this.render(); });
     scene.events.once("shutdown", () => {
       context.logModalOpen = false;
-      this.body.clearMask(true);
-      this.clip.destroy();
+      this.body.setCrop();
     });
   }
 
@@ -81,7 +81,7 @@ export class LogWindow {
     this.closeButton.setPosition(x + w - 12, y + 10);
     const bodyH = Math.max(24, h - 100);
     this.body.setPosition(x + 12, y + 46).setWordWrapWidth(w - 24, true);
-    this.clip.clear().fillStyle(0xffffff).fillRect(x + 12, y + 46, w - 24, bodyH);
+    this.bodyCrop = { width: w - 24, height: bodyH };
     // Measure actual font metrics (including line spacing) for pagination.
     this.body.setText("M");
     const singleLineHeight = this.body.height;
@@ -98,6 +98,7 @@ export class LogWindow {
 
   private render() {
     this.body.setText(this.pages[this.page] ?? "No messages yet.");
+    this.body.setCrop(0, 0, this.bodyCrop.width, Math.min(this.bodyCrop.height, this.body.height));
     this.indicator.setText(`${this.page + 1} / ${this.pages.length}`);
     this.newer.setAlpha(this.page > 0 ? 1 : 0.35);
     this.older.setAlpha(this.page < this.pages.length - 1 ? 1 : 0.35);

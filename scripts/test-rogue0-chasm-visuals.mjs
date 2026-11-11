@@ -182,7 +182,7 @@ let state = { feature: 'chasm' };
 const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 const methods = source.slice(source.indexOf('  private featureVisual('), source.indexOf('  private makeArrowTexture()'));
 const { TestScene } = evaluate(`export class TestScene { ${methods} }`, {
-  CHASM_TEXTURE, CHASM_MARGIN, CHASM_SIZE, CHASM_DEEP_TEXTURE, CHASM_DEEP_DEPTH,
+  CHASM_TEXTURE, CHASM_CELL, CHASM_MARGIN, CHASM_SIZE, CHASM_DEEP_TEXTURE, CHASM_DEEP_DEPTH,
   CHASM_SURFACE_DEPTH, chasmParallaxOffset, chasmMask, chasmFrame,
   tiles: { FeatureTiles: { water: 206, chasm: 5 } },
   terrainFor: () => ({
@@ -224,16 +224,8 @@ const sprite = {
   destroy() { this.destroyed = true; }
 };
 sprites.push(sprite);
-const deep = {
-  x: 0, y: 0, width: 0, height: 0, visible: false, depth: -1, mask: null,
-  tilePositionX: 999, tilePositionY: 999, texture: '',
-  setOrigin() { return this; },
-  setDepth(depth) { this.depth = depth; return this; },
-  setVisible(visible) { this.visible = visible; return this; },
-  setPosition(x, y) { this.x = x; this.y = y; return this; },
-  setSize(width, height) { this.width = width; this.height = height; return this; },
-  setMask(mask) { this.mask = mask; return this; }
-};
+// Deep-layer windows: one TileSprite per chasm cell, created by syncDeepLayer.
+const deep = [];
 Object.assign(s, {
   context: {
     map: {
@@ -245,9 +237,19 @@ Object.assign(s, {
   time: { now: 0 },
   add: {
     sprite: (_x, _y, texture, frame) => sprite.setTexture(texture, frame),
-    tileSprite: (_x, _y, width, height, texture) => {
-      deep.width = width; deep.height = height; deep.texture = texture;
-      return deep;
+    tileSprite: (x, y, width, height, texture) => {
+      const cell = {
+        x, y, width, height, visible: true, depth: -1, texture,
+        tilePositionX: 999, tilePositionY: 999, origins: [], destroyed: false,
+        setOrigin(...args) { this.origins.push(args); return this; },
+        setDepth(depth) { this.depth = depth; return this; },
+        setPosition(px, py) { this.x = px; this.y = py; return this; },
+        setSize(w, h) { this.width = w; this.height = h; return this; },
+        setVisible(visible) { this.visible = visible; return this; },
+        destroy() { this.destroyed = true; }
+      };
+      deep.push(cell);
+      return cell;
     }
   },
   make: { graphics: makeGraphics },
@@ -265,22 +267,27 @@ assert.deepEqual(sprite.origins.at(-1), [CHASM_MARGIN / CHASM_SIZE, CHASM_MARGIN
   'the margin is centred on the cell so the rim shadow lands on the neighbours');
 assert.equal(s.waterSprites.size, 0, 'the pit is not animated as water');
 
-assert.equal(deep.texture, CHASM_DEEP_TEXTURE);
-assert.equal(deep.depth, CHASM_DEEP_DEPTH);
-assert.equal(deep.visible, true);
-assert.equal(deep.mask.geometryMask.calls.length, 1, 'one mask rect per chasm cell');
-assert.deepEqual(deep.mask.geometryMask.calls[0], [0, 0, 16, 16]);
-assert.equal(deep.tilePositionX, chasmParallaxOffset(0), 'the initial texture offset is deterministic');
+assert.equal(deep.length, 1, 'one deep window per chasm cell');
+const cell = deep[0];
+assert.equal(cell.texture, CHASM_DEEP_TEXTURE);
+assert.equal(cell.depth, CHASM_DEEP_DEPTH, 'the pit floor sits under the rim sprites');
+assert.equal(cell.visible, true);
+assert.deepEqual([cell.x, cell.y, cell.width, cell.height], [0, 0, 16, 16], 'the window covers exactly one cell');
+assert.deepEqual(cell.origins[0], [0], 'windows are top-left anchored');
+assert.equal(cell.tilePositionX, chasmParallaxOffset(0) + cell.x, 'the initial texture offset is deterministic');
+assert.equal(maskGraphics.length, 0, 'no geometry mask is created: Phaser 4 only masks in Canvas mode');
 s.cameras.main.scrollX = 100;
 s.cameras.main.scrollY = 40;
 s.updateDeepParallax();
-assert.equal(deep.tilePositionX, chasmParallaxOffset(100));
-assert.equal(deep.tilePositionY, chasmParallaxOffset(40));
-assert.equal(chasmParallaxOffset(0) - deep.tilePositionX, 65, 'the deep layer lags the world');
+assert.equal(cell.tilePositionX, chasmParallaxOffset(100) + cell.x);
+assert.equal(cell.tilePositionY, chasmParallaxOffset(40) + cell.y);
+assert.equal(chasmParallaxOffset(0) - (cell.tilePositionX - cell.x), 65, 'the deep layer lags the world');
 
-// Leaving the floor hides the layer (the rim sprites are gone with it).
+// Leaving the floor destroys the windows (the rim sprites are gone with it).
 state = null;
 s.syncFeatures();
-assert.equal(deep.visible, false, 'a floor without chasms hides the deep layer');
+assert.equal(deep.length, 1, 'no new windows are created when the chasms are gone');
+assert.equal(cell.destroyed, true, 'a floor without chasms destroys the deep windows');
+assert.equal(s.deepCells.size, 0);
 
 console.log('Rogue0 chasm visuals: edge masks, rim shadow, cliff face, near lip, deep parallax layer, generated atlases and scene wiring passed');

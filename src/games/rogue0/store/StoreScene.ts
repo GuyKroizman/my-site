@@ -152,14 +152,24 @@ export class StoreScene extends Phaser.Scene {
       : ['You have not identified this item.', item.curseDescription].filter(Boolean).join('\n');
     const desc = this.text(x + 14, y + 80, description, 19, mw - 28);
     // Long descriptions scroll inside the panel instead of covering buttons.
+    // Phaser 4 only supports geometry masks in Canvas mode, so the panel window
+    // is a crop over the text texture instead: cropY is how far it has scrolled.
     const maxDescHeight = Math.max(30, mh - 254);
-    const clip = this.make.graphics({ x: 0, y: 0 });
-    clip.fillStyle(0xffffff).fillRect(x + 14, y + 80, mw - 28, maxDescHeight);
-    const mask = clip.createGeometryMask(); desc.setMask(mask);
-    desc.once('destroy', () => { mask.destroy(); clip.destroy(); });
+    const descWidth = mw - 28;
+    let cropY = 0;
+    const applyCrop = () => {
+      desc.setCrop(0, cropY, descWidth, Math.min(maxDescHeight, desc.height - cropY));
+    };
+    applyCrop();
     let dragY: number | undefined;
-    const scroll = (delta: number) => desc.y = Phaser.Math.Clamp(desc.y - delta, y + 80 - Math.max(0, desc.height - maxDescHeight), y + 80);
-    this.add.rectangle(x + 14, y + 80, mw - 28, maxDescHeight, 0x000000, 0).setOrigin(0).setInteractive()
+    const scroll = (delta: number) => {
+      const maxScroll = Math.max(0, desc.height - maxDescHeight);
+      const next = Phaser.Math.Clamp(cropY + delta, 0, maxScroll);
+      if (next === cropY) return;
+      cropY = next;
+      applyCrop();
+    };
+    this.add.rectangle(x + 14, y + 80, descWidth, maxDescHeight, 0x000000, 0).setOrigin(0).setInteractive()
       .on('wheel', (_p: unknown, _over: unknown, _dx: number, dy: number) => scroll(dy))
       .on('pointerdown', (p: Phaser.Input.Pointer) => { dragY = p.y; })
       .on('pointermove', (p: Phaser.Input.Pointer) => { if (p.isDown && dragY !== undefined) { scroll(dragY - p.y); dragY = p.y; } })

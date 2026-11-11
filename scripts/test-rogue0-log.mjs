@@ -22,7 +22,7 @@ class Node {
   on(event, fn) { this.handlers[event] = fn; return this; }
 }
 for (const method of ['setDepth','setOrigin','setInteractive','setStrokeStyle','setLineSpacing',
-  'add','setMask','setWordWrapWidth','clear','fillStyle','fillRect','setAlpha','clearMask','destroy']) {
+  'add','setMask','setCrop','setWordWrapWidth','clear','fillStyle','fillRect','setAlpha','clearMask','destroy']) {
   Node.prototype[method] = function() { return this; };
 }
 const scene = {

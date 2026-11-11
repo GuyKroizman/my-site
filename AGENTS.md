@@ -9,6 +9,13 @@
 
 # Dependency notes
 
+- **Phaser 4 dropped WebGL `setMask`.** `GameObject.setMask` silently does
+  nothing in WebGL now (it warns once) and the object draws unclipped. That is
+  how the chasm's parallax floor ended up covering the whole dungeon. For text
+  and panels use `setCrop`, which works in both renderers; the chasm deep layer
+  uses one small TileSprite per chasm cell instead of a masked full-map layer.
+  `filters.internal.addMask()` exists but renders an untransformed mask to its
+  own texture, so screen-space UI masks are not a drop-in replacement.
 - **Do not upgrade to TypeScript 7 yet.** `typescript@7` is the native port and
   exports only `version`/`versionMajorMinor` — no compiler API. That breaks two
   things here: `typescript-eslint` refuses to load (`does not support TS 7.0`)
