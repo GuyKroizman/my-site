@@ -376,7 +376,7 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   const boss = new Boss.default(context, 40, 30);
   assert.equal(boss.name, 'Bone Lord');
   assert.equal(boss.textureKey, BOSS_TEXTURE, 'the guardian uses the generated blob texture, not the atlas');
-  assert.equal(boss.tile, 0);
+  assert.equal(boss.spriteFrame, 0, 'the generated blob is a single frame');
   assert.equal(boss.sleeping, true, 'the guardian starts asleep');
   assert.equal(boss.sleepTurnsRemaining, BOSS_ARENA_DORMANCY,
     'dormancy outlasts a walk across the arena');

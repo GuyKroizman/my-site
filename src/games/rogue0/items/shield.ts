@@ -2,7 +2,6 @@
 import type { EntityType } from "../entity";
 import { Entity } from "../entity";
 import type { GameContext } from "../context";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class Shield extends Entity {
   type: EntityType = "item";
@@ -12,7 +11,7 @@ export default class Shield extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.shield;
+    this.textureKey = 'armor-shield';
     this.name = "A Shield";
 
     this.init(context, x, y);

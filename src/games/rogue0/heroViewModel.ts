@@ -1,5 +1,4 @@
 import type BasicHero from './classes/basicHero';
-import { Sheet } from './spriteFrames.ts';
 
 type HeroStats = Pick<BasicHero, 'level' | 'xp' | 'strength' | 'healthPoints' |
   'maxHealthPoints' | 'hunger' | 'maxHunger' | 'hungerState' | 'gold' |
@@ -29,15 +28,14 @@ export function statusDurationLabel(effect: { duration: number; manualExpiry?: b
   return infinite ? "∞" : `${effect.duration}`;
 }
 
-// The HUD portrait must show the hero's own sprite, not a legacy atlas tile:
-// actors render `spriteTextureKey`/`spriteFrame` (e.g. the custom hero art),
-// while the old icon used the raw 16×16 "tiles" frame `tile`, which is a
-// different character entirely.
+// The HUD portrait shows the hero's own sprite, so it uses the same
+// `spriteTextureKey`/`spriteFrame` the actor renders. With no hero yet it draws
+// the base hero art rather than an unrelated atlas character.
 type HeroSprite = Pick<BasicHero, 'spriteTextureKey' | 'spriteFrame'>;
 
 export function heroPortrait(hero: HeroSprite | undefined): { textureKey: string; frame: number } {
   return {
-    textureKey: hero?.spriteTextureKey ?? 'tiles',
-    frame: hero?.spriteFrame ?? Sheet.heroFallback,
+    textureKey: hero?.spriteTextureKey ?? 'hero-color',
+    frame: hero?.spriteFrame ?? 0,
   };
 }

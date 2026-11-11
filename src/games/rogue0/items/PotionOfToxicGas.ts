@@ -2,7 +2,6 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import { applyEffect, createPoisonedEffect } from "../effects";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class PotionOfToxicGas extends Entity {
   type: EntityType = "item";
@@ -12,7 +11,6 @@ export default class PotionOfToxicGas extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.potionOfToxicGas;
     this.textureKey = "potion-green";
     this.name = "Potion of Toxic Gas";
     this.description = "Poisons you and releases a spreading toxic cloud. Thrown, it shatters into the same cloud, centred off a closed door.";

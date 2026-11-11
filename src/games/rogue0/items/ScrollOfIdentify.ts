@@ -2,7 +2,6 @@
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class ScrollOfIdentify extends Entity {
   name: string = "Scroll of Identify";
@@ -12,7 +11,6 @@ export default class ScrollOfIdentify extends Entity {
   noItemTargetsMessage = "You have no other unidentified items.";
   moving: boolean = false;
   type: EntityType = "item";
-  tile = Sheet.scrollOfIdentify;
   textureKey = "scroll-identify";
   consumable = true;
   protected locallyIdentified = false;

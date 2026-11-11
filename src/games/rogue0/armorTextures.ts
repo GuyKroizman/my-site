@@ -7,12 +7,55 @@
 import Phaser from "phaser";
 import { ARMOR_TEXTURES } from "./items/tieredEquipment";
 
+/** The plain Heater shield carried by the Shield item. */
+export const SHIELD_TEXTURE = "armor-shield";
+
+// Heater shield: steel edge, wooden face, gold boss. Hand-placed pixels so it
+// matches the weapon silhouettes and stays crisp at the game's zoom.
+const SHIELD_ART = [
+  '................',
+  '...##########...',
+  '..#eessssssee#..',
+  '..#e#hhhhhh#e#..',
+  '..#e#hssssh#e#..',
+  '..#e#hsggsh#e#..',
+  '..#e#hsggsh#e#..',
+  '..#e#hssssh#e#..',
+  '..#e#hhhhhh#e#..',
+  '...#e#hhhh#e#...',
+  '....#e#hh#e#....',
+  '.....#e#h#e#....',
+  '......#eee#.....',
+  '.......###......',
+  '................',
+  '................'
+] as const;
+const SHIELD_PALETTE: Record<string, number> = {
+  '#': 0x222334, e: 0xf0f5ee, s: 0xa9c4cf, g: 0xe8bc68, h: 0x866044
+};
+
+export function shieldPixels(): number[] {
+  return SHIELD_ART.flatMap(row => [...row].map(pixel => pixel === '.' ? -1 : SHIELD_PALETTE[pixel]));
+}
+
 export function generateArmorTextures(scene: Phaser.Scene): void {
   if (!scene.textures.exists(ARMOR_TEXTURES[0])) drawCloth(scene);
   if (!scene.textures.exists(ARMOR_TEXTURES[1])) drawLeather(scene);
   if (!scene.textures.exists(ARMOR_TEXTURES[2])) drawMail(scene);
   if (!scene.textures.exists(ARMOR_TEXTURES[3])) drawScale(scene);
   if (!scene.textures.exists(ARMOR_TEXTURES[4])) drawPlate(scene);
+  if (!scene.textures.exists(SHIELD_TEXTURE)) drawShield(scene);
+}
+
+function drawShield(scene: Phaser.Scene): void {
+  const graphics = scene.make.graphics(undefined, false);
+  shieldPixels().forEach((color, index) => {
+    if (color === -1) return;
+    graphics.fillStyle(color, 1);
+    graphics.fillRect(index % 16, Math.floor(index / 16), 1, 1);
+  });
+  graphics.generateTexture(SHIELD_TEXTURE, 16, 16);
+  graphics.destroy();
 }
 
 // Shared torso silhouette: shoulders, a tapering cuirass, and a neck opening.

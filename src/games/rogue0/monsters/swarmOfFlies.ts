@@ -22,7 +22,6 @@ export default class SwarmOfFlies extends Monster {
     super(context, {
       name: "Swarm of Flies",
       description: "A buzzing cloud that splits apart when struck with a physical blow.",
-      tile: 0,
       textureKey: FLY_SWARM_TEXTURE,
       initiallyAwake: offspring,
       healthPoints: health,

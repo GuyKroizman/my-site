@@ -15,7 +15,6 @@ export class FireElemental extends Monster {
     super(context, {
       name: "Fire Elemental",
       description: "A living flame that burns whatever it touches.",
-      tile: 0,
       textureKey: FIRE_ELEMENTAL_TEXTURE,
       healthPoints: 16,
       movementSpeed: 1,
@@ -43,7 +42,6 @@ export class IceElemental extends Monster {
     super(context, {
       name: "Ice Elemental",
       description: "A frozen horror whose touch locks victims in place.",
-      tile: 0,
       textureKey: ICE_ELEMENTAL_TEXTURE,
       healthPoints: 16,
       movementSpeed: 1,
@@ -71,7 +69,6 @@ export class ShockElemental extends Monster {
     super(context, {
       name: "Lightning Elemental",
       description: "A living bolt of electricity whose crackling touch leaves victims weakened.",
-      tile: 0,
       textureKey: LIGHTNING_ELEMENTAL_TEXTURE,
       healthPoints: 16,
       movementSpeed: 1,

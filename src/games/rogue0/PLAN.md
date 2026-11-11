@@ -165,7 +165,7 @@ notes for current implementation.
 | Run length & pacing | 3 floors | ~25 floors across themed regions |
 | Replayability | none | seeds, challenges, bestiary, achievements, run stats, save/load |
 | UI & inventory | fixed sidebar, auto-growing inline slot grid, no open/close | bottom HUD (portrait/HP/buffs) + backpack button opening a full inventory window |
-| Graphics & art | 16×16 Kenney sheet, magic-number tile lookups, missing/wrong sprites | cohesive 16×16 custom set (Astra-generated), named texture keys, crisp at zoom |
+| Graphics & art | 16×16 Kenney sheet, magic-number tile lookups, missing/wrong sprites | cohesive 16×16 custom set (generated), named texture keys, crisp at zoom |
 
 ## 3. Guiding principles
 
@@ -899,18 +899,16 @@ and small-screen/visual verification of the whole HUD.
 ### Phase 16 — Graphics & art overhaul (16px grid)
 *In progress. Replaces the Kenney artwork and magic-number lookups.*
 
-Progress so far: five compact floor/wall sheets, tall grass, shared hero art,
-cultist, goblin, ghoul, brute and Quloptsh are checked-in PNGs. Scrolls,
-rations and the cursed gem also have PNG art. Potions, wands/projectiles, rings, tier-2–5 weapons,
-armor, elementals, fly swarms, wraith, Bone Lord, chests, doors, traps, water,
-ice and chasms have dedicated runtime artwork. The named-frame cleanup is
-complete; it did not replace pixels. Remaining Kenney examples include the
-skeleton, tier-1 dagger, legacy sword/axe/hammer/shield and
-shoe. Some old frame fields are only save-compatible fallbacks, not visible
-art. All five hero classes still share one portrait/sprite rather than having
-class-specific artwork. Standalone Python art generators were removed; edit
-the checked-in PNGs directly. Actor art can extend above the 16px grid (the
-new ghoul/brute/Quloptsh PNGs are 16x22), without changing collision footprints.
+Progress so far: the Kenney sprite sheet is gone. `public/colored.png`, the
+`tiles` spritesheet, the `foreground-tiles` atlas, `spriteFrames.ts` and every
+`tile = row * 49 + col` lookup were deleted together, after each entity got its
+own art. Floors/walls use five compact theme strips; monsters are checked-in
+PNGs (cultist, goblin, ghoul, brute, Quloptsh and skeleton); every other item,
+projectile and terrain feature is a generated texture. Old saves that still
+carry an atlas frame number decode fine — the number is carried but ignored.
+
+Still open: the five hero classes share one portrait/sprite instead of having
+class-specific art, and the palette needs a deliberate pass across all sprites.
 
 - [x] Fix the mimic sprite: replaced the sword frame with the existing closed
       wooden chest (row 6, column 8). Implemented and visually verified in a
@@ -922,26 +920,20 @@ new ghoul/brute/Quloptsh PNGs are 16x22), without changing collision footprints.
       remapped in `runPersistence.ts`.
 - [ ] Choose a cohesive 16×16 palette (dark SPD-like dungeon, warm light, one
       gold accent) and keep it consistent across all sprites.
-      Partial: the five region palettes and original monster/item art move in
-      this direction, but Kenney frames are still in use beside them.
-- [ ] Finish dedicated editable PNGs or runtime textures for floor, wall,
-      doors, stairs, traps,
-      water, grass, chasm, the 5 hero classes, every monster, and every item
-      (red heal potion, wands, rings, food, scrolls, …).
-      Landed: floors/walls (5 regions), tall grass, cultist, goblin, ghoul,
-      brute, Quloptsh, potions, scrolls, wand projectiles, elementals, swarm,
-      wraith, Bone Lord, chest, decals. Existing saves migrate the three new
-      monster sprites without rerolling combat state.
-- [x] Replace the `tile = row*49 + col` magic numbers with named frames:
-      `spriteFrames.ts` owns the sheet layout and a `Sheet` table of 55 names,
-      every call site says `Sheet.potionOfHealing` and the legacy indices are
-      pinned by `test-rogue0-sprite-frames.mjs`. Still open from this item:
-      storing the art as generated textures or a new atlas, which is the
-      remaining acceptance work (the keys are named, the art is still Kenney).
+      Partial: the five region palettes and the generated monster/item art move
+      in this direction; no third-party sprites remain to clash with them.
+- [ ] Give the five hero classes their own sprites instead of one shared
+      portrait.
+      Landed: floors/walls (5 regions), tall grass, every monster, every item,
+      every projectile bolt, doors, traps, water, ice, chasm, decals. Existing
+      saves migrate the new sprites without rerolling combat state.
+- [x] Replace the `tile = row*49 + col` magic numbers, then delete the
+      mechanism: named frames first (`spriteFrames.ts`), then dedicated art per
+      entity, then removal of the frame field, the sheet and `public/colored.png`.
 - [x] Keep `pixelArt: true` so sprites stay crisp; the camera supports
       wheel/key zoom and touch pinch zoom.
-- **Acceptance:** no Kenney leftovers; every entity/item has a distinct,
-  readable 16×16 sprite; nothing is ambiguous (no potion-vs-heart-vs-apple).
+- **Acceptance:** ~~no Kenney leftovers~~ (done); every entity/item has a
+  distinct, readable sprite; nothing is ambiguous (no potion-vs-heart-vs-apple).
 
 ---
 
@@ -1056,9 +1048,8 @@ region, so floors 5→6 and 10→11 feel the same apart from colour.
 5. **Phase 13 meta** (seeds, challenges, bestiary, run stats, achievements) and
 the remaining Phase 15 polish (backpack quick-key paging, Inspect action,
 small-screen verification).
-6. **Phase 12 NPCs** last; **Phase 16 art** only if prioritised — the mixing of
-Kenney frames with generated art is currently the most visible rough edge, but
-it does not affect depth.
+6. **Phase 12 NPCs** last. Phase 16's atlas removal is done; what remains there
+is class-specific hero art and a palette pass, neither of which affects depth.
 
 ### Original dependency order (reference)
 
@@ -1076,9 +1067,9 @@ it does not affect depth.
 
 ## 7. Decisions & notes
 
-- **Art direction is 16×16 (SPD-style), generated with Astra** (code + vision
-  iteration). The current Kenney sheet + magic-number lookups are a stopgap;
-  Phase 16 replaces them with named textures.
+- **Art direction is 16px (SPD-style), generated or hand-placed.** Every sprite
+  now comes from a generated texture or a checked-in PNG; the Kenney sheet and
+  the `row * 49 + col` lookups it required are gone.
 - **Keep the existing visual style and turn engine.** These changes are
   mechanical, not presentational; the tile sprite approach already supports
   new tile/effect icons.

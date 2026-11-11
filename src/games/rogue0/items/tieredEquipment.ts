@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { Entity, type EntityType, type EquipSlot } from "../entity";
 import type { GameContext } from "../context";
-import { Sheet } from '../spriteFrames.ts';
 
 // One generated texture per armor tier, drawn at runtime by armorTextures.ts.
 // Keeping the keys here lets the simulation tests load this module without
@@ -14,10 +13,10 @@ export const ARMOR_TEXTURES = [
   "armor-plate"
 ] as const;
 
-// Tier 1 keeps its original dagger atlas frame. Higher tiers have dedicated
-// pixel art, shared by floor sprites, equipment slots and inventory icons.
+// Every tier has dedicated pixel art, shared by floor sprites, equipment
+// slots and inventory icons. Tier 1 is the plain dagger.
 export const WEAPON_TEXTURES = [
-  undefined,
+  "weapon-dagger",
   "weapon-shortsword",
   "weapon-broadsword",
   "weapon-greatsword",
@@ -38,7 +37,6 @@ export class TieredWeapon extends Entity {
     this.name = ["Dagger", "Shortsword", "Broadsword", "Greatsword", "Greataxe"][this.tier - 1];
     this.attackDelay = [0.8, 1, 1, 1.2, 1.4][this.tier - 1];
     this.textureKey = WEAPON_TEXTURES[this.tier - 1];
-    this.tile = Sheet.dagger; // Tier-1 dagger; higher tiers use their dedicated textures.
     this.init(context, x, y);
   }
 
@@ -80,7 +78,6 @@ export class TieredArmor extends Entity {
     this.tier = Math.max(1, Math.min(5, Math.floor(tier)));
     this.name = ["Cloth Armor", "Leather Armor", "Mail Armor", "Scale Armor", "Plate Armor"][this.tier - 1];
     this.textureKey = ARMOR_TEXTURES[this.tier - 1];
-    this.tile = Sheet.shield; // Fallback only; the generated armor texture is what renders.
     this.init(context, x, y);
   }
 

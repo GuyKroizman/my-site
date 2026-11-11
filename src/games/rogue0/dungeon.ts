@@ -1217,16 +1217,23 @@ const dungeon = {
       const projectileTexture = attacker === context.player
         ? context.player.currentWeapon()?.projectileTexture
         : attacker.projectileTexture;
+      // Every ranged attack carries generated bolt art. Without it there is
+      // nothing sensible to draw, so resolve at once instead of showing a
+      // borrowed atlas frame.
+      if (!projectileTexture) {
+        attacker.moving = false;
+        attacker.tweens -= 1;
+        this.resolveAndApplyAttack(context, attacker, victim, rangedAttack, damageType);
+        return;
+      }
       const targetX = context.map.tileToWorldX(victim.x!)!;
       const targetY = context.map.tileToWorldY(victim.y!)!;
-      const offset = projectileTexture ? tileSize / 2 : 0;
+      const offset = tileSize / 2;
       const sprite = context.scene.add
-        .sprite(x + offset, y + offset, projectileTexture ?? "tiles", projectileTexture ? 0 : rangedAttack)
-        .setOrigin(projectileTexture ? 0.5 : 0)
+        .sprite(x + offset, y + offset, projectileTexture, 0)
+        .setOrigin(0.5)
         .setDepth(250);
-      if (projectileTexture) {
-        sprite.setRotation(Math.atan2(targetY - y, targetX - x));
-      }
+      sprite.setRotation(Math.atan2(targetY - y, targetX - x));
       if (tint) {
         sprite.tint = tint;
       }

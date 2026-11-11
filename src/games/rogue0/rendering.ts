@@ -131,29 +131,3 @@ export function foregroundEntities<T extends { x?: number; y?: number; type: str
   return new Set(cells.values());
 }
 
-/** The legacy atlas has a solid mauve backdrop. Keep it for floor tiles,
- * but remove that exact palette color for all foreground sprites, including
- * future creatures/items that use the atlas. Custom textures must have alpha.
- */
-export function createForegroundAtlas(scene: Phaser.Scene): void {
-  if (scene.textures.exists('foreground-tiles')) return;
-  const source = scene.textures.get('tiles').getSourceImage() as HTMLImageElement;
-  const canvas = document.createElement('canvas');
-  canvas.width = source.width;
-  canvas.height = source.height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(source, 0, 0);
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  for (let i = 0; i < pixels.data.length; i += 4) {
-    if (pixels.data[i] === 71 && pixels.data[i + 1] === 45 && pixels.data[i + 2] === 60) {
-      pixels.data[i + 3] = 0;
-    }
-  }
-  ctx.putImageData(pixels, 0, 0);
-  // addSpriteSheet reuses a supplied Texture's key, ignoring its key argument.
-  // Register the canvas under the final key so entities can actually find it.
-  const texture = scene.textures.addCanvas('foreground-tiles', canvas);
-  if (texture) scene.textures.addSpriteSheet('foreground-tiles', texture, {
-    frameWidth: 16, frameHeight: 16, spacing: 1
-  });
-}

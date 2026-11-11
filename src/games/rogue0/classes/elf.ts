@@ -2,7 +2,6 @@
 import BasicHero from "./basicHero";
 import type { GameContext } from "../context";
 import Sword from "../items/sword";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class Elf extends BasicHero {
   constructor(context : GameContext, x: number, y: number) {
@@ -14,7 +13,6 @@ export default class Elf extends BasicHero {
       "A swift swordsman. Passive (Elven Grace): +10 evasion.";
     this.healthPoints = 20;
     this.maxHealthPoints = 20;
-    this.tile = Sheet.elf;
 
     const sword = new Sword(context);
     this.addItem(sword);

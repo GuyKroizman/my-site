@@ -4,7 +4,7 @@ import cursedGemArtUrl from './assets/cursed-gem.png';
 import { placeStorePortal } from './store/portal';
 import { generatePortalTexture, PORTAL_TEXTURE, portalFrame } from './portalVisuals';
 import { showSurpriseVisual, updateSurpriseVisuals, clearSurpriseVisuals } from './surpriseVisuals';
-// Vite emits content-hashed URLs, so deployed art cannot reuse an older atlas.
+// Vite emits content-hashed URLs, so deployed art cannot reuse an older file.
 import stoneTilesUrl from './assets/stone-tiles.png';
 import cryptTilesUrl from './assets/crypt-tiles.png';
 import sandstoneTilesUrl from './assets/sandstone-tiles.png';
@@ -23,6 +23,7 @@ import goblinArtUrl from './assets/monsters/goblin.png';
 import ghoulArtUrl from './assets/monsters/ghoul.png';
 import bruteArtUrl from './assets/monsters/brute.png';
 import quloptshArtUrl from './assets/monsters/quloptsh.png';
+import skeletonArtUrl from './assets/monsters/skeleton.png';
 import grass0Url from './assets/tall-grass-0.png';
 import grass1Url from './assets/tall-grass-1.png';
 import grass2Url from './assets/tall-grass-2.png';
@@ -45,7 +46,7 @@ import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from 
 import { updateGasVisuals, clearGasVisuals } from './gasVisuals';
 import { removeEntity } from './entity';
 import { decodeRunSave, restoreRunState, type RunState, type SavedFloor } from './runPersistence';
-import { createForegroundAtlas, foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects, occludesPlayer } from './rendering';
+import { foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects, occludesPlayer } from './rendering';
 import dungeon from "./dungeon";
 // Keep this after `dungeon`: saveRegistry loads the whole entity/item graph and
 // must not be the first entry into the entity → effects → dungeon cycle.
@@ -131,6 +132,7 @@ import { generateGlyphStoneTextures } from './glyphStoneTextures';
 import { dropTrampledGlyphStone } from './glyphStoneDrop';
 import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
+import { generateJunkTextures } from "./junkTextures";
 import { generateWeaponTextures } from "./weaponTextures";
 import { prewarmConsumableAppearances, resetConsumableAppearances, saveConsumableKnowledge } from "./entity";
 import type { Entity } from "./entity";
@@ -307,6 +309,7 @@ export class Scene0 extends Phaser.Scene {
     this.load.image('ghoul', ghoulArtUrl);
     this.load.image('brute', bruteArtUrl);
     this.load.image('quloptsh', quloptshArtUrl);
+    this.load.image('skeleton', skeletonArtUrl);
     [grass0Url, grass1Url, grass2Url].forEach((url, i) => this.load.image(`tall-grass-${i}`, url));
     this.load.spritesheet('stone-tiles', stoneTilesUrl, THEME_SHEET);
     this.load.spritesheet('crypt-tiles', cryptTilesUrl, THEME_SHEET);
@@ -320,15 +323,9 @@ export class Scene0 extends Phaser.Scene {
       this.load.image(`scroll-${kind}`, `/rogue0/items/scroll-${kind}.png`);
     }
     this.load.image("unknown-scroll", "/rogue0/items/scroll.png");
-    this.load.spritesheet("tiles", "/colored.png", {
-      frameWidth: 16,
-      frameHeight: 16,
-      spacing: 1
-    });
   }
 
   create() {
-    createForegroundAtlas(this);
     generatePortalTexture(this);
     this.events.once("shutdown", () => {
       clearMonsterSleepVisuals(this);
@@ -385,6 +382,7 @@ export class Scene0 extends Phaser.Scene {
     generateRingTextures(this);
     generateGlyphStoneTextures(this);
     generateArmorTextures(this);
+    generateJunkTextures(this);
     generateWeaponTextures(this);
     generateRemainsTexture(this);
     generateChestTextures(this);
@@ -1525,20 +1523,19 @@ export class Scene0 extends Phaser.Scene {
   }
 
   private featureVisual(state: tiles.TileState, featureY: number): {
-    tile?: number;
-    textureKey?: string;
+    textureKey: string;
     frame?: number;
     tint?: number;
   } {
     switch (state.feature) {
+      case 'secretDoor':
+        throw new Error('secret doors draw their disguise through the wall');
       case 'portal': {
         const player = this.context.player;
         const back = player !== undefined && player.y !== undefined && player.y < featureY;
         return { textureKey: PORTAL_TEXTURE,
           frame: portalFrame(state.portal === 'open', this.time.now, back) };
       }
-      case "secretDoor":
-        return {};
       case "door": {
         // The panel material follows the region, like the walls do.
         const keys = doorTextureKeys(doorStyleName(this.context.floor));
@@ -1614,6 +1611,9 @@ export class Scene0 extends Phaser.Scene {
     this.waterSprites.clear();
 
     tiles.forEachFeature((x, y, state) => {
+      // A secret door is hidden by definition: walls draw the disguise, so no
+      // feature sprite is needed (and none can borrow atlas art).
+      if (state.feature === 'secretDoor') return;
       const key = `${x},${y}`;
       seen.add(key);
 
@@ -1622,11 +1622,11 @@ export class Scene0 extends Phaser.Scene {
       const visual = sideDoor
         ? { textureKey: state.door === 'open' ? doorKeys.thresholdSide : doorKeys.side }
         : this.featureVisual(state, y);
-      const visible = state.feature !== "secretDoor" && (state.feature !== "trap" || state.trap !== "hidden");
+      const visible = state.feature !== "trap" || state.trap !== "hidden";
       const upright = state.feature === 'portal' || state.feature === 'grass' || (state.feature === 'door' && state.door !== 'open');
       // Stable visual variation without consuming gameplay randomness.
       const texKey = state.feature === 'grass' ? `tall-grass-${(x * 7 + y * 11) % 3}`
-        : visual.textureKey ?? (upright ? 'foreground-tiles' : 'tiles');
+        : visual.textureKey!;
       const mask = state.feature === 'water'
         ? waterShoreMask(x, y, (nx, ny) => tiles.getFeature(nx, ny) === 'water')
         : state.feature === 'ice'
@@ -1637,7 +1637,7 @@ export class Scene0 extends Phaser.Scene {
       const frame = state.feature === 'water' ? waterFrame(mask, x, y, this.time.now)
         : state.feature === 'ice' ? iceFrame(mask, x, y)
         : state.feature === 'chasm' ? chasmFrame(mask)
-        : visual.frame ?? (visual.textureKey ? 0 : (visual.tile ?? 0));
+        : visual.frame ?? 0;
 
       if (!sprite) {
         sprite = this.add

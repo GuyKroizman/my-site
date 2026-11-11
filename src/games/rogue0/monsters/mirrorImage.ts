@@ -18,7 +18,6 @@ export default class MirrorImage extends Entity {
     super();
     this.name = "Mirror Image";
     this.description = "An illusory copy of you. Enemies may waste attacks on it.";
-    this.tile = hero.tile;
     this.textureKey = hero.textureKey;
     this.tint = hero.tint;
     this.healthPoints = 1;

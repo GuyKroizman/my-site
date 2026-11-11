@@ -388,10 +388,11 @@ for (const slot of ['weapon', 'armor', 'ring', 'artifact']) {
 {
   const heroSprite = Object.freeze({ spriteTextureKey: 'hero-color', spriteFrame: 0 });
   assert.deepEqual(heroPortrait(heroSprite), { textureKey: 'hero-color', frame: 0 });
-  assert.deepEqual(heroPortrait(undefined), { textureKey: 'tiles', frame: 26 });
-  // A frame-carrying atlas hero keeps its frame rather than collapsing to 0.
-  assert.deepEqual(heroPortrait({ spriteTextureKey: 'tiles', spriteFrame: 49 + 24 }),
-    { textureKey: 'tiles', frame: 73 });
+  assert.deepEqual(heroPortrait(undefined), { textureKey: 'hero-color', frame: 0 },
+    'no hero yet still shows hero art, not an atlas character');
+  // A hero that reports a frame keeps it rather than collapsing to 0.
+  assert.deepEqual(heroPortrait({ spriteTextureKey: 'custom-hero', spriteFrame: 3 }),
+    { textureKey: 'custom-hero', frame: 3 });
   const ui = fs.readFileSync(new URL('../src/games/rogue0/ui.ts', import.meta.url), 'utf8');
   assert.match(ui, /heroPortrait\(this\.context\.player\)/, 'toolbar portrait uses heroPortrait');
   assert.doesNotMatch(ui, /add\.sprite\(0, 0, "tiles", p \? p\.tile : 26\)/,

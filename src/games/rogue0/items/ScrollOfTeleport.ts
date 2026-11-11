@@ -3,7 +3,6 @@ import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import dungeon from "../dungeon";
 import { actorBodyAtTile } from "../actorBodies.ts";
-import { Sheet } from '../spriteFrames.ts';
 
 // Keep the teleport destination out of the columns hidden under the UI
 // sidebar (matches the constant used by scene0's spawn logic).
@@ -18,7 +17,6 @@ export default class ScrollOfTeleport extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.scrollOfTeleport;
     this.name = "Scroll of Teleport";
     this.description = "Teleports you to a random walkable tile.";
     this.consumable = true;

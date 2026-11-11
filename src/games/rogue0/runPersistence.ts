@@ -17,6 +17,13 @@ import Wand from './items/wand';
 import Chest from './items/chest';
 import CursedGem from './items/cursedGem';
 import { TieredWeapon, WEAPON_TEXTURES } from './items/tieredEquipment';
+import Shield from './items/shield';
+import Sword from './items/sword';
+import LongSword from './items/longSword';
+import Axe from './items/axe';
+import Hammer from './items/hammer';
+import Shoe from './items/Shoe';
+import Skeleton from './monsters/skelaton';
 import { CHEST_TEXTURE } from './chestTextures';
 import Mimic from './monsters/mimic';
 import Ghoul from './monsters/ghoul';
@@ -70,10 +77,20 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     // including inactive floors, without rerolling stats, loot or sleep state.
     const monsterArt = entity instanceof Ghoul ? 'ghoul'
       : entity instanceof Brute ? 'brute'
-      : entity instanceof Quloptsh ? 'quloptsh' : undefined;
+      : entity instanceof Quloptsh ? 'quloptsh'
+      : entity instanceof Skeleton ? 'skeleton' : undefined;
     if (monsterArt) {
       entity.textureKey = monsterArt;
-      entity.tile = 0;
+    }
+    // Single-tier gear moved from atlas frames to generated silhouettes.
+    const gearArt = entity instanceof Shield ? 'armor-shield'
+      : entity instanceof Sword ? 'weapon-sword'
+      : entity instanceof LongSword ? 'weapon-longsword'
+      : entity instanceof Axe ? 'weapon-axe'
+      : entity instanceof Hammer ? 'weapon-hammer'
+      : entity instanceof Shoe ? 'junk-shoe' : undefined;
+    if (gearArt) {
+      entity.textureKey = gearArt;
     }
     // Decode visits every item, including equipped/carried weapons, container
     // contents, shop stock and pending chasm drops, not only floor entities.
@@ -82,7 +99,6 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     }
     if (entity instanceof CursedGem) {
       entity.textureKey = 'cursed-gem';
-      entity.tile = 0;
     }
     if (entity instanceof ScrollOfUpgrade) {
       const defaults = new ScrollOfUpgrade(context);
@@ -140,13 +156,11 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
       // dormant mimics; point them at the generated chest art.
       if ((entity instanceof Chest || entity instanceof Mimic) && entity.textureKey !== CHEST_TEXTURE) {
         entity.textureKey = CHEST_TEXTURE;
-        entity.tile = 0;
       }
       // Older saves stored the ice elemental as a chest atlas frame; point it
       // back at the generated crystal art when its sprite is rebuilt.
       if (entity instanceof IceElemental && entity.textureKey !== ICE_ELEMENTAL_TEXTURE) {
         entity.textureKey = ICE_ELEMENTAL_TEXTURE;
-        entity.tile = 0;
       }
     }
   }

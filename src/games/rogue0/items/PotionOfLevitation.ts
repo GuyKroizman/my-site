@@ -2,7 +2,6 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import { applyEffect, createLevitatingEffect } from "../effects";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class PotionOfLevitation extends Entity {
   type: EntityType = "item";
@@ -12,7 +11,6 @@ export default class PotionOfLevitation extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.potionOfLevitation;
     this.textureKey = "potion-gold";
     this.name = "Potion of Levitation";
     this.description = "Float for 20 turns: cross chasms and avoid ground hazards. If it ends over a chasm, you fall.";

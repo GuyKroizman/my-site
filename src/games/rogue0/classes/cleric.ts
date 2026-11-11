@@ -2,7 +2,6 @@
 import BasicHero from "./basicHero";
 import type { GameContext } from "../context";
 import Hammer from "../items/hammer";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class Cleric extends BasicHero {
 
@@ -15,7 +14,6 @@ export default class Cleric extends BasicHero {
       "A holy healer. Passive (Divine Mending): heal 1 HP each turn."
     this.healthPoints = 40
     this.maxHealthPoints = 40
-    this.tile = Sheet.cleric;
 
     const hammer = new Hammer(context)
     this.addItem(hammer)

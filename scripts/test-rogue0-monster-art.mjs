@@ -30,7 +30,7 @@ for (const [name, stats, loot] of cases) {
   const monster = new Class(context, 4, 6);
   assert.equal(monster.spriteTextureKey, name, `${name} uses its dedicated PNG`);
   assert.equal(monster.spriteFrame, 0);
-  assert.equal(monster.tile, 0);
+  assert.equal('tile' in monster, false, 'no atlas frame remains on the entity');
   assert.equal(monster.context, context);
   assert.equal(monster.x, 4);
   assert.equal(monster.y, 6);

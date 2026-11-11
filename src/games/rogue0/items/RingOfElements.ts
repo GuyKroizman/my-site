@@ -1,6 +1,5 @@
 import Ring from "./ring";
 import type { GameContext } from "../context";
-import { Sheet } from '../spriteFrames.ts';
 
 const ELEMENTAL_RESISTANCE = 2;
 
@@ -11,7 +10,6 @@ export default class RingOfElements extends Ring {
       {
         name: "Ring of Elements",
         description: `Resists fire, ice and shock (${ELEMENTAL_RESISTANCE} each) while equipped.`,
-        tile: Sheet.ringOfElements
       },
       x,
       y

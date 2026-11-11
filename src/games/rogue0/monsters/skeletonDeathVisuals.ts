@@ -2,7 +2,7 @@ import type Phaser from 'phaser';
 import type { GameContext } from '../context';
 
 // Cut the existing pixel art into anatomical pieces, rather than substituting
-// generic particles. Rectangles are local to the skeleton's 16px atlas frame.
+// generic particles. Rectangles are local to the skeleton's 16x22 sprite.
 export const SKELETON_BONES = [
   { name: 'skull', x: 5, y: 1, width: 6, height: 6, drift: 2, angle: 25, fall: 380 },
   { name: 'left-arm', x: 2, y: 7, width: 4, height: 6, drift: -3, angle: -85, fall: 280 },

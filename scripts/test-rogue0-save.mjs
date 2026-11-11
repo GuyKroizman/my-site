@@ -109,8 +109,17 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   const Ghoul = load('src/games/rogue0/monsters/ghoul.ts', { Monster: Entity }).default;
   const Brute = load('src/games/rogue0/monsters/brute.ts', { Monster: Entity }).default;
   const Quloptsh = load('src/games/rogue0/monsters/quloptsh.ts', { Monster: Entity }).default;
-  const oldMonsters = [Ghoul, Brute, Quloptsh].map((Class, i) => Object.assign(Object.create(Class.prototype), {
-    type: 'enemy', tile: [320, 322, 324][i], healthPoints: 7, sleepTurnsRemaining: 11,
+  const Skeleton = load('src/games/rogue0/monsters/skelaton.ts', { Monster: Entity }).default;
+  // Real single-tier gear prototypes: art moved from atlas frames to generated
+  // silhouettes, so legacy saves must be re-pointed.
+  const Shield = load('src/games/rogue0/items/shield.ts', { Entity }).default;
+  const Sword = load('src/games/rogue0/items/sword.ts', { Entity }).default;
+  const Axe = load('src/games/rogue0/items/axe.ts', { Entity }).default;
+  const oldGear = [Shield, Sword, Axe].map(Class => Object.assign(Object.create(Class.prototype), {
+    type: 'item', tile: [776, 328, 382][[Shield, Sword, Axe].indexOf(Class)], identified: true,
+  }));
+  const oldMonsters = [Ghoul, Brute, Quloptsh, Skeleton].map((Class, i) => Object.assign(Object.create(Class.prototype), {
+    type: 'enemy', tile: [320, 322, 324, 323][i], healthPoints: 7, sleepTurnsRemaining: 11,
     x: 0, y: 0, effects: [], loot: [false], nextActionTime: 4.5,
   }));
   const legacyIce = new IceElemental();
@@ -122,12 +131,12 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     noItemTargetsMessage: 'You have no cursed items to cleanse.',
     description: 'Lifts every curse on your equipment.', locallyIdentified: false });
   const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, removeScroll: ScrollOfRemoveCurse,
-    IceElemental, TieredWeapon, Ghoul, Brute, Quloptsh, CursedGem };
+    IceElemental, TieredWeapon, Ghoul, Brute, Quloptsh, CursedGem, Skeleton, Shield, Sword, Axe };
   const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
   const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
     bossesSlain: new Set([5, 10]),
     knowledge: { appearances: [], known: [] }, floors: new Map([[1, {
-      map: [[0]], seen: [[true]], features: [], entities: [legacyIce, legacyRemoveCurse, ...oldMonsters], savedAt: 0,
+      map: [[0]], seen: [[true]], features: [], entities: [legacyIce, legacyRemoveCurse, ...oldMonsters, ...oldGear], savedAt: 0,
       up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
     }]]) }, registry);
   const { decodeRunSave } = load('src/games/rogue0/runPersistence.ts', {
@@ -136,7 +145,8 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
     Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
     CHEST_TEXTURE: 'chest-closed',
-    IceElemental, Ghoul, Brute, Quloptsh, CursedGem,
+    IceElemental, Ghoul, Brute, Quloptsh, CursedGem, Skeleton,
+    Shield, Sword, Axe, LongSword: class {}, Hammer: class {}, Shoe: class {},
     ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
     // The run decoder validates the saved chasm floor against the generator's
     // own candidate list, so it uses the real helpers.
@@ -148,7 +158,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.deepEqual([...run.bossesSlain], [5, 10], 'slain boss floors survive the save graph');
   for (const item of run.player.backpack.filter(item => item instanceof TieredWeapon)) {
     assert.equal(item.textureKey, WEAPON_TEXTURES[item.tier - 1], 'legacy weapons acquire tier art');
-    assert.equal(item.spriteFrame, item.tier === 1 ? 328 : 0);
+    assert.equal(item.spriteFrame, 0, 'every tier now has generated art');
     assert.equal(item.level, 2, 'art migration preserves upgrades');
   }
   assert.equal(run.player.weapon, run.player.backpack[5], 'equipped weapon keeps the shared item reference');
@@ -156,7 +166,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.ok(savedCursedGem instanceof CursedGem);
   assert.equal(savedCursedGem.spriteTextureKey, 'cursed-gem');
   assert.equal(savedCursedGem.spriteFrame, 0);
-  assert.equal(savedCursedGem.tile, 0);
+  assert.equal(savedCursedGem.spriteFrame, 0, 'a stale saved tile no longer selects atlas art');
   assert.equal(savedCursedGem.count, 3, 'art migration preserves the stack');
   assert.equal(run.player.quickslots[0], savedCursedGem, 'quickslot retains migrated item identity');
   const restored = run.player.backpack[0];
@@ -204,17 +214,25 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.ok(savedIce instanceof IceElemental);
   assert.equal(savedIce.textureKey, 'monster-ice-elemental',
     'legacy ice elementals drop the chest atlas frame when rebuilt');
-  assert.equal(savedIce.tile, 0);
-  const upgradedMonsters = run.floors.get(1).entities.slice(2);
+  const upgradedMonsters = run.floors.get(1).entities.slice(2, 6);
   for (const [i, monster] of upgradedMonsters.entries()) {
-    assert.ok(monster instanceof [Ghoul, Brute, Quloptsh][i]);
-    assert.equal(monster.spriteTextureKey, ['ghoul', 'brute', 'quloptsh'][i]);
+    assert.ok(monster instanceof [Ghoul, Brute, Quloptsh, Skeleton][i]);
+    assert.equal(monster.spriteTextureKey, ['ghoul', 'brute', 'quloptsh', 'skeleton'][i]);
     assert.equal(monster.spriteFrame, 0);
-    assert.equal(monster.tile, 0);
+    // The old frame number rides along in the save but no longer selects art.
+    assert.equal(monster.tile, [320, 322, 324, 323][i], 'stale atlas frame is carried, not used');
     assert.equal(monster.healthPoints, 7, 'art migration does not heal');
     assert.equal(monster.sleepTurnsRemaining, 11, 'art migration does not reroll sleep');
     assert.equal(monster.nextActionTime, 4.5);
     assert.deepEqual(monster.loot, [false]);
+  }
+  const upgradedGear = run.floors.get(1).entities.slice(-3);
+  for (const [i, item] of upgradedGear.entries()) {
+    assert.ok(item instanceof [Shield, Sword, Axe][i]);
+    assert.equal(item.spriteTextureKey, ['armor-shield', 'weapon-sword', 'weapon-axe'][i]);
+    assert.equal(item.spriteFrame, 0);
+    assert.equal(item.tile, [776, 328, 382][i], 'stale atlas frame is carried, not used');
+    assert.equal(item.identified, true, 'art migration does not hide gear');
   }
   // Regular Gems are retired: old checkpoints must not require the deleted class.
   {

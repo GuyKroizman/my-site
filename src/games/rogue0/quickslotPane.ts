@@ -13,7 +13,7 @@ export class QuickslotPane {
       const root = scene.add.container(0, 0);
       const box = scene.add.rectangle(0, 0, 44, 44, 0x1f1926)
         .setStrokeStyle(2, 0x5a5060).setInteractive({ useHandCursor: true });
-      const icon = scene.add.sprite(0, 0, 'tiles', 0).setVisible(false);
+      const icon = scene.add.sprite(0, 0, 'unknown-item', 0).setVisible(false);
       const label = scene.add.text(19, 19, '+', { fontSize: '12px', color: '#f0b429' }).setOrigin(1);
       root.add([box, icon, label]);
       attachTooltip(scene, context, box, () => {

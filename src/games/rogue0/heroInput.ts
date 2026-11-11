@@ -130,7 +130,7 @@ export function createHeroInput(services: HeroControlServices) {
       }
       if (entity && isHostile(entity)) {
         const weapon = hero.currentWeapon();
-        const ranged = weapon && weapon.range() > 0 ? weapon.attackTile || weapon.tile : false;
+        const ranged = weapon && weapon.range() > 0 ? weapon.attackTile : false;
         // Range and sight are measured to the creature's body, not its anchor:
         // a wide monster is in reach when any occupied cell is in reach.
         const distance = weapon ? bodyDistance(hero, entity) + 1 : 0;

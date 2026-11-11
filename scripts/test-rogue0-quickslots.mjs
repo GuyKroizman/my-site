@@ -2,28 +2,7 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('quickslots');
 import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
-const { foregroundEntities, createForegroundAtlas } = load('src/games/rogue0/rendering.ts');
-// Match Phaser's Texture-input behavior: addSpriteSheet keeps the source key.
-const textures = new Map();
-const pixels = new Uint8ClampedArray([71, 45, 60, 255, 207, 198, 184, 255]);
-const originalDocument = globalThis.document;
-globalThis.document = { createElement: () => ({ getContext: () => ({
-  drawImage() {}, getImageData: () => ({ data: pixels }), putImageData() {},
-}) }) };
-try {
-  createForegroundAtlas({ textures: {
-    exists: key => textures.has(key),
-    get: () => ({ getSourceImage: () => ({ width: 2, height: 1 }) }),
-    addCanvas(key) { const texture = { key }; textures.set(key, texture); return texture; },
-    addSpriteSheet(_key, texture, config) { texture.config = config; return texture; },
-  } });
-  assert.ok(textures.get('foreground-tiles')?.config, 'foreground key must contain sprite-sheet frames');
-  assert.equal(pixels[3], 0, 'legacy backdrop is transparent');
-  assert.equal(pixels[7], 255, 'sprite artwork stays opaque');
-} finally {
-  if (originalDocument === undefined) delete globalThis.document;
-  else globalThis.document = originalDocument;
-}
+const { foregroundEntities } = load('src/games/rogue0/rendering.ts');
 const scrollOnFloor = { type: 'item', x: 2, y: 3 };
 const potionOnFloor = { type: 'item', x: 2, y: 3 };
 const monsterOnFloor = { type: 'enemy', x: 2, y: 3 };

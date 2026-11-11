@@ -16,7 +16,6 @@ import type { Footprint, FootprintSpec } from "../footprint.ts";
 export type MonsterConfig = {
   name: string;
   description: string;
-  tile: number;
   tint?: number;
   healthPoints: number;
   movementSpeed: number;
@@ -86,7 +85,6 @@ export default class Monster extends Entity {
 
     this.name = config.name;
     this.description = config.description;
-    this.tile = config.tile;
     this.tint = config.tint;
     this.textureKey = config.textureKey;
     this.spriteScale = config.scale ?? 1;
@@ -104,8 +102,8 @@ export default class Monster extends Entity {
     this.protectionValue = config.protection;
     this.rangeValue = config.range;
     this.attackTile = config.attackTile ?? this.attackTile;
-    // Ranged monsters draw `projectileTexture` instead of their tilesheet
-    // `attackTile`, which is a full opaque 16x16 frame.
+    // `attackTile` only marks the attack as ranged; the visible bolt always
+    // comes from `projectileTexture`.
     this.projectileTexture = config.projectileTexture ?? this.projectileTexture;
     this.loot = config.loot ?? [];
     this.gold = config.gold ?? 3;

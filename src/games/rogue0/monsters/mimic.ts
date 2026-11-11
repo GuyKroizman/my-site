@@ -2,7 +2,6 @@ import Monster from "./monster";
 import type { GameContext } from "../context";
 import type { Entity } from '../entity';
 import { CHEST_TEXTURE, MIMIC_TEXTURE } from '../chestTextures';
-import { Sheet } from '../spriteFrames.ts';
 
 export default class Mimic extends Monster {
   private provoked = false;
@@ -59,7 +58,6 @@ export default class Mimic extends Monster {
       name: "Mimic",
       description: "A motionless treasure chest. It awakens and attacks only after being attacked or taking damage.",
       initiallyAwake: true, // Dormancy is not timed sleep and has no sleeping Zs.
-      tile: Sheet.chest, // Legacy chest frame, still saved with old runs.
       textureKey: CHEST_TEXTURE, // Disguised as the generated chest art.
       healthPoints: 24 + tier * 8,
       movementSpeed: 1,

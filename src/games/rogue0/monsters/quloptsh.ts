@@ -8,7 +8,6 @@ export default class Quloptsh extends Monster {
     super(context, {
       name: "Quloptsh",
       description: "A calm, stealthy assassin that weakens its prey.",
-      tile: 0,
       textureKey: 'quloptsh',
       healthPoints: 12,
       movementSpeed: 1,

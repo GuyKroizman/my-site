@@ -11,8 +11,10 @@ import dungeon from "../dungeon";
 export type WandConfig = {
   name: string;
   description: string;
-  tile: number;
+  /** Truthy marker: the attack is ranged. The visible bolt comes from
+   * `projectileTexture`, so this never selects atlas art. */
   attackTile: number;
+  projectileTexture?: string;
   damageType: DamageType;
   charges: number;
 };
@@ -64,9 +66,9 @@ export default abstract class Wand extends Entity {
     super();
     this.name = config.name;
     this.description = config.description;
-    this.tile = config.tile;
     this.textureKey = `wand-${config.damageType}`;
     this.attackTile = config.attackTile;
+    this.projectileTexture = config.projectileTexture ?? this.projectileTexture;
     this.damageType = config.damageType;
     this.charges = config.charges;
     this.maxCharges = config.charges;

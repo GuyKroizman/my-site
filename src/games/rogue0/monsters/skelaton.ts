@@ -3,7 +3,6 @@ import Monster from "./monster";
 import { playSkeletonDeath } from "./skeletonDeathVisuals";
 import type { GameContext } from "../context";
 import BerserkPotion from "../items/berserkPotion";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class Skeleton extends Monster {
   playDeathAnimation(sprite: Phaser.GameObjects.Sprite): boolean {
@@ -14,7 +13,7 @@ export default class Skeleton extends Monster {
     super(context, {
       name: "Skeleton",
       description: "A brittle skeleton animated by dark magic.",
-      tile: Sheet.skeleton,
+      textureKey: 'skeleton',
       healthPoints: 8,
       movementSpeed: 1,
       attackDelay: 1,

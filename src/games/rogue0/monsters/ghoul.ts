@@ -7,7 +7,6 @@ export default class Ghoul extends Monster {
     super(context, {
       name: "Ghoul",
       description: "A fast, ravenous ghoul.",
-      tile: 0,
       textureKey: 'ghoul',
       healthPoints: 12,
       movementSpeed: 2,

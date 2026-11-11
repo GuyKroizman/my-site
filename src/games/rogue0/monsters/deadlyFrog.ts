@@ -11,7 +11,6 @@ export default class DeadlyFrog extends Monster {
     super(context, {
       name: "Deadly Frog",
       description: "A bloated frog with poison warts. Each wound it survives vents toxic gas, and its death releases a final cloud. Poison cannot harm it.",
-      tile: 0,
       textureKey: DEADLY_FROG_TEXTURE,
       healthPoints: 14,
       movementSpeed: 1,

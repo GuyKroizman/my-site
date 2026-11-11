@@ -102,7 +102,6 @@ export default class BasicHero extends Entity implements HeroControlHost {
   }
   baseAttack: number = 0;
   strength: number = 10;
-  tile: number = 26;
   textureKey = 'hero-color';
   moving: boolean = false;
   type: EntityType = "player";

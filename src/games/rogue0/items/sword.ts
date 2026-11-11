@@ -15,7 +15,7 @@ export default class Sword extends Entity{
   }
   type:EntityType =  "item";
   healthPoints: number = 0;
-  tile: number = 328;
+  textureKey = 'weapon-sword';
   moving: boolean = false;
   tier = 1;
   usesStrength = true;

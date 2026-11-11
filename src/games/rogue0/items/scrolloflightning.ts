@@ -2,7 +2,7 @@
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity } from "../entity";
-import { Sheet } from '../spriteFrames.ts';
+import { SHOCKBOLT_TEXTURE } from '../projectileTextures';
 
 export default class ScrollOfLightning extends Entity {
   type: EntityType = "item";
@@ -13,9 +13,9 @@ export default class ScrollOfLightning extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
 
-    this.tile = Sheet.scrollOfLightning;
     this.name = "Scroll of Lightning";
-    this.attackTile = Sheet.lightningBolt;
+    this.attackTile = 1;
+    this.projectileTexture = SHOCKBOLT_TEXTURE;
     this.damageType = "shock";
 
     this.init(context, x, y);

@@ -2,7 +2,6 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import { applyEffect, createStrengthenedEffect } from "../effects";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class ScrollOfRage extends Entity {
   textureKey = "scroll-rage";
@@ -13,7 +12,6 @@ export default class ScrollOfRage extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.scrollOfRage;
     this.name = "Scroll of Rage";
     this.description = "Fills you with rage, strengthening your attacks.";
     this.consumable = true;

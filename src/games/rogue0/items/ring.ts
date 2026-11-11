@@ -10,7 +10,6 @@ import { Entity } from "../entity";
 export type RingConfig = {
   name: string;
   description: string;
-  tile: number;
 };
 
 export default abstract class Ring extends Entity {
@@ -37,7 +36,6 @@ export default abstract class Ring extends Entity {
     super();
     this.name = config.name;
     this.description = config.description;
-    this.tile = config.tile;
 
     this.init(context, x, y);
   }

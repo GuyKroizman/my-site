@@ -2,7 +2,6 @@
 import type { EntityType } from "../entity";
 import { Entity } from "../entity";
 import type { GameContext } from "../context";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class LongSword extends Entity {
   name: string = "A Long Sword";
@@ -13,7 +12,7 @@ export default class LongSword extends Entity {
   get baseDescription(): string {
     return `A long sword. Causes between ${4 + this.level} and ${8 + (this.tier + 1) * this.level} damage.`;
   }
-  tile = Sheet.longSword;
+  textureKey = 'weapon-longsword';
   tier = 1;
   usesStrength = true;
   equipSlot: "weapon" = "weapon";

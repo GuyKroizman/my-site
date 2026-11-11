@@ -9,7 +9,6 @@ export default class Wraith extends Monster {
     super(context, {
       name: "Wraith",
       description: "A spectral horror that weakens those it touches.",
-      tile: 0,
       textureKey: WRAITH_TEXTURE,
       healthPoints: 14,
       movementSpeed: 1,

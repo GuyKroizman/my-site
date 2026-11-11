@@ -3,7 +3,6 @@ import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import { applyEffect, createTerrifiedEffect } from "../effects";
 import dungeon from "../dungeon";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class ScrollOfTerror extends Entity {
   textureKey = "scroll-terror";
@@ -14,7 +13,6 @@ export default class ScrollOfTerror extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.scrollOfTerror;
     this.name = "Scroll of Terror";
     this.description = "Fills the nearest visible enemy with fear, making it flee.";
     this.consumable = true;

@@ -93,7 +93,7 @@ export function createHeroNavigation(services: HeroControlServices) {
         if (hero.canAct()) {
           const weapon = hero.currentWeapon();
           if (weapon) {
-            const ranged = weapon.range() > 0 ? weapon.attackTile || weapon.tile : 0;
+            const ranged = weapon.range() > 0 ? weapon.attackTile : 0;
             dungeon.attackEntity(hero.context, hero, entity, ranged, weapon.tint, weapon.damageType);
             hero.spendTurn('attack');
           }
@@ -176,7 +176,7 @@ export function createHeroNavigation(services: HeroControlServices) {
         if (entity && isHostile(entity)) {
           const weapon = hero.currentWeapon();
           if (!weapon) return;
-          const ranged = weapon.range() > 0 ? weapon.attackTile || weapon.tile : 0;
+          const ranged = weapon.range() > 0 ? weapon.attackTile : 0;
           dungeon.attackEntity(context, hero, entity, ranged, weapon.tint, weapon.damageType);
           hero.spendTurn('attack');
         }

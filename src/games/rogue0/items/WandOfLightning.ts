@@ -1,7 +1,7 @@
 import Wand from "./wand";
 import type { GameContext } from "../context";
 import { createWeakenedEffect } from "../effects";
-import { Sheet } from '../spriteFrames.ts';
+import { SHOCKBOLT_TEXTURE } from '../projectileTextures';
 
 export default class WandOfLightning extends Wand {
   constructor(context: GameContext, x?: number, y?: number) {
@@ -10,8 +10,8 @@ export default class WandOfLightning extends Wand {
       {
         name: "Wand of Lightning",
         description: "Zaps its target with lightning, weakening their blows. Arcs deal 150% damage to adjacent creatures, including you. Water carries shock through the connected pool. Bottled lightning does not spare its caster.",
-        tile: Sheet.wandOfLightning,
-        attackTile: Sheet.lightningProjectile,
+        attackTile: 1,
+        projectileTexture: SHOCKBOLT_TEXTURE,
         damageType: "shock",
         charges: 3
       },

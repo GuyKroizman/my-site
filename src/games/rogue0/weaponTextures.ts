@@ -98,17 +98,125 @@ export function weaponPixels(tier: number): number[] {
   return rows.flatMap(row => [...row].map(pixel => pixel === '.' ? -1 : palette[pixel]));
 }
 
+// Legacy single-tier weapons keep their own silhouettes instead of borrowing a
+// tiered blade, so a plain sword never reads as a tier-3 broadsword.
+export const LEGACY_WEAPON_ART = {
+  'weapon-dagger': [
+    '................',
+    '...........###..',
+    '..........#es#..',
+    '.........#es#...',
+    '........#esd#...',
+    '.......#esd#....',
+    '....##.#sd#.....',
+    '....#gb#d#......',
+    '.....#gg#.......',
+    '....#lhbg#......',
+    '...#lh#.##......',
+    '..##h#..........',
+    '....#...........',
+    '................',
+    '................',
+    '................'
+  ],
+  'weapon-sword': [
+    '................',
+    '...........###..',
+    '..........#es#..',
+    '..........#es#..',
+    '.........#esd#..',
+    '.........#esd#..',
+    '........#esdd#..',
+    '....###.#sdd#...',
+    '...#gbg##dd#....',
+    '....#gg#d#......',
+    '....#lhbg#......',
+    '...#lh#.#g#.....',
+    '..##h#...##.....',
+    '....#...........',
+    '................',
+    '................'
+  ],
+  'weapon-longsword': [
+    '............###.',
+    '...........#es#.',
+    '..........#es#..',
+    '..........#es#..',
+    '.........#esd#..',
+    '.........#esd#..',
+    '........#esdd#..',
+    '..##...#esdd#...',
+    '..#g#..#sdd#....',
+    '...#gb#dd#......',
+    '....#ggg#.......',
+    '...#lhbg#.......',
+    '..#lh#..#g#.....',
+    '.##h#....##.....',
+    '...#............',
+    '................'
+  ],
+  'weapon-axe': [
+    '................',
+    '.....##.........',
+    '....#es#........',
+    '...#esd#####....',
+    '...#esddddde#...',
+    '...#esddddde#...',
+    '....#sd#####....',
+    '.....##.........',
+    '......#lh#......',
+    '......#hh#......',
+    '......#lh#......',
+    '......#hh#......',
+    '......#lh#......',
+    '......#gb#......',
+    '.......##.......',
+    '................'
+  ],
+  'weapon-hammer': [
+    '................',
+    '................',
+    '....########....',
+    '...#esssssse#...',
+    '...#dddddddd#...',
+    '....#g####g#....',
+    '......#lh#......',
+    '......#hh#......',
+    '......#lh#......',
+    '......#hh#......',
+    '......#lh#......',
+    '......#hh#......',
+    '......#lh#......',
+    '......#gb#......',
+    '.......##.......',
+    '................'
+  ]
+} as const satisfies Record<string, readonly string[]>;
+
+export type LegacyWeaponTexture = keyof typeof LEGACY_WEAPON_ART;
+
+/** Pixels for a legacy single-tier weapon key; -1 is transparent. */
+export function legacyWeaponPixels(key: LegacyWeaponTexture): number[] {
+  return LEGACY_WEAPON_ART[key].flatMap(row => [...row].map(pixel => pixel === '.' ? -1 : PALETTE[pixel]));
+}
+
+function paint(scene: Phaser.Scene, key: string, pixels: number[], size = 16): void {
+  if (scene.textures.exists(key)) return;
+  const graphics = scene.make.graphics(undefined, false);
+  pixels.forEach((color, index) => {
+    if (color === -1) return;
+    graphics.fillStyle(color, 1);
+    graphics.fillRect(index % 16, Math.floor(index / 16), 1, 1);
+  });
+  graphics.generateTexture(key, size, 16);
+  graphics.destroy();
+}
+
 export function generateWeaponTextures(scene: Phaser.Scene): void {
   for (let tier = 2; tier <= 5; tier++) {
-    const key = WEAPON_TEXTURES[tier - 1]!;
-    if (scene.textures.exists(key)) continue;
-    const graphics = scene.make.graphics(undefined, false);
-    weaponPixels(tier).forEach((color, index) => {
-      if (color === -1) return;
-      graphics.fillStyle(color, 1);
-      graphics.fillRect(index % 16, Math.floor(index / 16), 1, 1);
-    });
-    graphics.generateTexture(key, 16, 16);
-    graphics.destroy();
+    paint(scene, WEAPON_TEXTURES[tier - 1]!, weaponPixels(tier));
+  }
+  for (const key of Object.keys(LEGACY_WEAPON_ART) as LegacyWeaponTexture[]) {
+    paint(scene, key, legacyWeaponPixels(key));
   }
 }

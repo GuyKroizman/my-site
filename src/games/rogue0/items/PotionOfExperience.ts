@@ -2,7 +2,6 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import dungeon from "../dungeon";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class PotionOfExperience extends Entity {
   type: EntityType = "item";
@@ -12,7 +11,6 @@ export default class PotionOfExperience extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.potionOfExperience;
     this.textureKey = "potion-gold";
     this.name = "Potion of Experience";
     this.description = "Grants a full level's worth of experience.";

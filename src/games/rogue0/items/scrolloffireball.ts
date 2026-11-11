@@ -2,7 +2,7 @@
 import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity } from "../entity";
-import { Sheet } from '../spriteFrames.ts';
+import { FIREBOLT_TEXTURE } from '../projectileTextures';
 
 export default class ScrollOfFireball extends Entity {
   type: EntityType = "item";
@@ -12,9 +12,9 @@ export default class ScrollOfFireball extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.scrollOfFireball;
     this.name = "Scroll of Fireball";
-    this.attackTile = Sheet.flameProjectile;
+    this.attackTile = 1;
+    this.projectileTexture = FIREBOLT_TEXTURE;
     this.damageType = "fire";
 
     this.init(context, x, y);

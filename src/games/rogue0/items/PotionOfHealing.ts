@@ -3,7 +3,6 @@ import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import { applyEffect, createPotionHealingEffect, cureDebuffs, POTION_HEAL_TICKS } from "../effects";
 import dungeon from "../dungeon";
-import { Sheet } from '../spriteFrames.ts';
 
 // The dungeon's only healing potion. Flies are the reliable source; floor
 // generation hands it out rarely.
@@ -15,7 +14,6 @@ export default class PotionOfHealing extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.potionOfHealing;
     this.textureKey = "potion-red";
     this.name = "Potion of Healing";
     this.description =

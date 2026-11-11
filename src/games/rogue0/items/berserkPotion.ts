@@ -5,14 +5,12 @@ import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import { removeEntity } from "../entity";
 import { applyEffect, createStrengthenedEffect } from "../effects";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class BerserkPotion extends Entity {
   name: string = "Berserk Potion";
   description: string = "That feels Powerful!";
   moving: boolean = false;
   type: EntityType = "item";
-  tile = Sheet.berserkPotion;
   textureKey = "potion-purple";
   tier = 1;
   equipSlot: "consumable" = "consumable";

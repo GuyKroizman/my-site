@@ -11,7 +11,6 @@ import { CURSE_NAMES, CURSE_FLAVOR } from "./curseData";
 import type { CurseId } from "./curseData";
 import { TILE_FOOTPRINT } from "./footprint.ts";
 import type { Footprint } from "./footprint.ts";
-import { Sheet } from './spriteFrames.ts';
 
 export type EntityType = "player" | "enemy" | "item";
 
@@ -245,17 +244,19 @@ export abstract class Entity {
   y?: number;
   moving: boolean = false;
   sprite: Phaser.GameObjects.Sprite | undefined;
-  tile: number = 0;
   name: string = "Unknown Entity";
   description: string = "Unknown Entity Description";
   type: EntityType = "enemy";
   UISprite?: Phaser.GameObjects.Sprite;
   UIText?: Phaser.GameObjects.Text;
   context!: GameContext;
-  attackTile: number = Sheet.defaultAttack;
+  /** Truthy marker that an entity attacks at range; the bolt art lives in
+   * `projectileTexture`, never in an atlas frame. */
+  attackTile: number = 1;
   projectileTexture?: string;
   tint: number | undefined = undefined;
-  // Optional texture key (e.g. generated potion flasks). Falls back to "tiles".
+  // Dedicated texture key (generated or a checked-in PNG). Without one the
+  // sprite falls back to the generated "unknown-item" marker.
   textureKey?: string;
   consumable: boolean = false;
   isContainer = false;
@@ -522,11 +523,12 @@ export abstract class Entity {
 
   // Texture + frame to use when rendering this entity's sprite.
   get spriteTextureKey(): string {
-    return consumableAppearance(this) ?? "foreground-tiles";
+    return consumableAppearance(this) ?? "unknown-item";
   }
 
+  // Every entity now draws a dedicated texture, whose only frame is 0.
   get spriteFrame(): number {
-    return this.textureKey ? 0 : this.tile;
+    return 0;
   }
 
   init(context: GameContext, x?: number, y?: number) {
@@ -728,7 +730,7 @@ function createSprite(context: GameContext, x: number, y: number, tile: number, 
   const sprite = context.scene!.add.sprite(
     xx || 0,
     yy || 0,
-    textureKey ?? "foreground-tiles",
+    textureKey ?? "unknown-item",
     tile
   );
   sprite.setOrigin(0);

@@ -1,6 +1,5 @@
 import Ring from "./ring";
 import type { GameContext } from "../context";
-import { Sheet } from '../spriteFrames.ts';
 
 const ACCURACY_BONUS = 5;
 
@@ -11,7 +10,6 @@ export default class RingOfAccuracy extends Ring {
       {
         name: "Ring of Accuracy",
         description: `Grants +${ACCURACY_BONUS} accuracy while equipped.`,
-        tile: Sheet.ringOfAccuracy
       },
       x,
       y

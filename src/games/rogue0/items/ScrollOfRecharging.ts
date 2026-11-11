@@ -3,7 +3,6 @@ import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import dungeon from "../dungeon";
 import Wand from "./wand";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class ScrollOfRecharging extends Entity {
   textureKey = "scroll-recharging";
@@ -14,7 +13,6 @@ export default class ScrollOfRecharging extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.scrollOfRecharging;
     this.name = "Scroll of Recharging";
     this.description = "Refills the charges of your equipped wand.";
     this.consumable = true;

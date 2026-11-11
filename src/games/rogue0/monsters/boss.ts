@@ -30,7 +30,6 @@ export default class Boss extends Monster {
     super(context, {
       name: "Bone Lord",
       description: "A mountain of gelatinous flesh with one great eye and a mouth full of fangs. The guardian of the dungeon depths. Immune to terror. Extremely dangerous.",
-      tile: 0,
       textureKey: BOSS_TEXTURE,
       healthPoints: 60,
       movementSpeed: 1,

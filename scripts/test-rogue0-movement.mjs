@@ -741,7 +741,7 @@ assert.equal(walkerB.x, 8, 'movement outside the body still works');
 walkContext.entities = walkContext.entities.filter(entity => entity !== wide);
 
 // Projectiles stop at the nearest living actor, regardless of list order.
-const shooter = Object.assign(actor('player'), { x: 0, y: 0 });
+const shooter = Object.assign(actor('player'), { x: 0, y: 0, projectileTexture: 'test-bolt' });
 const rear = Object.assign(actor('enemy'), { x: 4, y: 0 });
 const front = Object.assign(actor('enemy'), { x: 2, y: 0 });
 const loot = Object.assign(actor('item'), { x: 1, y: 0 });
@@ -758,14 +758,17 @@ assert.equal(realDungeon.firstActorInPath(shotContext, shooter, 4, 4), front);
 front.y = rear.y = 0;
 let shotTween;
 let hitVictim;
-const projectile = { setOrigin() { return this; }, setDepth() { return this; }, destroy() {} };
+const projectile = { setOrigin() { return this; }, setDepth() { return this; },
+  setRotation() { return this; }, destroy() {} };
 shotContext.scene = { add: { sprite: () => projectile }, tweens: { add(t) { shotTween = t; } } };
 shotContext.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
-shooter.currentWeapon = () => undefined;
+// Ranged attacks always draw a generated bolt, so the hero needs a weapon
+// that names one; the flight still stops at the blocking monster.
+shooter.currentWeapon = () => ({ projectileTexture: 'test-bolt' });
 const originalResolve = realDungeon.resolveAndApplyAttack;
 realDungeon.resolveAndApplyAttack = (ctx, attacker, victim) => { hitVictim = victim; };
 realDungeon.attackEntity(shotContext, shooter, rear, 1);
-assert.equal(shotTween.x, 32, 'animation stops at the blocking monster');
+assert.equal(shotTween.x, 40, 'animation stops at the blocking monster (32 + half-tile origin)');
 shotTween.onComplete();
 assert.equal(hitVictim, front, 'damage targets the blocking monster');
 realDungeon.resolveAndApplyAttack = originalResolve;

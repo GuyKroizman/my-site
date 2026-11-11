@@ -1,6 +1,5 @@
 import Ring from "./ring";
 import type { GameContext } from "../context";
-import { Sheet } from '../spriteFrames.ts';
 
 const EVASION_BONUS = 5;
 
@@ -11,7 +10,6 @@ export default class RingOfEvasion extends Ring {
       {
         name: "Ring of Evasion",
         description: `Grants +${EVASION_BONUS} evasion while equipped.`,
-        tile: Sheet.ringOfEvasion
       },
       x,
       y

@@ -2,7 +2,6 @@ import type { GameContext } from "../context";
 import type { EntityType } from "../entity";
 import { Entity, removeEntity } from "../entity";
 import { applyEffect, createFrozenEffect } from "../effects";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class PotionOfFrost extends Entity {
   type: EntityType = "item";
@@ -12,7 +11,6 @@ export default class PotionOfFrost extends Entity {
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
-    this.tile = Sheet.potionOfFrost;
     this.textureKey = "potion-blue";
     this.name = "Potion of Frost";
     this.description = "Cold to the touch. Thrown, it freezes and chills a 4x4 splash and ices over water; fire elementals take ice damage. Drinking it freezes you.";
