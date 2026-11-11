@@ -1658,7 +1658,7 @@ export class HootGameScene extends Phaser.Scene {
     if (this.isTransitioning) return;
 
     // Check if all enemies are destroyed
-    let stageComplete = false;
+    let stageComplete: boolean;
 
     if (this.currentStage === 4) {
       // Stage 4: check if enemy2 is destroyed

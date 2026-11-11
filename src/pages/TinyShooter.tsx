@@ -186,12 +186,12 @@ export default function TinyShooter() {
 
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
-      <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white z-30">
+      <header className="shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white z-30">
         <h1 className="text-lg font-semibold">Tiny Shooter</h1>
         {uiState === 'playing' ? (
           <button
             onClick={handleBackToMenu}
-            className="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 text-sm"
+            className="px-3 py-1 rounded-sm bg-gray-600 hover:bg-gray-500 text-sm"
           >
             Menu
           </button>
@@ -315,7 +315,7 @@ export default function TinyShooter() {
       </div>
 
       {uiState === 'menu' && (
-        <div className="flex-1 min-h-0 w-full flex flex-col bg-gradient-to-br from-gray-800 to-gray-900 z-20">
+        <div className="flex-1 min-h-0 w-full flex flex-col bg-linear-to-br from-gray-800 to-gray-900 z-20">
           <div className="flex-1 flex flex-col items-center justify-center">
             <h2 className="text-3xl font-bold text-white mb-2">Tiny Shooter</h2>
             <p className="text-gray-300 text-sm mb-6">Defend the center diamond from endless spawned robots</p>

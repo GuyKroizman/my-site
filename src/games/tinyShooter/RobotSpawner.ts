@@ -359,7 +359,7 @@ export class RobotSpawner implements LevelActor {
 
       let t1 = (axisMin - start) / delta
       let t2 = (axisMax - start) / delta
-      let axisNormal = 0
+      let axisNormal: number
 
       if (t1 > t2) {
         const tmp = t1

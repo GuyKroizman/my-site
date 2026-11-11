@@ -351,7 +351,7 @@ export default function AnimViewer() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-3 rounded-3xl border border-slate-800 bg-slate-900/70 px-5 py-4 backdrop-blur sm:flex-row sm:items-end sm:justify-between">
+        <header className="flex flex-col gap-3 rounded-3xl border border-slate-800 bg-slate-900/70 px-5 py-4 backdrop-blur-sm sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Link to="/" className="text-sm text-sky-300 underline underline-offset-4 hover:text-sky-200">
               Back to Menu
@@ -375,7 +375,7 @@ export default function AnimViewer() {
         </header>
 
         <section className="grid flex-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <aside className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5 backdrop-blur">
+          <aside className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5 backdrop-blur-sm">
             <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Controls</h2>
 
             <div className="mt-4 space-y-4">
@@ -397,7 +397,7 @@ export default function AnimViewer() {
                     <select
                       value={selectedClip}
                       onChange={(event) => handleClipChange(event.target.value)}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-400"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-hidden transition focus:border-sky-400"
                     >
                       {clipNames.map((clipName) => (
                         <option key={clipName} value={clipName}>
@@ -425,7 +425,7 @@ export default function AnimViewer() {
             </div>
           </aside>
 
-          <section className="flex min-h-[420px] flex-col overflow-hidden rounded-[2rem] border border-slate-800 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_rgba(15,23,42,0.95)_50%)]">
+          <section className="flex min-h-[420px] flex-col overflow-hidden rounded-4xl border border-slate-800 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),rgba(15,23,42,0.95)_50%)]">
             <div className="border-b border-slate-800 px-5 py-3 text-sm text-slate-400">
               Viewer
             </div>

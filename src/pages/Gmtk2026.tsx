@@ -12,7 +12,7 @@ function isMobileDevice(): boolean {
 }
 
 export default function Gmtk2026() {
-  const phaserRef = useRef<Game>()
+  const phaserRef = useRef<Game | undefined>(undefined)
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export default function Gmtk2026() {
   if (isMobile) {
     return (
       <div className="w-full h-screen flex flex-col overflow-hidden bg-gray-800">
-        <div className="flex justify-between items-center p-4 bg-gray-800 text-white flex-shrink-0">
+        <div className="flex justify-between items-center p-4 bg-gray-800 text-white shrink-0">
           <h1 className="text-2xl font-bold">Seasons of Life</h1>
           <Link to="/" className="text-xl text-blue-400 underline hover:text-blue-300">
             Back to Menu
@@ -91,7 +91,7 @@ export default function Gmtk2026() {
 
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden">
-      <div className="flex justify-between items-center p-4 bg-gray-800 text-white flex-shrink-0">
+      <div className="flex justify-between items-center p-4 bg-gray-800 text-white shrink-0">
         <h1 className="text-2xl font-bold">Seasons of Life</h1>
         <Link to="/" className="text-xl text-blue-400 underline hover:text-blue-300">
           Back to Menu

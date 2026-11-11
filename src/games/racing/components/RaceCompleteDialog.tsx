@@ -62,7 +62,7 @@ export function RaceCompleteDialog({
         <div className="absolute inset-0 bg-black/40" />
         <div className="max-w-4xl w-full grid grid-cols-[minmax(0,1fr)_auto] gap-4 items-center relative">
           <div
-            className="min-w-0 bg-black/60 backdrop-blur-sm rounded-lg p-4"
+            className="min-w-0 bg-black/60 backdrop-blur-xs rounded-lg p-4"
             style={{ animation: dismissing ? 'slideOutLeft 0.5s ease-in forwards' : 'slideFromLeft 0.6s ease-out 2s both' }}
           >
             <h2 className="text-xl font-bold text-white mb-1">Race Complete!</h2>
@@ -103,7 +103,7 @@ export function RaceCompleteDialog({
             </div>
 
             {/* Player Result */}
-            <div className="p-3 rounded-lg bg-red-900/70 backdrop-blur-sm">
+            <div className="p-3 rounded-lg bg-red-900/70 backdrop-blur-xs">
               <p className="text-white font-bold text-base mb-1">
                 You finished in position {raceResult.playerPosition}!
               </p>
@@ -129,7 +129,7 @@ export function RaceCompleteDialog({
             </div>
           </div>
           <div
-            className="flex items-center justify-end bg-black/60 backdrop-blur-sm rounded-lg p-4"
+            className="flex items-center justify-end bg-black/60 backdrop-blur-xs rounded-lg p-4"
             style={{ animation: dismissing ? 'slideOutRight 0.5s ease-in forwards' : 'slideFromRight 0.6s ease-out 2.3s both' }}
           >
             <button
@@ -157,7 +157,7 @@ export function RaceCompleteDialog({
             backgroundPosition: 'center calc(100% + 100px)'
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/12 to-black/28" />
+        <div className="absolute inset-0 bg-linear-to-r from-black/40 via-black/12 to-black/28" />
         <div className="relative w-full max-w-5xl text-white">
           <div className="grid gap-4 md:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.9fr)] md:items-start">
             <div className="min-w-0">

@@ -49,7 +49,7 @@ function VictoryOverlay({ onBackToMenu }: { onBackToMenu: () => void }) {
     audio.play().catch((err) => console.warn('Victory sound failed:', err))
   }, [])
   return (
-    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-gradient-to-b from-yellow-900/80 to-black/80">
+    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-linear-to-b from-yellow-900/80 to-black/80">
       <div className="text-yellow-400 text-4xl font-bold mb-4 animate-pulse">Victory!</div>
       <p className="text-yellow-100 text-lg mb-6">You completed all levels!</p>
       <button
@@ -65,7 +65,7 @@ function VictoryOverlay({ onBackToMenu }: { onBackToMenu: () => void }) {
 function IPhoneBlockScreen() {
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900">
-      <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white">
+      <header className="shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white">
         <h1 className="text-lg font-semibold">The Mask</h1>
         <Link to="/" className="text-base text-blue-400 underline hover:text-blue-300">
           Back to Home
@@ -186,12 +186,12 @@ export default function TheMask() {
   return (
     <div className="w-full h-screen flex flex-col bg-gray-900 overflow-hidden">
       {!hideHeader && (
-        <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white z-30">
+        <header className="shrink-0 flex items-center justify-between px-4 py-2 bg-gray-800/80 text-white z-30">
           <h1 className="text-lg font-semibold">The Mask</h1>
           {uiState === 'playing' || uiState === 'paused' || uiState === 'gameOver' || uiState === 'victory' ? (
             <button
               onClick={handleBackToMenu}
-              className="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500 text-sm"
+              className="px-3 py-1 rounded-sm bg-gray-600 hover:bg-gray-500 text-sm"
             >
               Menu
             </button>
@@ -220,7 +220,7 @@ export default function TheMask() {
       </div>
 
       {uiState === 'menu' && (
-        <div className="flex-1 min-h-0 w-full flex flex-col bg-gradient-to-br from-gray-800 to-gray-900 z-20">
+        <div className="flex-1 min-h-0 w-full flex flex-col bg-linear-to-br from-gray-800 to-gray-900 z-20">
           <MenuScreen isPortraitMode={isPortraitMode} onStartGame={startGame} isMusicMuted={isMusicMuted} onToggleMute={handleToggleMute} />
         </div>
       )}

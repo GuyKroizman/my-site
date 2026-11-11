@@ -216,7 +216,6 @@ export function getPathProgress(path: THREE.Vector3[], position: THREE.Vector3, 
           const nextProgress = (nextSegmentIndex + tNext) / totalSegments
           const progressDiff = getProgressDiff(nextProgress, previousProgress)
           if (progressDiff >= PROGRESS_BACKTRACK_TOLERANCE && distanceNext < minDistance * 0.8) {
-            minDistance = distanceNext
             bestProgress = nextProgress
           }
         }
@@ -240,7 +239,6 @@ export function getPathProgress(path: THREE.Vector3[], position: THREE.Vector3, 
       if (distance < MAX_PROGRESS_SEARCH_DISTANCE) {
         const segmentProgress = t / totalSegments
         if (getProgressDiff(segmentProgress, previousProgress) < -PROGRESS_WRAP_THRESHOLD) {
-          minDistance = distance
           bestProgress = segmentProgress
         }
       }
