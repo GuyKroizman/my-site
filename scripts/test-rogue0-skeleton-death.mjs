@@ -2,7 +2,7 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('skeleton-death');
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { playSkeletonDeath, skeletonBonePose, SKELETON_BONES, SKELETON_DEATH_DURATION } from '../src/games/rogue0/monsters/skeletonDeathVisuals.ts';
+import { playSkeletonDeath, skeletonBonePose, SKELETON_BONES, SKELETON_DEATH_DURATION, SKELETON_FRAME_WIDTH, SKELETON_FRAME_HEIGHT } from '../src/games/rogue0/monsters/skeletonDeathVisuals.ts';
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 
 function fixture() {
@@ -23,13 +23,17 @@ function fixture() {
     };
     images.push(image); return image;
   } }, tweens: { add(config) { tweens.push(config); }, killTweensOf(target) { killed.push(target); } } };
-  const sprite = { x: 32, y: 48, displayOriginX: 0, displayOriginY: 0,
+  // Matches the real sprite: 16x22 artwork, feet-anchored origin.
+  const originY = 1 - 16 / SKELETON_FRAME_HEIGHT;
+  const sprite = { x: 32, y: 48, displayOriginX: 0, displayOriginY: originY,
     scaleX: 1, scaleY: 1, depth: 55, alpha: 0.8, visible: true, tintTopLeft: 0xffffff,
-    frame: { name: 323, width: 16, height: 16, cutX: 493, cutY: 102, sourceIndex: 0 }, texture,
+    frame: { name: 323, width: SKELETON_FRAME_WIDTH, height: SKELETON_FRAME_HEIGHT,
+      cutX: 493, cutY: 102, sourceIndex: 0 }, texture,
     destroy() { this.destroyed = true; } };
   const context = { scene, visibleTiles: new Set(['2,3']), entities: [] };
   const tick = elapsed => { const tween = tweens[0]; tween.targets.elapsed = elapsed; tween.onUpdate(); };
-  return { context, sprite, images, tweens, killed, frames, events, tick };
+  const top = sprite.y - sprite.displayOriginY;
+  return { context, sprite, images, tweens, killed, frames, events, tick, top };
 }
 
 for (let i = 0; i < SKELETON_BONES.length; i++) {
@@ -54,13 +58,13 @@ for (let i = 0; i < SKELETON_BONES.length; i++) {
   f.images.forEach((image, i) => {
     const bone = SKELETON_BONES[i];
     assert.equal(image.x, 32 + bone.x + bone.width / 2);
-    assert.equal(image.y, 48 + bone.y + bone.height / 2);
+    assert.equal(image.y, f.top + bone.y + bone.height / 2);
     assert.equal(image.depth, 55, 'pieces remain under fog');
     assert.equal(image.alpha, 0.8);
     assert.deepEqual(f.frames.get(image.frame), [0, 493 + bone.x, 102 + bone.y, bone.width, bone.height]);
   });
   f.tick(600);
-  assert.ok(f.images[0].y > 58, 'skull falls from head height to the floor');
+  assert.ok(f.images[0].y > f.top + 12, 'skull falls from head height to the floor');
   f.context.visibleTiles.clear(); f.tick(610);
   assert.ok(f.images.every(image => !image.visible), 'leaving sight hides detached bones');
   f.context.visibleTiles.add('2,3'); f.tick(780);

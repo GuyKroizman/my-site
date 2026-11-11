@@ -2,14 +2,18 @@ import type Phaser from 'phaser';
 import type { GameContext } from '../context';
 
 // Cut the existing pixel art into anatomical pieces, rather than substituting
-// generic particles. Rectangles are local to the skeleton's 16x22 sprite.
+// generic particles. Rectangles are local to the skeleton's 16x22 sprite and
+// together cover it exactly: skull + neck, ribcage, both arms, both legs (the
+// ragged shroud falls with the legs it covers).
+export const SKELETON_FRAME_WIDTH = 16;
+export const SKELETON_FRAME_HEIGHT = 22;
 export const SKELETON_BONES = [
-  { name: 'skull', x: 5, y: 1, width: 6, height: 6, drift: 2, angle: 25, fall: 380 },
-  { name: 'left-arm', x: 2, y: 7, width: 4, height: 6, drift: -3, angle: -85, fall: 280 },
-  { name: 'ribs', x: 6, y: 7, width: 4, height: 6, drift: 0, angle: 90, fall: 320 },
-  { name: 'right-arm', x: 10, y: 7, width: 4, height: 6, drift: 3, angle: 85, fall: 300 },
-  { name: 'left-leg', x: 5, y: 13, width: 1, height: 2, drift: -2, angle: -90, fall: 180 },
-  { name: 'right-leg', x: 10, y: 13, width: 1, height: 2, drift: 2, angle: 90, fall: 210 },
+  { name: 'skull', x: 4, y: 1, width: 8, height: 8, drift: 2, angle: 25, fall: 380 },
+  { name: 'left-arm', x: 1, y: 9, width: 3, height: 8, drift: -3, angle: -85, fall: 280 },
+  { name: 'ribs', x: 4, y: 9, width: 8, height: 6, drift: 0, angle: 90, fall: 320 },
+  { name: 'right-arm', x: 12, y: 9, width: 3, height: 8, drift: 3, angle: 85, fall: 300 },
+  { name: 'left-leg', x: 4, y: 15, width: 4, height: 7, drift: -2, angle: -90, fall: 180 },
+  { name: 'right-leg', x: 8, y: 15, width: 4, height: 7, drift: 2, angle: 90, fall: 210 },
 ] as const;
 export const SKELETON_DEATH_DURATION = 900;
 
@@ -30,7 +34,8 @@ export function skeletonBonePose(index: number, elapsed: number) {
 /** Owns and destroys the detached sprite; returns false for the normal fallback. */
 export function playSkeletonDeath(context: GameContext, sprite: Phaser.GameObjects.Sprite): boolean {
   const scene = context.scene;
-  if (!scene || sprite.frame.width !== 16 || sprite.frame.height !== 16) return false;
+  if (!scene || sprite.frame.width !== SKELETON_FRAME_WIDTH ||
+    sprite.frame.height !== SKELETON_FRAME_HEIGHT) return false;
   // Never reveal a death in the fog (including status damage off-screen).
   if (!sprite.visible || sprite.alpha <= 0) {
     sprite.destroy();
@@ -40,7 +45,8 @@ export function playSkeletonDeath(context: GameContext, sprite: Phaser.GameObjec
   const sx = Math.abs(sprite.scaleX), sy = Math.abs(sprite.scaleY);
   const left = sprite.x - sprite.displayOriginX * sx;
   const top = sprite.y - sprite.displayOriginY * sy;
-  const ground = top + 15 * sy;
+  // Feet sit on the last artwork row, whatever the frame height.
+  const ground = top + (sprite.frame.height - 1) * sy;
   const alpha = sprite.alpha;
   const fragments = SKELETON_BONES.map(bone => {
     const name = `skeleton-death-${sprite.frame.name}-${bone.name}`;
