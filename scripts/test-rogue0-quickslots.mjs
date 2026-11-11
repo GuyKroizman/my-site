@@ -67,8 +67,11 @@ for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
   });
   assert.match(unknownWand.displayName, /^Wand “.+” \?$/, 'backpack wands retain their category and hide the upgrade level');
   assert.equal(unknownWand.unidentifiedTextureKey, 'unknown-wand');
+  unknownWand.charges = 2;
+  assert.equal(unknownWand.chargeBadge, '', 'unidentified wands hide their remaining zaps');
   unknownWand.identified = true;
   assert.equal(unknownWand.displayName, name);
+  assert.equal(unknownWand.chargeBadge, '2', 'identified wands show their remaining zaps');
   unknownWand.level = 2;
   assert.equal(unknownWand.displayName, `${name} +2`);
 }
@@ -262,7 +265,10 @@ for (const identified of [false, true]) {
 }
 displayed = Object.assign(Object.create(Wand.prototype), { charges: 3, count: 1 });
 pane.refresh();
-assert.equal(label.text, '3', 'wands show charges, not stack count');
+assert.equal(label.text, '', 'unidentified wands hide their remaining zaps');
+displayed.identified = true;
+pane.refresh();
+assert.equal(label.text, '3', 'identified wands show charges, not stack count');
 displayed = undefined;
 pane.refresh();
 assert.equal(icon.visible, false, 'empty slot hides its previous item');

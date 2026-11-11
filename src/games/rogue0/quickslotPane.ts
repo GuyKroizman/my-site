@@ -64,7 +64,7 @@ export class QuickslotPane {
       icon.setTexture(item.spriteTextureKey, item.spriteFrame);
       icon.clearTint();
       if (item.tint) icon.setTint(item.tint);
-      label.setText(item instanceof Wand ? `${item.charges}` : item.count > 1 ? `${item.count}` : '');
+      label.setText(item instanceof Wand ? item.chargeBadge : item.count > 1 ? `${item.count}` : '');
     });
   }
 }

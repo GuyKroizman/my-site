@@ -53,6 +53,12 @@ export default abstract class Wand extends Entity {
     return "unknown-wand";
   }
 
+  // Badge shown beside the wand in quick slots. An unidentified wand keeps its
+  // remaining zaps hidden, matching the unknown kind and upgrade level.
+  get chargeBadge(): string {
+    return this.identified ? `${this.charges}` : "";
+  }
+
 
   constructor(context: GameContext, config: WandConfig, x?: number, y?: number) {
     super();
