@@ -365,7 +365,7 @@ const Monster = load('src/games/rogue0/monsters/monster.ts', {
   Phaser: { Math: { Between: () => 8 } }
 }).default;
 const Boss = load('src/games/rogue0/monsters/boss.ts', {
-  Monster, dungeon: dungeonStub, Gem: class {}, HolyPotion: class {}, PotionOfHealing: class {},
+  Monster, dungeon: dungeonStub, Gem: class {}, PotionOfHealing: class {},
   createCrippledEffect: () => ({ id: 'crippled' }),
   createWeakenedEffect: () => ({ id: 'weakened' }),
   BOSS_TEXTURE, generateBossTexture

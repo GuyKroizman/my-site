@@ -1,6 +1,5 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
-import HolyPotion from "../items/holyPotion";
 import { createBleedingEffect } from "../effects";
 import { GOBLIN_ARROW_TEXTURE, generateGoblinArrowTexture } from "../projectileTextures";
 
@@ -24,7 +23,9 @@ export default class Goblin extends Monster {
       meleeDamage: 2,
       attackTile: 10 * 49 + 15,
       projectileTexture: GOBLIN_ARROW_TEXTURE,
-      loot: [false, false, HolyPotion]
+      // Loot is currency only: curse relief belongs to the Scroll of Remove
+      // Curse, which goblins never carry.
+      loot: []
     }, x, y);
   }
 

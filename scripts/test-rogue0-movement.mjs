@@ -543,7 +543,7 @@ class DeathTestMonster {
   onDestroy() { this.context.deaths++; }
 }
 const Skeleton = load('src/games/rogue0/monsters/skelaton.ts', {
-  Monster: DeathTestMonster, Gem: class {}, HolyPotion: class {}, BerserkPotion: class {},
+  Monster: DeathTestMonster, Gem: class {}, BerserkPotion: class {},
   dungeon: { log() {} }
 }).default;
 const deathContext = { entities: [], deaths: 0 };

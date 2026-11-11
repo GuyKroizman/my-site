@@ -291,8 +291,8 @@ export function createStrengthenedEffect(duration = 10): StatusEffect {
 }
 
 // Ongoing penalty applied by cursed gear (e.g. the Cursed Gem) while it stays
-// equipped. `manualExpiry` keeps it active until the curse is lifted via
-// Remove Curse / Holy Potion and the item is unequipped.
+// equipped. `manualExpiry` keeps it active until the curse is lifted with a
+// Scroll of Remove Curse and the item is unequipped.
 export function createCursedEffect(): StatusEffect {
   return {
     id: "cursed",

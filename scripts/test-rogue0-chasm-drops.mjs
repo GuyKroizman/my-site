@@ -274,7 +274,7 @@ const openMap = (w = 4, h = 2) => Array.from({ length: h }, () => Array(w).fill(
   const { decodeRunSave, restoreRunState } = load('src/games/rogue0/runPersistence.ts', {
     decodeGraph, saveRegistry: registry,
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
-    ScrollOfUpgrade: SavedGem, Ring: class {}, Wand: class {},
+    ScrollOfUpgrade: SavedGem, ScrollOfRemoveCurse: SavedGem, Ring: class {}, Wand: class {},
     TieredWeapon: class {}, WEAPON_TEXTURES: [],
     Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
     CHEST_TEXTURE: 'chest-closed',

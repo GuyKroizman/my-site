@@ -10,6 +10,7 @@ import { restoreEffects } from './saveEffects';
 import BasicHero from './classes/basicHero';
 import classes from './classes';
 import ScrollOfUpgrade from './items/ScrollOfUpgrade';
+import ScrollOfRemoveCurse from './items/ScrollOfRemoveCurse';
 import Ring from './items/ring';
 import Wand from './items/wand';
 import Chest from './items/chest';
@@ -67,6 +68,18 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     }
     if (entity instanceof ScrollOfUpgrade) {
       const defaults = new ScrollOfUpgrade(context);
+      Object.assign(entity, {
+        requiresItemTarget: defaults.requiresItemTarget,
+        itemTargetTitle: defaults.itemTargetTitle,
+        noItemTargetsMessage: defaults.noItemTargetsMessage,
+        description: defaults.description,
+      });
+    }
+    // Saves written while the scroll cleansed the whole pack carry no target
+    // fields (constructors do not rerun on load), so restore the single-item
+    // targeting defaults here.
+    if (entity instanceof ScrollOfRemoveCurse) {
+      const defaults = new ScrollOfRemoveCurse(context);
       Object.assign(entity, {
         requiresItemTarget: defaults.requiresItemTarget,
         itemTargetTitle: defaults.itemTargetTitle,

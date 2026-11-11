@@ -269,7 +269,13 @@ export function createInventoryActions(services: InventoryServices) {
       if (!equippedItems(owner).some(item => item.cursed && item.curseEffectId === 'cursed')) {
         services.removeEffect(owner, 'cursed');
       }
-      services.log(owner.context, lifted ? 'The curse is lifted from your equipment.' : 'Nothing is cursed.');
+      // Name the cleansed item when a single target was chosen; the global
+      // path stays for scripted/test cleansing of every carried item.
+      services.log(owner.context, target
+        ? lifted
+          ? `The curse is lifted from ${target.displayName}.`
+          : `${target.displayName} is not cursed.`
+        : lifted ? 'The curse is lifted from your equipment.' : 'Nothing is cursed.');
     }
   };
 }

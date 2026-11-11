@@ -160,7 +160,9 @@ window.openMenu(shield);
 window.doAction('equip', shield);
 assert.equal(window.isOpen(), false);
 assert.equal(context.scene.input.enabled, true);
-// Holy Potion uses the same inventory modal lifecycle, but targets one curse.
+// The Remove Curse scroll uses the same inventory modal lifecycle and targets
+// any carried item: dimming clean items would leak the curse state, so a wrong
+// guess wastes the scroll instead.
 {
   const { identify } = load('src/games/rogue0/entity.ts');
   const dungeon = { log(ctx, message) { ctx.messages.unshift(message); } };
@@ -171,7 +173,7 @@ assert.equal(context.scene.input.enabled, true);
     CURSE_GENERATION_CHANCE: curseData.CURSE_GENERATION_CHANCE,
     CURSE_TABLES: curseData.CURSE_TABLES,
   });
-  const HolyPotion = load('src/games/rogue0/items/holyPotion.ts', { Entity, identify, removeEntity, dungeon }).default;
+  const ScrollOfRemoveCurse = load('src/games/rogue0/items/ScrollOfRemoveCurse.ts', { Entity, identify, removeEntity }).default;
   const CursedGem = load('src/games/rogue0/items/cursedGem.ts', {
     Entity, identify, removeEntity, rerollCurseId, CURSE_NAMES: curseData.CURSE_NAMES,
   }).default;
@@ -185,8 +187,8 @@ assert.equal(context.scene.input.enabled, true);
     refreshUI() {}, clearItemUI() {}, spendTurn() { uses++; },
   });
   ctx.player = hero;
-  const potion = new HolyPotion(ctx);
-  potion.count = 2;
+  const removeScroll = new ScrollOfRemoveCurse(ctx);
+  removeScroll.count = 2;
   const first = Object.assign(new Entity(), {
     context: ctx, type: 'item', equipSlot: 'weapon', cursed: true, curseId: 'wayward',
     name: 'Cursed Sword', identified: false,
@@ -195,39 +197,59 @@ assert.equal(context.scene.input.enabled, true);
     context: ctx, type: 'item', equipSlot: 'armor', cursed: true, curseId: 'bulk',
     name: 'Cursed Shield', identified: false,
   });
-  hero.weapon = first; hero.armor = second; hero.backpack = [potion];
-  ctx.entities = [potion, first, second];
+  const clean = Object.assign(new Entity(), {
+    context: ctx, type: 'item', equipSlot: 'ring', cursed: false, curseId: '',
+    name: 'Plain Ring', identified: false,
+  });
+  hero.weapon = first; hero.armor = second; hero.backpack = [removeScroll, clean];
+  ctx.entities = [removeScroll, first, second, clean];
+  assert.equal(removeScroll.identified, false, 'a found remove-curse scroll starts unidentified');
+  // Cursed and clean items must be indistinguishable in the picker.
+  assert.equal(removeScroll.canTargetItem(clean), true, 'a clean item is still a legal target');
+  assert.equal(removeScroll.canTargetItem(first), true);
+  assert.equal(removeScroll.canTargetItem(removeScroll), false, 'the scroll cannot target itself');
   const picker = new InventoryWindow({}, ctx);
   picker.render = () => {}; picker.clearObjects = () => {};
-  assert.equal(hero.useItem(potion), false);
+  assert.equal(hero.useItem(removeScroll), false);
   assert.equal(picker.isOpen(), true);
-  assert.equal(picker.targetedItem, potion);
-  assert.equal(uses, 0); assert.equal(potion.count, 2);
+  assert.equal(picker.targetedItem, removeScroll);
+  assert.equal(uses, 0); assert.equal(removeScroll.count, 2);
   picker.dismiss();
   assert.equal(picker.targetedItem, undefined);
-  assert.equal(uses, 0, 'cancelling Holy Potion is free');
-  assert.equal(potion.count, 2);
-  hero.useItem(potion);
-  picker.openMenu(potion);
+  assert.equal(uses, 0, 'cancelling Remove Curse is free');
+  assert.equal(removeScroll.count, 2);
+  hero.useItem(removeScroll);
+  picker.openMenu(removeScroll);
   assert.equal(picker.isOpen(), true, 'invalid target does not consume or close');
-  picker.openMenu(first);
+  // A wrong guess spends the scroll: no curse is lifted, the item stays secret.
+  picker.openMenu(clean);
   assert.equal(picker.isOpen(), false);
+  assert.equal(clean.cursed, false);
+  assert.equal(clean.identified, false, 'a wasted scroll reveals nothing about the item');
+  assert.match(ctx.messages[0], /is not cursed\./);
+  assert.equal(removeScroll.identified, true, 'reading the scroll identifies the scroll');
+  assert.equal(removeScroll.count, 1); assert.ok(ctx.entities.includes(removeScroll));
+  assert.equal(uses, 1, 'confirmation spends exactly one use action, wasted or not');
+  hero.useItem(removeScroll); picker.openMenu(first);
+  assert.equal(uses, 2);
   assert.equal(first.cursed, false); assert.equal(second.cursed, true);
   assert.equal(first.curseId, '');
   assert.match(first.displayDescription, /Curse lifted: this item is no longer cursed/);
-  assert.equal(first.identified, true);
-  assert.equal(potion.count, 1); assert.ok(ctx.entities.includes(potion));
-  assert.equal(uses, 1, 'confirmation spends exactly one use action');
-  hero.useItem(potion); picker.openMenu(second);
-  assert.equal(uses, 2);
-  assert.equal(second.cursed, false);
-  assert.ok(!hero.getAllItems().includes(potion));
-  assert.ok(!ctx.entities.includes(potion));
-  const spare = new HolyPotion(ctx); hero.backpack.push(spare);
+  assert.equal(first.identified, false, 'cleansing a curse never identifies the item');
+  assert.ok(!hero.getAllItems().includes(removeScroll));
+  assert.ok(!ctx.entities.includes(removeScroll));
+  // Equipped gear is carried too, so empty every slot to reach the "nothing to
+  // cleanse" branch.
+  hero.weapon = undefined; hero.armor = undefined;
+  hero.backpack = [new ScrollOfRemoveCurse(ctx)];
+  const spare = hero.backpack[0];
   hero.useItem(spare);
-  assert.equal(picker.isOpen(), false, 'no eligible target leaves potion unspent');
+  assert.equal(picker.isOpen(), false, 'nothing else carried leaves the scroll unspent');
+  assert.equal(ctx.messages[0], 'You have no other items to cleanse.');
   assert.equal(uses, 2);
+  assert.ok(hero.getAllItems().includes(spare));
   first.cursed = true; second.cursed = true;
+  hero.weapon = first; hero.armor = second; hero.backpack = [];
   hero.removeCurse();
   assert.ok(!first.cursed && !second.cursed, 'scroll-style global removal still cleanses all items');
   // Identify scrolls select an item rather than silently identifying the first.
@@ -350,7 +372,7 @@ assert.equal(context.scene.input.enabled, true);
 {
   class ConfigMonster { constructor(_context, config) { this.loot = config.loot ?? []; } }
   const stub = {
-    Monster: ConfigMonster, Gem, HolyPotion: class {}, BerserkPotion: class {},
+    Monster: ConfigMonster, Gem, BerserkPotion: class {},
     dungeon: { log() {} }, createBleedingEffect: () => [], createRegenerationEffect: () => ({}),
     applyEffect() {}, hasEffect: () => false, createStrengthenedEffect: () => ({}),
     GOBLIN_ARROW_TEXTURE: 'goblin-arrow', generateGoblinArrowTexture() {},
@@ -367,7 +389,8 @@ assert.equal(context.scene.input.enabled, true);
   };
   const gemShare = Kind => {
     const loot = new Kind({ floor: 5 }).loot;
-    return loot.filter(entry => entry === Gem).length / loot.length;
+    // An empty loot array means "currency only"; it holds no gem either.
+    return loot.length === 0 ? 0 : loot.filter(entry => entry === Gem).length / loot.length;
   };
   // Deepest-floor spawn counts from scene0's density cap (density = 5), plus
   // two chests (gem on 1 of 6 outcomes) and one secret-room gem per five-floor
@@ -385,4 +408,4 @@ assert.equal(context.scene.input.enabled, true);
   assert.equal(gemShare(kinds.Goblin), 0, 'goblins drop no gems');
   assert.ok(gemShare(kinds.Mimic) <= 0.5, 'a mimic gem is a bonus, not a guarantee');
 }
-console.log('Rogue0 gem and Holy Potion target selection, cancellation, stacking, cleansing descriptions and turn costs passed');
+console.log('Rogue0 gem and Remove Curse target selection, cancellation, stacking, cleansing descriptions and turn costs passed');

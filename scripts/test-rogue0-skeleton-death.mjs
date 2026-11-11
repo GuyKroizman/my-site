@@ -96,7 +96,7 @@ for (const hidden of [{ visible: false }, { alpha: 0 }]) {
   const { removeEntity } = loadLogic('src/games/rogue0/entity.ts', { sfx: { death() { sounds++; } } });
   const Skeleton = loadLogic('src/games/rogue0/monsters/skelaton.ts', {
     Monster: class { constructor(context) { this.context = context; } },
-    HolyPotion: class {}, BerserkPotion: class {}, playSkeletonDeath,
+    BerserkPotion: class {}, playSkeletonDeath,
   }).default;
   const f = fixture();
   const skeleton = new Skeleton(f.context, 2, 3);

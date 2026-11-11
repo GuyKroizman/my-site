@@ -3,7 +3,7 @@ recordTestRun('save');
 import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { encodeGraph, decodeGraph } from '../src/games/rogue0/saveCodec.ts';
-const { Entity, saveConsumableKnowledge, restoreConsumableKnowledge } = load('src/games/rogue0/entity.ts');
+const { Entity, identify, removeEntity, saveConsumableKnowledge, restoreConsumableKnowledge } = load('src/games/rogue0/entity.ts');
 Entity.prototype.init = function(context, x, y) { Object.assign(this, { context, x, y }); };
 const { TieredWeapon, TieredArmor, WEAPON_TEXTURES } = load('src/games/rogue0/items/tieredEquipment.ts', {
   Entity, Phaser: { Math: { Between: (_min, max) => max } },
@@ -82,6 +82,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     resetTransientState() { this.inputBuffer = []; this.walkPath = []; }
   }
   const ScrollOfUpgrade = load('src/games/rogue0/items/ScrollOfUpgrade.ts', { Entity, Wand: class {} }).default;
+  const ScrollOfRemoveCurse = load('src/games/rogue0/items/ScrollOfRemoveCurse.ts', { Entity, identify, removeEntity }).default;
   const savedContext = { messages: [] };
   const hero = new SavedHero();
   Object.assign(hero, { type: 'player', healthPoints: 30, x: 0, y: 0 });
@@ -99,16 +100,24 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   class IceElemental { constructor() { Object.assign(this, { type: 'enemy', tile: 6 * 49 + 9 }); } }
   const legacyIce = new IceElemental();
   Object.assign(legacyIce, { x: 0, y: 0, healthPoints: 16 });
-  const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, IceElemental, TieredWeapon };
+  // Saved while Remove Curse cleansed the whole pack: no target fields.
+  const legacyRemoveCurse = new ScrollOfRemoveCurse(savedContext);
+  Object.assign(legacyRemoveCurse, { requiresItemTarget: false,
+    itemTargetTitle: 'CLEANSE: CHOOSE ITEM',
+    noItemTargetsMessage: 'You have no cursed items to cleanse.',
+    description: 'Lifts every curse on your equipment.', locallyIdentified: false });
+  const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, removeScroll: ScrollOfRemoveCurse,
+    IceElemental, TieredWeapon };
   const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
   const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
     bossesSlain: new Set([5, 10]),
     knowledge: { appearances: [], known: [] }, floors: new Map([[1, {
-      map: [[0]], seen: [[true]], features: [], entities: [legacyIce], savedAt: 0,
+      map: [[0]], seen: [[true]], features: [], entities: [legacyIce, legacyRemoveCurse], savedAt: 0,
       up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
     }]]) }, registry);
   const { decodeRunSave } = load('src/games/rogue0/runPersistence.ts', {
-    decodeGraph, saveRegistry: registry, restoreEffects, ScrollOfUpgrade, TieredWeapon, WEAPON_TEXTURES,
+    decodeGraph, saveRegistry: registry, restoreEffects, ScrollOfUpgrade, ScrollOfRemoveCurse,
+    TieredWeapon, WEAPON_TEXTURES,
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
     Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
     CHEST_TEXTURE: 'chest-closed',
@@ -161,6 +170,14 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     'legacy help text is migrated to the current item description');
   assert.equal(restored.count, 3);
   assert.equal(restored.identified, true);
+  const savedRemoveCurse = run.floors.get(1).entities.find(item => item instanceof ScrollOfRemoveCurse);
+  assert.ok(savedRemoveCurse, 'a legacy remove-curse scroll survives the save graph');
+  assert.equal(savedRemoveCurse.requiresItemTarget, true,
+    'legacy scrolls gain single-item targeting on load');
+  assert.equal(savedRemoveCurse.itemTargetTitle, 'REMOVE CURSE: CHOOSE ITEM');
+  assert.equal(savedRemoveCurse.description, new ScrollOfRemoveCurse(savedContext).description,
+    'legacy scroll help text is migrated to the current description');
+  assert.equal(savedRemoveCurse.identified, false, 'migration does not identify the scroll');
   const savedIce = run.floors.get(1).entities[0];
   assert.ok(savedIce instanceof IceElemental);
   assert.equal(savedIce.textureKey, 'monster-ice-elemental',

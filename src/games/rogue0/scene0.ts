@@ -56,7 +56,6 @@ import { generateChestTextures } from './chestTextures';
 import CursedGem from "./items/cursedGem";
 import Gem from './items/gem';
 import type { Room } from './mapgen';
-import HolyPotion from "./items/holyPotion";
 import Shoe from "./items/Shoe";
 import ScrollOfIdentify from "./items/ScrollOfIdentify";
 import ScrollOfUpgrade from "./items/ScrollOfUpgrade";
@@ -174,13 +173,15 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   // Potion of Healing is the dungeon's only healing potion and a rare floor
   // find: swarms of flies are its reliable source. Keep this weight low.
   [PotionOfHealing, 1],
-  [HolyPotion, 4],
   [ScrollOfIdentify, 4],
   // Bone piles are the main gear source; random armor and weapons are a third
   // as likely as before.
   [TieredWeapon, 11 * NON_REMAINS_EQUIPMENT_SCALE],
   [TieredArmor, 4 * NON_REMAINS_EQUIPMENT_SCALE],
-  [ScrollOfRemoveCurse, 3],
+  // The scroll is the only way to lift a curse, and it now cleanses a single
+  // chosen item rather than the whole pack, so it carries the weight the Holy
+  // Potion used to contribute to the table.
+  [ScrollOfRemoveCurse, 5],
   [PotionOfFrost, 3],
   [PotionOfLiquidFlame, 3],
   [PotionOfToxicGas, 2],

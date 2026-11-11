@@ -34,7 +34,7 @@ has been playtested. Checked boxes mean the described implementation exists.
   artifacts, expanded scrolls/potions and food exist. SPD-style named curses
   are implemented across weapons, armor, rings, wands and artifacts
   (generation, per-slot procs/passives, lock-on guards,
-  `removeCurse()`/Remove Curse/Holy Potion, a mirror-image decoy and a
+  `removeCurse()`/Scroll of Remove Curse, a mirror-image decoy and a
   `charmed` effect). Strength requirements and weapon/armor tiers 1–5 are
   implemented. Durability, enchantments/glyphs and balance playtesting remain
   outstanding.
@@ -95,7 +95,7 @@ has been playtested. Checked boxes mean the described implementation exists.
   gear, effects, the scheduler clock and every visited floor.
 - Wand identity is shared across a run; zaps have no distance cap and carried
   wands recharge one charge per 20 world-time units. Upgrade scrolls, gems and
-  Holy Potions let the player choose a target.
+  the Scroll of Remove Curse let the player choose a target.
 - Equipped ring bonuses scale with upgrade level; treasure chests generate two
   per floor and mimics scale across the five region bands.
 - Bottom HUD with portrait, HP, hunger, four assignable quickslots, backpack
@@ -303,11 +303,10 @@ HUD + modal window system.
 *Depends on G3, G6.*
 
 - [x] Identification: unknown consumables/gear; identify by use or scroll.
-- [x] Cursed-gear machinery (lock-on guards, `removeCurse()`, Remove Curse,
-      Holy Potion, Cursed Gem). Random curse generation + per-slot penalties
+- [x] Cursed-gear machinery (lock-on guards, `removeCurse()`, Scroll of Remove Curse, Cursed Gem). Random curse generation + per-slot penalties
       are planned below, not implemented yet.
 - [x] Scroll of Upgrade and item upgrade-level model; upgrade scrolls, gems and
-      Holy Potions let the player choose a target.
+      the Scroll of Remove Curse let the player choose a target.
 - [x] Implement SPD-style Strength, weapon/armor tiers 1–5, upgrade scaling
       and guaranteed progression supplies (specification below).
 - [ ] Balance progression across all five classes over 25 floors; expand
@@ -423,7 +422,7 @@ SPD's core risk loop is a gamble on every unidentified equipment find: a
 fraction of gear is cursed, applies a specific thematic curse while equipped, and
 stays locked on until the curse is lifted. rogue0 already has the machinery —
 the `cursed`/`curseLifted` flags, the equip/unequip/drop/throw lock-on guards,
-`removeCurse()`, Remove Curse and Holy Potion — but today the **only** cursed
+`removeCurse()` and the Scroll of Remove Curse — but today the **only** cursed
 item is the bespoke Cursed Gem. Weapons, armor and rings are never generated
 cursed, so the loop never fires in normal play.
 
@@ -492,8 +491,8 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       as `?`) or the true type of a ring/artifact. Those are revealed by a
       Scroll of Identify or extended use: thirty landed attacks (weapon), thirty
       blows taken (armor), thirty world-time ticks worn (ring/artifact), or
-      thirty charged zaps (wand). Remove Curse / Holy Potion lift every equipped
-      curse (clearing `curseId`) and re-enable removal.
+      thirty charged zaps (wand). The Scroll of Remove Curse lifts one chosen curse
+      (clearing `curseId`) and re-enable removal, without identifying the item.
 - [x] **Detection.** Once identified (or scanned by a glyph stone), reuse the
       existing red glow / "(cursed)" inventory label and named curse description.
       Equipping an unknown item reveals only cursed/uncursed; the specific curse
@@ -502,12 +501,12 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       `npm run test:rogue0`): curse chance and guaranteed supplies stay clean;
       each named curse's proc/penalty applies while equipped and clears on
       unequip/uncursing (weapon procs, armor procs, ring inversion); lock-on
-      guards; Remove Curse/Holy Potion lifting; identification secrecy; and
+      guards; Remove Curse scroll lifting without identification; and
       save/load preserving `curseId` + curse state.
 - **Acceptance:** equipping an unidentified weapon/armor/ring is a real gamble
   — you may get a named curse with an observable signature (a teleport on hit,
   a decoy of yourself, self-damage, a gas cloud) plus a locked slot, with
-  Remove Curse / Holy Potion as the scarce way out, matching the SPD tension.
+  the Scroll of Remove Curse as the scarce way out, matching the SPD tension.
 
 - **Acceptance:** deciding whether to equip an unidentified item is a real,
   tense choice with consequences in both directions.

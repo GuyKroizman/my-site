@@ -80,7 +80,6 @@ export type ConsumableCategory = 'potion' | 'scroll';
 export const CONSUMABLE_NAMES: Record<ConsumableCategory, readonly string[]> = {
   potion: [
     'Berserk Potion',
-    'Holy Potion',
     'Potion of Experience',
     'Potion of Frost',
     'Potion of Healing',

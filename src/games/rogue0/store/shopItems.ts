@@ -15,7 +15,6 @@ export const SHOP_ITEM_IDS: Record<string, string> = {
   'potion-liquid-flame': './items/PotionOfLiquidFlame.ts:default',
   'potion-frost': './items/PotionOfFrost.ts:default',
   'potion-levitation': './items/PotionOfLevitation.ts:default',
-  'potion-holy': './items/holyPotion.ts:default',
   'potion-berserk': './items/berserkPotion.ts:default',
   'scroll-identify': './items/ScrollOfIdentify.ts:default',
   'scroll-upgrade': './items/ScrollOfUpgrade.ts:default',

@@ -69,7 +69,7 @@ function setup() {
 // The folklore goblin replaces Archer without changing its ranged combat role.
 {
   const Goblin = load('src/games/rogue0/monsters/goblin.ts', {
-    Monster, Gem: class {}, HolyPotion: class {},
+    Monster, Gem: class {},
     createBleedingEffect: turns => ({ id: 'bleeding', turns }),
     GOBLIN_ARROW_TEXTURE: 'monster-goblin-arrow', generateGoblinArrowTexture: () => {},
   }).default;
@@ -124,7 +124,7 @@ function setup() {
     tiles: { ...tiles, getFeature: () => undefined, isGrassConcealed: () => false },
   });
   const Goblin = load('src/games/rogue0/monsters/goblin.ts', {
-    Monster, Gem: class {}, HolyPotion: class {},
+    Monster, Gem: class {},
     createBleedingEffect: turns => ({ id: 'bleeding', turns }),
     GOBLIN_ARROW_TEXTURE: 'monster-goblin-arrow', generateGoblinArrowTexture: () => {},
   }).default;
@@ -299,7 +299,7 @@ try {
 
 // Special abilities cannot bypass sleep; combat-created reinforcements are awake.
 let buffs = 0;
-const bindings = { Monster, dungeon, Gem: class {}, HolyPotion: class {}, BerserkPotion: class {},
+const bindings = { Monster, dungeon, Gem: class {}, BerserkPotion: class {},
   hasEffect, applyEffect() { buffs++; }, createStrengthenedEffect() {}, createRegenerationEffect() {} };
 const Skeleton = load('src/games/rogue0/monsters/skelaton.ts', bindings).default;
 const Cultist = load('src/games/rogue0/monsters/cultist.ts', { ...bindings, Skeleton,

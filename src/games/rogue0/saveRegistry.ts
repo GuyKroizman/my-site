@@ -15,7 +15,6 @@ import FangOfTheBeast from './items/FangOfTheBeast';
 import Gem from './items/gem';
 import Gold from './items/gold';
 import Hammer from './items/hammer';
-import HolyPotion from './items/holyPotion';
 import LongSword from './items/longSword';
 import PotionOfExperience from './items/PotionOfExperience';
 import PotionOfFrost from './items/PotionOfFrost';
@@ -91,7 +90,6 @@ export const saveRegistry: Registry = {
   './items/gem.ts:default': Gem,
   './items/gold.ts:default': Gold,
   './items/hammer.ts:default': Hammer,
-  './items/holyPotion.ts:default': HolyPotion,
   './items/longSword.ts:default': LongSword,
   './items/minorHealPotion.ts:default': PotionOfHealing,
   './items/PotionOfExperience.ts:default': PotionOfExperience,

@@ -2,7 +2,6 @@ import type Phaser from "phaser";
 import Monster from "./monster";
 import { playSkeletonDeath } from "./skeletonDeathVisuals";
 import type { GameContext } from "../context";
-import HolyPotion from "../items/holyPotion";
 import BerserkPotion from "../items/berserkPotion";
 
 export default class Skeleton extends Monster {
@@ -25,7 +24,7 @@ export default class Skeleton extends Monster {
       range: 0,
       // No gems: skeletons are the most common enemy, so their loot is
       // potions only. Gems come from rare treasures (see scene0/chest/mimic).
-      loot: [false, false, false, false, false, HolyPotion, BerserkPotion]
+      loot: [false, false, false, false, false, BerserkPotion]
     }, x, y);
   }
 }

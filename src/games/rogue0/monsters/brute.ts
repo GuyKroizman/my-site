@@ -1,7 +1,6 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
 import Gem from "../items/gem";
-import HolyPotion from "../items/holyPotion";
 import BerserkPotion from "../items/berserkPotion";
 import { applyEffect, createStrengthenedEffect } from "../effects";
 
@@ -22,7 +21,7 @@ export default class Brute extends Monster {
       xp: 10,
       range: 0,
       resistance: { physical: 2 },
-      loot: [false, false, Gem, HolyPotion, BerserkPotion]
+      loot: [false, false, Gem, BerserkPotion]
     }, x, y);
   }
 
