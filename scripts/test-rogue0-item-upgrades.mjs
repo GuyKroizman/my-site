@@ -540,7 +540,7 @@ chalice.unequip(); assert.equal(effect, undefined);
 // Actual inventory cell renderer: backpack/unidentified and equipped/identified
 // use the same custom goblet texture, never the old character atlas frame.
 const drawn = [];
-const shape = { setOrigin() { return this; }, setStrokeStyle() { return this; }, setInteractive() { return this; }, on() { return this; } };
+const shape = { setOrigin() { return this; }, setStrokeStyle() { return this; }, setScale() { return this; }, setInteractive() { return this; }, on() { return this; } };
 const scene = { add: { rectangle: () => shape, sprite: (_x, _y, key, frame = 0) => { drawn.push([key, frame]); return shape; } } };
 const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Gem, Wand, attachTooltip() {} });
 const inventory = new InventoryWindow(scene, {

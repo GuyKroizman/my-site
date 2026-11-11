@@ -8,6 +8,7 @@ function render(item, equipped = false, selected = false) {
   const children = [], tweens = [], icons = [];
   const make = () => Object.assign(new EventEmitter(), {
     setOrigin() { return this; }, setStrokeStyle() { return this; },
+    setScale(scale) { this.iconScale = scale; return this; },
     setInteractive() { return this; }, setAlpha(alpha) { this.alpha = alpha; return this; },
   });
   const scene = {

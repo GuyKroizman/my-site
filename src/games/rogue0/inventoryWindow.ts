@@ -19,7 +19,11 @@ type Action = "use" | "equip" | "unequip" | "drop" | "throw";
 
 const PAD = 16;
 const CELL = 38;
-const GAP = 10;
+const GAP = 6;
+// Item artwork is 16px and the UI scene draws at 1:1. Scale it up to fill the
+// cell so the icons read as big as they do in the dungeon (an even factor keeps
+// the pixel art crisp under pixelArt rendering).
+const ICON_SCALE = 2;
 const EQUIP_COLS = 5;
 const BACKPACK_COLS = 4;
 const TITLE_BAR_H = 34;
@@ -369,11 +373,12 @@ export class InventoryWindow {
         (!!this.enchantingGem && !this.enchantingGem.canEnchant(item)) ||
         (this.quickslot !== undefined && !this.context.player!.canQuickslot(item));
       // Identification hides properties, not the artwork already visible on the floor.
-      // Icons always draw at 100%: the half-size, centred floor presentation in
-      // rendering.presentFloorItem applies to the dungeon only.
+      // Icons draw at ICON_SCALE (not the half-size, centred floor presentation
+      // in rendering.presentFloorItem, which applies to the dungeon only).
       const icon = this.scene.add
         .sprite(x + CELL / 2, y + CELL / 2, item.spriteTextureKey, item.spriteFrame)
-        .setOrigin(0.5);
+        .setOrigin(0.5)
+        .setScale(ICON_SCALE);
       if (item.tint) icon.tint = item.tint;
       this.winRoot!.add(icon);
 
@@ -456,7 +461,7 @@ export class InventoryWindow {
       ay + iconSize / 2,
       item.spriteTextureKey,
       item.spriteFrame
-    );
+    ).setScale(ICON_SCALE);
     if (item.tint) icon.tint = item.tint;
     this.menuRoot.add(icon);
 
