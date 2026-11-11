@@ -12,7 +12,7 @@ function isMobileDevice(): boolean {
 }
 
 export default function Hoot() {
-  const phaserRef = useRef<Game>()
+  const phaserRef = useRef<Game | undefined>(undefined)
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {

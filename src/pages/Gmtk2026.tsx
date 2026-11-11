@@ -12,7 +12,7 @@ function isMobileDevice(): boolean {
 }
 
 export default function Gmtk2026() {
-  const phaserRef = useRef<Game>()
+  const phaserRef = useRef<Game | undefined>(undefined)
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
