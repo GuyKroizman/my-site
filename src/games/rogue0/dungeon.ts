@@ -52,7 +52,7 @@ function arrowFlightDuration(fromX: number, fromY: number, toX: number, toY: num
 
 const dungeon = {
   currentLevel: [] as number[][],
-  layer: null as Phaser.Tilemaps.TilemapLayer | null,
+  layer: null as Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer | null,
   pathGrid: null as PF.Grid | null,
   diagonalFinder: null as PF.AStarFinder | null,
   context: null as GameContext | null,
