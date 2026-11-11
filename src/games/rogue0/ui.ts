@@ -6,6 +6,7 @@ import { LogWindow } from "./logWindow";
 import { ConfirmationWindow } from "./confirmationWindow";
 import { QuickslotPane } from "./quickslotPane";
 import { attachTooltip } from "./tooltip";
+import { onTap } from "./tapGuard";
 import { describeEffect } from "./effects";
 import { heroHudView, heroPortrait, statusDurationLabel } from './heroViewModel';
 import {
@@ -218,7 +219,7 @@ export class UI extends Phaser.Scene {
     this.heroIcon = heroIcon;
     heroBg.on("pointerover", () => heroBg.setStrokeStyle(2, 0xf0b429, 1));
     heroBg.on("pointerout", () => heroBg.setStrokeStyle(2, C.borderStrong, 1));
-    heroBg.on("pointerup", () => this.toggleHeroModal());
+    onTap(this.context, heroBg, () => this.toggleHeroModal());
     attachTooltip(this, this.context, heroBg, 'Character info');
     this.toolbar.push({ bg: heroBg, icon: heroIcon });
 
@@ -274,7 +275,7 @@ export class UI extends Phaser.Scene {
 
     bg.on("pointerover", () => bg.setStrokeStyle(2, 0xf0b429, 1));
     bg.on("pointerout", () => bg.setStrokeStyle(2, C.borderStrong, 1));
-    bg.on("pointerup", () => {
+    onTap(this.context, bg, () => {
       if (!isModalOpen(this.context)) onClick();
     });
 
@@ -378,7 +379,7 @@ export class UI extends Phaser.Scene {
   private buildLog() {
     this.logPanel = this.add.rectangle(0, 0, 100, 60, C.panel, 0.9).setOrigin(0)
       .setInteractive({ useHandCursor: true });
-    this.logPanel.on("pointerup", () => this.logWindow?.open());
+    onTap(this.context, this.logPanel, () => this.logWindow?.open());
     this.logTitle = this.add.text(0, 0, "Log · tap for history", {
       fontFamily: `"${FONT_PIXEL}", monospace`,
       fontSize: 8,

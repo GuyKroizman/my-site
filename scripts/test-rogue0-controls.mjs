@@ -468,7 +468,7 @@ for (const stale of ['floor', 'position', 'death', 'readiness', 'modal', 'none']
 // standing on the tile, without spending a turn in the input layer itself.
 {
   const f = fixture();
-  for (const flag of ['pinching', 'panning', 'inventoryOpen']) {
+  for (const flag of ['pinching', 'panning', 'mapGesture', 'inventoryOpen']) {
     f.context[flag] = true;
     f.hero.processTouchInput(f.context, { worldX: 5, worldY: 1 });
     assert.deepEqual(f.hero.walkPath, []); f.context[flag] = false;

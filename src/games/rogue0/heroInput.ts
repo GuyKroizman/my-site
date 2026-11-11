@@ -1,6 +1,7 @@
 import type { GameContext } from './context';
 import type { HeroControlHost, HeroControlServices, PointerPosition } from './heroControlTypes';
 import { isHostile, hostileAtTile, entityAtPointer } from './heroControlRules.ts';
+import { isMapGesture } from './tapGuard.ts';
 import { actorFootprint, bodyDistance } from './actorBodies.ts';
 import { actorIsConcealed } from './actorVisibility.ts';
 import { footprintTiles } from './footprint.ts';
@@ -75,7 +76,7 @@ export function createHeroInput(services: HeroControlServices) {
     },
 
     processTouchInput(hero: HeroControlHost, context: GameContext, event: PointerPosition): void {
-      if (isModalOpen(context) || context.pinching || context.panning) return;
+      if (isModalOpen(context) || isMapGesture(context)) return;
       if (context.map === undefined) throw new Error('context.map is undefined');
       const x = context.map.worldToTileX(event.worldX);
       const y = context.map.worldToTileY(event.worldY);

@@ -128,6 +128,10 @@ export type GameContext = {
   pinching: boolean;
   // True while a one-finger camera pan is in progress (suppresses taps).
   panning: boolean;
+  // True from the moment the current pointer gesture pans or pinches the map
+  // until the next fresh press. A release at the end of such a gesture is not
+  // a tap, even when the finger comes up over a HUD control (see tapGuard).
+  mapGesture: boolean;
   // Notifies the React HUD when a Phaser-side keybinding toggles inspect mode.
   onInspectModeChange?: (mode: boolean) => void;
   // Requests a stairs descent (set by scene0; used by tap-to-descend).
@@ -194,6 +198,7 @@ export function createGameContext(): GameContext {
     throwMode: false,
     pinching: false,
     panning: false,
+    mapGesture: false,
     simulationTime: 0,
     floor: 1,
     bossesSlain: new Set(),

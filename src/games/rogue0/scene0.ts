@@ -572,10 +572,13 @@ export class Scene0 extends Phaser.Scene {
       if (isModalOpen(this.context)) return;
       this.activePointers.set(p.id, p);
       if (this.activePointers.size === 1) {
+        // A fresh gesture can end as a tap on a HUD control again.
+        this.context.mapGesture = false;
         this.panStartX = p.x;
         this.panStartY = p.y;
       }
       this.context.pinching = this.activePointers.size >= 2;
+      if (this.context.pinching) this.context.mapGesture = true;
       this.lastPinchDist = 0;
     });
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
@@ -590,6 +593,9 @@ export class Scene0 extends Phaser.Scene {
       if (!this.panning && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
         this.panning = true;
         this.context.panning = true;
+        // The finger may come up over the log or a toolbar button; that release
+        // must not count as a tap.
+        this.context.mapGesture = true;
         this.cameras.main.stopFollow();
       }
       if (this.panning) {
