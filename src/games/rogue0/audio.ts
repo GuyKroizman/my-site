@@ -23,7 +23,7 @@ function getCtx(): AudioContext | null {
     if (!AC) return null;
     try {
       ctx = new AC();
-    } catch (e) {
+    } catch {
       return null;
     }
   }

@@ -296,11 +296,14 @@ function drawDoorThreshold(g: Phaser.GameObjects.Graphics, style: DoorStyle, sid
   if (style === 'stone-slab') {
     // A worn stone sill instead of a dotted timber doorstep.
     g.fillStyle(0x6d5233, 1);
-    side ? g.fillRect(6, 1, 4, 14) : g.fillRect(1, 11, 14, 4);
+    if (side) g.fillRect(6, 1, 4, 14);
+    else g.fillRect(1, 11, 14, 4);
     g.fillStyle(accent, 1);
-    side ? g.fillRect(7, 1, 2, 13) : g.fillRect(1, 12, 14, 2);
+    if (side) g.fillRect(7, 1, 2, 13);
+    else g.fillRect(1, 12, 14, 2);
     g.fillStyle(0xc6a973, 1);
-    side ? g.fillRect(7, 4, 2, 1) : g.fillRect(4, 12, 2, 1);
+    if (side) g.fillRect(7, 4, 2, 1);
+    else g.fillRect(4, 12, 2, 1);
     return;
   }
   g.fillStyle(accent, 1);
@@ -314,7 +317,8 @@ function drawDoorThreshold(g: Phaser.GameObjects.Graphics, style: DoorStyle, sid
   const glint = { 'wood': undefined, 'iron': 0xc3d3e0, 'stone-slab': undefined, 'crystal': 0xe8dcff, 'basalt': 0xffa04a }[style];
   if (glint !== undefined) {
     g.fillStyle(glint, 1);
-    side ? g.fillRect(8, 7, 1, 1) : g.fillRect(7, 12, 1, 1);
+    if (side) g.fillRect(8, 7, 1, 1);
+    else g.fillRect(7, 12, 1, 1);
   }
 }
 
