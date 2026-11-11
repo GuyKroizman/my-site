@@ -13,7 +13,6 @@ const NAMED_VALUES: Readonly<Record<string, number>> = {
   'Scroll of Identify': 20,
   'Scroll of Remove Curse': 26,
   'Scroll of Upgrade': 38,
-  'Gem': 20,
 };
 
 function nonnegative(value: number): number {

@@ -40,7 +40,6 @@ const LEGACY_FRAMES = {
   shield: 776,
   shoe: 963,
   chest: 302,
-  gem: 219,
   cursedGem: 218,
   ration: 720,
   ringOfAccuracy: 220,

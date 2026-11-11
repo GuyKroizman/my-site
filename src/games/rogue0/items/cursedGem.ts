@@ -4,7 +4,6 @@ import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
 import { rerollCurseId } from "../curses";
 import { CURSE_NAMES } from "../curseData";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class CursedGem extends Entity {
   name: string = "Cursed Gem";
@@ -12,7 +11,8 @@ export default class CursedGem extends Entity {
     "Use to replace the curse on a carried cursed weapon or armor.";
   moving: boolean = false;
   type: EntityType = "item";
-  tile = Sheet.cursedGem;
+  tile = 0;
+  textureKey = 'cursed-gem';
   consumable = true;
   requiresItemTarget = true;
   itemTargetTitle = "CURSED GEM: CHOOSE ITEM";

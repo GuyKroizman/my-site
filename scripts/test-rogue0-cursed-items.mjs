@@ -86,7 +86,7 @@ const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   sfx: { equip() {}, levelUp() {}, potion() {} }, spawnEntityFloatingText() {},
   applyEffect() {}, createBurningEffect: () => ({}), createFrozenEffect: () => ({}),
   createPoisonedEffect: () => ({}), resolveAttack: () => ({ hit: false, damage: 0 }),
-  hasLineOfSight: () => true, Gem: class {}, Wand: class {},
+  hasLineOfSight: () => true, Wand: class {},
 }).default;
 function makeHero(over = {}) {
   return Object.assign(Object.create(Hero.prototype), {

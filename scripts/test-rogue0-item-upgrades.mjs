@@ -155,7 +155,6 @@ try {
 }
 
 const Shield = itemClass('shield');
-const Gem = itemClass('gem', { Shield });
 const Wand = itemClass('wand');
 const ScrollOfUpgrade = itemClass('ScrollOfUpgrade', { Wand });
 const Ring = itemClass('ring');
@@ -216,8 +215,8 @@ const Ring = itemClass('ring');
 // Scrolls always request a target, even with one eligible item. Cancelling is
 // free; confirmation upgrades only that item and consumes one stacked scroll.
 {
-  const TargetHero = load('src/games/rogue0/classes/basicHero.ts', { Entity, dungeon, Wand, Gem }).default;
-  const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand, Gem });
+  const TargetHero = load('src/games/rogue0/classes/basicHero.ts', { Entity, dungeon, Wand }).default;
+  const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand });
   const ctx = { messages: [], entities: [], scene: { input: { enabled: true } } };
   let ready = true, spent = 0;
   const sword = new (itemClass('sword'))(ctx);
@@ -311,8 +310,8 @@ for (const [name, min, max] of equipment) {
     maximum = true; assert.equal(item.damage(), max + maxGain * level, name);
     if (item.range()) assert.ok(item.displayDescription.includes(`Range is ${item.range()} tiles`));
     if (level === 0) {
-      const gem = new Gem(item.context); items.push(gem);
-      assert.equal(gem.enchant(item), true);
+      const scroll = new ScrollOfUpgrade(item.context); items.push(scroll);
+      assert.equal(scroll.useOnItem(item), true);
     } else if (level === 1) {
       const scroll = new ScrollOfUpgrade(item.context); items.push(scroll);
       assert.equal(scroll.useOnItem(item), true);
@@ -399,7 +398,8 @@ for (let level = 0; level <= 2; level++) {
   assert.equal(shield.protection(), 1 + level);
   assert.ok(shield.displayDescription.includes(`+${1 + level} protection`));
   if (level === 0) {
-    const gem = new Gem(shield.context); shieldItems.push(gem); assert.equal(gem.enchant(shield), true);
+    const scroll = new ScrollOfUpgrade(shield.context); shieldItems.push(scroll);
+    assert.equal(scroll.useOnItem(shield), true);
   } else if (level === 1) {
     const scroll = new ScrollOfUpgrade(shield.context); shieldItems.push(scroll);
     assert.equal(scroll.useOnItem(shield), true);
@@ -542,7 +542,7 @@ chalice.unequip(); assert.equal(effect, undefined);
 const drawn = [];
 const shape = { setOrigin() { return this; }, setStrokeStyle() { return this; }, setScale() { return this; }, setInteractive() { return this; }, on() { return this; } };
 const scene = { add: { rectangle: () => shape, sprite: (_x, _y, key, frame = 0) => { drawn.push([key, frame]); return shape; } } };
-const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Gem, Wand, attachTooltip() {} });
+const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand, attachTooltip() {} });
 const inventory = new InventoryWindow(scene, {
   ...context, player: { ...context.player, slotOf: () => undefined }
 });
@@ -660,4 +660,4 @@ assert.equal(new Ration({ messages: [] }).spriteTextureKey, 'ration');
   for (let i = 0; i < 20; i++) advance(1);
   assert.equal(restored.charges, 1, 'old saves without recharge fields work');
 }
-console.log('Rogue0 item upgrades: live weapon/armor/scroll/wand/artifact stats, gem and scroll upgrades, chalice pacing/cap/icons, opaque food, and class starting gear passed');
+console.log('Rogue0 item upgrades: live weapon/armor/scroll/wand/artifact stats, scroll upgrades, chalice pacing/cap/icons, opaque food, and class starting gear passed');

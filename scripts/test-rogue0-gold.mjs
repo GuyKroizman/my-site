@@ -58,7 +58,7 @@ const scene = {
     text: (_x, _y, text) => { texts.push(text); return display(); },
   },
 };
-const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Gem: class {} });
+const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', {});
 const inventory = new InventoryWindow(scene, context);
 for (const balance of [0, 3, 123456]) {
   player.gold = balance;

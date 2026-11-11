@@ -170,7 +170,7 @@ const dungeon = {
   isWalkableTile: () => false, attackEntity() {}
 };
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
-  Entity, ...load('src/games/rogue0/timing.ts'), Gem: class Gem {}, Wand: class Wand {}, dungeon, isModalOpen: () => false, hasEffect, removeEffect,
+  Entity, ...load('src/games/rogue0/timing.ts'), Wand: class Wand {}, dungeon, isModalOpen: () => false, hasEffect, removeEffect,
   isGrassConcealed: () => false, getTrapState: () => undefined, sfx: { potion() {}, equip() {} },
   spawnEntityFloatingText() {}
 }).default;
@@ -543,7 +543,7 @@ class DeathTestMonster {
   onDestroy() { this.context.deaths++; }
 }
 const Skeleton = load('src/games/rogue0/monsters/skelaton.ts', {
-  Monster: DeathTestMonster, Gem: class {}, BerserkPotion: class {},
+  Monster: DeathTestMonster, BerserkPotion: class {},
   dungeon: { log() {} }
 }).default;
 const deathContext = { entities: [], deaths: 0 };
@@ -938,8 +938,7 @@ assert.equal(attacks, 2, 'monster melee hits a diagonally adjacent player');
 
 // Unknown backpack curses must not leak through action availability, while
 // equipped curses block every player-facing removal path without spending time.
-const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', {
-  Gem: class {}, Wand: class {}
+const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand: class {}
 });
 const inventory = Object.create(InventoryWindow.prototype);
 const curseHero = new Entity();

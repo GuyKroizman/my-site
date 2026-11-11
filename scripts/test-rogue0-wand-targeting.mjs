@@ -58,7 +58,7 @@ const Wand = load('items/wand', { Entity, dungeon, identify: () => {} }).default
 const fov = load('fov');
 let attackResult = { hit: false, damage: 0, damageType: 'fire', appliedEffects: [] };
 const Hero = load('classes/basicHero', {
-  Entity, Wand, Gem: class {}, dungeon, ...fov,
+  Entity, Wand, dungeon, ...fov,
   // A zap must never consult optical sight.
   hasLineOfSight: () => { throw new Error('a wand zap must not require line of sight'); },
   isGrassConcealed: () => false,

@@ -190,10 +190,10 @@ Newly generated floors contain two real treasure chests (separate from the mimic
 encounter on floors 2+). Walk into a chest using movement keys, or tap it to walk
 over and open it. Opening takes one use-action turn without moving the hero;
 its reward appears on the floor for normal pickup, even if the backpack is full.
-Chests cannot be carried. Each chest contains gold, a ration, a gem, a healing
-potion, or floor-tier equipment, rolled once when the chest is generated.
-Equipment is uncommon: gold takes five of eighteen rolls, rations and gems four
-each, the rare Potion of Healing a single roll, and a weapon and armor two each.
+Chests cannot be carried. Each chest contains gold, a ration, a healing potion,
+or floor-tier equipment, rolled once when the chest is generated. Equipment is
+uncommon: gold takes nine of eighteen rolls, rations four, the rare Potion of
+Healing a single roll, and a weapon and armor two each.
 Contents and opened state persist through travel and browser saves. Previously
 visited floors are not repopulated with new chests.
 
@@ -632,7 +632,7 @@ hall keeps its middle, its entrance and its exit clear. The arena is the guardia
 wandering roster (skeletons, goblins, ghouls, brutes, Quloptsh, swarms, mimics,
 cultists, elementals, wraiths, frogs), no random floor loot, no cursed gem, no
 chasm, no bone pile and no summon trap. What it does carry is the guardian, two
-treasure chests, one ration and the hidden room's gem above the north wall;
+treasure chests, one ration and the hidden room's gold above the north wall;
 grass, water and the
 other hidden traps still dress the hall. The guardian naps until disturbed — a
 wound, a noise, the hero stepping within two tiles in its line of sight, or a
@@ -656,7 +656,7 @@ Wands and utility items are exempt. Status/hunger clocks remain world-time based
 Dungeon equipment spans tiers 1–5: Dagger through Greataxe and Cloth through
 Plate Armor. Tier and upgrade level are independent. Found armor, weapons and
 wands may generate plain or upgraded at +1, +2 or +3 — never higher (70/20/8/2%
-of finds). Scrolls of Upgrade and gems can still push an item beyond +3.
+of finds). Scrolls of Upgrade can still push an item beyond +3.
 Weapon damage at tier `t`,
 upgrade `u` ranges from `t + u` to `5t + (t + 1)u`; armor absorbs `2t + tu`.
 The playable hero is the **Warrior**, who starts with a basic Sword equipped;
@@ -664,7 +664,7 @@ the disabled class picker's Wizard starts with a tier-1 Dagger plus two scrolls
 (Fireball, Lightning) and a Potion of Healing in the backpack; the scrolls
 are weapon-slot items, so equipping one swaps it in for the dagger. Class
 starting gear otherwise retains its previous stats. Armor replaces a shield in
-the same slot. Both gems and upgrade scrolls support the new gear. Armor now has
+the same slot. Upgrade scrolls support the new gear. Armor now has
 distinct generated textures for each tier; weapon art remains a placeholder
 using the existing sword silhouette.
 
@@ -674,9 +674,8 @@ The scroll layout is strictly deterministic: three per region, 15 per run, and
 zero on boss floors (5/10/15/20/25) — no RNG roll can change it, and a cramped
 map falls back to fixed placement instead of dropping the quota. That is
 **10 Strength potions and 15 upgrade scrolls** across the run; neither appears
-as extra random floor loot. Gems from monsters still provide additional
-upgrades, as does the hidden searchable gem room that appears once per band
-(floors 5, 10, 15, 20 and 25). Random equipment normally matches its band but
+as extra random floor loot, and no other source upgrades gear. The hidden room
+that appears once per band (floors 5, 10, 15, 20 and 25) holds gold. Random equipment normally matches its band but
 can be one tier earlier
 or later. Floor snapshots preserve remaining loot, so revisits do not refill it.
 These are initial progression curves, not a claim of full-run balance.

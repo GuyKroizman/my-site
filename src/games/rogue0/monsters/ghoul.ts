@@ -1,15 +1,14 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
-import Gem from "../items/gem";
 import { applyEffect, createBleedingEffect, createRegenerationEffect, hasEffect } from "../effects";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class Ghoul extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
     super(context, {
       name: "Ghoul",
       description: "A fast, ravenous ghoul.",
-      tile: Sheet.ghoul,
+      tile: 0,
+      textureKey: 'ghoul',
       healthPoints: 12,
       movementSpeed: 2,
       attackDelay: 1,
@@ -19,7 +18,7 @@ export default class Ghoul extends Monster {
       xp: 5,
       range: 0,
       vulnerability: { fire: 1 },
-      loot: [false, false, false, Gem]
+      loot: [false, false, false, false]
     }, x, y);
   }
 

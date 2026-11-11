@@ -4,7 +4,6 @@ import { maybeCurse } from '../curses';
 import { rollFoundUpgrade } from '../foundUpgrades';
 import dungeon from '../dungeon';
 import Gold from './gold';
-import Gem from './gem';
 import Ration from './ration';
 import PotionOfHealing from './PotionOfHealing';
 import { TieredWeapon, TieredArmor } from './tieredEquipment';
@@ -27,8 +26,8 @@ export default class Chest extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     const tier = Math.max(1, Math.min(5, Math.ceil((context.floor ?? 1) / 5)));
-    // 18 slots: gold, rations and gems take five/four/four, a single slot
-    // holds the rare Potion of Healing, and two each go to weapon and armor.
+    // Keep all 18 slots: retired Gem outcomes now pay gold. Healing and gear
+    // retain their original odds; no Upgrade Scrolls are added.
     const roll = Math.floor(Math.random() * 18);
     const weapon = new TieredWeapon(context, undefined, undefined, tier);
     const armor = new TieredArmor(context, undefined, undefined, tier);
@@ -38,7 +37,7 @@ export default class Chest extends Entity {
     maybeCurse(armor);
     this.contents = [roll < 5 ? new Gold(context, undefined, undefined, 10 + tier * 5)
       : roll < 9 ? new Ration(context)
-      : roll < 13 ? new Gem(context)
+      : roll < 13 ? new Gold(context, undefined, undefined, 10 + tier * 5)
       : roll === 13 ? new PotionOfHealing(context)
       : roll < 16 ? weapon
       : armor];

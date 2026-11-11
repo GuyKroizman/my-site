@@ -107,7 +107,7 @@ function categoryOf(ctor: ScenarioCtor): ScenarioCategory {
   if (/Scroll/.test(ctor.name)) return 'scroll';
   if (isOrExtends(ctor, TieredArmor) || /^(Shield)$/.test(ctor.name)) return 'armor';
   if (/^(Ration)$/.test(ctor.name)) return 'food';
-  if (/^(Gem|CursedGem|Gold|Chest|ChaliceOfBlood|FangOfTheBeast|Shoe|StoneOfBlink|StoneOfDetectCurse)$/.test(ctor.name)) {
+  if (/^(CursedGem|Gold|Chest|ChaliceOfBlood|FangOfTheBeast|Shoe|StoneOfBlink|StoneOfDetectCurse)$/.test(ctor.name)) {
     return 'treasure';
   }
   return 'weapon';

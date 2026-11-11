@@ -1,6 +1,5 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
-import Gem from "../items/gem";
 import type { Entity } from '../entity';
 import { CHEST_TEXTURE, MIMIC_TEXTURE } from '../chestTextures';
 import { Sheet } from '../spriteFrames.ts';
@@ -70,10 +69,8 @@ export default class Mimic extends Monster {
       protection: 1 + Math.floor(tier / 2),
       xp: 8 + tier * 4,
       range: 0,
-      // A mimic is a treasure, but a coin-flip gem from the one mimic per
-      // floor was the single biggest gem source. Keep it a bonus, not a
-      // guaranteed upgrade every floor.
-      loot: [false, Gem]
+      // Regular Gems were retired; keep the no-item slots and normal gold.
+      loot: [false, false]
     }, x, y);
   }
 }

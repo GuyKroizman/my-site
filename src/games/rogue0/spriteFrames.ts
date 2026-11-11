@@ -46,7 +46,6 @@ export const Sheet = {
 
   // Treasure.
   chest: sheetFrame(8, 6),
-  gem: sheetFrame(23, 4),
   cursedGem: sheetFrame(22, 4),
   ration: sheetFrame(34, 14),
 

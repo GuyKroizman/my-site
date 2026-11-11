@@ -11,7 +11,6 @@ import type { GameContext } from "./context";
 import type { Entity } from "./entity";
 import type BasicHero from "./classes/basicHero";
 
-import Gem from "./items/gem";
 import Wand from "./items/wand";
 import { attachTooltip } from "./tooltip";
 
@@ -65,7 +64,6 @@ export class InventoryWindow {
   private open = false;
   private dirty = false;
   private menuItem: Entity | undefined;
-  private enchantingGem: Gem | undefined;
   private targetedItem: Entity | undefined;
   private quickslot: number | undefined;
 
@@ -83,12 +81,6 @@ export class InventoryWindow {
   constructor(scene: Phaser.Scene, context: GameContext) {
     this.scene = scene;
     this.context = context;
-    context.onChooseEnchantment = (item) => {
-      if (!(item instanceof Gem)) return;
-      this.openWindow();
-      this.enchantingGem = item;
-      this.render();
-    };
     context.onChooseItemTarget = (item) => {
       this.openWindow();
       this.targetedItem = item;
@@ -114,7 +106,6 @@ export class InventoryWindow {
     if (this.context.throwMode) this.context.player.cancelThrow();
     this.open = true;
     this.quickslot = undefined;
-    this.enchantingGem = undefined;
     this.targetedItem = undefined;
     this.context.inventoryOpen = true;
     this.menuItem = undefined;
@@ -143,7 +134,6 @@ export class InventoryWindow {
     if (!this.open) return;
     this.open = false;
     this.quickslot = undefined;
-    this.enchantingGem = undefined;
     this.targetedItem = undefined;
     this.context.inventoryOpen = false;
     this.menuItem = undefined;
@@ -231,7 +221,7 @@ export class InventoryWindow {
         .setStrokeStyle(1, C.border, 1)
     );
     this.winRoot.add(
-      this.scene.add.text(PAD, 11, this.quickslot !== undefined ? "QUICKSLOT: CHOOSE" : this.enchantingGem ? "ENCHANT: CHOOSE GEAR" : this.targetedItem ? this.targetedItem.itemTargetTitle : "INVENTORY", {
+      this.scene.add.text(PAD, 11, this.quickslot !== undefined ? "QUICKSLOT: CHOOSE" : this.targetedItem ? this.targetedItem.itemTargetTitle : "INVENTORY", {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 9,
         color: COL.gold
       })
@@ -370,7 +360,6 @@ export class InventoryWindow {
 
     if (item) {
       const disabled = (!!this.targetedItem && !this.targetedItem.canTargetItem(item)) ||
-        (!!this.enchantingGem && !this.enchantingGem.canEnchant(item)) ||
         (this.quickslot !== undefined && !this.context.player!.canQuickslot(item));
       // Identification hides properties, not the artwork already visible on the floor.
       // Icons draw at ICON_SCALE (not the half-size, centred floor presentation
@@ -417,10 +406,6 @@ export class InventoryWindow {
   private openMenu(item: Entity): void {
     if (this.quickslot !== undefined) {
       if (this.context.player?.assignQuickslot(this.quickslot, item)) this.close();
-      return;
-    }
-    if (this.enchantingGem) {
-      if (this.enchantingGem.enchant(item)) this.close();
       return;
     }
     if (this.targetedItem) {

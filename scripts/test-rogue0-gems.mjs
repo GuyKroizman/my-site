@@ -19,15 +19,19 @@ for (let level = 0; level <= 3; level++) {
   if (level < 3) upgrade(axe);
 }
 const Shield = load('src/games/rogue0/items/shield.ts', { Entity }).default;
-const Gem = load('src/games/rogue0/items/gem.ts', { Entity, upgrade, removeEntity, Shield }).default;
-// Real gem pickups must merge, including when the backpack is full.
+const CursedGemPickup = load('src/games/rogue0/items/cursedGem.ts', { Entity }).default;
+const { identify } = load('src/games/rogue0/entity.ts');
+const ScrollOfUpgrade = load('src/games/rogue0/items/ScrollOfUpgrade.ts', {
+  Entity, upgrade, identify, removeEntity, Wand: class {},
+}).default;
+// Cursed Gem pickups must still merge, including when the backpack is full.
 const Hero = load('src/games/rogue0/classes/basicHero.ts', { Entity }).default;
 const pickupContext = { entities: [], messages: [] };
 const collector = Object.assign(Object.create(Hero.prototype), {
   context: pickupContext, backpack: [], capacity: 1, refreshUI() {},
 });
-const firstGem = new Gem(pickupContext);
-const secondGem = new Gem(pickupContext);
+const firstGem = new CursedGemPickup(pickupContext);
+const secondGem = new CursedGemPickup(pickupContext);
 secondGem.count = 3;
 pickupContext.entities.push(firstGem, secondGem);
 assert.equal(collector.addItem(firstGem), true);
@@ -41,8 +45,9 @@ assert.deepEqual(collector.backpack, [firstGem]);
 
 // Avoid sprite construction; exercise actual item and entity methods.
 const context = { entities: [], messages: [] };
-const gem = Object.assign(Object.create(Gem.prototype), { context, count: 2, type: 'item', consumable: true });
-const shield = Object.assign(Object.create(Shield.prototype), { context, level: 0, tier: 1, name: 'Shield', type: 'item', equipSlot: 'armor', identified: true });
+const gem = Object.assign(new ScrollOfUpgrade(context), { count: 2 });
+// Prototype-only stubs carry no class-field defaults, so state maxLevel here.
+const shield = Object.assign(Object.create(Shield.prototype), { context, level: 0, maxLevel: 3, tier: 1, name: 'Shield', type: 'item', equipSlot: 'armor', identified: true });
 let ready = true, turns = 0;
 const items = [gem];
 context.entities.push(gem);
@@ -53,27 +58,27 @@ context.player = {
   spendTurn(action) { assert.equal(action, 'use'); turns++; },
   refreshUI() {},
 };
-assert.equal(gem.enchant({ equipSlot: 'consumable' }), false);
-assert.equal(gem.enchant(shield), false);
+assert.equal(gem.useOnItem({ equipSlot: 'consumable' }), false);
+assert.equal(gem.useOnItem(shield), false);
 context.player.armor = shield;
 items.push(shield);
 ready = false;
-assert.equal(gem.enchant(shield), false);
+assert.equal(gem.useOnItem(shield), false);
 ready = true;
-assert.equal(gem.enchant(shield), true);
+assert.equal(gem.useOnItem(shield), true);
 assert.equal(shield.protection(), 2);
 assert.equal(shield.displayName, 'Shield +1 (Tier 1)');
 assert.equal(gem.count, 1);
 assert.ok(context.entities.includes(gem));
-context.player.weapon = Object.assign(Object.create(Entity.prototype), { context, level: 2, name: 'Sword', equipSlot: 'weapon' });
+context.player.weapon = Object.assign(Object.create(Entity.prototype), { context, level: 2, maxLevel: 3, name: 'Sword', equipSlot: 'weapon' });
 items.push(context.player.weapon);
-assert.equal(gem.enchant(context.player.weapon), true);
+assert.equal(gem.useOnItem(context.player.weapon), true);
 assert.equal(context.player.weapon.level, 3);
 assert.equal(turns, 2);
 assert.equal(items.length, 2);
 assert.equal(context.entities.length, 0);
-assert.equal(gem.enchant({ equipSlot: 'consumable' }), false);
-const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Gem, Wand: class {} });
+assert.equal(gem.useOnItem({ equipSlot: 'consumable' }), false);
+const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand: class {} });
 const window = new InventoryWindow({}, context);
 window.render = () => {};
 window.clearObjects = () => {};
@@ -82,17 +87,17 @@ context.entities.push(gem);
 context.player.slotOf = () => undefined;
 context.player.slotFor = () => undefined;
 assert.ok(window.buildActions(context.player, gem).find(a => a.action === 'use'));
-context.onChooseEnchantment(gem);
+context.onChooseItemTarget(gem);
 assert.equal(window.isOpen(), true);
-assert.equal(window.enchantingGem, gem);
+assert.equal(window.targetedItem, gem);
 window.openMenu({ equipSlot: 'consumable' });
 assert.equal(window.isOpen(), true);
 assert.equal(turns, 2);
 window.close();
-assert.equal(window.enchantingGem, undefined);
+assert.equal(window.targetedItem, undefined);
 assert.ok(items.includes(gem));
 assert.equal(turns, 2);
-context.onChooseEnchantment(gem);
+context.onChooseItemTarget(gem);
 window.openMenu(shield);
 assert.equal(window.isOpen(), false);
 assert.equal(shield.level, 2);
@@ -178,7 +183,7 @@ assert.equal(context.scene.input.enabled, true);
     Entity, identify, removeEntity, rerollCurseId, CURSE_NAMES: curseData.CURSE_NAMES,
   }).default;
   const TargetHero = load('src/games/rogue0/classes/basicHero.ts', {
-    Entity, Gem, Wand: class {}, dungeon, removeEffect, identify,
+    Entity, Wand: class {}, dungeon, removeEffect, identify,
   }).default;
   const ctx = { entities: [], messages: [], scene: { input: { enabled: true } } };
   let uses = 0;
@@ -331,6 +336,15 @@ assert.equal(context.scene.input.enabled, true);
     });
     ctx2.player = hero2;
     const gem = new CursedGem(ctx2);
+    assert.equal(gem.spriteTextureKey, 'cursed-gem', 'cursed gem uses dedicated artwork');
+    assert.equal(gem.spriteFrame, 0);
+    assert.equal(gem.tile, 0);
+    const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
+    assert.ok(scene.includes("this.load.image('cursed-gem', cursedGemArtUrl)"));
+    const png = fs.readFileSync('src/games/rogue0/assets/cursed-gem.png');
+    assert.equal(png.readUInt32BE(16), 16);
+    assert.equal(png.readUInt32BE(20), 16);
+    assert.equal(png[25], 6, 'RGBA artwork');
     gem.count = 1;
     const clean = Object.assign(new Entity(), {
       context: ctx2, type: 'item', equipSlot: 'weapon', cursed: false, curseId: '',
@@ -367,12 +381,11 @@ assert.equal(context.scene.input.enabled, true);
     assert.equal(uses2, 2);
   }
 }
-// Gem supply regression: gems are the permanent-upgrade currency, so they must
-// stay rare. Common enemies used to make them drop several times per floor.
+// Removing Gems must preserve other monster loot probabilities.
 {
   class ConfigMonster { constructor(_context, config) { this.loot = config.loot ?? []; } }
   const stub = {
-    Monster: ConfigMonster, Gem, BerserkPotion: class {},
+    Monster: ConfigMonster, BerserkPotion: class {},
     dungeon: { log() {} }, createBleedingEffect: () => [], createRegenerationEffect: () => ({}),
     applyEffect() {}, hasEffect: () => false, createStrengthenedEffect: () => ({}),
     GOBLIN_ARROW_TEXTURE: 'goblin-arrow', generateGoblinArrowTexture() {},
@@ -387,25 +400,12 @@ assert.equal(context.scene.input.enabled, true);
     Cultist: load('src/games/rogue0/monsters/cultist.ts', stub).default,
     Mimic: load('src/games/rogue0/monsters/mimic.ts', stub).default,
   };
-  const gemShare = Kind => {
-    const loot = new Kind({ floor: 5 }).loot;
-    // An empty loot array means "currency only"; it holds no gem either.
-    return loot.length === 0 ? 0 : loot.filter(entry => entry === Gem).length / loot.length;
-  };
-  // Deepest-floor spawn counts from scene0's density cap (density = 5), plus
-  // two chests (gem on 1 of 6 outcomes) and one secret-room gem per five-floor
-  // band. Kept as a budget check rather than an exact generator replica.
-  const spawnCounts = {
-    Skeleton: 7, Goblin: 4, Ghoul: 1, Brute: 1, Cultist: 1, Mimic: 1,
-  };
-  const expectedPerFloor = Object.entries(spawnCounts)
-    .reduce((sum, [name, count]) => sum + gemShare(kinds[name]) * count, 2 / 6) + 0.2;
-  assert.ok(expectedPerFloor < 2,
-    `deep-floor gem loot stays rare (expected ${expectedPerFloor.toFixed(2)} gems/floor)`);
-  assert.ok(expectedPerFloor > 0.5, 'gems still drop often enough to matter');
-  // The most numerous enemies must not be gem pinatas.
-  assert.equal(gemShare(kinds.Skeleton), 0, 'skeletons drop no gems');
-  assert.equal(gemShare(kinds.Goblin), 0, 'goblins drop no gems');
-  assert.ok(gemShare(kinds.Mimic) <= 0.5, 'a mimic gem is a bonus, not a guarantee');
+  const loot = name => new kinds[name]({ floor: 5 }).loot;
+  assert.deepEqual(loot('Ghoul'), [false, false, false, false]);
+  assert.deepEqual(loot('Cultist'), [false, false, false, false]);
+  assert.deepEqual(loot('Mimic'), [false, false]);
+  assert.deepEqual(loot('Brute'), [false, false, false, stub.BerserkPotion]);
+  assert.deepEqual(loot('Skeleton'), [false, false, false, false, false, stub.BerserkPotion]);
+  assert.deepEqual(loot('Goblin'), []);
 }
-console.log('Rogue0 gem and Remove Curse target selection, cancellation, stacking, cleansing descriptions and turn costs passed');
+console.log('Rogue0 Cursed Gem stacking/targeting, scroll targeting, cancellation, cleansing, turn costs and retired-gem drop slots passed');

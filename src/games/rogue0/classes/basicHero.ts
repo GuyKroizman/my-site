@@ -2,7 +2,6 @@ import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
 import type { GameContext } from "../context";
 import dungeon from "../dungeon";
-import Gem from "../items/gem";
 import Wand from "../items/wand";
 import { terrainFor } from '../terrain';
 import { hasLineOfSight, hasClearProjectilePath } from "../fov";
@@ -265,10 +264,6 @@ export default class BasicHero extends Entity implements HeroControlHost {
     }
     if (!item.consumable) return false;
 
-    if (item instanceof Gem) {
-      this.context.onChooseEnchantment?.(item);
-      return false; // Opening/cancelling target selection is not a spent action.
-    }
     if (item.requiresItemTarget) {
       if (!this.getAllItems().some(target => item.canTargetItem(target))) {
         dungeon.log(this.context, item.noItemTargetsMessage);

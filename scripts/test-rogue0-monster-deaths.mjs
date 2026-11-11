@@ -48,7 +48,8 @@ assert.equal(monsterDeathStyle('Unknown'), undefined);
 assert.equal(monsterDeathStyle('toString'), undefined, 'only registered identities match');
 assert.equal(new Set(Object.values(MONSTER_DEATH_STYLES)).size, 14, 'each supported identity has its own style');
 for (const [name, style] of Object.entries(MONSTER_DEATH_STYLES)) {
-  const width = name === 'Bone Lord' ? 24 : 16, height = name === 'Cultist' ? 24 : width;
+  const width = name === 'Bone Lord' ? 24 : 16;
+  const height = ['Ghoul', 'Brute', 'Quloptsh'].includes(name) ? 22 : name === 'Cultist' ? 24 : width;
   const parts = monsterDeathParts(style, width, height);
   assert.ok(parts.length > 0 && parts.length <= 16);
   const covered = new Set();

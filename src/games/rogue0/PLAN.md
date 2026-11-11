@@ -74,7 +74,7 @@ has been playtested. Checked boxes mean the described implementation exists.
   stand their own rocks, all clear of the middle and both approaches. The guardian is the only monster,
   and no random floor loot, cursed gem, chasm, summon trap or Skeletal Remains
   pile appears. They keep their two treasure chests, one ration and the hidden
-  room's gem.
+  room's gold.
 - The Bone Lord is rendered with generated 24x24 art (`bossTexture.ts`): a fat
   green blob with one great eye and a maw of interlocking fangs, scaled up past
   the 16px monsters. Its body is a 3x3 footprint (`bodyRadius = 1`): movement,
@@ -333,7 +333,7 @@ Cloth / Leather / Mail / Scale / Plate Armor. At tier `t`, upgrade `u`, weapon
 damage is `t + u` to `5t + (t + 1)u`; base attack delays are 0.8 / 1 / 1 / 1.2 /
 1.4. Armor absorbs `2t + tu` physical damage. Freshly found armor, weapons and
 wands spawn at +0 (most common), +1, +2 or +3 — never higher; Scroll-of-Upgrade
-and gem upgrades remain uncapped afterwards, matching the existing system.
+upgrades remain uncapped afterwards, matching the existing system.
 Class starter equipment retains its old
 stats/tier; shields and the new armor share one slot. Gems now accept all armor.
 Art reuses existing sword/shield silhouettes pending Phase 16.
@@ -346,7 +346,8 @@ The upgrade-scroll layout is a fixed floor lookup (no RNG roll): exactly three
 per region and never on boss floors 5/10/15/20/25. If a map is too cramped for
 its full encounter roster, a deterministic fallback still places the scroll
 quota before optional content. Strength/upgrade scrolls are no longer in random
-floor loot; monster gem drops remain an additional source of upgrades. Random
+floor loot, and regular Gems were retired so the scroll budget is the only
+upgrade source. Random
 equipment is usually current band, with 20% chances of one tier lower/higher
 (clamped to 1–5). Saved-floor revisits never regenerate supplies. Food remains
 guaranteed each floor.
@@ -895,15 +896,21 @@ and small-screen/visual verification of the whole HUD.
   equipped + carried items clearly, and can perform any item action without
   consulting hidden slots; nothing renders off-screen.
 
-### Phase 16 — Graphics & art overhaul (16×16, Astra-generated)
-*Deferred — implement later. Replaces the Kenney sheet + magic-number lookups.*
+### Phase 16 — Graphics & art overhaul (16px grid)
+*In progress. Replaces the Kenney artwork and magic-number lookups.*
 
-Progress so far: region floor/wall atlases for five palettes (stone, crypt,
-sandstone, crystal, volcanic), tall grass, and original art for the cultist and
-goblin are checked-in PNGs; potions, scrolls, wand projectiles, elementals, fly
-swarms, wraith, chest, wall decals and water are generated at runtime. Several
-monsters (skeleton, ghoul, brute, Quloptsh, Bone Lord) and most items still read
-Kenney frames through named `Sheet` entries, so the overhaul is not close.
+Progress so far: five compact floor/wall sheets, tall grass, shared hero art,
+cultist, goblin, ghoul, brute and Quloptsh are checked-in PNGs. Scrolls,
+rations and the cursed gem also have PNG art. Potions, wands/projectiles, rings, tier-2–5 weapons,
+armor, elementals, fly swarms, wraith, Bone Lord, chests, doors, traps, water,
+ice and chasms have dedicated runtime artwork. The named-frame cleanup is
+complete; it did not replace pixels. Remaining Kenney examples include the
+skeleton, tier-1 dagger, legacy sword/axe/hammer/shield and
+shoe. Some old frame fields are only save-compatible fallbacks, not visible
+art. All five hero classes still share one portrait/sprite rather than having
+class-specific artwork. Standalone Python art generators were removed; edit
+the checked-in PNGs directly. Actor art can extend above the 16px grid (the
+new ghoul/brute/Quloptsh PNGs are 16x22), without changing collision footprints.
 
 - [x] Fix the mimic sprite: replaced the sword frame with the existing closed
       wooden chest (row 6, column 8). Implemented and visually verified in a
@@ -917,20 +924,22 @@ Kenney frames through named `Sheet` entries, so the overhaul is not close.
       gold accent) and keep it consistent across all sprites.
       Partial: the five region palettes and original monster/item art move in
       this direction, but Kenney frames are still in use beside them.
-- [ ] Have **Astra** generate sprites procedurally (Python/PIL or Phaser
-      Graphics), iterating with its vision: floor, wall, doors, stairs, traps,
+- [ ] Finish dedicated editable PNGs or runtime textures for floor, wall,
+      doors, stairs, traps,
       water, grass, chasm, the 5 hero classes, every monster, and every item
       (red heal potion, wands, rings, food, scrolls, …).
-      Landed: floors/walls (5 regions), tall grass, cultist, goblin, potions,
-      scrolls, wand projectiles, elementals, swarm, wraith, chest, decals.
+      Landed: floors/walls (5 regions), tall grass, cultist, goblin, ghoul,
+      brute, Quloptsh, potions, scrolls, wand projectiles, elementals, swarm,
+      wraith, Bone Lord, chest, decals. Existing saves migrate the three new
+      monster sprites without rerolling combat state.
 - [x] Replace the `tile = row*49 + col` magic numbers with named frames:
       `spriteFrames.ts` owns the sheet layout and a `Sheet` table of 55 names,
       every call site says `Sheet.potionOfHealing` and the legacy indices are
       pinned by `test-rogue0-sprite-frames.mjs`. Still open from this item:
       storing the art as generated textures or a new atlas, which is the
       remaining acceptance work (the keys are named, the art is still Kenney).
-- [ ] Keep `pixelArt: true` so zoomed 16×16 sprites stay crisp; pair with the
-      zoomable camera (Phase 15 follow-up).
+- [x] Keep `pixelArt: true` so sprites stay crisp; the camera supports
+      wheel/key zoom and touch pinch zoom.
 - **Acceptance:** no Kenney leftovers; every entity/item has a distinct,
   readable 16×16 sprite; nothing is ambiguous (no potion-vs-heart-vs-apple).
 

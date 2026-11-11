@@ -443,7 +443,6 @@ Starter table (tuned low; the economy is deliberately tight):
 | weapon / armor | 26 × tier | +8 per upgrade |
 | ring | 30 × tier | +8 per upgrade |
 | artifact | 80 | keep rare; 10 % roll on slot 14 |
-| gem | 20 | enchantment consumable |
 
 Examples (tier 2): Shortsword = 52 → buy 80 / sell 20; Leather Armor = 52 →
 80 / 20; Ring = 60 → buy 90 / sell 24; Wand of Frost (3 charges) = 77 → buy

@@ -12,7 +12,6 @@ import Chest from './items/chest';
 import SkeletalRemains from './items/skeletalRemains';
 import CursedGem from './items/cursedGem';
 import FangOfTheBeast from './items/FangOfTheBeast';
-import Gem from './items/gem';
 import Gold from './items/gold';
 import Hammer from './items/hammer';
 import LongSword from './items/longSword';
@@ -87,7 +86,6 @@ export const saveRegistry: Registry = {
   // The old Minor/Full Heal Potions were folded into the one Potion of
   // Healing. Their wire IDs stay and resolve to it so existing runs load.
   './items/fullHealPotion.ts:default': PotionOfHealing,
-  './items/gem.ts:default': Gem,
   './items/gold.ts:default': Gold,
   './items/hammer.ts:default': Hammer,
   './items/longSword.ts:default': LongSword,

@@ -1,6 +1,5 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
-import Gem from "../items/gem";
 import PotionOfHealing from "../items/PotionOfHealing";
 import { createCrippledEffect, createWeakenedEffect } from "../effects";
 import { BOSS_TEXTURE, generateBossTexture } from "./bossTexture";
@@ -43,7 +42,7 @@ export default class Boss extends Monster {
       xp: 25,
       range: 0,
       scale: 2,
-      loot: [Gem, PotionOfHealing]
+      loot: [false, PotionOfHealing]
     }, x, y);
 
     // The arena hall is vast, so the guardian naps until intruded on: it wakes

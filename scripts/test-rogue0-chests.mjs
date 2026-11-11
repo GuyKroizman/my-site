@@ -5,7 +5,7 @@ import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 const { Entity } = load('src/games/rogue0/entity.ts');
 Entity.prototype.init = function(context, x, y) { Object.assign(this, { context, x, y }); };
 const rewards = {};
-for (const name of ['Gold', 'Gem', 'Ration', 'PotionOfHealing', 'TieredWeapon', 'TieredArmor']) {
+for (const name of ['Gold', 'Ration', 'PotionOfHealing', 'TieredWeapon', 'TieredArmor']) {
   rewards[name] = class extends Entity {
     constructor(context, x, y, value) { super(); this.name = name; this.value = value; this.init(context, x, y); }
   };
@@ -43,10 +43,10 @@ const originalRandom = Math.random;
 try {
   // Sweep all reward slots, but test container interactions only once per
   // reward category rather than repeating them for every weighted duplicate.
-  // Gold takes five slots, rations and gems four, healing one, and gear two each.
+  // Retired gem slots now give gold; healing and equipment keep their odds.
   const chestRewards = [
     ...Array(5).fill('Gold'), ...Array(4).fill('Ration'),
-    ...Array(4).fill('Gem'), 'PotionOfHealing',
+    ...Array(4).fill('Gold'), 'PotionOfHealing',
     'TieredWeapon', 'TieredWeapon', 'TieredArmor', 'TieredArmor'
   ];
   for (let roll = 0; roll < 18; roll++) {

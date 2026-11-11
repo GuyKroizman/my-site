@@ -277,6 +277,7 @@ const openMap = (w = 4, h = 2) => Array.from({ length: h }, () => Array(w).fill(
     ScrollOfUpgrade: SavedGem, ScrollOfRemoveCurse: SavedGem, Ring: class {}, Wand: class {},
     TieredWeapon: class {}, WEAPON_TEXTURES: [],
     Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
+    Ghoul: class {}, Brute: class {}, Quloptsh: class {}, CursedGem: class {},
     CHEST_TEXTURE: 'chest-closed',
     IceElemental: class {}, ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
     restoreEffects: effects => effects,

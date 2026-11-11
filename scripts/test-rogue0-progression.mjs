@@ -10,11 +10,7 @@ Entity.prototype.init = function(context, x, y) { Object.assign(this, { context,
 let maximum = false;
 const Phaser = { Scene: class {}, Math: { Between: (min, max) => maximum ? max : min } };
 const { TieredWeapon, TieredArmor } = load('src/games/rogue0/items/tieredEquipment.ts', { Entity, Phaser });
-const Gem = load('src/games/rogue0/items/gem.ts', { Entity }).default;
-const gem = new Gem({});
-assert.equal(gem.canEnchant(new TieredArmor({})), true);
-assert.equal(gem.canEnchant(new TieredWeapon({})), true);
-assert.equal(gem.canEnchant(new Entity()), false);
+const Gold = load('src/games/rogue0/items/gold.ts', { Entity }).default;
 const progression = load('src/games/rogue0/progression.ts');
 const { rollFoundUpgrade } = load('src/games/rogue0/foundUpgrades.ts', { Entity });
 const { createGameContext } = load('src/games/rogue0/context.ts');
@@ -107,7 +103,7 @@ for (const [start, end] of [[1, 4], [6, 9], [11, 14], [16, 19], [21, 24]]) {
 // Exercise real spawnFloorContent with real maps and item classes. Monsters and
 // unrelated items only need identity/position here; their own suites cover AI.
 const sceneSource = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
-const bindings = { Phaser, Gem, TieredWeapon, TieredArmor, ...progression };
+const bindings = { Phaser, Gold, TieredWeapon, TieredArmor, ...progression };
 for (const match of sceneSource.matchAll(/import (\w+) from "\.\/(?:items|monsters)\/[^";]+";/g)) {
   const name = match[1];
   bindings[name] = class { constructor(context, x, y) { Object.assign(this, { context, x, y, kind: name }); } };
@@ -157,16 +153,17 @@ for (let run = 0; run < 5; run++) {
       stairsX: stairs.x, stairsY: stairs.y };
     scene.spawnFloorContent(floor, map, spawn);
     const items = scene.context.entities;
-    const treasure = items.filter(item => item instanceof Gem);
+    const treasure = items.filter(item => item instanceof Gold);
     if (mapgen.floorHasSecretRoom(floor)) {
-      assert.equal(treasure.length, 1, 'exactly one ordinary gem rewards each secret room');
-      for (const gem of treasure) {
-        assert.equal(gem.x, secretRoom.cx);
-        assert.equal(gem.y, secretRoom.cy);
+      assert.equal(treasure.length, 1, 'exactly one gold pile rewards each secret room');
+      for (const gold of treasure) {
+        assert.equal(gold.x, secretRoom.cx);
+        assert.equal(gold.y, secretRoom.cy);
+        assert.equal(gold.goldAmount, 25);
       }
-      assert.ok(items.filter(item => !(item instanceof Gem)).every(item => item.y >= secretRoom.y + 5), 'random content stays outside the hidden room and corridor');
+      assert.ok(items.filter(item => !(item instanceof Gold)).every(item => item.y >= secretRoom.y + 5), 'random content stays outside the hidden room and corridor');
     } else {
-      assert.equal(treasure.length, 0, 'no gem reward without a secret room');
+      assert.equal(treasure.length, 0, 'no gold reward without a secret room');
       assert.equal(secretRoom, undefined, 'secret room only appears on band floors');
     }
     const count = kind => items.filter(item => item.kind === kind).length;
@@ -222,9 +219,9 @@ for (let run = 0; run < 5; run++) {
       'no mimic disguises itself on a boss floor');
     if (progression.isBossFloor(floor)) {
       // The boss floor is the guardian's arena: it carries the guardian, two
-      // treasure chests, one ration and the hidden room's gem, nothing else.
+      // treasure chests, one ration and the hidden room's gold, nothing else.
       const nameOf = item => item.kind ?? item.constructor?.name;
-      const allowed = new Set(['Boss', 'Chest', 'Ration', 'Gem']);
+      const allowed = new Set(['Boss', 'Chest', 'Ration', 'Gold']);
       const strays = items.filter(item => !allowed.has(nameOf(item)));
       assert.deepEqual(strays.map(nameOf), [],
         `boss floor ${floor} holds no other monsters, loot or bone piles`);
@@ -256,7 +253,7 @@ for (let run = 0; run < 5; run++) {
     scene.saveFloor();
     const snapshot = scene.floors.get(floor);
     assert.ok(!supply || !snapshot.entities.includes(supply));
-    assert.equal(snapshot.entities.filter(item => item instanceof Gem).length, 0, 'collected gems stay collected across floor revisits');
+    assert.equal(snapshot.entities.filter(item => item instanceof Gold).length, 0, 'collected gold stays collected across floor revisits');
     scene.context.floor = floor - 1;
     let restored = false;
     scene.restoreFloor = (number, saved) => {

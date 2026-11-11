@@ -95,9 +95,24 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     item.level = 2;
     return item;
   });
-  hero.backpack = [scroll, ...legacyWeapons];
+  const CursedGem = load('src/games/rogue0/items/cursedGem.ts', { Entity }).default;
+  const legacyCursedGem = new CursedGem(savedContext);
+  delete legacyCursedGem.textureKey;
+  legacyCursedGem.tile = 218;
+  legacyCursedGem.count = 3;
+  hero.backpack = [scroll, ...legacyWeapons, legacyCursedGem];
+  hero.quickslots = [legacyCursedGem];
   hero.weapon = legacyWeapons[4];
   class IceElemental { constructor() { Object.assign(this, { type: 'enemy', tile: 6 * 49 + 9 }); } }
+  // Use the real class prototypes, but never constructors: these represent
+  // actors already wounded/asleep in an older checkpoint.
+  const Ghoul = load('src/games/rogue0/monsters/ghoul.ts', { Monster: Entity }).default;
+  const Brute = load('src/games/rogue0/monsters/brute.ts', { Monster: Entity }).default;
+  const Quloptsh = load('src/games/rogue0/monsters/quloptsh.ts', { Monster: Entity }).default;
+  const oldMonsters = [Ghoul, Brute, Quloptsh].map((Class, i) => Object.assign(Object.create(Class.prototype), {
+    type: 'enemy', tile: [320, 322, 324][i], healthPoints: 7, sleepTurnsRemaining: 11,
+    x: 0, y: 0, effects: [], loot: [false], nextActionTime: 4.5,
+  }));
   const legacyIce = new IceElemental();
   Object.assign(legacyIce, { x: 0, y: 0, healthPoints: 16 });
   // Saved while Remove Curse cleansed the whole pack: no target fields.
@@ -107,12 +122,12 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     noItemTargetsMessage: 'You have no cursed items to cleanse.',
     description: 'Lifts every curse on your equipment.', locallyIdentified: false });
   const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, removeScroll: ScrollOfRemoveCurse,
-    IceElemental, TieredWeapon };
+    IceElemental, TieredWeapon, Ghoul, Brute, Quloptsh, CursedGem };
   const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
   const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
     bossesSlain: new Set([5, 10]),
     knowledge: { appearances: [], known: [] }, floors: new Map([[1, {
-      map: [[0]], seen: [[true]], features: [], entities: [legacyIce, legacyRemoveCurse], savedAt: 0,
+      map: [[0]], seen: [[true]], features: [], entities: [legacyIce, legacyRemoveCurse, ...oldMonsters], savedAt: 0,
       up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
     }]]) }, registry);
   const { decodeRunSave } = load('src/games/rogue0/runPersistence.ts', {
@@ -121,7 +136,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
     Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
     CHEST_TEXTURE: 'chest-closed',
-    IceElemental,
+    IceElemental, Ghoul, Brute, Quloptsh, CursedGem,
     ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
     // The run decoder validates the saved chasm floor against the generator's
     // own candidate list, so it uses the real helpers.
@@ -131,12 +146,19 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   const save = { version: 1, heroClass: 'Warrior', floor: 1, graph };
   const run = decodeRunSave(save, {});
   assert.deepEqual([...run.bossesSlain], [5, 10], 'slain boss floors survive the save graph');
-  for (const item of run.player.backpack.slice(1)) {
+  for (const item of run.player.backpack.filter(item => item instanceof TieredWeapon)) {
     assert.equal(item.textureKey, WEAPON_TEXTURES[item.tier - 1], 'legacy weapons acquire tier art');
     assert.equal(item.spriteFrame, item.tier === 1 ? 328 : 0);
     assert.equal(item.level, 2, 'art migration preserves upgrades');
   }
   assert.equal(run.player.weapon, run.player.backpack[5], 'equipped weapon keeps the shared item reference');
+  const savedCursedGem = run.player.backpack[6];
+  assert.ok(savedCursedGem instanceof CursedGem);
+  assert.equal(savedCursedGem.spriteTextureKey, 'cursed-gem');
+  assert.equal(savedCursedGem.spriteFrame, 0);
+  assert.equal(savedCursedGem.tile, 0);
+  assert.equal(savedCursedGem.count, 3, 'art migration preserves the stack');
+  assert.equal(run.player.quickslots[0], savedCursedGem, 'quickslot retains migrated item identity');
   const restored = run.player.backpack[0];
   assert.deepEqual(run.player.inputBuffer, []);
   assert.throws(() => decodeRunSave({ ...save, heroClass: 'unknown' }, {}), /Invalid saved run/);
@@ -183,6 +205,50 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.equal(savedIce.textureKey, 'monster-ice-elemental',
     'legacy ice elementals drop the chest atlas frame when rebuilt');
   assert.equal(savedIce.tile, 0);
+  const upgradedMonsters = run.floors.get(1).entities.slice(2);
+  for (const [i, monster] of upgradedMonsters.entries()) {
+    assert.ok(monster instanceof [Ghoul, Brute, Quloptsh][i]);
+    assert.equal(monster.spriteTextureKey, ['ghoul', 'brute', 'quloptsh'][i]);
+    assert.equal(monster.spriteFrame, 0);
+    assert.equal(monster.tile, 0);
+    assert.equal(monster.healthPoints, 7, 'art migration does not heal');
+    assert.equal(monster.sleepTurnsRemaining, 11, 'art migration does not reroll sleep');
+    assert.equal(monster.nextActionTime, 4.5);
+    assert.deepEqual(monster.loot, [false]);
+  }
+  // Regular Gems are retired: old checkpoints must not require the deleted class.
+  {
+    const { retireGemsFromSave } = load('src/games/rogue0/saveRetiredGems.ts');
+    const graph = { root: { ref: 0 }, nodes: [
+      { kind: 'object', data: [['backpack', { ref: 1 }], ['quickslots', { ref: 2 }],
+        ['loot', { ref: 3 }], ['shop', { ref: 4 }]] },
+      { kind: 'array', data: [{ ref: 5 }, { ref: 6 }] },
+      { kind: 'array', data: [{ ref: 5 }, { ref: 6 }] },
+      { kind: 'array', data: [{ ref: 5 }, { constructorId: './items/gem.ts:default' }, false] },
+      { kind: 'object', data: [['stock', { ref: 7 }]] },
+      { kind: 'entity', type: './items/gem.ts:default', data: [['count', 2]] },
+      { kind: 'entity', type: 'kept', data: [] },
+      { kind: 'array', data: [{ ref: 8 }] },
+      { kind: 'object', data: [['price', 10], ['sold', false], ['item', { ref: 5 }]] },
+    ] };
+    const original = JSON.stringify(graph);
+    const cleaned = retireGemsFromSave(graph);
+    assert.equal(JSON.stringify(graph), original, 'migration never mutates the stored checkpoint');
+    const entry = (node, key) => node.data.find(([k]) => k === key)?.[1];
+    assert.deepEqual(entry(cleaned.nodes[0], 'backpack'), { ref: 1 });
+    assert.deepEqual(cleaned.nodes[1].data, [{ ref: 6 }], 'carried gems are dropped');
+    assert.deepEqual(cleaned.nodes[2].data.map(value => value?.ref), [undefined, 6],
+      'quickslot positions are kept; only the gem slot empties');
+    assert.deepEqual(cleaned.nodes[3].data, [false, false, false],
+      'loot weight slots survive as no-drop outcomes');
+    assert.equal(entry(cleaned.nodes[8], 'sold'), true,
+      'a shop slot that stocked a gem is not replenished');
+    assert.deepEqual(entry(cleaned.nodes[8], 'item'), { special: 'undefined' });
+    assert.equal(cleaned.nodes[5].kind, 'object');
+    assert.deepEqual(cleaned.nodes[5].data, [], 'retired entities become inert, not spawnable');
+    assert.equal(cleaned.nodes[6].type, 'kept', 'other entities are untouched');
+    assert.ok(!JSON.stringify(cleaned).includes('items/gem.ts'), 'no retired class survives the rewrite');
+  }
 }
 const memory = new Map();
 let blocked = false;

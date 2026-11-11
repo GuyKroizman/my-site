@@ -5,6 +5,7 @@ import type { FeaturePlacement } from './tiles';
 import type { RunSave } from './saveStorage';
 import type { Registry } from './saveCodec';
 import { decodeGraph } from './saveCodec';
+import { retireGemsFromSave } from './saveRetiredGems.ts';
 import { saveRegistry } from './saveRegistry';
 import { restoreEffects } from './saveEffects';
 import BasicHero from './classes/basicHero';
@@ -14,9 +15,13 @@ import ScrollOfRemoveCurse from './items/ScrollOfRemoveCurse';
 import Ring from './items/ring';
 import Wand from './items/wand';
 import Chest from './items/chest';
+import CursedGem from './items/cursedGem';
 import { TieredWeapon, WEAPON_TEXTURES } from './items/tieredEquipment';
 import { CHEST_TEXTURE } from './chestTextures';
 import Mimic from './monsters/mimic';
+import Ghoul from './monsters/ghoul';
+import Brute from './monsters/brute';
+import Quloptsh from './monsters/quloptsh';
 import SwarmOfFlies from './monsters/swarmOfFlies';
 import { IceElemental } from './monsters/elemental';
 import { ICE_ELEMENTAL_TEXTURE } from './monsters/iceElementalTexture';
@@ -59,12 +64,25 @@ export type RunState = {
 // Constructors must not be rerun for restored actors: they roll starting gear
 // and attach input. Effects reattach behavior without reapplying their bonuses.
 export function decodeRunSave(save: RunSave, context: GameContext, registry: Registry = saveRegistry): RunState {
-  const run: RunState = decodeGraph(save.graph, registry, (entity: Entity) => {
+  const run: RunState = decodeGraph(retireGemsFromSave(save.graph), registry, (entity: Entity) => {
     entity.context = context;
+    // Hydration bypasses constructors. Upgrade artwork on every decoded actor,
+    // including inactive floors, without rerolling stats, loot or sleep state.
+    const monsterArt = entity instanceof Ghoul ? 'ghoul'
+      : entity instanceof Brute ? 'brute'
+      : entity instanceof Quloptsh ? 'quloptsh' : undefined;
+    if (monsterArt) {
+      entity.textureKey = monsterArt;
+      entity.tile = 0;
+    }
     // Decode visits every item, including equipped/carried weapons, container
     // contents, shop stock and pending chasm drops, not only floor entities.
     if (entity instanceof TieredWeapon) {
       entity.textureKey = WEAPON_TEXTURES[entity.tier - 1];
+    }
+    if (entity instanceof CursedGem) {
+      entity.textureKey = 'cursed-gem';
+      entity.tile = 0;
     }
     if (entity instanceof ScrollOfUpgrade) {
       const defaults = new ScrollOfUpgrade(context);

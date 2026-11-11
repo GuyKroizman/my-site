@@ -100,7 +100,6 @@ export type GameContext = {
   onPortalBump?: (x: number, y: number) => boolean;
   onStoreOpenChange?: (open: boolean) => void;
   inventoryOpen?: boolean;
-  onChooseEnchantment?: (gem: Entity) => void;
   onChooseItemTarget?: (item: Entity) => void;
   heroModalOpen?: boolean;
   logModalOpen?: boolean;

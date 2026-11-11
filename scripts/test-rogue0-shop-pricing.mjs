@@ -14,7 +14,6 @@ for (const [fields, base, buy, sell] of [
   [{ name: 'Scroll of Identify' }, 20, 30, 8],
   [{ name: 'Scroll of Remove Curse' }, 26, 40, 10],
   [{ name: 'Scroll of Lightning' }, 18, 25, 7],
-  [{ name: 'Gem' }, 20, 30, 8],
   [{ textureKey: 'glyph-stone-blink' }, 18, 25, 7],
   [{ equipSlot: 'weapon', tier: 2 }, 52, 80, 20],
   [{ equipSlot: 'armor', tier: 2, level: 2 }, 68, 100, 27],

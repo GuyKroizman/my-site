@@ -70,7 +70,7 @@ assert.ok((sceneSource.match(/rollFoundUpgrade\(/g) ?? []).length >= 2,
 // Save round-trips are covered by the chest suite.
 const Phaser = { Math: { Between: (min) => min } };
 const { TieredWeapon, TieredArmor } = load('src/games/rogue0/items/tieredEquipment.ts', { Entity, Phaser });
-const rewards = { Gold: class extends Entity {}, Gem: class extends Entity {}, Ration: class extends Entity {}, PotionOfHealing: class extends Entity {} };
+const rewards = { Gold: class extends Entity {}, Ration: class extends Entity {}, PotionOfHealing: class extends Entity {} };
 const Chest = load('src/games/rogue0/items/chest.ts', {
   Entity, dungeon: { log() {} }, maybeCurse: () => false, rollFoundUpgrade,
   TieredWeapon, TieredArmor, CHEST_TEXTURE: 'chest-closed', ...rewards,

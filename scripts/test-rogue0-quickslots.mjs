@@ -76,7 +76,7 @@ for (const name of ['Wand of Firebolt', 'Wand of Frost', 'Wand of Lightning']) {
   assert.equal(unknownWand.displayName, `${name} +2`);
 }
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
-  Entity, Wand, Gem: class {}, dungeon, hasLineOfSight: () => clearSight,
+  Entity, Wand, dungeon, hasLineOfSight: () => clearSight,
   hasClearProjectilePath: () => clearPath,
   isGrassConcealed: () => false,
   resolveAttack: () => ({ hit: false, damage: 0, appliedEffects: [] }),
@@ -166,7 +166,7 @@ assert.equal(hero.context.throwMode, false);
 assert.equal(hero.turns, 3);
 hero.backpack = [wand];
 assert.equal(hero.quickslotItem(1), undefined);
-const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand, Gem: class {} });
+const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand });
 hero.context.player = hero;
 const inventory = new InventoryWindow({}, hero.context);
 inventory.render = () => {};

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import shopArtUrl from './assets/shop.png';
+import cursedGemArtUrl from './assets/cursed-gem.png';
 import { placeStorePortal } from './store/portal';
 import { generatePortalTexture, PORTAL_TEXTURE, portalFrame } from './portalVisuals';
 import { showSurpriseVisual, updateSurpriseVisuals, clearSurpriseVisuals } from './surpriseVisuals';
@@ -19,6 +20,9 @@ const THEME_SHEET = { frameWidth: 16, frameHeight: 16, spacing: 1 };
 import heroArtUrl from './assets/hero-color.png';
 import cultistArtUrl from './assets/monsters/cultist.png';
 import goblinArtUrl from './assets/monsters/goblin.png';
+import ghoulArtUrl from './assets/monsters/ghoul.png';
+import bruteArtUrl from './assets/monsters/brute.png';
+import quloptshArtUrl from './assets/monsters/quloptsh.png';
 import grass0Url from './assets/tall-grass-0.png';
 import grass1Url from './assets/tall-grass-1.png';
 import grass2Url from './assets/tall-grass-2.png';
@@ -55,7 +59,7 @@ import { createEquipmentFind, rollFloorEquipment, NON_REMAINS_EQUIPMENT_SCALE } 
 import { generateRemainsTexture } from './remainsTexture';
 import { generateChestTextures } from './chestTextures';
 import CursedGem from "./items/cursedGem";
-import Gem from './items/gem';
+import Gold from './items/gold';
 import type { Room } from './mapgen';
 import Shoe from "./items/Shoe";
 import ScrollOfIdentify from "./items/ScrollOfIdentify";
@@ -296,9 +300,13 @@ export class Scene0 extends Phaser.Scene {
 
   preload() {
     this.load.image('shop-background', shopArtUrl);
+    this.load.image('cursed-gem', cursedGemArtUrl);
     this.load.image('hero-color', heroArtUrl);
     this.load.image('cultist', cultistArtUrl);
     this.load.image('goblin', goblinArtUrl);
+    this.load.image('ghoul', ghoulArtUrl);
+    this.load.image('brute', bruteArtUrl);
+    this.load.image('quloptsh', quloptshArtUrl);
     [grass0Url, grass1Url, grass2Url].forEach((url, i) => this.load.image(`tall-grass-${i}`, url));
     this.load.spritesheet('stone-tiles', stoneTilesUrl, THEME_SHEET);
     this.load.spritesheet('crypt-tiles', cryptTilesUrl, THEME_SHEET);
@@ -1920,17 +1928,15 @@ export class Scene0 extends Phaser.Scene {
       context.entities.push(new Chest(context, room.reward.x, room.reward.y));
     }
 
-    // The hidden room holds a single ordinary upgrade gem at its center.
-    // Reserve the whole room and its two-tile access corridor from random
-    // content, so supplies/bosses cannot be stranded behind the secret or
-    // overlap the gem. This method runs only on first generation; revisits
-    // restore entities.
+    // The hidden room holds gold, not extra upgrades. Reserve the whole room
+    // and its corridor so random supplies/bosses stay accessible. Revisits
+    // restore saved entities instead of granting the reward again.
     if (this.secretRoom) {
       const room = this.secretRoom;
       for (let y = room.y; y < room.y + room.h + 2; y++) {
         for (let x = 0; x < levelArray[y].length; x++) exclude.add(`${x},${y}`);
       }
-      context.entities.push(new Gem(context, room.cx, room.cy));
+      context.entities.push(new Gold(context, room.cx, room.cy, 25));
     }
 
     // Preserve the existing maximum encounter density rather than inflating
@@ -1941,7 +1947,7 @@ export class Scene0 extends Phaser.Scene {
       + Number(progression.weapon) + Number(progression.armor);
     // A boss floor is the guardian's arena: no other monster shares it, and no
     // scattered loot (random items, cursed gems or a bone pile) clutters it. The
-    // guardian, the treasure chests, one ration and the hidden room's gem are
+    // guardian, the treasure chests, one ration and the hidden room's gold are
     // the floor's whole population, so the fight stays the floor's only event.
     const bossFloor = isBossFloor(floor);
     const roster = (count: number) => (bossFloor ? 0 : count);

@@ -1,9 +1,7 @@
 import Monster from "./monster";
 import type { GameContext } from "../context";
-import Gem from "../items/gem";
 import BerserkPotion from "../items/berserkPotion";
 import { applyEffect, createStrengthenedEffect } from "../effects";
-import { Sheet } from '../spriteFrames.ts';
 
 export default class Brute extends Monster {
   private enraged = false;
@@ -12,7 +10,8 @@ export default class Brute extends Monster {
     super(context, {
       name: "Brute",
       description: "A hulking brute. Slow, but hits very hard.",
-      tile: Sheet.brute,
+      tile: 0,
+      textureKey: 'brute',
       healthPoints: 36,
       movementSpeed: 1,
       attackDelay: 1,
@@ -22,7 +21,7 @@ export default class Brute extends Monster {
       xp: 10,
       range: 0,
       resistance: { physical: 2 },
-      loot: [false, false, Gem, BerserkPotion]
+      loot: [false, false, false, BerserkPotion]
     }, x, y);
   }
 

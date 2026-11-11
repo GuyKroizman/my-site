@@ -2,7 +2,6 @@ import Monster from "./monster";
 import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import Skeleton from "./skelaton";
-import Gem from "../items/gem";
 import { CULTIST_BOLT_TEXTURE, generateCultistBoltTexture } from "../projectileTextures";
 
 export default class Cultist extends Monster {
@@ -27,7 +26,7 @@ export default class Cultist extends Monster {
       range: 5,
       meleeDamage: 2,
       projectileTexture: CULTIST_BOLT_TEXTURE,
-      loot: [false, false, false, Gem]
+      loot: [false, false, false, false]
     }, x, y);
   }
 
