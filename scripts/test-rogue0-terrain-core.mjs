@@ -127,4 +127,29 @@ assert.deepEqual(first.snapshot(), []);
 assert.deepEqual(second.snapshot(), otherSaved, 'clear/restore in one run leaves the other untouched');
 assert.equal(readDoor(1, 0), undefined);
 assert.equal(Object.hasOwn(a, 'terrain'), false, 'runtime association does not add a persisted context field');
-console.log('Rogue0 terrain core: owner isolation, explicit FOV/LOS, cover, path grids, spawn filtering, trap policy and detached v1 snapshots passed');
+// A checkpoint can carry terrain for a map that changed size (floor 1 shrank to
+// 50x40) or contains junk coordinates. Building the path grid must not throw on
+// those, and the stale placements must be dropped so they never reload again.
+const stale = createTerrain();
+stale.setFeature(1, 1, 'water');
+stale.setFeature(70, 45, 'chasm');
+stale.setFeature(2, 1, 'chasm');
+const tinyGrid = new PF.Grid(Array.from({ length: 40 }, () => Array(50).fill(0)));
+assert.doesNotThrow(() => stale.applyToPathGrid(tinyGrid), 'an off-map feature cannot break the path grid');
+assert.equal(tinyGrid.isWalkableAt(2, 1), false, 'in-bounds blocking features still apply');
+const dropped = stale.pruneToBounds(50, 40);
+assert.equal(dropped.length, 1);
+assert.deepEqual({ x: dropped[0].x, y: dropped[0].y, feature: dropped[0].feature }, { x: 70, y: 45, feature: 'chasm' });
+assert.equal(stale.getFeature(70, 45), undefined, 'the off-map feature is gone from snapshots too');
+assert.deepEqual(stale.snapshot().map(tile => `${tile.x},${tile.y}`), ['1,1', '2,1']);
+const junk = createTerrain();
+junk.setFeature(Number.NaN, 3, 'water');
+junk.setFeature(3, -1, 'grass');
+junk.setFeature(2.5, 4, 'ice');
+assert.equal(junk.pruneToBounds(50, 40).length, 3, 'non-integer and negative coordinates are dropped as well');
+assert.doesNotThrow(() => junk.applyToPathGrid(tinyGrid));
+const unbounded = createTerrain();
+unbounded.setFeature(700, 4, 'chasm');
+assert.doesNotThrow(() => unbounded.applyToPathGrid({ setWalkableAt() {}, width: undefined, height: undefined }),
+  'a grid without declared bounds cannot itself bound the overlay');
+console.log('Rogue0 terrain core: owner isolation, explicit FOV/LOS, cover, path grids, spawn filtering, trap policy, detached v1 snapshots and off-map placement guards passed');

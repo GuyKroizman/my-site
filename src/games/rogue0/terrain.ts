@@ -8,6 +8,14 @@ type StoredTile = TileState & { x: number; y: number };
 export function createTerrain() {
   const features = new Map<string, StoredTile>();
   const key = (x: number, y: number) => `${x},${y}`;
+  // A width/height of 0 or an omitted bound means "unknown": only reject
+  // coordinates that cannot index any map (NaN, negatives, non-integers).
+  const inBounds = (x: number, y: number, width?: number, height?: number): boolean => {
+    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0) return false;
+    if (width !== undefined && x >= width) return false;
+    if (height !== undefined && y >= height) return false;
+    return true;
+  };
 
   function setFeature(x: number, y: number, feature: TerrainFeature,
     opts: { door?: DoorState; portal?: 'closed' | 'open'; trap?: TrapState; trapKind?: TrapKind; trapReusable?: boolean; blocksSight?: boolean } = {}): void {
@@ -102,11 +110,29 @@ export function createTerrain() {
     features.forEach(tile => callback(tile.x, tile.y, tile));
   }
 
-  // dungeon.initialize applies the overlay after building its base grid.
-  function applyToPathGrid(grid: { setWalkableAt(x: number, y: number, walkable: boolean): void }): void {
+  // dungeon.initialize applies the overlay after building its base grid. A
+  // checkpoint or a floor generated against a different map can carry a feature
+  // outside the current bounds (e.g. saved before floor 1 shrank to 50x40),
+  // which would make setWalkableAt index a cell that does not exist.
+  function applyToPathGrid(grid: { setWalkableAt(x: number, y: number, walkable: boolean): void;
+      readonly width?: number; readonly height?: number }): void {
     features.forEach(tile => {
+      if (!inBounds(tile.x, tile.y, grid.width, grid.height)) return;
       if (isBlocking(tile.x, tile.y)) grid.setWalkableAt(tile.x, tile.y, false);
     });
+  }
+
+  /** Drops placements that fall outside a width x height map and returns them so
+   * the caller can report what was discarded. Keeping them would also keep them
+   * in snapshots, so a healed save never reloads them again. */
+  function pruneToBounds(width: number, height: number): FeaturePlacement[] {
+    const dropped: FeaturePlacement[] = [];
+    for (const [mapKey, tile] of features) {
+      if (inBounds(tile.x, tile.y, width, height)) continue;
+      features.delete(mapKey);
+      dropped.push(tile);
+    }
+    return dropped;
   }
 
   // Keep v1 FeaturePlacement records detached from live state in both
@@ -122,7 +148,8 @@ export function createTerrain() {
 
   return { setFeature, getFeature, isGrassConcealed, getTileState, clearFeature,
     clearAllFeatures, getDoorState, setDoorState, getTrapState, setTrapState,
-    activateTrap, getTrapKind, isBlocking, forEachFeature, applyToPathGrid, snapshot, restore };
+    activateTrap, getTrapKind, isBlocking, forEachFeature, applyToPathGrid, pruneToBounds,
+    snapshot, restore };
 }
 
 export type Terrain = ReturnType<typeof createTerrain>;

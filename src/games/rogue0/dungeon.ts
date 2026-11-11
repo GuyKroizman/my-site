@@ -64,6 +64,15 @@ const dungeon = {
     context.currentLevel = levelArray;
     this.context = context;
     this.pathGrid = new PF.Grid(levelArray);
+    // A checkpoint written against a larger map (floor 1 shrank to 50x40) can
+    // carry terrain outside the grid. Drop it before building the grid so the
+    // floor still loads, and report it so the bad save is not silent.
+    const dropped = tiles.pruneToBounds(levelArray[0]?.length ?? 0, levelArray.length);
+    if (dropped.length) {
+      console.warn(`Rogue0: dropped ${dropped.length} terrain feature(s) outside the ` +
+        `${levelArray[0]?.length ?? 0}x${levelArray.length} map on floor ${context.floor}`,
+        dropped.slice(0, 5));
+    }
     tiles.applyToPathGrid(this.pathGrid);
     this.diagonalFinder = new PF.AStarFinder({
       diagonalMovement: PF.DiagonalMovement.Always
