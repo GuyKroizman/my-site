@@ -1,0 +1,369 @@
+/* ===================== Per-route loading screens =====================
+   Each route gets its own Suspense fallback (see src/main.tsx) so a cold
+   chunk load looks like the page that is about to appear, never like a
+   generic white spinner. Pure CSS: no images, no extra requests. */
+
+.ld {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.ld-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 32rem;
+}
+
+.ld-title {
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.ld-sub {
+  margin: 0;
+}
+
+/* ---------- Notebook / menu ---------- */
+.ld-notebook {
+  background-color: #fffef9;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 27px,
+    #e8ecf1 27px,
+    #e8ecf1 28px
+  );
+  font-family: 'Caveat', cursive;
+}
+
+.ld-notebook .ld-title {
+  font-size: clamp(2rem, 8vw, 2.6rem);
+  font-weight: 700;
+  color: #ff6b6b;
+  letter-spacing: 4px;
+}
+
+.ld-notebook .ld-sub {
+  font-size: 1.35rem;
+  color: #c4b5a5;
+}
+
+.ld-pencil {
+  display: block;
+  font-size: 2rem;
+  line-height: 1;
+  animation: ld-write 1.5s ease-in-out infinite;
+}
+
+@keyframes ld-write {
+  0%, 100% { transform: translateX(-16px) rotate(-8deg); }
+  50% { transform: translateX(16px) rotate(8deg); }
+}
+
+/* ---------- Rogue0 ---------- */
+.ld-rogue0 {
+  background-color: #0d0b10;
+  background-image:
+    linear-gradient(rgba(232, 225, 213, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 225, 213, 0.03) 1px, transparent 1px);
+  background-size: 16px 16px;
+  color: #e8e1d5;
+  font-family: 'VT323', monospace;
+}
+
+.ld-rogue0 .ld-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(1.1rem, 4.5vw, 1.7rem);
+  letter-spacing: 2px;
+  color: #f0b429;
+  text-shadow:
+    0 0 14px rgba(240, 180, 41, 0.35),
+    3px 3px 0 rgba(0, 0, 0, 0.65);
+}
+
+.ld-rogue0 .ld-sub {
+  font-size: 1.3rem;
+  color: #a29a8e;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ld-rogue0 .ld-sub::after {
+  content: '▌';
+  margin-left: 0.2em;
+  color: #f0b429;
+  animation: ld-blink 1s steps(2, start) infinite;
+}
+
+@keyframes ld-blink {
+  to { visibility: hidden; }
+}
+
+.ld-pips {
+  display: inline-flex;
+  gap: 9px;
+}
+
+.ld-pips span {
+  width: 12px;
+  height: 12px;
+  background: #f0b429;
+  box-shadow: 0 0 10px rgba(240, 180, 41, 0.55);
+  animation: ld-pip 1s ease-in-out infinite;
+}
+
+.ld-pips span:nth-child(2) { animation-delay: 0.15s; }
+.ld-pips span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes ld-pip {
+  0%, 100% { opacity: 0.22; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-7px); }
+}
+
+/* ---------- Yoga ---------- */
+.ld-yoga {
+  background: #faf9f5;
+  color: #293f35;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.ld-yoga .ld-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.1rem, 7vw, 2.7rem);
+  letter-spacing: -0.035em;
+  color: #355b45;
+}
+
+.ld-yoga .ld-sub {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: #737a6e;
+}
+
+.ld-breath {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+}
+
+.ld-breath-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid #ccd5c5;
+}
+
+.ld-breath-dot {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #edf0e7;
+  border: 1px solid #b7c4ad;
+  animation: ld-breathe 5s ease-in-out infinite;
+}
+
+@keyframes ld-breathe {
+  0%, 100% { transform: scale(0.7); }
+  50% { transform: scale(1); }
+}
+
+/* ---------- Snake Bitter ---------- */
+.ld-snake {
+  background: #fffbeb;
+  color: #7c2d12;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.ld-snake .ld-title {
+  font-size: clamp(1.6rem, 6vw, 2.2rem);
+  font-weight: 700;
+  color: #b45309;
+}
+
+.ld-snake .ld-sub {
+  font-size: 1rem;
+  color: #b45309;
+}
+
+.ld-wiggle {
+  display: inline-block;
+  font-size: 2.4rem;
+  line-height: 1;
+  animation: ld-wiggle 1.8s ease-in-out infinite;
+}
+
+@keyframes ld-wiggle {
+  0%, 100% { transform: rotate(-12deg); }
+  50% { transform: rotate(12deg); }
+}
+
+/* ---------- Dark game pages ---------- */
+.ld-dark {
+  background: #1f2937;
+  color: #f9fafb;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.ld-mask,
+.ld-floaty,
+.ld-tiny,
+.ld-racing {
+  background: #111827;
+}
+
+.ld-anim {
+  background: #020617;
+}
+
+.ld-dark .ld-title {
+  font-size: clamp(1.5rem, 5.5vw, 2rem);
+  font-weight: 700;
+}
+
+.ld-dark .ld-sub {
+  font-size: 0.95rem;
+  color: #9ca3af;
+}
+
+.ld-target {
+  display: inline-block;
+  font-size: 2.4rem;
+  line-height: 1;
+  animation: ld-target 1.6s ease-out infinite;
+}
+
+@keyframes ld-target {
+  0% { transform: scale(1); }
+  55% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+.ld-race {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.ld-car {
+  display: block;
+  font-size: 2.2rem;
+  line-height: 1;
+  animation: ld-nudge 0.9s ease-in-out infinite;
+}
+
+@keyframes ld-nudge {
+  0%, 100% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+}
+
+.ld-checker {
+  width: 144px;
+  height: 24px;
+  background-image: conic-gradient(#f9fafb 25%, #111827 0 50%, #f9fafb 0 75%, #111827 0);
+  background-size: 24px 24px;
+  animation: ld-scroll 0.55s linear infinite;
+}
+
+@keyframes ld-scroll {
+  to { background-position: 24px 0; }
+}
+
+.ld-tilt {
+  display: inline-block;
+  font-size: 2.4rem;
+  line-height: 1;
+  animation: ld-tilt 2.6s ease-in-out infinite;
+}
+
+@keyframes ld-tilt {
+  0%, 100% { transform: rotate(-9deg); }
+  50% { transform: rotate(9deg); }
+}
+
+.ld-float {
+  display: inline-block;
+  font-size: 2.4rem;
+  line-height: 1;
+  animation: ld-float 2.2s ease-in-out infinite;
+}
+
+@keyframes ld-float {
+  0%, 100% { transform: translateY(-8px) rotate(-6deg); }
+  50% { transform: translateY(8px) rotate(6deg); }
+}
+
+.ld-radar {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  background: radial-gradient(circle, rgba(74, 222, 128, 0.14), transparent 70%);
+  overflow: hidden;
+}
+
+.ld-radar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from 0deg, rgba(74, 222, 128, 0.6), transparent 32%);
+  animation: ld-sweep 1.9s linear infinite;
+}
+
+.ld-radar-cross {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(74, 222, 128, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 222, 128, 0.22) 1px, transparent 1px);
+  border-radius: 50%;
+}
+
+@keyframes ld-sweep {
+  to { transform: rotate(360deg); }
+}
+
+.ld-grow {
+  display: inline-block;
+  font-size: 2.4rem;
+  line-height: 1;
+  transform-origin: 50% 100%;
+  animation: ld-grow 2.4s ease-in-out infinite;
+}
+
+@keyframes ld-grow {
+  0%, 100% { transform: scale(0.86); }
+  50% { transform: scale(1.08); }
+}
+
+.ld-cube {
+  display: inline-block;
+  width: 54px;
+  height: 54px;
+  border: 1px dashed #38bdf8;
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.18);
+  animation: ld-roll 6s linear infinite;
+}
+
+@keyframes ld-roll {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ld *,
+  .ld *::before,
+  .ld *::after {
+    animation: none !important;
+  }
+}
