@@ -46,7 +46,7 @@ import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from 
 import { updateGasVisuals, clearGasVisuals } from './gasVisuals';
 import { removeEntity } from './entity';
 import { decodeRunSave, restoreRunState, type RunState, type SavedFloor } from './runPersistence';
-import { foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects, occludesPlayer } from './rendering';
+import { foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects } from './rendering';
 import dungeon from "./dungeon";
 // Keep this after `dungeon`: saveRegistry loads the whole entity/item graph and
 // must not be the first entry into the entity → effects → dungeon cycle.
@@ -699,20 +699,11 @@ export class Scene0 extends Phaser.Scene {
     updateGasVisuals(this, this.context, this.time.now, isModalOpen(this.context));
     // Use interpolated sprite positions so walking/lunging actors swap order
     // smoothly, including monsters and items spawned after floor creation.
-    const player = this.context.player;
-    const playerSprite = player?.sprite;
-    const playerBounds = playerSprite?.getBounds();
-    const playerDepth = playerSprite ? worldDepth(playerSprite.y, 'actor') : 0;
+    // Overlapping actors stay opaque; alpha belongs to effects/animations.
     for (const entity of this.context.entities) {
       const sprite = entity.sprite;
       if (!sprite) continue;
       sprite.setDepth(worldDepth(sprite.y, entity.type === 'item' ? 'item' : 'actor'));
-      // The scaled guardian's art can completely cover the hero. Fade only
-      // the front actor so the player stays visible underneath it.
-      if (entity === player || entity.type === 'item' || !playerSprite || !playerBounds) continue;
-      const baseAlpha = hasEffect(entity, 'invisible') ? 0.4 : 1;
-      const occluding = occludesPlayer(sprite.getBounds(), sprite.depth, playerBounds, playerDepth);
-      sprite.setAlpha(occluding ? Math.min(baseAlpha, 0.45) : baseAlpha);
     }
     updateHeroAnimation(this.context.player, this.time.now);
     updateHeroBurning(this, this.context.player, this.time.now);

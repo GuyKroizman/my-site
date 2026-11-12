@@ -8,7 +8,7 @@ import { BOSS_ARENA_LAYOUTS, bossArenaLayout } from '../src/games/rogue0/bossAre
 import {
   BOSS_TEXTURE, BOSS_PIXELS, BOSS_PALETTE, BOSS_TEXTURE_SIZE, generateBossTexture
 } from '../src/games/rogue0/monsters/bossTexture.ts';
-import { actorOrigin, occludesPlayer } from '../src/games/rogue0/rendering.ts';
+import { actorOrigin, worldDepth } from '../src/games/rogue0/rendering.ts';
 import { actorBodyAtTile, bodyAtTile, bodyDistance, bodyOverlapsAt } from '../src/games/rogue0/actorBodies.ts';
 
 // --- One compact arena instead of a room network ----------------------------
@@ -275,15 +275,6 @@ const bodyEntities = [
 assert.equal(actorBodyAtTile(bodyEntities, 11, 11), bodyEntities[0]);
 assert.equal(actorBodyAtTile(bodyEntities, 19, 19), undefined, 'items never own extra cells');
 
-const bossRect = { x: -16, y: -16, width: 48, height: 48 };
-const heroRect = { x: 0, y: -16, width: 16, height: 16 };
-assert.equal(occludesPlayer(bossRect, 5, heroRect, 4), true,
-  'a front boss covering the hero triggers transparency');
-assert.equal(occludesPlayer(bossRect, 3, heroRect, 4), false,
-  'a boss behind the hero never fades');
-assert.equal(occludesPlayer({ ...bossRect, x: 100 }, 5, heroRect, 4), false,
-  'a distant boss does not fade');
-
 // --- Boss artwork: a big, toothy, one-eyed blob -----------------------------
 assert.equal(BOSS_TEXTURE_SIZE, 24);
 assert.equal(BOSS_PIXELS.length, 24, 'the boss art is 24 rows tall');
@@ -479,10 +470,29 @@ const { BOSS_ARENA_DORMANCY } = Boss;
     'the arena decides where the hero enters');
   assert.match(sceneSource, /new Boss\(context, cell\.x, cell\.y\)/,
     'the guardian is placed by the floor spawner');
-  assert.match(sceneSource, /occludesPlayer\(sprite\.getBounds\(\), sprite\.depth/,
-    'the scene fades a front actor that covers the hero');
-  assert.match(sceneSource, /sprite\.setAlpha\(occluding \? Math\.min\(baseAlpha, 0\.45\)/,
-    'the hero stays visible underneath a large monster');
+  // Exercise the scene's actual actor-sorting block without booting Phaser.
+  const sorting = sceneSource.split('// Use interpolated sprite positions')[1]
+    .split('    updateHeroAnimation(')[0];
+  const updateActors = new Function('worldDepth', sorting.slice(sorting.indexOf('    //')));
+  const makeSprite = (y, alpha, size = 16) => ({
+    x: 0, y, alpha, depth: 0,
+    getBounds() { return { x: this.x, y: this.y - size + 16, width: size, height: size }; },
+    setDepth(depth) { this.depth = depth; },
+    setAlpha(value) { this.alpha = value; },
+  });
+  for (const size of [16, 48]) {
+    for (const y of [-16, 0, 16, 64]) {
+      for (const alpha of [1, 0.4, 0.7]) {
+        const player = { type: 'player', sprite: makeSprite(0, 1) };
+        const monster = { type: 'enemy', sprite: makeSprite(y, alpha, size) };
+        updateActors.call({ context: { player, entities: [player, monster] } }, worldDepth);
+        assert.equal(monster.sprite.alpha, alpha,
+          'ordinary and boss monsters retain opacity/effect alpha regardless of hero position');
+        assert.equal(monster.sprite.depth, worldDepth(y, 'actor'), 'ground-contact ordering is preserved');
+        assert.equal(player.sprite.alpha, 1, 'the hero stays opaque too');
+      }
+    }
+  }
 }
 
 console.log('Rogue0 boss arena: five distinct per-floor halls (pillared rotunda, long colonnade, octagonal sanctum, cruciform vault, throne hall), sleeping guardian, entrance/exit placement, hidden room, anchoring and blob art passed');

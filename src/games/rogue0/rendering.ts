@@ -58,8 +58,6 @@ export function actorOriginY(frameHeight: number): number {
   return 1 - 16 / frameHeight;
 }
 
-export type ScreenRect = { x: number; y: number; width: number; height: number };
-
 /** Origin that keeps a sprite centred on its cell and its feet on the cell's
  * bottom edge. Larger art (the boss) must account for scale or it drifts
  * south-east of its logical tile and clicks land on the wrong tile. */
@@ -70,17 +68,6 @@ export function actorOrigin(frameWidth: number, frameHeight: number, scale = 1):
     x: width > 16 ? 0.5 - 8 / width : 0,
     y: height >= 16 ? 1 - 16 / height : actorOriginY(frameHeight)
   };
-}
-
-/** True when a front actor's sprite covers the hero. Only the occluder fades;
- * the hero never changes depth, so the rest of the scene keeps its ordering. */
-export function occludesPlayer(
-  actor: ScreenRect, actorDepth: number,
-  player: ScreenRect, playerDepth: number
-): boolean {
-  if (actorDepth <= playerDepth) return false;
-  return actor.x < player.x + player.width && actor.x + actor.width > player.x &&
-    actor.y < player.y + player.height && actor.y + actor.height > player.y;
 }
 
 /** Only the north edge of a solid wall projects into walkable space. */
