@@ -346,7 +346,6 @@ export abstract class Entity {
   }
   set identified(value: boolean) { this.locallyIdentified = value; }
   cursed: boolean = false;
-  curseLifted = false;
   // Named SPD-style curse rolled at generation (see curseData.ts). Empty
   // means either uncursed or a legacy bespoke curse (e.g. the Cursed Gem).
   curseId: string = "";
@@ -390,24 +389,17 @@ export abstract class Entity {
     return "";
   }
 
+  // A lifted curse leaves no trace here: a cleansed item is simply an ordinary
+  // item, and the scroll's own message already reports the cleansing.
   get curseDescription(): string {
-    // A glyph stone exposes curse status without revealing the item's identity.
-    // Keep the lifting record visible even before identification, as it was
-    // before the stone existed.
+    // A glyph stone warns of a curse without revealing the item's identity.
     if (!this.identified) {
       if (this.cursed) {
         return this.curseScanned
           ? 'A glyph stone reveals that this item is cursed.'
           : '';
       }
-      if (this.curseLifted) {
-        return this.curseLockMessage
-          ? 'Curse lifted: this item is no longer cursed and can be freely unequipped or dropped.'
-          : 'Curse lifted: this item is no longer cursed.';
-      }
-      return this.curseScanned
-        ? 'A glyph stone reveals that this item is free of curse.'
-        : '';
+      return '';
     }
     if (this.cursed) {
       const name = this.curseId ? CURSE_NAMES[this.curseId as CurseId] : '';
@@ -417,11 +409,6 @@ export abstract class Entity {
       }
       // Legacy bespoke curses (e.g. the Cursed Gem) are always lock-on gear.
       return 'Cursed: cannot be removed while equipped until the curse is lifted.';
-    }
-    if (this.curseLifted) {
-      return this.curseLockMessage
-        ? 'Curse lifted: this item is no longer cursed and can be freely unequipped or dropped.'
-        : 'Curse lifted: this item is no longer cursed.';
     }
     return '';
   }

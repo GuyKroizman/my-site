@@ -239,7 +239,8 @@ assert.equal(context.scene.input.enabled, true);
   assert.equal(uses, 2);
   assert.equal(first.cursed, false); assert.equal(second.cursed, true);
   assert.equal(first.curseId, '');
-  assert.match(first.displayDescription, /Curse lifted: this item is no longer cursed/);
+  assert.equal(first.curseDescription, '',
+    'cleansing leaves no "no longer cursed" history in the description');
   assert.equal(first.identified, false, 'cleansing a curse never identifies the item');
   assert.ok(!hero.getAllItems().includes(removeScroll));
   assert.ok(!ctx.entities.includes(removeScroll));
@@ -309,16 +310,18 @@ assert.equal(context.scene.input.enabled, true);
   hero.removeCurse();
   for (const item of gear) {
     assert.equal(item.cursed, false);
-    assert.ok(item.displayDescription.startsWith(item.baseDescription), 'cleansing preserves base stats and properties');
-    assert.match(item.displayDescription, /Curse lifted: this item is no longer cursed/);
+    assert.equal(item.displayDescription, item.baseDescription,
+      'a cleansed item leaves no curse history in its description');
     assert.ok(!item.displayDescription.includes('Cursed: cannot be removed'));
     const once = item.displayDescription;
     hero.removeCurse(item);
     assert.equal(item.displayDescription, once, 'repeated cleansing does not duplicate description text');
     item.identified = false;
-    assert.match(item.curseDescription, /Curse lifted/, 'known cleansing remains visible without identifying other properties');
+    assert.equal(item.curseDescription, '',
+      'known cleansing stays out of the description before identification too');
     item.cursed = true; item.identified = true;
-    assert.ok(!item.displayDescription.includes('Curse lifted'), 'a new curse takes precedence over old cleansing history');
+    assert.match(item.displayDescription, /Cursed: cannot be removed/,
+      'a new curse is described again');
   }
   for (const file of fs.readdirSync('src/games/rogue0/items').filter(file => file.endsWith('.ts'))) {
     assert.ok(!/get displayDescription\s*\(/.test(fs.readFileSync(`src/games/rogue0/items/${file}`, 'utf8')),

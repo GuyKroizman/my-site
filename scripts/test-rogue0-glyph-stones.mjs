@@ -378,7 +378,8 @@ function detectScene() {
   player.backpack.push(target, stone);
   assert.equal(stone.useOnItem(target), true);
   assert.equal(target.curseScanned, true);
-  assert.match(target.curseDescription, /free of curse/);
+  assert.equal(target.identified, false, 'detect curse never identifies the item');
+  assert.equal(target.curseDescription, '', 'uncursed scans add no description text');
   assert.match(dungeon.logs.at(-1), /free of curse/);
 
   // Identified items are no longer candidates: their curse state is explicit.
@@ -393,7 +394,7 @@ function detectScene() {
   assert.equal(another.canTargetItem(target), false, 'already scanned');
 }
 
-// --- Unidentified descriptions carry the verdict but not the item's name ---
+// --- Unidentified descriptions warn of curses without revealing the item's name ---
 {
   const cursed = Object.assign(new Entity(), {
     name: 'Axe', type: 'item', equipSlot: 'weapon', tier: 1,
@@ -403,9 +404,11 @@ function detectScene() {
   assert.doesNotMatch(cursed.displayDescription, /Sacrificial/);
   const clean = Object.assign(new Entity(), {
     name: 'Ration', type: 'item', equipSlot: 'consumable',
+    description: 'A ration of dried food.',
     identified: false, cursed: false, curseScanned: true,
   });
-  assert.match(clean.displayDescription, /glyph stone reveals that this item is free of curse/i);
+  assert.equal(clean.displayDescription, clean.baseDescription,
+    'an uncursed scan leaves the item description unchanged');
   const unscanned = Object.assign(new Entity(), {
     name: 'Axe', type: 'item', equipSlot: 'weapon', tier: 1,
     identified: false, cursed: true, curseId: 'wayward',

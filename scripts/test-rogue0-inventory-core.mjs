@@ -275,7 +275,7 @@ for (const slot of ['weapon', 'armor', 'ring', 'artifact']) {
   first.context = second.context = owner.context;
   owner.ring1 = first; owner.artifact = second; owner.effects = [{ id: 'cursed' }];
   inventory.removeCurse(owner, first);
-  assert.deepEqual([first.cursed, first.curseLifted, first.curseId], [false, true, '']);
+  assert.deepEqual([first.cursed, first.curseId], [false, '']);
   assert.equal(second.cursed, true);
   assert.equal(owner.effects.length, 1);
   const external = gear('weapon', { cursed: true });

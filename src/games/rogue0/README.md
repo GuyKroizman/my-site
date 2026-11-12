@@ -239,8 +239,8 @@ floor there is no floor below, so the stone vanishes and the hero stays put).
 - **Stone of Detect Curse** uses the normal item-target picker. Choose one
 unidentified carried item and the stone reports whether it is **cursed** or
 **free of curse**, then is consumed. It does **not** identify the item; its
-inventory description keeps the glyph-stone verdict (and the inventory cell now
-shows the known curse colour) until the item is identified normally.
+inventory description keeps a glyph-stone warning only if the item is cursed.
+The inventory cell shows the known curse colour until the item is identified normally.
 
 Glyph stones stack like other consumables and persist through browser saves.
 Regression coverage is `npm run test:rogue0:glyph-stones`, also part of

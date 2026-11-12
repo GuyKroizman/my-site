@@ -422,7 +422,7 @@ Keep three separate progression tracks, rather than treating all growth as ATK:
 SPD's core risk loop is a gamble on every unidentified equipment find: a
 fraction of gear is cursed, applies a specific thematic curse while equipped, and
 stays locked on until the curse is lifted. rogue0 already has the machinery —
-the `cursed`/`curseLifted` flags, the equip/unequip/drop/throw lock-on guards,
+the `cursed` flag, the equip/unequip/drop/throw lock-on guards,
 `removeCurse()` and the Scroll of Remove Curse — but today the **only** cursed
 item is the bespoke Cursed Gem. Weapons, armor and rings are never generated
 cursed, so the loop never fires in normal play.

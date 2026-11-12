@@ -67,7 +67,6 @@ export function tryFuseWands(context: GameContext, impactX: number, impactY: num
   right.fusionCount = power;
   right.cursed = cursed;
   right.curseId = curseId;
-  right.curseLifted = cursed ? false : right.curseLifted && left.curseLifted;
   right.blessed = blessed;
   right.reconcileChargeScaling();
   right.charges = Math.min(right.maxCharges, charges);
