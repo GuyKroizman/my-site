@@ -355,19 +355,21 @@ weapon and attack normally.
 ## Wand of Blast
 
 A utility wand found in dungeon loot and shops. Each zap spends one charge and
-pushes the first hostile target up to three tiles away, with no direct damage
-or accuracy roll. Displacement resolves at bolt impact, one tile at a time.
+pushes the first hostile target up to **5 tiles, plus 1 tile per upgrade level**
+(+1: 6 tiles, +2: 7 tiles, etc.), with no direct damage or accuracy roll. Displacement resolves at bolt impact, one tile at a time.
 Walls, closed doors and map edges stop the push and stun for **three scheduled
 actions**; other actors stop it without a stun, and rooted actors stay anchored.
 Diagonal shots push diagonally. A grounded enemy crossing a chasm dies through
 normal death/XP handling; its loot lands at a random safe location on the floor
 below (or is lost beneath the final floor). Flight/levitation prevents falling.
 
-Firing at an adjacent enemy also pushes the hero up to three tiles in the
-opposite direction, even if the enemy dies. Recoil can stun against a wall or
+Firing at an adjacent enemy also pushes the hero by the same upgrade-scaled
+distance in the opposite direction, even if the enemy dies. Recoil can stun against a wall or
 queue the normal player chasm fall, with landing damage handled downstairs.
 Stun has its own HUD icon, survives saving, and can be cured by healing.
-Upgrades/fusion increase charge capacity, not blast distance or stun duration.
+Upgrades increase both push distance and charge capacity. Fusion increases
+charge capacity but does not further multiply push distance. Stun duration
+remains three actions.
 
 ## Lightning wand arcs
 

@@ -33,11 +33,11 @@ const Monster = load('monsters/monster', { Entity, Phaser, Gold: Loot,
   enemyCanSeePlayer: () => false, enemyTurn() {},
 }).default;
 
-function fixture(enemyX = 5, enemyY = 5) {
+function fixture(enemyX = 5, enemyY = 5, width = 14, height = 12) {
   const context = createGameContext();
   context.floor = 2;
-  const level = Array.from({ length: 12 }, (_, y) => Array.from({ length: 14 }, (_, x) =>
-    x === 0 || y === 0 || x === 13 || y === 11 ? 1 : 0));
+  const level = Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) =>
+    x === 0 || y === 0 || x === width - 1 || y === height - 1 ? 1 : 0));
   context.currentLevel = level;
   dungeon.currentLevel = level;
   context.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
@@ -77,7 +77,7 @@ function fixture(enemyX = 5, enemyY = 5) {
   assert.equal(f.enemy.x, 5);
   f.impact();
   assert.equal(f.hero.moving, false);
-  assert.deepEqual([f.enemy.x, f.enemy.y], [8, 5]);
+  assert.deepEqual([f.enemy.x, f.enemy.y], [10, 5]);
   assert.equal(f.hero.x, 3, 'no distant recoil');
   assert.equal(f.enemy.healthPoints, 10);
   assert.equal(f.enemy.nextActionTime, 0, 'push does not spend victim actions');
@@ -90,6 +90,7 @@ function fixture(enemyX = 5, enemyY = 5) {
   f.wand.level = 1; f.wand.onUpgrade();
   assert.equal(f.wand.maxCharges, 4);
   f.wand.charges = 2;
+  f.wand.description = 'Pushes an enemy up to 3 tiles away.'; // Older save text.
   const registry = { './items/WandOfBlast.ts:default': Blast };
   const graph = encodeGraph({ backpack: [f.wand], quickslots: [f.wand] }, registry);
   const restored = decodeGraph(JSON.parse(JSON.stringify(graph)), registry, item => { item.context = f.context; });
@@ -100,8 +101,41 @@ function fixture(enemyX = 5, enemyY = 5) {
   for (let i = 0; i < 20; i++) wand.refresh();
   assert.equal(wand.charges, 3);
   wand.applySpecialImpact(f.hero, f.enemy);
-  assert.equal(f.enemy.x, 8);
+  assert.equal(f.enemy.x, 11, 'saved +1 wand pushes six tiles');
   assert.equal(f.enemy.healthPoints, 10);
+  assert.match(wand.baseDescription, /Push distance: 6 tiles/);
+  assert.doesNotMatch(wand.baseDescription, /up to 3 tiles/);
+}
+
+// Base distance and each upgrade apply to both the enemy and point-blank recoil.
+for (const level of [0, 1, 2, 3, 8]) {
+  const f = fixture(19, 5, 40);
+  f.hero.x = 18;
+  f.wand.level = level;
+  const distance = 5 + level;
+  f.fire(); f.impact();
+  assert.equal(f.enemy.x, 19 + distance);
+  assert.equal(f.hero.x, 18 - distance);
+  assert.equal(effects.hasEffect(f.enemy, 'stunned'), false);
+  assert.equal(effects.hasEffect(f.hero, 'stunned'), false);
+  assert.equal(f.wand.charges, 2, 'greater distance still costs one charge');
+  assert.match(f.wand.baseDescription, new RegExp(`Push distance: ${distance} tiles`));
+}
+
+// Upgraded blasts still resolve every intervening tile, not just the endpoint.
+for (const hazard of ['wall', 'chasm']) {
+  const f = fixture(5, 5, 30);
+  f.wand.level = 3;
+  if (hazard === 'wall') f.level[5][11] = 1;
+  else f.tiles.setFeature(11, 5, 'chasm');
+  f.fire(); f.impact();
+  if (hazard === 'wall') {
+    assert.equal(f.enemy.x, 10);
+    assert.equal(f.enemy.effects.find(e => e.id === 'stunned')?.duration, 3);
+  } else {
+    assert.equal(f.enemy.healthPoints, 0);
+    assert.equal(f.context.chasmFallenItems.get(3).length, 1);
+  }
 }
 
 // Immediate wall, later wall, closed/secret doors, boundaries; no wall clipping.
@@ -129,7 +163,8 @@ for (const anchored of [false, true]) {
 {
   const f = fixture(4, 6);
   f.fire(); f.impact();
-  assert.deepEqual([f.enemy.x, f.enemy.y], [7, 9]);
+  assert.deepEqual([f.enemy.x, f.enemy.y], [8, 10]);
+  assert.equal(effects.hasEffect(f.enemy, 'stunned'), true, 'longer diagonal push reaches the wall');
   assert.deepEqual([f.hero.x, f.hero.y], [1, 3]);
   assert.equal(effects.hasEffect(f.hero, 'stunned'), true, 'diagonal recoil reaches boundary');
   assert.equal(f.hero.canAct(), false);

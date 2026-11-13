@@ -575,7 +575,7 @@ const dungeon = {
 
   // Resolve each tile synchronously so walls, bodies, traps and the first
   // chasm stop the blast; never leap over hazards to the final destination.
-  blastPush: function (context: GameContext, target: Entity, dx: number, dy: number): void {
+  blastPush: function (context: GameContext, target: Entity, dx: number, dy: number, distance: number): void {
     if (target.healthPoints <= 0 || target.moving || hasEffect(target, "rooted") ||
         !context.entities.includes(target) || target.x === undefined || target.y === undefined ||
         !Number.isInteger(dx) || !Number.isInteger(dy) || Math.max(Math.abs(dx), Math.abs(dy)) !== 1) return;
@@ -585,7 +585,7 @@ const dungeon = {
       context.player.inputBuffer = [];
     }
     const tiles = terrainFor(context);
-    for (let step = 0; step < 3; step++) {
+    for (let step = 0; step < distance; step++) {
       const x: number = target.x! + dx;
       const y: number = target.y! + dy;
       const options = { swept: true, allowChasm: true };
