@@ -41,7 +41,8 @@ function fixture(enemyX = 5, enemyY = 5, width = 14, height = 12) {
   context.currentLevel = level;
   dungeon.currentLevel = level;
   context.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
-  context.scene = { tweens: { killTweensOf() {}, add: config => config.onComplete?.() } };
+  context.scene = { tweens: { killTweensOf() {}, add: config => config.onComplete?.() },
+    events: { emit(event) { if (event === 'player-died') context.playerDeaths = (context.playerDeaths ?? 0) + 1; } } };
   context.visibleTiles = new Set(level.flatMap((row, y) => row.map((_, x) => `${x},${y}`)));
   const hero = Object.assign(new Entity(), { context, type: 'player', name: 'Hero', x: 3, y: 5,
     healthPoints: 30, backpack: [], walkPath: [], inputBuffer: [], actionReady: true,
@@ -131,6 +132,7 @@ for (const hazard of ['wall', 'chasm']) {
   f.fire(); f.impact();
   if (hazard === 'wall') {
     assert.equal(f.enemy.x, 10);
+    assert.equal(f.enemy.healthPoints, 7, 'later impact deals damage once');
     assert.equal(f.enemy.effects.find(e => e.id === 'stunned')?.duration, 3);
   } else {
     assert.equal(f.enemy.healthPoints, 0);
@@ -148,7 +150,7 @@ for (const blocker of ['wall', 'later-wall', 'door', 'secretDoor', 'boundary']) 
   f.fire(); f.impact();
   assert.equal(f.enemy.x, blocker === 'boundary' ? 12 : x - 1);
   assert.equal(f.enemy.effects.find(e => e.id === 'stunned')?.duration, 3);
-  assert.equal(f.enemy.healthPoints, 10);
+  assert.equal(f.enemy.healthPoints, 7);
 }
 for (const anchored of [false, true]) {
   const f = fixture();
@@ -157,6 +159,7 @@ for (const anchored of [false, true]) {
   f.fire(); f.impact();
   assert.equal(f.enemy.x, 5);
   assert.equal(effects.hasEffect(f.enemy, 'stunned'), false, 'bodies and roots are not walls');
+  assert.equal(f.enemy.healthPoints, 10, 'bodies and roots cause no impact damage');
 }
 
 // Diagonal displacement and recoil, without changing actor scheduling deadlines.
@@ -167,6 +170,8 @@ for (const anchored of [false, true]) {
   assert.equal(effects.hasEffect(f.enemy, 'stunned'), true, 'longer diagonal push reaches the wall');
   assert.deepEqual([f.hero.x, f.hero.y], [1, 3]);
   assert.equal(effects.hasEffect(f.hero, 'stunned'), true, 'diagonal recoil reaches boundary');
+  assert.equal(f.enemy.healthPoints, 7);
+  assert.equal(f.hero.healthPoints, 27, 'recoil damages the hero too');
   assert.equal(f.hero.canAct(), false);
 }
 
@@ -206,7 +211,7 @@ for (const player of [false, true]) {
   effects.applyEffect(actor, effects.createLevitatingEffect());
   f.tiles.setFeature(player ? 2 : 5, 5, 'chasm');
   f.fire(); f.impact();
-  assert.equal(actor.healthPoints, player ? 30 : 10);
+  assert.equal(actor.healthPoints, player ? 27 : 10, 'flight prevents falls but not recoil wall damage');
   assert.ok(f.context.entities.includes(actor));
   assert.ok(!f.context.pendingFall);
 }
@@ -217,6 +222,36 @@ for (const player of [false, true]) {
   f.fire(); f.impact();
   assert.equal(f.enemy.healthPoints, 0);
   assert.equal(f.context.chasmFallenItems.get(3).length, 1);
+}
+
+// Large bodies collide if any leading body cell hits a wall.
+{
+  const f = fixture();
+  Object.defineProperty(f.enemy, 'footprint', { value: { width: 2, height: 2, originX: 0, originY: 0 } });
+  f.level[6][7] = 1;
+  f.fire(); f.impact();
+  assert.equal(f.enemy.x, 5);
+  assert.equal(f.enemy.healthPoints, 7);
+}
+
+// Lethal impacts use normal death hooks once, including loot/XP and hero death.
+for (const player of [false, true]) {
+  const f = fixture(4);
+  const actor = player ? f.hero : f.enemy;
+  actor.healthPoints = 3;
+  f.level[5][player ? 2 : 5] = 1;
+  f.fire(); f.impact();
+  assert.equal(actor.healthPoints, 0);
+  assert.equal(f.context.entities.includes(actor), false);
+  dungeon.blastPush(f.context, actor, 1, 0, 5);
+  if (player) assert.equal(f.context.playerDeaths, 1);
+  else {
+    assert.equal(f.context.kills, 1);
+    assert.equal(f.hero.earnedXp, 5);
+    assert.equal(f.context.entities.filter(e => e instanceof Loot).length, 1);
+    assert.equal(f.context.chasmFallenItems?.size ?? 0, 0, 'wall kills leave loot on this floor');
+    assert.equal(f.hero.healthPoints, 27, 'fatal enemy collision still recoils the hero');
+  }
 }
 
 // Invalid/empty shots retain existing targeting and charge rules.

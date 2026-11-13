@@ -839,11 +839,14 @@ for (const flying of [false, true]) {
   ctx.entities.push(victim);
   for (const feature of ['door', 'secretDoor']) {
     tiles.setFeature(3, 2, feature);
+    const hp = victim.healthPoints;
     assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), false, 'cannot force closed doors');
+    assert.equal(victim.healthPoints, hp - 3, 'closed doors cause impact damage');
   }
   tiles.clearFeature(3, 2);
   flightDungeon.currentLevel[2][3] = 1;
   assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), false, 'wall blocks knockback');
+  assert.equal(victim.healthPoints, 1, 'each of the three solid collisions dealt 3 damage');
   flightDungeon.currentLevel[2][3] = 0;
   victim.effects = [{ id: 'rooted' }];
   assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), false, 'roots anchor the target');
@@ -853,6 +856,7 @@ for (const flying of [false, true]) {
   ctx.entities.pop();
   assert.equal(flightDungeon.knockback(ctx, victim, 1, 1), false, 'cardinal vectors only');
   assert.equal(flightDungeon.knockback(ctx, victim, 0.5, 0.5), false, 'no fractional tiles');
+  assert.equal(victim.healthPoints, 1, 'roots, bodies and invalid directions cause no damage');
   tiles.setFeature(3, 2, 'ice');
   assert.equal(flightDungeon.knockback(ctx, victim, 1, 0), true);
   assert.deepEqual([victim.x, victim.y], [3, 2]);
@@ -914,8 +918,9 @@ for (const type of ['player', 'enemy', 'item']) {
   assert.deepEqual([victim.x, victim.y], [2, 2]);
   assert.ok(!ctx.pendingFall);
 }
+for (const type of ['player', 'enemy'])
 for (const obstruction of ['wall', 'door', 'actor', 'rooted']) {
-  const { ctx, victim } = geyserSetup();
+  const { ctx, victim } = geyserSetup(type);
   tiles.clearFeature(3, 2);
   if (obstruction === 'wall') flightDungeon.currentLevel[2][3] = 1;
   if (obstruction === 'door') tiles.setFeature(3, 2, 'door');
@@ -924,7 +929,8 @@ for (const obstruction of ['wall', 'door', 'actor', 'rooted']) {
   flightDungeon.moveEntityTo(ctx, victim, 2, 2);
   assert.deepEqual([victim.x, victim.y], [2, 2], 'blocked blast leaves actor on plate');
   assert.equal(tiles.getTrapState(2, 2), 'triggered', 'blocked geyser is still spent');
-  assert.equal(victim.healthPoints, 10, 'no direct geyser damage');
+  assert.equal(victim.healthPoints, ['wall', 'door'].includes(obstruction) ? 7 : 10,
+    'geyser only damages actors slammed into solid terrain');
   assert.ok(!ctx.pendingFall);
 }
 {

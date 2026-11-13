@@ -5,7 +5,7 @@ import dungeon from '../dungeon';
 import { actorFootprint } from '../actorBodies';
 import { footprintTiles } from '../footprint';
 
-const BLAST_DESCRIPTION = 'Pushes an enemy up to 5 tiles away, plus 1 tile per upgrade level, without direct damage. Hitting a wall or closed door stuns for 3 actions. Grounded enemies pushed into chasms die; their loot falls to a random safe place on the floor below. Firing at an adjacent enemy also pushes you backwards by the same distance, risking a stun or a chasm fall.';
+const BLAST_DESCRIPTION = 'Pushes an enemy up to 5 tiles away, plus 1 tile per upgrade level, without direct damage. Hitting a wall, closed door or map edge deals 3 impact damage and stuns for 3 actions. Grounded enemies pushed into chasms die; their loot falls to a random safe place on the floor below. Firing at an adjacent enemy also pushes you backwards by the same distance, risking impact damage and a stun, or a chasm fall.';
 
 export default class WandOfBlast extends Wand {
   constructor(context: GameContext, x?: number, y?: number) {

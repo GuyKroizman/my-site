@@ -357,14 +357,15 @@ weapon and attack normally.
 A utility wand found in dungeon loot and shops. Each zap spends one charge and
 pushes the first hostile target up to **5 tiles, plus 1 tile per upgrade level**
 (+1: 6 tiles, +2: 7 tiles, etc.), with no direct damage or accuracy roll. Displacement resolves at bolt impact, one tile at a time.
-Walls, closed doors and map edges stop the push and stun for **three scheduled
-actions**; other actors stop it without a stun, and rooted actors stay anchored.
+Walls, closed doors and map edges stop the push, deal **3 impact damage** (ignoring
+armor), and stun for **three scheduled actions**. Other actors stop it without
+damage or a stun, and rooted actors stay anchored.
 Diagonal shots push diagonally. A grounded enemy crossing a chasm dies through
 normal death/XP handling; its loot lands at a random safe location on the floor
 below (or is lost beneath the final floor). Flight/levitation prevents falling.
 
 Firing at an adjacent enemy also pushes the hero by the same upgrade-scaled
-distance in the opposite direction, even if the enemy dies. Recoil can stun against a wall or
+distance in the opposite direction, even if the enemy dies. Recoil can deal impact damage and stun against a wall or
 queue the normal player chasm fall, with landing damage handled downstairs.
 Stun has its own HUD icon, survives saving, and can be cured by healing.
 Upgrades increase both push distance and charge capacity. Fusion increases
@@ -477,15 +478,17 @@ There is **no player shove ability**. `dungeon.knockback(context, target, dx, dy
 is an effect-level primitive for one cardinal tile of forced movement, with no
 extra victim action cost. Grounded actors pushed into chasms fall; levitating
 actors remain aloft. The existing floor-fall path handles player transitions
-outside the scheduler; monster falls use normal death removal.
+outside the scheduler; monster falls use normal death removal. Forced collisions
+with walls, closed doors or map edges deal 3 impact damage to either side, once
+per push, using normal death handling. Actor blockers and roots cause no damage.
 
 **Geyser traps** are the first push-producing effect. Grounded players and
 monsters activate them on entry; items and levitating actors do not. The blast
 pushes one tile in the direction of entry (horizontal for diagonal entry), can
 chain into another geyser, and preserves landing-terrain contacts. Blocked or
 rooted victims stay on the plate, but the trap is still spent. Geysers deal no
-direct damage and cost no extra action time; chasm landings use normal fall
-rules. Generated geysers are single-use and share the existing hidden-trap
+direct damage and cost no extra action time; wall collisions deal the same 3
+impact damage (without a stun), and chasm landings use normal fall rules. Generated geysers are single-use and share the existing hidden-trap
 budget. Search only reveals them, and floor snapshots preserve spent state.
 **Confused** lasts four elapsed world-time units. Movement attempts choose a
 random cardinal neighbor without rerolling unsafe choices. Walls, closed doors

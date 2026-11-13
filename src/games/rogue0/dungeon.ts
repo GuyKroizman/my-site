@@ -546,6 +546,17 @@ const dungeon = {
     return true;
   },
 
+  // Environmental impact damage bypasses attack rolls/armor and uses normal
+  // death handling, so wall kills award loot/XP and hero deaths end the run.
+  wallImpact: function (context: GameContext, target: Entity): void {
+    target.hearNoise(target.x!, target.y!);
+    target.takeDamage(3);
+    if (isEnemyVisible(context, target)) {
+      this.log(context, `${target.type === "player" ? "You slam" : `${target.name} slams`} into a wall for 3 damage!`);
+    }
+    if (target.healthPoints <= 0) removeEntity(context, target);
+  },
+
   // Effect-level forced movement, NOT a player ability. A trap or other effect
   // supplies a cardinal unit vector; it owns its action cost. The victim gets
   // no free action and loses no scheduled action. Shared path grids stay intact.
@@ -557,7 +568,13 @@ const dungeon = {
     if (!Number.isInteger(dx) || !Number.isInteger(dy) || Math.abs(dx) + Math.abs(dy) !== 1) return false;
     const x = target.x + dx;
     const y = target.y + dy;
-    if (!this.canFootprintOccupy(context, target, x, y, { swept: true, allowChasm: true })) return false;
+    const options = { swept: true, allowChasm: true };
+    if (!this.canFootprintOccupy(context, target, x, y, options)) {
+      if (!this.canFootprintOccupy(context, target, x, y, { ...options, ignoreActors: true })) {
+        this.wallImpact(context, target);
+      }
+      return false;
+    }
     const fp = actorFootprint(target);
     const chasm = [...footprintTiles(fp, x, y)].some(([tx, ty]) => tiles.getFeature(tx, ty) === "chasm");
     // Wake monsters without granting magical knowledge of the player's position.
@@ -590,10 +607,11 @@ const dungeon = {
       const y: number = target.y! + dy;
       const options = { swept: true, allowChasm: true };
       if (!this.canFootprintOccupy(context, target, x, y, options)) {
-        // Bodies stop the push without a wall stun. Roots also anchor rather
-        // than stun. Closed doors and the map boundary count as solid walls.
+        // Bodies and roots stop the push without impact damage or stun.
+        // Closed doors and the map boundary count as solid walls.
         if (!this.canFootprintOccupy(context, target, x, y, { ...options, ignoreActors: true })) {
           applyEffect(target, createStunnedEffect(3));
+          this.wallImpact(context, target);
         }
         return;
       }
