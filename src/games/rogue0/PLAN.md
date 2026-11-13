@@ -1054,8 +1054,10 @@ three already-built systems (identification, curses, hunger) into decisions.
 Add buy/sell with a real price curve and an Ankh revival item. The first
 concrete design is the floor-6 portal store in **`STORE.md`** (15-slot
 `shop.png` scene, buy/sell, persistent stock). **v1 is implemented**: free-standing room door,
-store scene, pricing, buy/sell, save round-trip and five store suites. Ankh
-remains future work.
+store scene, pricing, buy/sell, save round-trip and six store suites. The
+rare Stone of Infusion is stocked in the tool row (weight 1 vs 3 for ordinary
+glyph stones) at 90g, so the charm can also be bought rather than only found.
+Ankh remains future work.
 2. **Finish Phase 8 signatures.** Remaining: monsters avoiding burning terrain,
    then Quloptsh concealment/backstab and ghoul lifesteal. Boss redesign
    (multi-phase Bone Lord) stays deferred.

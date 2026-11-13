@@ -27,8 +27,8 @@ Landed files:
 - Save integration in `runPersistence.ts` and `scene0.autosave`.
 - Tests: `test-rogue0-store-layout`, `test-rogue0-shop-pricing`,
   `test-rogue0-shop-stock`, `test-rogue0-shop-transactions`,
-  `test-rogue0-portal`; chained as `npm run test:rogue0:store` and included in
-  `npm run test:rogue0`.
+  `test-rogue0-store-glyph`, `test-rogue0-portal`; chained as
+  `npm run test:rogue0:store` and included in `npm run test:rogue0`.
 
 Verified so far:
 
@@ -377,7 +377,7 @@ scroll) without changing the stock format.
 | row | slots | pool |
 |---|---|---|
 | 1 | 0–4 | consumables: potions, scrolls, rations |
-| 2 | 5–9 | tools: wands, rings, glyph stones, potions/scrolls |
+| 2 | 5–9 | tools: wands, rings, glyph stones (including the rare Stone of Infusion), potions/scrolls |
 | 3 | 10–14 | gear: tier-2 weapons, armor, rings, occasional artifact |
 
 - All 15 slots are filled from their row pool (weighted; cheap items more
@@ -439,6 +439,7 @@ Starter table (tuned low; the economy is deliberately tight):
 | common potion | 15 | Healing 18, Strength 30, Experience 45 |
 | common scroll | 18 | Identify 20, Remove Curse 26, Upgrade 38 |
 | glyph stone | 18 | Blink, Detect Curse |
+| Stone of Infusion | 60 | rare charm; buy 90 / sell 24 |
 | wand | 34 × tier | +3 per charge |
 | weapon / armor | 26 × tier | +8 per upgrade |
 | ring | 30 × tier | +8 per upgrade |
@@ -447,6 +448,11 @@ Starter table (tuned low; the economy is deliberately tight):
 Examples (tier 2): Shortsword = 52 → buy 80 / sell 20; Leather Armor = 52 →
 80 / 20; Ring = 60 → buy 90 / sell 24; Wand of Frost (3 charges) = 77 → buy
 115 / sell 30; Scroll of Upgrade = 38 → buy 55 / sell 15.
+
+The Stone of Infusion is stocked in row 2 at one third the weight of each
+ordinary glyph stone. It is a normal consumable: buying it spends gold and
+stock but no turn. Using it then opens the usual "choose weapon or armor"
+targeting flow and engraves a random glyph. See `equipmentGlyphs.ts`.
 
 Gold is currently sparse (default monster drop 3 g at ~25 %; chests add a
 little). The shop's main input is therefore **selling unused loot**, which is

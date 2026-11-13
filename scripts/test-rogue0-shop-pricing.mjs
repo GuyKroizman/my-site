@@ -15,6 +15,9 @@ for (const [fields, base, buy, sell] of [
   [{ name: 'Scroll of Remove Curse' }, 26, 40, 10],
   [{ name: 'Scroll of Lightning' }, 18, 25, 7],
   [{ textureKey: 'glyph-stone-blink' }, 18, 25, 7],
+  // The rare infuse charm is worth far more than the utility stones, but
+  // still less than an uncursed tier-2 weapon at the counter.
+  [{ name: 'Stone of Infusion', textureKey: 'glyph-stone-infuse' }, 60, 90, 24],
   [{ equipSlot: 'weapon', tier: 2 }, 52, 80, 20],
   [{ equipSlot: 'armor', tier: 2, level: 2 }, 68, 100, 27],
   [{ equipSlot: 'ring', tier: 2 }, 60, 90, 24],
@@ -38,4 +41,10 @@ for (let tier = 1; tier <= 5; tier++) for (let level = 0; level < 20; level++) {
 }
 assert.ok(Number.isFinite(buyPrice(item({ equipSlot: 'weapon', tier: NaN, level: Infinity }))));
 assert.equal(baseValue(item({ name: '__proto__' })), 5);
+assert.ok(buyPrice(item({ name: 'Stone of Infusion' })) >
+  buyPrice(item({ textureKey: 'glyph-stone-blink' })), 'infusion outvalues ordinary glyph stones');
+assert.ok(buyPrice(item({ name: 'Stone of Infusion' })) >
+  buyPrice(item({ equipSlot: 'weapon', tier: 2 })), 'a charm costs more than tier-2 gear');
+assert.ok(buyPrice(item({ name: 'Stone of Infusion' })) <
+  buyPrice(item({ equipSlot: 'weapon', tier: 3 })), 'but less than tier-3 gear');
 console.log('Shop pricing passed: categories, per-unit quotes, curse half-price and no buy/sell arbitrage.');

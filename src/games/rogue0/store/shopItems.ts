@@ -37,6 +37,7 @@ export const SHOP_ITEM_IDS: Record<string, string> = {
   'ring-might': './items/RingOfMight.ts:default',
   'stone-blink': 'item:stone-of-blink',
   'stone-detect-curse': 'item:stone-of-detect-curse',
+  'stone-infuse': 'item:stone-of-infusion',
   'weapon': './items/tieredEquipment.ts:TieredWeapon',
   'armor': './items/tieredEquipment.ts:TieredArmor',
   'ration': './items/ration.ts:default',
@@ -44,9 +45,11 @@ export const SHOP_ITEM_IDS: Record<string, string> = {
   'fang-of-the-beast': './items/FangOfTheBeast.ts:default',
 };
 
-export function ensureShopState(context: GameContext): void {
+// `plan` is injectable so deterministic tests can verify a specific shelf item
+// without replacing global RNG. Production always uses the normal weighted plan.
+export function ensureShopState(context: GameContext, plan = planShopStock()): void {
   if (context.shop) return; // including a completely sold-out store
-  context.shop = createShopState(planShopStock(), spec => {
+  context.shop = createShopState(plan, spec => {
     const Ctor = saveRegistry[SHOP_ITEM_IDS[spec.kind]] as unknown as
       new (context: GameContext, x?: number, y?: number, tier?: number) => Entity;
     if (!Ctor) throw new Error(`Unknown shop item: ${spec.kind}`);

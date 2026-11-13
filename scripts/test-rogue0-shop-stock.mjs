@@ -26,6 +26,14 @@ for (let roll = 0; roll < 1000; roll++) {
   });
 }
 SHOP_POOLS.forEach((pool, row) => assert.deepEqual([...seen[row]].sort(), pool.map(entry => entry.kind).sort()));
+// Infusion is stocked, but one third as often as each ordinary glyph stone.
+const rowTools = SHOP_POOLS[1];
+const weightOf = kind => rowTools.find(entry => entry.kind === kind)?.weight;
+assert.equal(weightOf('stone-infuse'), 1);
+assert.equal(weightOf('stone-blink'), 3);
+assert.equal(weightOf('stone-detect-curse'), 3);
+assert.equal(rowTools.filter(entry => entry.kind === 'stone-infuse').length, 1,
+  'the charm occupies exactly one weighted pool entry');
 for (const bad of [NaN, -1, 1, Infinity]) assert.throws(() => planShopStock(6, () => bad), RangeError);
 assert.throws(() => planShopStock(0), RangeError);
 console.log('Shop stock passed: all 15 slots random, weighted row pools, duplicates and deterministic RNG coverage.');

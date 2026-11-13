@@ -11,7 +11,8 @@ const SCROLLS = ['identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'ter
   'recharging', 'beckoning'].map(kind => `scroll-${kind}`);
 const WANDS = ['firebolt', 'frost', 'lightning', 'blast'].map(kind => `wand-${kind}`);
 const RINGS = ['accuracy', 'evasion', 'elements', 'haste', 'might'].map(kind => `ring-${kind}`);
-const STONES = ['blink', 'detect-curse'].map(kind => `stone-${kind}`);
+// Blink/Detect Curse are common utility stones. Infusion is a rare engraved
+// charm: it shares their shelf row at one third of their weight.
 const ARTIFACTS = ['chalice-of-blood', 'fang-of-the-beast'];
 
 type WeightedKind = { kind: string; weight: number };
@@ -19,7 +20,9 @@ const weighted = (kinds: string[], weight = 1): WeightedKind[] => kinds.map(kind
 
 export const SHOP_POOLS: readonly (readonly WeightedKind[])[] = [
   [...weighted(POTIONS), ...weighted(SCROLLS), ...weighted(['ration'], 4)],
-  [...weighted(WANDS, 3), ...weighted(RINGS, 2), ...weighted(STONES, 3),
+  [...weighted(WANDS, 3), ...weighted(RINGS, 2),
+    ...weighted(['stone-blink', 'stone-detect-curse'], 3),
+    ...weighted(['stone-infuse'], 1),
     ...weighted(POTIONS), ...weighted(SCROLLS)],
   [...weighted(['weapon', 'armor'], 10), ...weighted(RINGS, 3), ...weighted(ARTIFACTS)],
 ];

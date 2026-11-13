@@ -13,6 +13,9 @@ const NAMED_VALUES: Readonly<Record<string, number>> = {
   'Scroll of Identify': 20,
   'Scroll of Remove Curse': 26,
   'Scroll of Upgrade': 38,
+  // The rare grass find that engraves a weapon or armor glyph. Named
+  // explicitly so it outvalues the 18g utility stones.
+  'Stone of Infusion': 60,
 };
 
 function nonnegative(value: number): number {

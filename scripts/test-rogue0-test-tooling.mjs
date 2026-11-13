@@ -30,7 +30,8 @@ try {
   assert.deepEqual(selectSuites(['pass', 'syntax'], ['pass', 'pass']), ['pass']);
   assert.throws(() => selectSuites(['pass'], ['../pass']), /Unknown suite/);
   assert.throws(() => selectSuites(['pass'], ['pas']), /Unknown suite/);
-  const store = ['store-layout', 'shop-pricing', 'shop-stock', 'shop-transactions', 'portal'];
+  const store = ['store-layout', 'shop-pricing', 'shop-stock', 'shop-transactions',
+    'store-glyph', 'portal'];
   assert.deepEqual(selectSuites(store, ['@store', 'portal']), store);
 
   // Deliberate failing child fixtures are isolated and labelled verification.
