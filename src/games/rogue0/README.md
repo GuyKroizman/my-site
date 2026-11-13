@@ -300,7 +300,7 @@ Ring bonuses scale with upgrade level and update immediately while equipped:
 | Evasion | +5 evasion | +5 evasion |
 | Elements | +2 fire/ice/shock resistance | +1 to each |
 | Haste | 2× movement speed | +0.5 to the multiplier |
-| Might | +2 damage | +1 damage |
+| Might | +1 Strength | +1 Strength |
 
 Only equipped rings grant passives. Removing a ring removes its actual applied
 bonus, not an outdated or newly upgraded amount. Haste rings multiply together

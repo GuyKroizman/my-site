@@ -129,13 +129,25 @@ const RingOfHaste = load('src/games/rogue0/items/RingOfHaste.ts', { Ring }).defa
 const RingOfElements = load('src/games/rogue0/items/RingOfElements.ts', { Ring }).default;
 const RingOfAccuracy = load('src/games/rogue0/items/RingOfAccuracy.ts', { Ring }).default;
 const ringCtx = () => ({ messages: [], player: {
-  movementSpeed: 1, accuracy: 95, evasion: 0, resistance: {}, vulnerability: {}, effects: [] } });
+  movementSpeed: 1, accuracy: 95, evasion: 0, strength: 10, resistance: {}, vulnerability: {}, effects: [] } });
 {
-  const might = new RingOfMight(ringCtx());
-  assert.equal(might.damage(), 2);
+  const ctx = ringCtx();
+  const might = new RingOfMight(ctx);
+  assert.equal(might.damage(), 0);
   might.cursed = true; might.curseId = 'inverted';
-  assert.equal(might.damage(), -2);
-  assert.match(might.baseDescription, /Reduces damage by 2/);
+  might.equip();
+  assert.equal(ctx.player.strength, 9);
+  assert.equal(might.damage(), 0);
+  assert.match(might.baseDescription, /Reduces Strength by 1/);
+  might.level = 2; might.onUpgrade();
+  assert.equal(ctx.player.strength, 7, 'cursed upgrades increase the Strength penalty');
+  assert.match(might.baseDescription, /Reduces Strength by 3/);
+  might.cursed = false; might.onUncursed();
+  assert.equal(ctx.player.strength, 13, 'uncursing replaces the penalty with a bonus');
+  might.onUncursed();
+  assert.equal(ctx.player.strength, 13, 'reconciliation does not stack the bonus');
+  might.unequip();
+  assert.equal(ctx.player.strength, 10);
 }
 {
   const ctx = ringCtx();

@@ -449,7 +449,8 @@ assert.equal(fang.spriteFrame, 0);
 assert.equal(fang.unidentifiedTextureKey, fang.spriteTextureKey);
 for (let level = 0; level <= 3; level++) {
   for (const item of [might, fang]) {
-    assert.ok(item.displayDescription.includes(`+${2 + level} damage`));
+    const bonus = item === might ? `+${1 + level} Strength` : `+${2 + level} damage`;
+    assert.ok(item.displayDescription.includes(bonus));
     const before = item.level;
     for (let i = 0; i < 20; i++) void item.displayDescription;
     assert.equal(item.level, before, 'descriptions must not level artifacts');

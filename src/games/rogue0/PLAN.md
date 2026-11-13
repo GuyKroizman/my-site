@@ -474,7 +474,7 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
   | Bulk | you are slowed | apply the existing movement slow while worn — **implemented** |
 
   *Ring curses (SPD):* cursed rings **invert** their passive — Might →
-  `-damage`, Haste → slower movement, Accuracy → `-accuracy`, Evasion →
+  `-Strength`, Haste → slower movement, Accuracy → `-accuracy`, Evasion →
   `-evasion`, Elements → fire/ice/shock vulnerability — **implemented**. This is
   the one faithful flat-inversion case; rings reuse their existing
   `applyPassive()` with a sign flip, and uncursing re-applies the positive form.

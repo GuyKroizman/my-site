@@ -16,7 +16,7 @@ const Hero = load('src/games/rogue0/classes/basicHero.ts', { Entity }).default;
 function setup() {
   const context = { messages: [], entities: [] };
   const player = { accuracy: 95, evasion: 10, movementSpeed: 1, attackDelay: 1, effects: [],
-    resistance: { fire: 1, ice: 2, shock: 3 }, baseAttack: 1,
+    resistance: { fire: 1, ice: 2, shock: 3 }, baseAttack: 1, strength: 10,
     items: [], canAct: () => true, getAllItems() { return this.items; },
     spendTurn(action) { assert.equal(action, 'use'); this.turns = (this.turns ?? 0) + 1; },
     removeItem(item) { this.items.splice(this.items.indexOf(item), 1); }, refreshUI() {},
@@ -29,7 +29,8 @@ function check(name, p, level) {
   assert.equal(p.evasion, name === 'Evasion' ? 10 + 5 * (level + 1) : 10);
   assert.deepEqual(p.resistance, name === 'Elements' ? { fire: 3 + level, ice: 4 + level, shock: 5 + level } : { fire: 1, ice: 2, shock: 3 });
   assert.equal(p.movementSpeed, name === 'Haste' ? 2 + level * 0.5 : 1);
-  assert.equal(Hero.prototype.attack.call(p), name === 'Might' ? 3 + level : 1);
+  assert.equal(p.strength, name === 'Might' ? 11 + level : 10);
+  assert.equal(Hero.prototype.attack.call(p), 1, 'rings do not grant direct damage');
   assert.equal(actionCost(p, 'attack'), 1, 'Haste rings do not speed attacks');
 }
 // Every ring kind gets a different gem colour; the colour assignment is shared
@@ -138,6 +139,42 @@ for (const [name, Type] of Object.entries(classes)) {
   ring.onUpgrade(); check(name, player, 2);
   ring.onUpgrade(); check(name, player, 2);
   if (name === 'Haste') assert.equal(player.effects.length, 0, 'legacy permanent Haste is replaced, not double-counted');
+}
+// Might helps meet equipment requirements, stacks, and preserves potion gains.
+{
+  const { context, player } = setup();
+  player.strengthDeficit = Hero.prototype.strengthDeficit;
+  player.weapon = { requiredStrength: 12 };
+  player.armor = { requiredStrength: 12 };
+  const first = new classes.Might(context);
+  const second = new classes.Might(context);
+  first.equip();
+  assert.equal(player.strengthDeficit(player.weapon), 1);
+  assert.equal(Hero.prototype.attackCostMultiplier.call(player), 1.2);
+  second.equip();
+  assert.equal(player.strength, 12);
+  assert.equal(player.strengthDeficit(player.armor), 0);
+  assert.equal(Hero.prototype.attackCostMultiplier.call(player), 1);
+  assert.equal(Hero.prototype.movementCostMultiplier.call(player), 1);
+  player.strength += 1; // Potion of Strength's permanent gain.
+  first.unequip(); second.unequip();
+  assert.equal(player.strength, 11, 'removal preserves permanent Strength gains');
+}
+// Pre-change saves have an equipped Might ring but no installed Strength bonus.
+for (const cursed of [false, true]) {
+  const { context, player } = setup();
+  const ring = new classes.Might(context);
+  ring.level = 3; ring.cursed = cursed; player.ring1 = ring;
+  ring.equip();
+  player.strength = 10;
+  delete ring.appliedStrength;
+  const restored = decodeGraph(JSON.parse(JSON.stringify(encodeGraph({ ring, player }, { Ring: classes.Might }))), { Ring: classes.Might });
+  restored.ring.context = { player: restored.player };
+  restored.ring.onUpgrade();
+  restored.ring.onUpgrade();
+  assert.equal(restored.player.strength, cursed ? 6 : 14, 'legacy reconciliation applies Strength exactly once');
+  restored.ring.unequip();
+  assert.equal(restored.player.strength, 10, 'legacy removal does not subtract an uninstalled bonus');
 }
 // Ring changes during blindness must survive the effect wearing off.
 {
