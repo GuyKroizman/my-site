@@ -103,6 +103,9 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   hero.backpack = [scroll, ...legacyWeapons, legacyCursedGem];
   hero.quickslots = [legacyCursedGem];
   hero.weapon = legacyWeapons[4];
+  Object.assign(hero.weapon, { cursed: true, curseId: 'friendly' });
+  Object.assign(legacyWeapons[0], { cursed: true, curseId: 'friendly' });
+  Object.assign(legacyWeapons[1], { cursed: true, curseId: 'wayward' });
   class IceElemental { constructor() { Object.assign(this, { type: 'enemy', tile: 6 * 49 + 9 }); } }
   // Use the real class prototypes, but never constructors: these represent
   // actors already wounded/asleep in an older checkpoint.
@@ -118,6 +121,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   const oldGear = [Shield, Sword, Axe].map(Class => Object.assign(Object.create(Class.prototype), {
     type: 'item', tile: [776, 328, 382][[Shield, Sword, Axe].indexOf(Class)], identified: true,
   }));
+  Object.assign(oldGear[1], { cursed: true, curseId: 'friendly' });
   const oldMonsters = [Ghoul, Brute, Quloptsh, Skeleton].map((Class, i) => Object.assign(Object.create(Class.prototype), {
     type: 'enemy', tile: [320, 322, 324, 323][i], healthPoints: 7, sleepTurnsRemaining: 11,
     x: 0, y: 0, effects: [], loot: [false], nextActionTime: 4.5,
@@ -162,6 +166,13 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     assert.equal(item.level, 2, 'art migration preserves upgrades');
   }
   assert.equal(run.player.weapon, run.player.backpack[5], 'equipped weapon keeps the shared item reference');
+  for (const item of [run.player.weapon, run.player.backpack[1],
+    run.floors.get(1).entities.find(entity => entity instanceof Sword)]) {
+    assert.equal(item.cursed, false, 'retired Friendly curse is cleansed on equipped, carried and floor gear');
+    assert.equal(item.curseId, '', 'retired curse ID is cleared');
+  }
+  assert.equal(run.player.backpack[2].cursed, true, 'other curses remain intact');
+  assert.equal(run.player.backpack[2].curseId, 'wayward');
   const savedCursedGem = run.player.backpack[6];
   assert.ok(savedCursedGem instanceof CursedGem);
   assert.equal(savedCursedGem.spriteTextureKey, 'cursed-gem');

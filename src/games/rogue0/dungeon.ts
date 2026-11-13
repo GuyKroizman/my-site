@@ -22,7 +22,6 @@ import {
   createCrippledEffect,
   createConfusedEffect,
   createPoisonedEffect,
-  createCharmedEffect,
   hasEffect,
   removeEffect
 } from "./effects";
@@ -1059,11 +1058,6 @@ const dungeon = {
         }
       }
       if (woke) this.log(context, "Your cursed weapon draws enemies to you!");
-    } else if (id === "friendly") {
-      if (victim.healthPoints > 0) {
-        applyEffect(victim, createCharmedEffect());
-        this.log(context, `${victim.name} is charmed by your cursed weapon!`);
-      }
     } else if (id === "exhausting") {
       applyEffect(attacker, createCrippledEffect());
       this.log(context, "Your cursed weapon exhausts you!");

@@ -455,9 +455,10 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
   | Sacrificial | you pay for each hit | hero takes ~25% of the damage dealt — **implemented** |
   | Displacing | struck enemy is flung away | teleport the victim via `randomWalkableTile` (reuse the teleport-trap helper) — **implemented** |
   | Annoying | strikes draw enemies | wake living enemies within 8 tiles to investigate (reuse the alarm-trap helper) — **implemented** |
-  | Friendly | struck enemy is charmed | new `charmed` effect: victim won't attack for ~4 world-time units — **implemented** |
   | Polarized | wildly random damage | damage ×0.5–×1.5 each hit — **implemented** |
   | Exhausting | you tire yourself | chance to apply `crippled` to the hero — **implemented** |
+
+  Friendly was removed: its enemy-only charm helped the player. Existing saved items with this curse are cleansed on load.
 
   *Armor curses (SPD → rogue0):*
 

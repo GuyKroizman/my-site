@@ -30,6 +30,13 @@ assert.equal(curseEligible(item('consumable')), false);
 assert.equal(curseEligible(Object.assign(item('junk'), { textureKey: 'wand-fire' })), true, 'wands are curse-eligible via their texture key');
 assert.equal(maybeCurse(item('armor'), 0.25, () => 0.9), false);
 assert.equal(rollCurseId(item('weapon'), () => 0), 'wayward');
+const weaponCurses = ['wayward', 'sacrificial', 'displacing', 'annoying', 'polarized', 'exhausting'];
+assert.deepEqual(curseData.CURSE_TABLES.weapon, weaponCurses);
+for (const [index, id] of weaponCurses.entries()) {
+  assert.equal(rollCurseId(item('weapon'), () => (index + 0.5) / weaponCurses.length), id);
+}
+assert.equal(curseData.CURSE_NAMES.friendly, undefined);
+assert.equal(curseData.CURSE_FLAVOR.friendly, undefined);
 assert.equal(rollCurseId(item('ring'), () => 0), 'inverted');
 assert.equal(rollCurseId(item('artifact'), () => 0), 'corrupted');
 assert.equal(rollCurseId(Object.assign(item('junk'), { textureKey: 'wand-fire' }), () => 0), 'backfiring');
@@ -285,7 +292,7 @@ const originalRandom = Math.random;
   assert.ok([...grass.values()].some(f => f === 'grass'), 'overgrowth sprouts grass');
 }
 
-// Weapon procs: sacrificial, displacing, annoying, friendly, exhausting.
+// Weapon procs: sacrificial, displacing, annoying, exhausting; retired IDs are inert.
 {
   const victim = actor({ type: 'enemy', x: 2, y: 1, healthPoints: 10 });
   const hero = actor({ weapon: item('weapon', { cursed: true, curseId: 'sacrificial' }), walkPath: [1] });
@@ -315,7 +322,7 @@ const originalRandom = Math.random;
   const hero = actor({ weapon: item('weapon', { cursed: true, curseId: 'friendly' }) });
   Math.random = () => 0;
   dungeon.procWeaponCurse(procContext(hero), hero, victim, 5);
-  assert.ok(victim.effects.some(e => e.id === 'charmed'), 'friendly charms the victim');
+  assert.deepEqual(victim.effects, [], 'retired Friendly curse no longer charms the victim');
 }
 {
   const victim = actor({ type: 'enemy', x: 2, y: 1 });

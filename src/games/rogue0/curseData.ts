@@ -3,7 +3,7 @@
 
 export type CurseId =
   // Weapon curses
-  | "wayward" | "sacrificial" | "displacing" | "annoying" | "friendly" | "polarized" | "exhausting"
+  | "wayward" | "sacrificial" | "displacing" | "annoying" | "polarized" | "exhausting"
   // Armor curses
   | "displacement" | "multiplicity" | "anti-entropy" | "corrosion" | "stench"
   | "overgrowth" | "metabolism" | "bulk"
@@ -21,7 +21,6 @@ export const CURSE_NAMES: Record<CurseId, string> = {
   sacrificial: "Sacrificial",
   displacing: "Displacing",
   annoying: "Annoying",
-  friendly: "Friendly",
   polarized: "Polarized",
   exhausting: "Exhausting",
   displacement: "Displacement",
@@ -42,7 +41,6 @@ export const CURSE_FLAVOR: Record<CurseId, string> = {
   sacrificial: "This weapon saps your life force when you strike.",
   displacing: "This weapon may teleport enemies away when you strike.",
   annoying: "This weapon draws nearby enemies to you when you strike.",
-  friendly: "This weapon may charm enemies you strike, stopping them from attacking.",
   polarized: "This weapon deals wildly random damage.",
   exhausting: "This weapon may exhaust you when you strike.",
   displacement: "When you are attacked, this armor may teleport you to a random nearby location.",
@@ -60,7 +58,7 @@ export const CURSE_FLAVOR: Record<CurseId, string> = {
 
 // Which curses each slot can roll.
 export const CURSE_TABLES: Record<CurseSlot, CurseId[]> = {
-  weapon: ["wayward", "sacrificial", "displacing", "annoying", "friendly", "polarized", "exhausting"],
+  weapon: ["wayward", "sacrificial", "displacing", "annoying", "polarized", "exhausting"],
   armor: ["displacement", "multiplicity", "anti-entropy", "corrosion", "stench", "overgrowth", "metabolism", "bulk"],
   ring: ["inverted"],
   wand: ["backfiring"],

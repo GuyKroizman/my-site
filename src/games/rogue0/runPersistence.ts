@@ -73,6 +73,12 @@ export type RunState = {
 export function decodeRunSave(save: RunSave, context: GameContext, registry: Registry = saveRegistry): RunState {
   const run: RunState = decodeGraph(retireGemsFromSave(save.graph), registry, (entity: Entity) => {
     entity.context = context;
+    // Friendly was retired. Cleanse old items rather than leaving an invisible
+    // equipment lock or replacing it with a different, harmful curse.
+    if (entity.type === 'item' && entity.curseId === 'friendly') {
+      entity.cursed = false;
+      entity.curseId = '';
+    }
     // Hydration bypasses constructors. Upgrade artwork on every decoded actor,
     // including inactive floors, without rerolling stats, loot or sleep state.
     const monsterArt = entity instanceof Ghoul ? 'ghoul'
