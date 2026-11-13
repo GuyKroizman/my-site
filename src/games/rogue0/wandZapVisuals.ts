@@ -51,8 +51,9 @@ export function updateWandZaps(scene: Phaser.Scene, context: GameContext, now: n
     }
     if (bolt.age >= bolt.duration + 180) return false;
     const ice = bolt.damageType === 'ice', shock = bolt.damageType === 'shock';
-    const color = ice ? 0x69cce6 : shock ? 0xb1a4ff : 0xf68a30;
-    const core = ice ? 0xe5ffff : shock ? 0xf8f2ff : 0xffed9d;
+    const blast = bolt.damageType === 'magic';
+    const color = ice ? 0x69cce6 : shock ? 0xb1a4ff : blast ? 0xdac8ff : 0xf68a30;
+    const core = ice ? 0xe5ffff : shock ? 0xf8f2ff : blast ? 0xffffff : 0xffed9d;
     const sx = bolt.fromX * 16 + 8, sy = bolt.fromY * 16 + 8;
     const dx = (bolt.toX - bolt.fromX) * 16, dy = (bolt.toY - bolt.fromY) * 16;
     const length = Math.max(1, Math.hypot(dx, dy));

@@ -57,7 +57,8 @@ export function generateUnknownItemTextures(scene: Phaser.Scene): void {
     "unknown-wand": 0x9a9a9a,
     "wand-fire": 0xff793f,
     "wand-ice": 0x80dfff,
-    "wand-shock": 0xffe36b
+    "wand-shock": 0xffe36b,
+    "wand-magic": 0xdac8ff
   };
   for (const [key, color] of Object.entries(wandColors)) {
     if (scene.textures.exists(key)) continue;

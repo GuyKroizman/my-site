@@ -18,6 +18,7 @@ import {
   createBurningEffect,
   createChilledEffect,
   createFrozenEffect,
+  createStunnedEffect,
   createCrippledEffect,
   createConfusedEffect,
   createPoisonedEffect,
@@ -572,6 +573,44 @@ const dungeon = {
     return true;
   },
 
+  // Resolve each tile synchronously so walls, bodies, traps and the first
+  // chasm stop the blast; never leap over hazards to the final destination.
+  blastPush: function (context: GameContext, target: Entity, dx: number, dy: number): void {
+    if (target.healthPoints <= 0 || target.moving || hasEffect(target, "rooted") ||
+        !context.entities.includes(target) || target.x === undefined || target.y === undefined ||
+        !Number.isInteger(dx) || !Number.isInteger(dy) || Math.max(Math.abs(dx), Math.abs(dy)) !== 1) return;
+    target.hearNoise(target.x, target.y);
+    if (target === context.player) {
+      context.player.walkPath = [];
+      context.player.inputBuffer = [];
+    }
+    const tiles = terrainFor(context);
+    for (let step = 0; step < 3; step++) {
+      const x: number = target.x! + dx;
+      const y: number = target.y! + dy;
+      const options = { swept: true, allowChasm: true };
+      if (!this.canFootprintOccupy(context, target, x, y, options)) {
+        // Bodies stop the push without a wall stun. Roots also anchor rather
+        // than stun. Closed doors and the map boundary count as solid walls.
+        if (!this.canFootprintOccupy(context, target, x, y, { ...options, ignoreActors: true })) {
+          applyEffect(target, createStunnedEffect(3));
+        }
+        return;
+      }
+      this.moveEntityTo(context, target, x, y, true, true);
+      if (target.healthPoints <= 0 || !context.entities.includes(target)) return;
+      const falling = !target.isFlying && [...footprintTiles(actorFootprint(target), target.x!, target.y!)]
+        .some(([tx, ty]) => tiles.getFeature(tx, ty) === "chasm");
+      if (falling) {
+        if (isEnemyVisible(context, target)) this.log(context, `${target.type === "player" ? "You fall" : `${target.name} falls`} into the chasm!`);
+        this.fallIntoChasm(context, target);
+        return;
+      }
+      // A teleport/geyser owns the rest of its displacement, not this ray.
+      if (target.x !== x || target.y !== y || target.moving || context.pendingFall) return;
+    }
+  },
+
   canEnterChasm: function (context: GameContext, actor: Entity, x: number, y: number): boolean {
     const tiles = terrainFor(context);
     const fp = actorFootprint(actor);
@@ -601,7 +640,8 @@ const dungeon = {
   fallIntoChasm: function (context: GameContext, entity: Entity): void {
     const tiles = terrainFor(context);
     if (entity.x === undefined || entity.y === undefined || entity.healthPoints <= 0 ||
-        tiles.getFeature(entity.x, entity.y) !== "chasm") return;
+        ![...footprintTiles(actorFootprint(entity), entity.x, entity.y)]
+          .some(([x, y]) => tiles.getFeature(x, y) === "chasm")) return;
     if (entity.type === "player") {
       if (bossSealsFloor(context)) {
         this.log(context, "The guardian's seal holds you above the abyss.");
@@ -617,7 +657,7 @@ const dungeon = {
     }
   },
 
-  moveEntityTo: function (context: GameContext, entity: Entity, x: number, y: number, instant = false): void {
+  moveEntityTo: function (context: GameContext, entity: Entity, x: number, y: number, instant = false, allowChasm = false): void {
     const tiles = terrainFor(context);
     if (context.map == undefined || context.scene == undefined) {
       throw new Error("context.map is undefined");
@@ -630,7 +670,7 @@ const dungeon = {
     if (entity.type !== "item") {
       const fp = actorFootprint(entity);
       if ((fp.width > 1 || fp.height > 1) &&
-          !this.canFootprintOccupy(context, entity, x, y, { swept: true })) return;
+          !this.canFootprintOccupy(context, entity, x, y, { swept: true, allowChasm })) return;
     }
     if (entity.type !== "item" && context.entities.some(other =>
       other !== entity && other.type !== "item" && other.healthPoints > 0 &&

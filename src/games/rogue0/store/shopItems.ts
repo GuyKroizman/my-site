@@ -28,6 +28,7 @@ export const SHOP_ITEM_IDS: Record<string, string> = {
   'wand-firebolt': './items/WandOfFirebolt.ts:default',
   'wand-frost': './items/WandOfFrost.ts:default',
   'wand-lightning': './items/WandOfLightning.ts:default',
+  'wand-blast': './items/WandOfBlast.ts:default',
   'ring-accuracy': './items/RingOfAccuracy.ts:default',
   'ring-evasion': './items/RingOfEvasion.ts:default',
   'ring-elements': './items/RingOfElements.ts:default',

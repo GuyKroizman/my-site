@@ -49,6 +49,7 @@ import Wand from './items/wand';
 import WandOfFirebolt from './items/WandOfFirebolt';
 import WandOfFrost from './items/WandOfFrost';
 import WandOfLightning from './items/WandOfLightning';
+import WandOfBlast from './items/WandOfBlast';
 import Boss from './monsters/boss';
 import Brute from './monsters/brute';
 import Cultist from './monsters/cultist';
@@ -125,6 +126,7 @@ export const saveRegistry: Registry = {
   './items/WandOfFirebolt.ts:default': WandOfFirebolt,
   './items/WandOfFrost.ts:default': WandOfFrost,
   './items/WandOfLightning.ts:default': WandOfLightning,
+  './items/WandOfBlast.ts:default': WandOfBlast,
   './monsters/boss.ts:default': Boss,
   './monsters/brute.ts:default': Brute,
   './monsters/cultist.ts:default': Cultist,

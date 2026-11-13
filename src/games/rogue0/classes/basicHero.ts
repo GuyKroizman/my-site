@@ -188,7 +188,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
   }
 
   canAct(): boolean {
-    return this.actionReady && !this.moving && !hasEffect(this, "frozen");
+    return this.actionReady && !this.moving && !hasEffect(this, "frozen") && !hasEffect(this, "stunned");
   }
 
   spendTurn(action: ActionKind = "wait"): void {
@@ -609,6 +609,9 @@ export default class BasicHero extends Entity implements HeroControlHost {
       // the turn scheduler waits for the projectile, exactly like a thrown item.
       const applyImpact = () => {
         if (enemy && isHostile(enemy)) {
+          // The bolt has landed. Release its movement lock before recoil.
+          this.moving = false;
+          if (item.applySpecialImpact(this, enemy)) return;
           const result = resolveAttack(context, this, enemy, {
             baseDamage: damage, damageType: item.damageType,
             isRanged: true, onHitEffects: item.wandEffects()

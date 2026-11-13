@@ -16,7 +16,7 @@ const random = Math.random;
 try {
   Math.random = () => { throw Error('projectiles cannot consume gameplay randomness'); };
   const palettes = [];
-  for (const damageType of ['fire', 'ice', 'shock']) {
+  for (const damageType of ['fire', 'ice', 'shock', 'magic']) {
     showWandZap(scene, context, { fromX: 1, fromY: 1, toX: 10, toY: 1, damageType });
     const g = graphics.at(-1);
     assert.equal(g.depth, 98, 'projectiles are below fog');
@@ -40,6 +40,8 @@ try {
   }
   assert.notDeepEqual(palettes[0], palettes[1]);
   assert.notDeepEqual(palettes[1], palettes[2]);
+  assert.notDeepEqual(palettes[2], palettes[3], 'blast has its own pale violet trail');
+  assert.notDeepEqual(palettes[0], palettes[3]);
   assert.equal(context.simulationTime, 3.5);
   showWandZap(scene, context, { fromX: 1, fromY: 1, toX: 1, toY: 1, damageType: 'ice' });
   assert.ok(graphics.at(-1).rects.every(r => Number.isFinite(r.x) && Number.isFinite(r.y)), 'self-target has no NaN positions');

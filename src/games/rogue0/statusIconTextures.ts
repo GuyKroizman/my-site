@@ -39,6 +39,7 @@ export const STATUS_ICON_PALETTES: Record<string, StatusIconPalette> = {
   regeneration: { ink: 0x57d977, light: 0xd6ffdf, dark: 0x1f7a3a },
   'potion-healing': { ink: 0x35c75f, light: 0xcaffd8, dark: 0x187a34 },
   frozen: { ink: 0x8fe3ff, light: 0xe8fbff, dark: 0x2f7f9c },
+  stunned: { ink: 0xffc45c, light: 0xfff4bf, dark: 0x99652b },
   chilled: { ink: 0x6fb7e8, light: 0xd2ecff, dark: 0x2a5f86 },
   weakened: { ink: 0xb85a6a, light: 0xffb3bf, dark: 0x6a2634 },
   crippled: { ink: 0xa88450, light: 0xe6cfa2, dark: 0x5d4526 },
@@ -138,6 +139,21 @@ const GLYPHS: Record<string, readonly string[]> = {
     '............'
   ],
   // Six-armed snowflake.
+  // Stars orbiting a dazed head.
+  stunned: [
+    '..+......+..',
+    '.+#+....+#+.',
+    '..+......+..',
+    '....####....',
+    '...#++++#...',
+    '..#+-++-+#..',
+    '..#++++++#..',
+    '..#+----+#..',
+    '...#++++#...',
+    '....####....',
+    '.+........+.',
+    '............',
+  ],
   frozen: [
     '.....##.....',
     '.....##.....',

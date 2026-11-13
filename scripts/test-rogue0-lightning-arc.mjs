@@ -25,6 +25,7 @@ class Wand {
   wandEffect() { return {}; }
   wandEffects() { return [this.wandEffect()]; }
   wandDamageMultiplier() { return 1; }
+  applySpecialImpact() { return false; }
   arcsToAdjacent() { return false; }
 }
 class LightningWand extends Wand {

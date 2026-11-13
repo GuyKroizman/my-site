@@ -81,6 +81,7 @@ import ScrollOfRecharging from "./items/ScrollOfRecharging";
 import WandOfFirebolt from "./items/WandOfFirebolt";
 import WandOfFrost from "./items/WandOfFrost";
 import WandOfLightning from "./items/WandOfLightning";
+import WandOfBlast from "./items/WandOfBlast";
 import RingOfAccuracy from "./items/RingOfAccuracy";
 import RingOfEvasion from "./items/RingOfEvasion";
 import RingOfElements from "./items/RingOfElements";
@@ -201,6 +202,7 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   [WandOfFirebolt, 2],
   [WandOfFrost, 2],
   [WandOfLightning, 2],
+  [WandOfBlast, 2],
   [RingOfAccuracy, 2],
   [RingOfEvasion, 2],
   [RingOfElements, 2],

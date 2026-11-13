@@ -103,7 +103,14 @@ export class TurnManager {
       for (const entity of actors) entity.context.simulationTime = this.time;
       actor.nextActionTime = targetTime;
       actor.actionReady = true;
-      if (hasEffect(actor, "frozen")) {
+      if (hasEffect(actor, "stunned")) {
+        if (actor.type === "player" || actor.context.visibleTiles.has(`${actor.x},${actor.y}`)) {
+          log(actor.context, `${actor.type === "player" ? "You are stunned and miss" : `${actor.name} is stunned and misses`} an action.`);
+        }
+        const stun = actor.effects.find(effect => effect.id === "stunned")!;
+        if (--stun.duration <= 0) removeEffect(actor, "stunned");
+        actor.spendTime("wait");
+      } else if (hasEffect(actor, "frozen")) {
         log(actor.context, `${actor.type === "player" ? "You are frozen and miss" : `${actor.name} is frozen and misses`} an action.`);
         removeEffect(actor, "frozen");
         actor.spendTime("wait");

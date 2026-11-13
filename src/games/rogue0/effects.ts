@@ -228,7 +228,7 @@ export function createPotionHealingEffect(duration = POTION_HEAL_TICKS, totalHea
 // deliberately absent: the flask cures, it does not dispel everything.
 const CURABLE_DEBUFF_IDS = new Set([
   "burning", "poisoned", "bleeding", "chilled", "weakened", "crippled",
-  "blinded", "rooted", "confused", "terrified"
+  "blinded", "rooted", "confused", "terrified", "stunned"
 ]);
 
 export function cureDebuffs(entity: Entity): string[] {
@@ -414,6 +414,11 @@ export function createRootedEffect(duration = 3): StatusEffect {
   };
 }
 
+// Unlike frozen, a wall stun consumes several actions, independent of speed.
+export function createStunnedEffect(duration = 3): StatusEffect {
+  return { id: "stunned", name: "Stunned", duration, manualExpiry: true };
+}
+
 const EFFECT_DESCRIPTIONS: Record<string, string> = {
   burning: "Takes 1 fire damage per turn.",
   poisoned: "Takes 1 poison damage per turn.",
@@ -421,6 +426,7 @@ const EFFECT_DESCRIPTIONS: Record<string, string> = {
   regeneration: "Restores 1 health per turn.",
   "potion-healing": "Recovers health over time from a Potion of Healing.",
   frozen: "Loses one scheduled action.",
+  stunned: "Cannot act; duration counts remaining skipped actions.",
   chilled: "Moves and attacks at half speed.",
   weakened: "Deals 1 less attack damage.",
   crippled: "Moves at half speed.",

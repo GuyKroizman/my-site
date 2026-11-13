@@ -78,12 +78,16 @@ export default abstract class Wand extends Entity {
   }
 
   abstract get damageBounds(): readonly [number, number];
-  abstract wandEffect(): StatusEffect;
+  wandEffect(): StatusEffect | undefined { return undefined; }
+
+  // Utility wands can replace damage resolution with their own impact.
+  applySpecialImpact(_caster: Entity, _target: Entity): boolean { return false; }
 
   // Most wands apply one status; frost applies the freeze and the slow.
   // Zap impact uses this list, single-effect callers use `wandEffect`.
   wandEffects(): StatusEffect[] {
-    return [this.wandEffect()];
+    const effect = this.wandEffect();
+    return effect ? [effect] : [];
   }
 
   wandDamage(): number {
