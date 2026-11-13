@@ -19,7 +19,7 @@ const make = (name, category, floor = false) => {
 const random = Math.random;
 try {
   Math.random = () => 0;
-  for (const [category, count] of [['potion', 12], ['scroll', 9]]) {
+  for (const [category, count] of [['potion', 12], ['scroll', 10]]) {
     const keys = new Set();
     const labels = new Set();
     for (let i = 0; i < count; i++) {

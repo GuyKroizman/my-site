@@ -136,6 +136,11 @@ export default class Monster extends Entity {
     this.sleepTurnsRemaining = 0;
   }
 
+  beckon(x: number, y: number): void {
+    this.wakeUp();
+    super.beckon(x, y);
+  }
+
   hearNoise(x: number, y: number): void {
     this.wakeUp();
     super.hearNoise(x, y);

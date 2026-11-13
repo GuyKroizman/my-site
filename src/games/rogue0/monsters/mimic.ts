@@ -27,6 +27,11 @@ export default class Mimic extends Monster {
     super.turn();
   }
 
+  beckon(x: number, y: number): void {
+    this.provoke();
+    super.beckon(x, y);
+  }
+
   onAttacked(attacker: Entity): void {
     this.provoke();
     this.wakeUp();
@@ -56,7 +61,7 @@ export default class Mimic extends Monster {
     const tier = Math.max(1, Math.min(5, Math.ceil((context.floor ?? 1) / 5)));
     super(context, {
       name: "Mimic",
-      description: "A motionless treasure chest. It awakens and attacks only after being attacked or taking damage.",
+      description: "A motionless treasure chest. It awakens when attacked, damaged, or called by a Scroll of Beckoning.",
       initiallyAwake: true, // Dormancy is not timed sleep and has no sleeping Zs.
       textureKey: CHEST_TEXTURE, // Disguised as the generated chest art.
       healthPoints: 24 + tier * 8,

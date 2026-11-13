@@ -60,7 +60,7 @@ export function rememberIdentifiedWandTypes(context: GameContext, items: Iterabl
     if (kind?.startsWith('wand:') && item.identified) known.add(kind);
   }
 }
-const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror', 'recharging'];
+const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror', 'recharging', 'beckoning'];
 
 // Rings use the same shuffled-appearance rule as potions: the gem colour says
 // which ring it is, but the colour-to-ring mapping is rerolled for every run.
@@ -90,6 +90,7 @@ export const CONSUMABLE_NAMES: Record<ConsumableCategory, readonly string[]> = {
     'Potion of Toxic Gas'
   ],
   scroll: [
+    'Scroll of Beckoning',
     'Scroll of Fireball',
     'Scroll of Identify',
     'Scroll of Lightning',
@@ -289,6 +290,14 @@ export abstract class Entity {
   fellIntoChasm: boolean = false;
   lastSeenX?: number;
   lastSeenY?: number;
+  // A fixed, saved investigation destination, not awareness of the hero.
+  beckoningTarget?: { x: number; y: number };
+
+  beckon(x: number, y: number): void {
+    this.beckoningTarget = { x, y };
+    this.lastSeenX = undefined;
+    this.lastSeenY = undefined;
+  }
 
   hearNoise(x: number, y: number): void {
     // An investigation target, not magical awareness of the player's position.

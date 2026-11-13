@@ -76,6 +76,7 @@ import PotionOfLevitation from "./items/PotionOfLevitation";
 import PotionOfExperience from "./items/PotionOfExperience";
 import ScrollOfTeleport from "./items/ScrollOfTeleport";
 import ScrollOfRage from "./items/ScrollOfRage";
+import ScrollOfBeckoning from "./items/ScrollOfBeckoning";
 import ScrollOfTerror from "./items/ScrollOfTerror";
 import ScrollOfRecharging from "./items/ScrollOfRecharging";
 import WandOfFirebolt from "./items/WandOfFirebolt";
@@ -197,6 +198,7 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   [PotionOfExperience, 2],
   [ScrollOfTeleport, 2],
   [ScrollOfRage, 2],
+  [ScrollOfBeckoning, 2],
   [ScrollOfTerror, 2],
   [ScrollOfRecharging, 2],
   [WandOfFirebolt, 2],
@@ -321,7 +323,7 @@ export class Scene0 extends Phaser.Scene {
     this.load.image("ration", "/rogue0/items/ration.png");
     this.load.image("chalice-of-blood", "/rogue0/items/chalice-of-blood.png");
     this.load.image("fang-of-the-beast", "/rogue0/items/fang-of-the-beast.png");
-    for (const kind of ["fireball", "lightning", "identify", "upgrade", "remove-curse", "teleport", "rage", "terror", "recharging"]) {
+    for (const kind of ["fireball", "lightning", "identify", "upgrade", "remove-curse", "teleport", "rage", "terror", "recharging", "beckoning"]) {
       this.load.image(`scroll-${kind}`, `/rogue0/items/scroll-${kind}.png`);
     }
     this.load.image("unknown-scroll", "/rogue0/items/scroll.png");

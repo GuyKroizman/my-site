@@ -119,6 +119,25 @@ function visibleDecoy(entity: Entity): Entity | undefined {
   return undefined;
 }
 
+// Shared by ordinary monsters and swarms. A busy corridor does not cancel
+// the call; arrival (or an impossible route) does. Existing status effects
+// still govern whether a monster can move on this action.
+function investigateBeckoning(entity: Entity, canMove: boolean): boolean {
+  const target = entity.beckoningTarget;
+  if (!target) return false;
+  const step = nextStepToward(entity, target.x, target.y);
+  if (!step) {
+    entity.beckoningTarget = undefined;
+    entity.lastSeenX = undefined;
+    entity.lastSeenY = undefined;
+    return false;
+  }
+  if (canMove && hasEffect(entity, "confused") && dungeon.confusedMove(entity.context, entity)) return true;
+  const action = canMove ? followStep(entity, step) : null;
+  entity.spendTime(action ?? "wait");
+  return true;
+}
+
 export function enemyTurn(entity: Entity): void {
   const player = entity.context.player;
   if (!player || player.x === undefined || player.y === undefined) {
@@ -132,6 +151,7 @@ export function enemyTurn(entity: Entity): void {
   const seesPlayer = enemyCanSeePlayer(entity);
   entity.awareOfPlayer = seesPlayer;
   if (seesPlayer) {
+    entity.beckoningTarget = undefined;
     entity.lastSeenX = player.x;
     entity.lastSeenY = player.y;
   }
@@ -150,6 +170,8 @@ export function enemyTurn(entity: Entity): void {
     entity.spendTime(wandered ? "move" : "wait");
     return;
   }
+
+  if (!seesPlayer && investigateBeckoning(entity, canMove)) return;
 
   const decoy = visibleDecoy(entity);
   // When both the hero and a mirror image are valid targets, the enemy wastes
@@ -328,6 +350,7 @@ export function swarmTurn(entity: Entity): void {
   const seesPlayer = enemyCanSeePlayer(entity);
   entity.awareOfPlayer = seesPlayer;
   if (seesPlayer) {
+    entity.beckoningTarget = undefined;
     entity.lastSeenX = player.x;
     entity.lastSeenY = player.y;
   }
@@ -344,6 +367,8 @@ export function swarmTurn(entity: Entity): void {
     entity.spendTime(wandered ? "move" : "wait");
     return;
   }
+
+  if (!seesPlayer && investigateBeckoning(entity, canMove)) return;
 
   const decoy = visibleDecoy(entity);
   const preferDecoy = !!decoy && Math.random() < 0.5;

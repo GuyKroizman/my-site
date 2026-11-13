@@ -34,6 +34,7 @@ import ScrollOfFireball from './items/scrolloffireball';
 import ScrollOfIdentify from './items/ScrollOfIdentify';
 import ScrollOfLightning from './items/scrolloflightning';
 import ScrollOfRage from './items/ScrollOfRage';
+import ScrollOfBeckoning from './items/ScrollOfBeckoning';
 import ScrollOfRecharging from './items/ScrollOfRecharging';
 import ScrollOfRemoveCurse from './items/ScrollOfRemoveCurse';
 import ScrollOfTeleport from './items/ScrollOfTeleport';
@@ -110,6 +111,7 @@ export const saveRegistry: Registry = {
   './items/ScrollOfIdentify.ts:default': ScrollOfIdentify,
   './items/scrolloflightning.ts:default': ScrollOfLightning,
   './items/ScrollOfRage.ts:default': ScrollOfRage,
+  './items/ScrollOfBeckoning.ts:default': ScrollOfBeckoning,
   './items/ScrollOfRecharging.ts:default': ScrollOfRecharging,
   './items/ScrollOfRemoveCurse.ts:default': ScrollOfRemoveCurse,
   './items/ScrollOfTeleport.ts:default': ScrollOfTeleport,

@@ -21,6 +21,7 @@ export const SHOP_ITEM_IDS: Record<string, string> = {
   'scroll-remove-curse': './items/ScrollOfRemoveCurse.ts:default',
   'scroll-teleport': './items/ScrollOfTeleport.ts:default',
   'scroll-rage': './items/ScrollOfRage.ts:default',
+  'scroll-beckoning': './items/ScrollOfBeckoning.ts:default',
   'scroll-terror': './items/ScrollOfTerror.ts:default',
   'scroll-recharging': './items/ScrollOfRecharging.ts:default',
   'scroll-fireball': './items/scrolloffireball.ts:default',
