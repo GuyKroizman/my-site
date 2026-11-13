@@ -23,6 +23,7 @@ import * as projectileTextures from '../../src/games/rogue0/projectileTextures.t
 import * as sight from '../../src/games/rogue0/fov.ts';
 import { bossArenaLayout } from '../../src/games/rogue0/bossArenas.ts';
 import { playMonsterDeath } from '../../src/games/rogue0/monsters/monsterDeathVisuals.ts';
+import * as equipmentGlyphs from '../../src/games/rogue0/equipmentGlyphs.ts';
 
 // Cache only compilation, never exports or fixture state. Some large suites
 // evaluate the same module repeatedly with different fake dependencies.
@@ -77,7 +78,7 @@ export function loadLogic(path, bindings = {}) {
   const tryFuseWands = (...args) => bindings.tryFuseWands?.(...args);
   const dependencies = { retireGemsFromSave, ...projectileTextures, applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
     terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation, ...actorBodies, ...footprint, ...placement, ...combatFeedback,
-    forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, potionSplashCells, tryFuseWands, heroStatsText, heroHudView, bossArenaLayout, playMonsterDeath, ...bindings };
+    forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, potionSplashCells, tryFuseWands, heroStatsText, heroHudView, bossArenaLayout, playMonsterDeath, ...equipmentGlyphs, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));
   return exports;

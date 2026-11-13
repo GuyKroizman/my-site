@@ -11,6 +11,11 @@ import { CURSE_NAMES, CURSE_FLAVOR } from "./curseData";
 import type { CurseId } from "./curseData";
 import { TILE_FOOTPRINT } from "./footprint.ts";
 import type { Footprint } from "./footprint.ts";
+import {
+  equipmentGlyphDescription,
+  equipmentGlyphName
+} from "./equipmentGlyphs";
+import type { EquipmentGlyph } from "./equipmentGlyphs";
 
 export type EntityType = "player" | "enemy" | "item";
 
@@ -358,6 +363,8 @@ export abstract class Entity {
   // Named SPD-style curse rolled at generation (see curseData.ts). Empty
   // means either uncursed or a legacy bespoke curse (e.g. the Cursed Gem).
   curseId: string = "";
+  // Single magical mark on physical weapons/armor. Empty means no glyph.
+  glyph: EquipmentGlyph | "" = "";
   // Friendly actor (mirror image) rendered as an enemy but never hostile.
   isDecoy: boolean = false;
   blessed: boolean = false;
@@ -423,10 +430,22 @@ export abstract class Entity {
     return "You recognize the make, but its upgrade level stays hidden until you have used it in combat.";
   }
 
+  // A glyph is a visible mark: it is shown even before an item is identified,
+  // while upgrade level and curse knowledge keep their existing secrecy.
+  get glyphName(): string {
+    return equipmentGlyphName(this.glyph);
+  }
+
+  get glyphDescription(): string {
+    const slot = this.equipSlot === "weapon" ? "weapon"
+      : this.equipSlot === "armor" ? "armor" : undefined;
+    return equipmentGlyphDescription(this.glyph, slot);
+  }
+
   get displayDescription(): string {
     const description = this.isPhysicalEquipment && !this.identified
       ? this.unupgradedDescription : this.baseDescription;
-    return [description, this.curseDescription].filter(Boolean).join('\n\n');
+    return [description, this.glyphDescription, this.curseDescription].filter(Boolean).join('\n\n');
   }
 
   // True for items whose upgrade level is a meaningful, hidden property.
@@ -474,7 +493,8 @@ export abstract class Entity {
       // The make and tier are recognizable, but an unknown upgrade level must
       // not leak through the name before the item has been used or identified.
       const level = this.identified ? (this.level > 0 ? ` +${this.level}` : "") : " ?";
-      return `${this.name}${level} (Tier ${this.tier})`;
+      const glyph = this.glyph ? ` [${this.glyphName}]` : "";
+      return `${this.name}${level} (Tier ${this.tier})${glyph}`;
     }
     if (this.identified || this.isRecognizableEquipment) {
       return this.type === "item" && this.level > 0 ? `${this.name} +${this.level}` : this.name;

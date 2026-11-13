@@ -52,7 +52,7 @@ export default class LongSword extends Entity {
   }
 
   range(): number {
-    return 0;
+    return this.glyph === "range" ? 2 : 0;
   }
 
   onDestroy() {

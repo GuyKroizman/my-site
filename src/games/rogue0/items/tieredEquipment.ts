@@ -59,7 +59,7 @@ export class TieredWeapon extends Entity {
   }
   protection(): number { return 0; }
   attack(): number { return 0; }
-  range(): number { return 0; }
+  range(): number { return this.glyph === "range" ? 2 : 0; }
   equip(): void {}
   turn(): void {}
   refresh(): void {}

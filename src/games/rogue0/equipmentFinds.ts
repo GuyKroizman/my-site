@@ -3,6 +3,7 @@ import { isBossFloor, lootTier } from './progression';
 import { TieredWeapon, TieredArmor } from './items/tieredEquipment';
 import { rollFoundUpgrade } from './foundUpgrades';
 import { maybeCurse } from './curses';
+import { rollEquipmentGlyph } from './equipmentGlyphs';
 
 // Bone piles always hold gear and are the main equipment source, so armor and
 // weapons found anywhere else spawn at a third of their former rate.
@@ -20,6 +21,7 @@ export function createEquipmentFind(context: GameContext, x?: number, y?: number
   const item = new Gear(context, x, y, lootTier(context.floor));
   rollFoundUpgrade(item);
   maybeCurse(item);
+  rollEquipmentGlyph(item);
   // Tiered gear starts unidentified; neither upgrades nor curses reveal it.
   return item;
 }

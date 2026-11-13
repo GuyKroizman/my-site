@@ -36,8 +36,10 @@ has been playtested. Checked boxes mean the described implementation exists.
   (generation, per-slot procs/passives, lock-on guards,
   `removeCurse()`/Scroll of Remove Curse, a mirror-image decoy and a
   `charmed` effect). Strength requirements and weapon/armor tiers 1–5 are
-  implemented. Durability, enchantments/glyphs and balance playtesting remain
-  outstanding.
+  implemented. Weapons now have Fire/Frost/Luck/Reach/Push glyphs and armor
+  has Thorns/Push, with one visible glyph per item. Fresh gear has a 25% glyph
+  chance; a rare Stone of Infusion adds one to chosen unmarked physical gear.
+  Durability and balance playtesting remain outstanding.
 - Explicit weapon/armor/two-ring/artifact slots and a 20-slot backpack replace
   active-item aggregation. Inventory is modal, with item actions and stacking.
 - Terrain uses a coordinate-keyed feature overlay on the binary floor/wall
@@ -48,7 +50,9 @@ has been playtested. Checked boxes mean the described implementation exists.
   Stone of Blink teleports the hero to its landing tile when thrown (or pulls
   them unharmed to the next floor if thrown into a chasm), and the Stone of
   Detect Curse reveals one unidentified item's curse status without identifying
-  its type. Both are one-use consumables.
+  its type. The Stone of Infusion enchants one chosen unmarked weapon or armor;
+  its grass drop chance is 0.24%, versus 5.88% each for Blink and Detect Curse.
+  All three are one-use consumables.
 - Monster roster includes cultists, splitting swarms, mimics, three elementals,
   goblin archers, wraiths and poison-gas Deadly Frogs. The goblin archer fires
   bleeding arrows at range
@@ -311,7 +315,13 @@ HUD + modal window system.
       and guaranteed progression supplies (specification below).
 - [ ] Balance progression across all five classes over 25 floors; expand
       same-tier weapon trade-offs. Boss balancing is explicitly deferred.
-- [ ] Add weapon enchantments / armor glyphs after the core progression loop.
+- [x] Add weapon enchantments / armor glyphs after the core progression loop.
+      Fire burns for 3 ticks; Frost freezes one action and chills; Luck rerolls
+      empty monster item drops and doubles gold fallback odds; Reach hits at
+      distance 2. Push moves one cardinal tile (horizontal on diagonal contact).
+      Armor Thorns returns 25% of melee damage (rounded, minimum 1); Push
+      repels melee attackers. Glyphs persist, coexist with curses, and are
+      visible before identification. Infusion only accepts unmarked gear.
 
 #### SPD-style progression specification (core implemented; balance/talents pending)
 

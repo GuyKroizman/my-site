@@ -140,6 +140,7 @@ import { prewarmConsumableAppearances, resetConsumableAppearances, saveConsumabl
 import type { Entity } from "./entity";
 import { maybeCurse } from "./curses";
 import { rollFoundUpgrade } from "./foundUpgrades";
+import { rollEquipmentGlyph } from "./equipmentGlyphs";
 import {
   applyScenarioHero,
   applyScenarioInventory,
@@ -2047,6 +2048,7 @@ export class Scene0 extends Phaser.Scene {
       if (enabled) spawnOne((x, y) => {
         const item = new Cls(context, x, y, progression.tier);
         rollFoundUpgrade(item);
+        rollEquipmentGlyph(item);
         return item;
       });
     }
@@ -2100,6 +2102,7 @@ export class Scene0 extends Phaser.Scene {
           : new Loot(context, x, y);
         rollFoundUpgrade(item);
         maybeCurse(item);
+        rollEquipmentGlyph(item);
         return item;
       });
     }

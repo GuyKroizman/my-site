@@ -7,7 +7,8 @@ import type Phaser from 'phaser';
 // tiles are mostly scenery and equipment.
 export const GLYPH_STONE_TEXTURES = {
   blink: 'glyph-stone-blink',
-  detectCurse: 'glyph-stone-detect-curse'
+  detectCurse: 'glyph-stone-detect-curse',
+  infuse: 'glyph-stone-infuse'
 } as const;
 
 export type GlyphStoneKind = keyof typeof GLYPH_STONE_TEXTURES;
@@ -45,6 +46,15 @@ export const GLYPH_STONE_PALETTES: Record<GlyphStoneKind, GlyphStonePalette> = {
     ink: 0x3fbf5a,
     glow: 0xdcffe2,
     inkShadow: 0x226b31
+  },
+  infuse: {
+    outline: 0x221a2e,
+    shadow: 0x5a4a70,
+    body: 0x9a83b8,
+    light: 0xcbb9e6,
+    ink: 0xffc857,
+    glow: 0xfff3d1,
+    inkShadow: 0x9a6a1f
   }
 };
 
@@ -92,6 +102,26 @@ const STONE_ROWS: Record<GlyphStoneKind, readonly string[]> = {
     '....obbbbbddo...',
     '.....oooooo.....',
     '................'
+  ],
+  // A taller, pointed obelisk so the infuse stone cannot be mistaken for
+  // either the blink shard or the flat detect-curse cobble.
+  infuse: [
+    '......oooo......',
+    '.....ohhhho.....',
+    '....ohhhbbbo....',
+    '...ohhbbbbbbo...',
+    '..ohbbbbbbbbbo..',
+    '..ohbbbbbbbbbo..',
+    '.ohbbbbbbbbbbdo.',
+    '.ohbbbbbbbbbbdo.',
+    '.ohbbbbbbbbbbdo.',
+    '.ohbbbbbbbbbbdo.',
+    '.ohbbbbbbbbbbdo.',
+    '..obbbbbbbbbdo..',
+    '..obbbbbbbbbdo..',
+    '...obbbbbbbdo...',
+    '....obbbbbdo....',
+    '.....oooooo.....'
   ]
 };
 
@@ -115,12 +145,23 @@ const RUNE_ROWS: Record<GlyphStoneKind, readonly string[]> = {
     '#.....#',
     '.#...#.',
     '..###..'
+  ],
+  // A filled diamond with a single bright centre: a rune of pouring power.
+  infuse: [
+    '...#...',
+    '..###..',
+    '.#####.',
+    '###+###',
+    '.#####.',
+    '..###..',
+    '...#...'
   ]
 };
 
 const RUNE_ORIGIN: Record<GlyphStoneKind, readonly [number, number]> = {
   blink: [4, 5],
-  detectCurse: [4, 4]
+  detectCurse: [4, 4],
+  infuse: [4, 4]
 };
 
 const TOKENS: Record<Exclude<Token, '.'>, keyof GlyphStonePalette> = {

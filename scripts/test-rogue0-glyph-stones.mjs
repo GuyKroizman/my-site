@@ -42,6 +42,9 @@ const { canBlinkTo } = blinkModule;
 const StoneOfDetectCurse = load('src/games/rogue0/items/stoneOfDetectCurse.ts', {
   Entity, GlyphStone, removeEntity, dungeon, GLYPH_STONE_TEXTURES,
 }).default;
+const StoneOfInfusion = load('src/games/rogue0/items/stoneOfInfusion.ts', {
+  Entity, GlyphStone, removeEntity, dungeon, GLYPH_STONE_TEXTURES,
+}).default;
 
 let terrain = createTerrain();
 
@@ -49,9 +52,11 @@ let terrain = createTerrain();
 const metaCtx = { messages: [] };
 const blinkMeta = new StoneOfBlink(metaCtx);
 const curseMeta = new StoneOfDetectCurse(metaCtx);
+const infuseMeta = new StoneOfInfusion(metaCtx);
 assert.equal(blinkMeta.name, 'Stone of Blink');
 assert.equal(curseMeta.name, 'Stone of Detect Curse');
-for (const stone of [blinkMeta, curseMeta]) {
+assert.equal(infuseMeta.name, 'Stone of Infusion');
+for (const stone of [blinkMeta, curseMeta, infuseMeta]) {
   assert.equal(stone.type, 'item');
   assert.equal(stone.consumable, true);
   assert.equal(stone.equipSlot, 'consumable');
@@ -61,15 +66,19 @@ for (const stone of [blinkMeta, curseMeta]) {
 }
 assert.equal(blinkMeta.textureKey, GLYPH_STONE_TEXTURES.blink);
 assert.equal(curseMeta.textureKey, GLYPH_STONE_TEXTURES.detectCurse);
+assert.equal(infuseMeta.textureKey, GLYPH_STONE_TEXTURES.infuse);
 assert.equal(blinkMeta.spriteTextureKey, GLYPH_STONE_TEXTURES.blink);
 assert.equal(curseMeta.spriteTextureKey, GLYPH_STONE_TEXTURES.detectCurse);
+assert.equal(infuseMeta.spriteTextureKey, GLYPH_STONE_TEXTURES.infuse);
 assert.equal(blinkMeta.throwToUse, true, 'using blink starts throw targeting');
 assert.equal(curseMeta.throwToUse, false);
+assert.equal(infuseMeta.throwToUse, false);
 assert.equal(curseMeta.requiresItemTarget, true);
+assert.equal(infuseMeta.requiresItemTarget, true);
 
 // --- each stone kind has its own artwork -----------------------------------
 const STONE_SIZE = 16;
-assert.deepEqual([...GLYPH_STONE_KINDS].sort(), ['blink', 'detectCurse']);
+assert.deepEqual([...GLYPH_STONE_KINDS].sort(), ['blink', 'detectCurse', 'infuse']);
 const silhouettes = new Map();
 const runeInks = new Map();
 for (const kind of GLYPH_STONE_KINDS) {
@@ -99,6 +108,10 @@ assert.notEqual(GLYPH_STONE_PALETTES.blink.body, GLYPH_STONE_PALETTES.detectCurs
   'the stones are cut from different-coloured rock');
 assert.notEqual(GLYPH_STONE_PALETTES.blink.ink, GLYPH_STONE_PALETTES.detectCurse.ink,
   'the runes are inlaid in different inks');
+assert.notEqual(GLYPH_STONE_PALETTES.infuse.body, GLYPH_STONE_PALETTES.blink.body);
+assert.notEqual(GLYPH_STONE_PALETTES.infuse.body, GLYPH_STONE_PALETTES.detectCurse.body);
+assert.notEqual(GLYPH_STONE_PALETTES.infuse.ink, GLYPH_STONE_PALETTES.blink.ink);
+assert.notEqual(GLYPH_STONE_PALETTES.infuse.ink, GLYPH_STONE_PALETTES.detectCurse.ink);
 
 // --- both textures are generated once, under their own keys -----------------
 {
@@ -171,26 +184,30 @@ assert.deepEqual(floorItemView(undefined), { scale: 1, centred: false },
 }
 
 // --- Trample drop odds: independent chance then a rune choice ---
-const { GLYPH_STONE_TRAMPLE_CHANCE, rollGlyphStoneKind, createGlyphStone,
+const { GLYPH_STONE_TRAMPLE_CHANCE, INFUSE_STONE_SHARE, rollGlyphStoneKind, createGlyphStone,
   dropTrampledGlyphStone } =
-  load('src/games/rogue0/glyphStoneDrop.ts', { StoneOfBlink, StoneOfDetectCurse });
+  load('src/games/rogue0/glyphStoneDrop.ts', { StoneOfBlink, StoneOfDetectCurse, StoneOfInfusion });
 const seq = values => {
   let index = 0;
   return () => values[index++] ?? 0.99;
 };
 assert.equal(GLYPH_STONE_TRAMPLE_CHANCE, 0.12);
+assert.equal(INFUSE_STONE_SHARE, 0.02, 'infuse keeps a much smaller share than blink/detect');
 assert.equal(rollGlyphStoneKind(seq([0.12])), undefined, 'at or above the chance finds nothing');
 assert.equal(rollGlyphStoneKind(seq([0.99])), undefined);
-assert.equal(rollGlyphStoneKind(seq([0, 0])), 'blink');
+assert.equal(rollGlyphStoneKind(seq([0, 0])), 'infuse');
+assert.equal(rollGlyphStoneKind(seq([0, 0.0199])), 'infuse');
+assert.equal(rollGlyphStoneKind(seq([0, 0.02])), 'blink');
 assert.equal(rollGlyphStoneKind(seq([0, 0.499])), 'blink');
-assert.equal(rollGlyphStoneKind(seq([0, 0.5])), 'detect-curse');
+assert.equal(rollGlyphStoneKind(seq([0, 0.51])), 'detect-curse');
 assert.ok(createGlyphStone(metaCtx, 'blink') instanceof StoneOfBlink);
 assert.ok(createGlyphStone(metaCtx, 'detect-curse') instanceof StoneOfDetectCurse);
+assert.ok(createGlyphStone(metaCtx, 'infuse') instanceof StoneOfInfusion);
 
 // --- A trample find stays on the floor, never in the backpack ---
 {
   const ctx = { entities: [], messages: [] };
-  const stone = dropTrampledGlyphStone(ctx, 2, 3, seq([0, 0]));
+  const stone = dropTrampledGlyphStone(ctx, 2, 3, seq([0, 0.02]));
   assert.ok(stone instanceof StoneOfBlink);
   assert.deepEqual([stone.x, stone.y], [2, 3], 'the stone rests on the trampled tile');
   assert.equal(ctx.entities.includes(stone), true, 'it is on the floor for a later pickup');
@@ -394,6 +411,78 @@ function detectScene() {
   assert.equal(another.canTargetItem(target), false, 'already scanned');
 }
 
+// --- Infuse: etch a random glyph onto one weapon or armor ---
+function infuseScene() {
+  const player = Object.assign(new Entity(), {
+    type: 'player', x: 1, y: 1, healthPoints: 10,
+    backpack: [], actions: [],
+    getAllItems() { return this.backpack; },
+    removeItem(item) {
+      if (item.count > 1) { item.count -= 1; return; }
+      this.backpack = this.backpack.filter(candidate => candidate !== item);
+    },
+    canAct() { return true; },
+    spendTurn(action) { this.actions.push(action); },
+  });
+  const ctx = { entities: [player], messages: [], player };
+  player.context = ctx;
+  return { ctx, player };
+}
+
+{
+  const { ctx, player } = infuseScene();
+  const weapon = Object.assign(new Entity(), {
+    name: 'Broadsword', type: 'item', equipSlot: 'weapon', tier: 3, level: 0,
+    identified: false, context: ctx,
+  });
+  const armor = Object.assign(new Entity(), {
+    name: 'Mail Armor', type: 'item', equipSlot: 'armor', tier: 3, level: 0,
+    identified: false, context: ctx,
+  });
+  const ring = Object.assign(new Entity(), {
+    name: 'Ring', type: 'item', equipSlot: 'ring', context: ctx,
+  });
+  const scroll = Object.assign(new Entity(), {
+    name: 'Scroll of Fireball', type: 'item', equipSlot: 'weapon', context: ctx,
+  });
+  const stone = new StoneOfInfusion(ctx);
+  ctx.entities.push(stone);
+  player.backpack.push(weapon, armor, ring, scroll, stone);
+
+  assert.equal(stone.canTargetItem(weapon), true, 'weapons can be infused');
+  assert.equal(stone.canTargetItem(armor), true, 'armor can be infused');
+  assert.equal(stone.canTargetItem(ring), false, 'rings cannot be infused');
+  assert.equal(stone.canTargetItem(scroll), false, 'wizard scroll weapons cannot be infused');
+  assert.equal(stone.canTargetItem(stone), false, 'the stone cannot infuse itself');
+
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try {
+    assert.equal(stone.useOnItem(weapon), true);
+  } finally {
+    Math.random = originalRandom;
+  }
+  assert.equal(weapon.glyph, 'fire', 'the first weapon glyph is fire');
+  assert.match(weapon.displayName, /\[Fire\]/);
+  assert.match(dungeon.logs.at(-1), /Fire glyph/);
+  assert.deepEqual(player.actions, ['use']);
+  assert.equal(player.backpack.includes(stone), false, 'the stone is consumed');
+  assert.equal(ctx.entities.includes(stone), false);
+  assert.equal(stone.canTargetItem(weapon), false, 'an infused item cannot be infused again');
+
+  const secondStone = new StoneOfInfusion(ctx);
+  ctx.entities.push(secondStone);
+  player.backpack.push(secondStone);
+  Math.random = () => 0;
+  try {
+    assert.equal(secondStone.useOnItem(armor), true);
+  } finally {
+    Math.random = originalRandom;
+  }
+  assert.equal(armor.glyph, 'thorns', 'the first armor glyph is thorns');
+  assert.match(armor.displayName, /\[Thorns\]/);
+}
+
 // --- Unidentified descriptions warn of curses without revealing the item's name ---
 {
   const cursed = Object.assign(new Entity(), {
@@ -540,7 +629,7 @@ function trampleScenario() {
   const dropped = [];
   ctx.onGrassTrampled = (entity, x, y) => {
     if (entity !== hero) return;
-    const stone = dropTrampledGlyphStone(ctx, x, y, seq([0, 0]));
+    const stone = dropTrampledGlyphStone(ctx, x, y, seq([0, 0.02]));
     if (!stone) return;
     // The suite's coordinate-only Entity.init does not build sprites; floor-item
     // lookup and walkability both require one.

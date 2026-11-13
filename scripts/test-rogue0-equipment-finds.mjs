@@ -39,8 +39,10 @@ function sequence(values) {
   };
 }
 function setup({ armor = false, cursed = false } = {}) {
-  // Kind, tier, upgrade, curse chance, and (when cursed) curse ID.
-  sequence([armor ? 0.5 : 0, 0.5, 0.99, cursed ? 0 : 0.99, ...(cursed ? [0] : [])]);
+  // Kind, tier, upgrade, curse chance, (when cursed) curse ID, then glyph
+  // chance. 0.99 on the glyph roll keeps the find plain so existing gear
+  // assertions stay deterministic.
+  sequence([armor ? 0.5 : 0, 0.5, 0.99, cursed ? 0 : 0.99, ...(cursed ? [0] : []), 0.99]);
   const context = { floor: 11, messages: [], entities: [], visibleTiles: new Set() };
   let turns = 0, ready = true;
   const player = Object.assign(Object.create(Hero.prototype), {
@@ -75,6 +77,7 @@ try {
       assert.equal(item.level, 3);
       assert.equal(item.identified, false);
       assert.equal(item.cursed, cursed);
+      assert.equal(item.glyph, '', 'a plain glyph roll leaves the find uninfused');
       assert.equal(item.curseDescription, '');
       assert.equal(item.x, undefined);
       assert.equal(player.addItem(remains), false, 'bone piles cannot be picked up');

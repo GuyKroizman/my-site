@@ -8,6 +8,7 @@ import { enemyTurn, enemyCanSeePlayer } from "../ai";
 import { actorOrigin } from "../rendering";
 import { playMonsterDeath } from './monsterDeathVisuals';
 import Gold from "../items/gold";
+import { rollEquipmentGlyph } from '../equipmentGlyphs';
 import { stashChasmFallen } from "../chasmDrops";
 import { bodyDistance } from "../actorBodies.ts";
 import { TILE_FOOTPRINT, resolveFootprint } from "../footprint.ts";
@@ -231,6 +232,7 @@ export default class Monster extends Entity {
     // then delivers it to the floor below instead of leaving it hovering over
     // the hole. `fellIntoChasm` is set by dungeon.fallIntoChasm.
     const drop = (instance: Entity): void => {
+      rollEquipmentGlyph(instance);
       if (this.fellIntoChasm) {
         const landsBelow = stashChasmFallen(this.context, instance);
         announceDeath(this.context, this, landsBelow
@@ -243,7 +245,13 @@ export default class Monster extends Entity {
     };
 
     if (this.loot.length > 0) {
-      const lootIndex = Phaser.Math.Between(0, this.loot.length - 1);
+      let lootIndex = Phaser.Math.Between(0, this.loot.length - 1);
+      // A Luck weapon glyph improves drops for the whole kill: an empty item
+      // roll gets one reroll, and the gold fallback doubles its chance below.
+      const lucky = this.context.player?.weapon?.glyph === 'luck';
+      if (lucky && !this.loot[lootIndex]) {
+        lootIndex = Phaser.Math.Between(0, this.loot.length - 1);
+      }
       const item = this.loot[lootIndex];
       if (item) {
         drop(new item(this.context, x, y));
@@ -251,9 +259,11 @@ export default class Monster extends Entity {
       }
     }
 
-    // If the item roll produced nothing, give a 25% chance of floor currency.
-    // Death never credits the wallet; gold uses the normal floor pickup flow.
-    if (this.gold > 0 && Phaser.Math.Between(1, 4) === 1) {
+    // If the item roll produced nothing, give a 25% chance of floor currency
+    // (50% with a Luck weapon glyph). Death never credits the wallet; gold
+    // uses the normal floor pickup flow.
+    const lucky = this.context.player?.weapon?.glyph === 'luck';
+    if (this.gold > 0 && Phaser.Math.Between(1, lucky ? 2 : 4) === 1) {
       drop(new Gold(this.context, x, y, this.gold));
     } else {
       announceDeath(this.context, this, `${this.name} was killed.`);

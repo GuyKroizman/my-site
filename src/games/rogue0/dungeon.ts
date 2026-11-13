@@ -28,6 +28,9 @@ import {
 import type { DamageType, StatusEffect } from "./effects";
 import { actorBodyAtTile, actorFootprint, bodyOverlapsAt } from "./actorBodies.ts";
 import { footprintBounds, footprintContains, footprintTiles, footprintsOverlap } from "./footprint.ts";
+import {
+  ARMOR_GLYPH_REFLECT_RATIO
+} from "./equipmentGlyphs";
 
 // Tile index of the floor in every theme sheet. The wall index comes from
 // dungeonTheme(), so the sheet layout is described in exactly one place.
@@ -1064,6 +1067,57 @@ const dungeon = {
     }
   },
 
+  // Weapon glyph proc: fires once per successful player weapon hit. Passive
+  // glyphs (luck, range) need no proc and are handled elsewhere.
+  procWeaponGlyph: function (context: GameContext, attacker: Entity, victim: Entity, _damageDealt: number): void {
+    const weapon = (attacker as any).weapon as Entity | undefined;
+    const glyph = weapon?.glyph as string | undefined;
+    if (!weapon || !glyph || attacker.healthPoints <= 0 ||
+        victim.healthPoints <= 0 || victim.type !== "enemy") return;
+
+    if (glyph === "fire") {
+      applyEffect(victim, createBurningEffect(3));
+      if (isEnemyVisible(context, victim)) this.log(context, `${weapon.displayName} sets ${victim.name} on fire!`);
+    } else if (glyph === "frost") {
+      applyEffect(victim, createFrozenEffect(1));
+      applyEffect(victim, createChilledEffect());
+      if (isEnemyVisible(context, victim)) this.log(context, `${weapon.displayName} chills ${victim.name}!`);
+    } else if (glyph === "push") {
+      if (attacker.x === undefined || attacker.y === undefined ||
+          victim.x === undefined || victim.y === undefined) return;
+      // Like geysers, diagonal contact uses the horizontal component.
+      const dx = Math.sign(victim.x - attacker.x);
+      const dy = dx ? 0 : Math.sign(victim.y - attacker.y);
+      if (!dx && !dy) return;
+      this.knockback(context, victim, dx, dy);
+    }
+  },
+
+  // Armor glyph proc: contact-only reactions to a successful enemy hit against
+  // the hero. Ranged attacks do not trigger thorns or push.
+  procArmorGlyph: function (context: GameContext, victim: Entity, attacker: Entity, damageDealt: number, rangedAttack: number): void {
+    const armor = (victim as any).armor as Entity | undefined;
+    const glyph = armor?.glyph as string | undefined;
+    if (!armor || !glyph || rangedAttack || victim.healthPoints <= 0 ||
+        attacker.healthPoints <= 0 || victim.type !== "player" || attacker.type !== "enemy") return;
+
+    if (glyph === "thorns") {
+      if (damageDealt <= 0) return;
+      const reflected = Math.max(1, Math.round(damageDealt * ARMOR_GLYPH_REFLECT_RATIO));
+      attacker.takeDamage(reflected);
+      if (isEnemyVisible(context, attacker)) spawnEntityFloatingText(attacker, `-${reflected}`);
+      announceHit(context, attacker, `${armor.displayName} returns ${reflected} damage to ${attacker.name}!`, true);
+      if (attacker.healthPoints <= 0) removeEntity(context, attacker);
+    } else if (glyph === "push") {
+      if (attacker.x === undefined || attacker.y === undefined ||
+          victim.x === undefined || victim.y === undefined) return;
+      const dx = Math.sign(attacker.x - victim.x);
+      const dy = dx ? 0 : Math.sign(attacker.y - victim.y);
+      if (!dx && !dy) return;
+      this.knockback(context, attacker, dx, dy);
+    }
+  },
+
   // Wand curse proc: a cursed wand may redirect its own magic onto the caster
   // instead of the target. The charge is still spent; only the effect flips.
   procWandCurse: function (context: GameContext, caster: Entity, wand: Entity): boolean {
@@ -1352,6 +1406,11 @@ const dungeon = {
         // Ordinary weapon attacks retain curse procs; throws/wands do not.
         if (victim.type === "player") this.procArmorCurse(context, victim);
         if (attacker.type === "player") this.procWeaponCurse(context, attacker, victim, result.damage);
+        // Glyphs ride the same successful-hit hook as curses. Weapon glyphs
+        // trigger only when the player lands a weapon hit; armor glyphs only
+        // answer adjacent enemy strikes.
+        if (attacker.type === "player") this.procWeaponGlyph(context, attacker, victim, result.damage);
+        if (victim.type === "player") this.procArmorGlyph(context, victim, attacker, result.damage, rangedAttack);
         // Unknown physical gear becomes familiar from real combat use. A weapon
         // learns from a landed swing; armor learns from a blow it absorbs.
         if (attacker.type === "player") context.player?.currentWeapon?.()?.learnEquipmentFromUse?.();

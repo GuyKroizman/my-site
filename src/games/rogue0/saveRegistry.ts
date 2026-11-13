@@ -44,6 +44,7 @@ import Shield from './items/shield';
 import Shoe from './items/Shoe';
 import StoneOfBlink from './items/stoneOfBlink';
 import StoneOfDetectCurse from './items/stoneOfDetectCurse';
+import StoneOfInfusion from './items/stoneOfInfusion';
 import Sword from './items/sword';
 import { TieredWeapon, TieredArmor } from './items/tieredEquipment';
 import Wand from './items/wand';
@@ -121,6 +122,7 @@ export const saveRegistry: Registry = {
   './items/Shoe.ts:default': Shoe,
   'item:stone-of-blink': StoneOfBlink,
   'item:stone-of-detect-curse': StoneOfDetectCurse,
+  'item:stone-of-infusion': StoneOfInfusion,
   './items/sword.ts:default': Sword,
   './items/tieredEquipment.ts:TieredArmor': TieredArmor,
   './items/tieredEquipment.ts:TieredWeapon': TieredWeapon,

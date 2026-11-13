@@ -2,6 +2,7 @@ import { Entity } from '../entity';
 import type { GameContext } from '../context';
 import { maybeCurse } from '../curses';
 import { rollFoundUpgrade } from '../foundUpgrades';
+import { rollEquipmentGlyph } from '../equipmentGlyphs';
 import dungeon from '../dungeon';
 import Gold from './gold';
 import Ration from './ration';
@@ -33,6 +34,8 @@ export default class Chest extends Entity {
     rollFoundUpgrade(armor);
     maybeCurse(weapon);
     maybeCurse(armor);
+    rollEquipmentGlyph(weapon);
+    rollEquipmentGlyph(armor);
     this.contents = [roll < 5 ? new Gold(context, undefined, undefined, 10 + tier * 5)
       : roll < 9 ? new Ration(context)
       : roll < 13 ? new Gold(context, undefined, undefined, 10 + tier * 5)

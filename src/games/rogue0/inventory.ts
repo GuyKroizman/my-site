@@ -66,6 +66,7 @@ export function canStackItems(existing: Entity, item: Entity): boolean {
     existing.identified === item.identified && existing.level === item.level &&
     existing.tier === item.tier && existing.cursed === item.cursed &&
     existing.blessed === item.blessed && existing.charges === item.charges &&
+    existing.glyph === item.glyph &&
     existing.effects.length === 0 && item.effects.length === 0;
 }
 

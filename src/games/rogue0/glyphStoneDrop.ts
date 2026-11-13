@@ -1,5 +1,6 @@
 import StoneOfBlink from "./items/stoneOfBlink";
 import StoneOfDetectCurse from "./items/stoneOfDetectCurse";
+import StoneOfInfusion from "./items/stoneOfInfusion";
 import type { Entity } from "./entity";
 import type { GameContext } from "./context";
 
@@ -8,7 +9,11 @@ import type { GameContext } from "./context";
 // several grass patches still give the mechanic a chance to appear.
 export const GLYPH_STONE_TRAMPLE_CHANCE = 0.12;
 
-export type GlyphStoneKind = "blink" | "detect-curse";
+// The infuse stone is much rarer than Blink or Detect Curse. It shares the
+// 12% trample roll, but takes only this share (0.24% per grass tile).
+export const INFUSE_STONE_SHARE = 0.02;
+
+export type GlyphStoneKind = "blink" | "detect-curse" | "infuse";
 
 // Two random draws: first whether grass hides anything, then which rune. Kept
 // separate from Entity construction so the odds are testable without Phaser.
@@ -16,7 +21,10 @@ export function rollGlyphStoneKind(
   random: () => number = Math.random
 ): GlyphStoneKind | undefined {
   if (random() >= GLYPH_STONE_TRAMPLE_CHANCE) return undefined;
-  return random() < 0.5 ? "blink" : "detect-curse";
+  const kindRoll = random();
+  if (kindRoll < INFUSE_STONE_SHARE) return "infuse";
+  // The remaining 98% splits evenly between Blink and Detect Curse.
+  return kindRoll < 0.5 + INFUSE_STONE_SHARE / 2 ? "blink" : "detect-curse";
 }
 
 export function createGlyphStone(
@@ -25,9 +33,9 @@ export function createGlyphStone(
   x?: number,
   y?: number
 ): Entity {
-  return kind === "blink"
-    ? new StoneOfBlink(context, x, y)
-    : new StoneOfDetectCurse(context, x, y);
+  if (kind === "blink") return new StoneOfBlink(context, x, y);
+  if (kind === "infuse") return new StoneOfInfusion(context, x, y);
+  return new StoneOfDetectCurse(context, x, y);
 }
 
 // The find stays on the trampled tile instead of jumping into the backpack. The

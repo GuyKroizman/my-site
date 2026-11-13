@@ -64,7 +64,9 @@ export default class SwarmOfFlies extends Monster {
     const y = this.y;
     if (x === undefined || y === undefined) return;
 
-    if (Math.random() < HEALING_POTION_DROP_CHANCE) {
+    const lucky = context.player?.weapon?.glyph === 'luck';
+    if (Math.random() < HEALING_POTION_DROP_CHANCE ||
+        (lucky && Math.random() < HEALING_POTION_DROP_CHANCE)) {
       const potion = new PotionOfHealing(context, x, y);
       context.entities.push(potion);
       announceDeath(context, this, `${this.name} was killed, dropping ${potion.name}.`);
