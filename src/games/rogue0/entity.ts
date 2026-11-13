@@ -13,7 +13,8 @@ import { TILE_FOOTPRINT } from "./footprint.ts";
 import type { Footprint } from "./footprint.ts";
 import {
   equipmentGlyphDescription,
-  equipmentGlyphName
+  equipmentGlyphName,
+  glyphEligible
 } from "./equipmentGlyphs";
 import type { EquipmentGlyph } from "./equipmentGlyphs";
 
@@ -24,6 +25,10 @@ export type EntityType = "player" | "enemy" | "item";
 // ring or artifact, or one charged zap for a wand. A Scroll of Identify reveals
 // it immediately, but equipping alone only reveals the curse status.
 export const EQUIPMENT_IDENTIFY_USES = 30;
+
+// Independent rolls using the resulting level: +1 = 10%, +2 = 20%, …
+// Capped at 100% from +10 onward; found upgrades count toward this level too.
+export const UPGRADE_REMOVAL_PERCENT_PER_LEVEL = 10;
 
 export type EquipSlot =
   | "weapon"
@@ -721,8 +726,10 @@ export function identify(item: Entity): void {
 
 // Upgrade rule: +1 `level`, never +1 tier. Physical weapons gain +1 minimum
 // and +(tier + 1) maximum damage; armor gains +tier protection per level.
-// Other item families keep their own upgrade curves.
-export function upgrade(item: Entity): void {
+// Other item families keep their own upgrade curves. Physical gear also rolls
+// independently to cleanse its curse and erase its glyph, without identifying
+// hidden upgrades or rerolling marks on freshly generated equipment.
+export function upgrade(item: Entity, random: () => number = Math.random): void {
   if (item.level >= item.maxLevel) {
     logMessage(item.context, item.identified
       ? `${item.name} is already at its maximum level (${item.maxLevel}).`
@@ -730,6 +737,20 @@ export function upgrade(item: Entity): void {
     return;
   }
   item.level += 1;
+  if (glyphEligible(item)) {
+    const removalChance = Math.min(1, item.level * UPGRADE_REMOVAL_PERCENT_PER_LEVEL / 100);
+    if (item.cursed && random() < removalChance) {
+      item.cursed = false;
+      item.curseId = '';
+      item.onUncursed?.();
+      logMessage(item.context, `The upgrade lifts the curse from ${item.displayName}.`);
+    }
+    if (item.glyph && random() < removalChance) {
+      const glyphName = equipmentGlyphName(item.glyph);
+      item.glyph = '';
+      logMessage(item.context, `The upgrade erases the ${glyphName} glyph from ${item.displayName}.`);
+    }
+  }
   item.onUpgrade?.();
   logMessage(item.context, item.identified
     ? `${item.name} upgraded to level ${item.level}.`

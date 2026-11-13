@@ -7,7 +7,7 @@ import Wand from "./wand";
 export default class ScrollOfUpgrade extends Entity {
   name: string = "Scroll of Upgrade";
   description: string =
-    "Use to choose a weapon, armor, ring, or wand to upgrade.";
+    "Use to choose a weapon, armor, ring, or wand to upgrade. For physical weapons and armor, curse removal and glyph erasure each roll independently: 10% at +1, 20% at +2, increasing by 10 percentage points per resulting upgrade level, up to 100% at +10 and above. The upgrade level always increases.";
   requiresItemTarget = true;
   itemTargetTitle = "UPGRADE: CHOOSE ITEM";
   noItemTargetsMessage = "You have no items that can be upgraded.";

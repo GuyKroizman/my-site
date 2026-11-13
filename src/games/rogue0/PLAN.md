@@ -322,6 +322,14 @@ HUD + modal window system.
       Armor Thorns returns 25% of melee damage (rounded, minimum 1); Push
       repels melee attackers. Glyphs persist, coexist with curses, and are
       visible before identification. Infusion only accepts unmarked gear.
+      Each successful physical weapon/armor upgrade independently rolls to
+      cleanse its curse and erase its glyph: 10% at resulting level +1, 20% at
+      +2, increasing by 10 percentage points per level to 100% at +10 and above.
+      Found upgrades count too. Either, both or neither may be removed; the
+      +1 level is always retained. Capped
+      upgrades do not roll, and rings/wands/artifacts/scroll weapons are exempt.
+      Removal is logged without identifying the gear; Scroll of Upgrade warns
+      of both chances. Coverage: `upgrade-marks`.
 
 #### SPD-style progression specification (core implemented; balance/talents pending)
 
