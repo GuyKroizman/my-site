@@ -7,8 +7,12 @@ import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 
 function fixture() {
   const images = [], tweens = [], killed = [], frames = new Map();
-  const texture = { key: 'foreground-tiles', has: name => frames.has(name),
-    add(name, ...rect) { frames.set(name, rect); } };
+  const texture = { key: 'foreground-tiles', firstFrame: '__BASE', has: name => frames.has(name),
+    add(name, ...rect) {
+      frames.set(name, rect);
+      // Phaser makes the first added subframe the default for image textures.
+      if (this.firstFrame === '__BASE') this.firstFrame = name;
+    } };
   const events = new EventEmitter();
   const scene = { events, add: { image(x, y, key, frame) {
     const image = { x, y, key, frame, destroyed: false,
@@ -55,6 +59,11 @@ for (let i = 0; i < SKELETON_BONES.length; i++) {
   assert.equal(f.images.length, 6);
   assert.equal(f.tweens.length, 1, 'one visual clock, no gameplay timers');
   f.tick(0);
+  // Phaser.Textures.Texture#get treats frame 0 as "no frame", so it resolves a
+  // spawn through firstFrame. Leaving that on a bone turned every later
+  // skeleton into a bodiless skull (its 8x8 head fragment).
+  assert.equal(f.sprite.texture.firstFrame, '__BASE', 'death fragments never become the default frame');
+  assert.equal(f.frames.size, SKELETON_BONES.length);
   f.images.forEach((image, i) => {
     const bone = SKELETON_BONES[i];
     assert.equal(image.x, 32 + bone.x + bone.width / 2);

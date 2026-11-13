@@ -48,9 +48,13 @@ export function playSkeletonDeath(context: GameContext, sprite: Phaser.GameObjec
   // Feet sit on the last artwork row, whatever the frame height.
   const ground = top + (sprite.frame.height - 1) * sy;
   const alpha = sprite.alpha;
+  const texture = sprite.texture;
+  // Phaser makes the first added subframe the default for image textures.
+  // The bone frames share the living skeleton's texture, so leaving firstFrame
+  // on "skull" renders every skeleton spawned afterwards as a bodiless head.
+  const defaultFrame = texture.firstFrame;
   const fragments = SKELETON_BONES.map(bone => {
     const name = `skeleton-death-${sprite.frame.name}-${bone.name}`;
-    const texture = sprite.texture;
     if (!texture.has(name)) {
       texture.add(name, sprite.frame.sourceIndex,
         sprite.frame.cutX + bone.x, sprite.frame.cutY + bone.y, bone.width, bone.height);
@@ -59,6 +63,7 @@ export function playSkeletonDeath(context: GameContext, sprite: Phaser.GameObjec
       top + (bone.y + bone.height / 2) * sy, texture.key, name)
       .setScale(sx, sy).setDepth(sprite.depth).setAlpha(alpha).setTint(sprite.tintTopLeft);
   });
+  texture.firstFrame = defaultFrame;
   sprite.destroy();
 
   const clock = { elapsed: 0 };
