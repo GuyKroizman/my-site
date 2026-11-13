@@ -358,7 +358,7 @@ function detectScene() {
   assert.equal(stone.useOnItem(target), true);
   assert.equal(target.identified, false, 'detect curse never identifies the item');
   assert.equal(target.curseScanned, true);
-  assert.match(target.curseDescription, /cursed/);
+  assert.equal(target.curseDescription, '', 'cursed scans add no description text');
   assert.doesNotMatch(target.curseDescription, /Wayward/);
   assert.match(dungeon.logs.at(-1), /is cursed/);
   assert.deepEqual(player.actions, ['use']);
@@ -400,7 +400,7 @@ function detectScene() {
     name: 'Axe', type: 'item', equipSlot: 'weapon', tier: 1,
     identified: false, cursed: true, curseId: 'sacrificial', curseScanned: true,
   });
-  assert.match(cursed.displayDescription, /glyph stone reveals that this item is cursed/i);
+  assert.equal(cursed.curseDescription, '', 'unidentified curses stay hidden in text');
   assert.doesNotMatch(cursed.displayDescription, /Sacrificial/);
   const clean = Object.assign(new Entity(), {
     name: 'Ration', type: 'item', equipSlot: 'consumable',

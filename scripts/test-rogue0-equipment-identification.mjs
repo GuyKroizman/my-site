@@ -68,7 +68,7 @@ for (let tier = 1; tier <= 5; tier++) {
     item.cursed = true;
     assert.equal(item.displayDescription, expected, 'unknown curses stay hidden');
     item.curseScanned = true;
-    assert.equal(item.displayDescription, `${expected}\n\nA glyph stone reveals that this item is cursed.`);
+    assert.equal(item.displayDescription, expected, 'scanned curses add no description text');
     item.cursed = false;
     item.curseScanned = false;
     item.identified = true;

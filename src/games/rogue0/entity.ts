@@ -401,13 +401,9 @@ export abstract class Entity {
   // A lifted curse leaves no trace here: a cleansed item is simply an ordinary
   // item, and the scroll's own message already reports the cleansing.
   get curseDescription(): string {
-    // A glyph stone warns of a curse without revealing the item's identity.
+    // Curses on unidentified items are shown by the inventory's "(cursed)"
+    // marker, not by extra description text, so nothing is added here.
     if (!this.identified) {
-      if (this.cursed) {
-        return this.curseScanned
-          ? 'A glyph stone reveals that this item is cursed.'
-          : '';
-      }
       return '';
     }
     if (this.cursed) {

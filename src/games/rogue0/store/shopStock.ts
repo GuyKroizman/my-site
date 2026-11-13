@@ -8,7 +8,7 @@ export const SHOP_FLOOR = 6;
 const POTIONS = ['healing', 'strength', 'experience', 'invisibility', 'toxic-gas',
   'liquid-flame', 'frost', 'levitation', 'holy', 'berserk'].map(kind => `potion-${kind}`);
 const SCROLLS = ['identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror',
-  'recharging', 'fireball', 'lightning', 'beckoning'].map(kind => `scroll-${kind}`);
+  'recharging', 'beckoning'].map(kind => `scroll-${kind}`);
 const WANDS = ['firebolt', 'frost', 'lightning', 'blast'].map(kind => `wand-${kind}`);
 const RINGS = ['accuracy', 'evasion', 'elements', 'haste', 'might'].map(kind => `ring-${kind}`);
 const STONES = ['blink', 'detect-curse'].map(kind => `stone-${kind}`);
