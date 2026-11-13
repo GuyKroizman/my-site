@@ -848,12 +848,12 @@ function growChasmPatch(
   return patch;
 }
 
-// Carves an organic room instead of a plain rectangle. The same value-noise
-// fBm used for chasms decides floor vs wall, with a radial bias toward the
-// room centre so the shape stays one coherent cavern. Only the floor component
-// containing the corridor anchor is kept, so the room can never gain a
-// sealed-off pocket.
-function carveOrganicRoom(map: number[][], room: Room, seed: number): void {
+// Carves an organic room with a floor-area budget rather than a fixed noise
+// threshold (which used to leave only ~42% of the rectangle walkable). Grow
+// from the corridor anchor, favouring the same noise/radial score as before.
+// The outline stays irregular, but at least 80% of the bounds becomes one
+// connected floor mass. Later decoration may still add up to three pillars.
+export function carveOrganicRoom(map: number[][], room: Room, seed: number): void {
   const x0 = room.x;
   const y0 = room.y;
   const x1 = room.x + room.w;
@@ -863,43 +863,35 @@ function carveOrganicRoom(map: number[][], room: Room, seed: number): void {
   const rx = Math.max(1, (x1 - x0) / 2);
   const ry = Math.max(1, (y1 - y0) / 2);
 
-  const floor = new Set<string>();
-  for (let y = y0; y < y1; y++) {
-    for (let x = x0; x < x1; x++) {
-      const n = fbm(x * 0.16, y * 0.16, seed);
-      const dx = (x - cx) / rx;
-      const dy = (y - cy) / ry;
-      const radial = Math.max(0, 1 - (dx * dx + dy * dy));
-      const value = n * 0.55 + radial * 0.45;
-      // Same noise/radial test the chasms use, inverted: the central mass and
-      // noise extensions become floor, while the outer fringe stays wall.
-      if (value > 0.5 || radial > 0.6) floor.add(`${x},${y}`);
-    }
-  }
-
-  // The corridor anchor must always be floor.
-  floor.add(`${cx},${cy}`);
-
-  // Keep only the floor component reachable from the centre. Any isolated
-  // pockets produced by the noise stay as wall.
-  const kept = new Set<string>([`${cx},${cy}`]);
-  const queue: Array<[number, number]> = [[cx, cy]];
-  for (let i = 0; i < queue.length; i++) {
-    const [x, y] = queue[i];
+  const targetArea = Math.ceil(room.w * room.h * 0.8);
+  const seen = new Set<string>([`${cx},${cy}`]);
+  const frontier: Array<{ x: number; y: number; score: number }> = [];
+  const addNeighbours = (x: number, y: number): void => {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
       const nx = x + dx;
       const ny = y + dy;
       if (nx < x0 || ny < y0 || nx >= x1 || ny >= y1) continue;
-      const k = `${nx},${ny}`;
-      if (!floor.has(k) || kept.has(k)) continue;
-      kept.add(k);
-      queue.push([nx, ny]);
+      const key = `${nx},${ny}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const n = fbm(nx * 0.16, ny * 0.16, seed);
+      const rxDistance = (nx - cx) / rx;
+      const ryDistance = (ny - cy) / ry;
+      const radial = Math.max(0, 1 - (rxDistance * rxDistance + ryDistance * ryDistance));
+      frontier.push({ x: nx, y: ny, score: n * 0.55 + radial * 0.45 });
     }
-  }
+  };
 
-  for (const k of kept) {
-    const [x, y] = k.split(",").map(Number);
+  map[cy][cx] = 0;
+  addNeighbours(cx, cy);
+  for (let area = 1; area < targetArea && frontier.length > 0; area++) {
+    let best = 0;
+    for (let i = 1; i < frontier.length; i++) {
+      if (frontier[i].score > frontier[best].score) best = i;
+    }
+    const [{ x, y }] = frontier.splice(best, 1);
     map[y][x] = 0;
+    addNeighbours(x, y);
   }
 }
 

@@ -10,7 +10,7 @@ const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindin
 const tiles = load('tiles');
 const fov = load('fov', tiles);
 import { bossArenaLayout } from '../src/games/rogue0/bossArenas.ts';
-const { generateMap, findFarthestWalkable, floorHasSecretRoom, floorIsBossArena, floorTerrainTheme } = load('mapgen', tiles);
+const { generateMap, carveOrganicRoom, findFarthestWalkable, floorHasSecretRoom, floorIsBossArena, floorTerrainTheme } = load('mapgen', tiles);
 const {
   floorHasChasmRoom, chasmRoomChance, floorRollsLevitationLoot, floorWantsChasmRoom,
   pickChasmRoomFloor, isChasmRoomFloor, CHASM_ROOM_FLOORS, DEEP_CHASM_ROOM_CHANCE
@@ -118,6 +118,46 @@ function floodReachable(map, start, blocked) {
     }
   }
   return visited;
+}
+// Organic outlines must spend a floor-area budget, not shrink a room to the
+// small central blob that passes a fixed noise threshold. Cover every eligible
+// room size with fixed seeds, independently of corridors that can hide shrinkage.
+for (let w = 6; w <= 11; w++) {
+  for (let h = 5; h <= 9; h++) {
+    const outlines = new Set();
+    let irregular = 0;
+    for (let i = 0; i < 40; i++) {
+      const room = { x: 2, y: 3, w, h, cx: 2 + Math.floor(w / 2), cy: 3 + Math.floor(h / 2) };
+      const blankMap = () => Array.from({ length: h + 6 }, () => Array(w + 4).fill(1));
+      const map = blankMap();
+      carveOrganicRoom(map, room, i * 997);
+      const label = `${w}x${h}, seed ${i * 997}`;
+      const floor = [];
+      for (let y = 0; y < map.length; y++) {
+        for (let x = 0; x < map[y].length; x++) {
+          if (map[y][x] !== 0) continue;
+          assert.ok(x >= room.x && x < room.x + w && y >= room.y && y < room.y + h,
+            `organic carving stays inside its reserved bounds (${label})`);
+          floor.push({ x, y });
+        }
+      }
+      assert.ok(floor.length >= Math.ceil(w * h * 0.8),
+        `organic room retains at least 80% of rectangular floor area (${label}, got ${floor.length})`);
+      assert.ok(floor.length < w * h, `organic room keeps an outline rather than filling its rectangle (${label})`);
+      assert.equal(map[room.cy][room.cx], 0, `corridor anchor stays open (${label})`);
+      assert.equal(floodReachable(map, { x: room.cx, y: room.cy }, new Set()).size, floor.length,
+        `every organic floor tile connects to the corridor anchor (${label})`);
+      const floorWidth = Math.max(...floor.map(t => t.x)) - Math.min(...floor.map(t => t.x)) + 1;
+      const floorHeight = Math.max(...floor.map(t => t.y)) - Math.min(...floor.map(t => t.y)) + 1;
+      if (floor.length < floorWidth * floorHeight) irregular++;
+      outlines.add(JSON.stringify(map));
+      const repeat = blankMap();
+      carveOrganicRoom(repeat, room, i * 997);
+      assert.deepEqual(repeat, map, `organic outline is deterministic for its seed (${label})`);
+    }
+    assert.ok(outlines.size > 1, `${w}x${h} organic outlines vary with seed`);
+    assert.ok(irregular >= 36, `${w}x${h} organic rooms keep genuinely non-rectangular outlines`);
+  }
 }
 // A door is valid only in a straight 1-wide passage: two opposite floor
 // neighbours and no floor on either side. This rejects L-bends, T-junctions
