@@ -508,7 +508,9 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       equipped cursed items. Equipping always reveals curse status through the
       shared `onEquip` path, so a cursed weapon/armor/ring/artifact locks on and
       says so immediately. Equipping never identifies the upgrade level (shown
-      as `?`) or the true type of a ring/artifact. Those are revealed by a
+      as `?`) or the true type of a ring. Artifacts show their real name and
+      normal flavor, but keep their level and curse status hidden until learned.
+      Hidden properties are revealed by a
       Scroll of Identify or extended use: thirty landed attacks (weapon), thirty
       blows taken (armor), thirty world-time ticks worn (ring/artifact), or
       thirty charged zaps (wand). The Scroll of Remove Curse lifts one chosen curse

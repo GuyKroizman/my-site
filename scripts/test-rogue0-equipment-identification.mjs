@@ -140,7 +140,7 @@ for (let tier = 1; tier <= 5; tier++) {
   assert.equal(spare.equipmentUses, 0);
 }
 
-// Rings and artifacts hide even their type behind an alias and `?` upgrade.
+// Rings hide their type; recognizable artifacts still hide their upgrade.
 {
   const ctx = { messages: [] };
   for (const [equipSlot, label] of [['ring', 'Ring'], ['artifact', 'Artifact']]) {
@@ -148,9 +148,13 @@ for (let tier = 1; tier <= 5; tier++) {
       context: ctx, type: 'item', equipSlot, name: equipSlot === 'ring' ? 'Ring of Haste' : 'Chalice of Blood',
       level: 2, identified: false,
     });
-    assert.equal(item.isRecognizableEquipment, false);
-    assert.match(item.displayName, new RegExp(`^${label} “.+” \\?$`));
-    assert.doesNotMatch(item.displayName, new RegExp(item.name));
+    assert.equal(item.isRecognizableEquipment, equipSlot === 'artifact');
+    if (equipSlot === 'artifact') {
+      assert.equal(item.displayName, `${item.name} ?`);
+    } else {
+      assert.match(item.displayName, new RegExp(`^${label} “.+” \\?$`));
+      assert.doesNotMatch(item.displayName, new RegExp(item.name));
+    }
     for (let use = 0; use < EQUIPMENT_IDENTIFY_USES; use++) item.learnEquipmentFromUse();
     assert.equal(item.identified, true, `${equipSlot} identifies through extended use`);
     assert.equal(item.displayName, `${item.name} +2`);

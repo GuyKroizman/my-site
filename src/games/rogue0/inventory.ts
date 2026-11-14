@@ -87,7 +87,7 @@ export function createInventoryActions(services: InventoryServices) {
     item.equip();
     services.log(owner.context, `You equip ${item.displayName}.`);
     // Equipping always reveals the curse status, but never the upgrade level or
-    // the true type of a ring/artifact. Those need a Scroll of Identify or
+    // the true type of a ring. Those need a Scroll of Identify or
     // extended use.
     if (!wasIdentified && (item.isPhysicalEquipment || item.equipSlot === 'ring' || item.equipSlot === 'artifact')) {
       services.log(owner.context, item.cursed

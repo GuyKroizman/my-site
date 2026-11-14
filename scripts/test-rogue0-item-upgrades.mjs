@@ -447,6 +447,7 @@ const fang = new (itemClass('FangOfTheBeast'))({ messages: [] });
 assert.equal(fang.spriteTextureKey, 'fang-of-the-beast');
 assert.equal(fang.spriteFrame, 0);
 assert.equal(fang.unidentifiedTextureKey, fang.spriteTextureKey);
+fang.identified = true;
 for (let level = 0; level <= 3; level++) {
   for (const item of [might, fang]) {
     const bonus = item === might ? `+${1 + level} Strength` : `+${2 + level} damage`;
@@ -466,19 +467,28 @@ const Chalice = itemClass('ChaliceOfBlood', {
 });
 const context = { messages: [], player: { name: 'Elf', healthPoints: 99, maxHealthPoints: 100 } };
 const chalice = new Chalice(context);
-// Artifact identity, upgrade level and curse name stay hidden until identified.
+// Artifact identity and flavor are visible, but upgrades and curses stay hidden.
 for (const artifact of [chalice, fang]) {
-  const original = { identified: artifact.identified, cursed: artifact.cursed };
+  const original = { identified: artifact.identified, cursed: artifact.cursed, level: artifact.level };
   for (const cursed of [false, true]) {
-    artifact.identified = false;
-    artifact.cursed = cursed;
-    assert.match(artifact.displayName, /^Artifact “.+” \?$/,
-      'artifacts keep their type and upgrade level hidden');
-    assert.equal(artifact.isRecognizableEquipment, false);
-    assert.equal(artifact.isPhysicalEquipment, false, 'artifacts do not gain physical tiers');
-    assert.equal(artifact.identified, false, 'recognizing an artifact does not identify it');
-    assert.doesNotMatch(artifact.displayName, /cursed|Tier/);
-    assert.doesNotMatch(artifact.displayName, new RegExp(artifact.name));
+    for (const level of [0, 1, 3, 10]) {
+      artifact.identified = false;
+      artifact.cursed = cursed;
+      artifact.level = level;
+      assert.equal(artifact.displayName, `${artifact.name} ?`);
+      assert.equal(artifact.displayDescription, artifact.description,
+        'unknown artifacts show normal flavor, never curse effects or scaled stats');
+      assert.equal(artifact.curseDescription, '');
+      assert.equal(artifact.isRecognizableEquipment, true);
+      assert.equal(artifact.isPhysicalEquipment, false, 'artifacts do not gain physical tiers');
+      assert.equal(artifact.identified, false, 'recognizing an artifact does not identify it');
+      assert.equal(artifact.cursed, cursed, 'presentation must not change curse status');
+      assert.equal(artifact.level, level, 'presentation must not change upgrade level');
+      artifact.identified = true;
+      assert.equal(artifact.displayName, artifact.name + (level > 0 ? ` +${level}` : ''));
+      assert.ok(artifact.displayDescription.startsWith(artifact.baseDescription),
+        'identification reveals the actual effects');
+    }
   }
   Object.assign(artifact, original);
 }

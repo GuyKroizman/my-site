@@ -327,7 +327,7 @@ export class InventoryWindow {
     selected: boolean
   ): void {
     // Equipping reveals curse status. The named curse, upgrade level and the
-    // type of rings/artifacts still wait for identification or a glyph stone.
+    // type of rings still wait for identification or a glyph stone.
     const curseKnown = !!item && (item.identified || item.curseScanned ||
       !!this.context.player?.slotOf(item));
     const knownCursed = curseKnown && !!item?.cursed;
@@ -476,10 +476,10 @@ export class InventoryWindow {
     ay += 12;
 
     // Equipping reveals the curse, but an unknown physical item still hides its
-    // upgrade level; rings, artifacts and wands hide their type as well.
+    // upgrade level, as do artifacts; rings and wands hide their type as well.
     const description = item.identified
       ? [item.displayDescription, item.strengthDescription(player.strength)].filter(Boolean).join("\n")
-      : item.isPhysicalEquipment
+      : item.isRecognizableEquipment
         ? item.displayDescription
         : [item instanceof Wand
             ? "An unidentified wand. Its kind of magic and upgrade level are unknown."

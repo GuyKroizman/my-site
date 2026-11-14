@@ -261,7 +261,9 @@ weapon/armor type and tier are recognizable, but the upgrade level is shown as
 (thirty landed attacks for a weapon, thirty blows taken for armor). Equipping
 reveals only the curse status: cursed gear locks onto the slot immediately,
 while its named curse and upgrade level stay hidden until identification.
-Unidentified rings and artifacts keep even their type hidden while worn.
+Unidentified artifacts show their real names and normal flavor descriptions, but
+hide their upgrade level (`?`) and curse status until learned. Rings keep even
+their type hidden while worn.
 
 Each non-boss floor also contains one **Skeletal Remains** bone pile. Walk or
 tap-to-walk into it to search, spending one use-action turn without moving.

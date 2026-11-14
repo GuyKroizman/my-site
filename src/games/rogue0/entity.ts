@@ -448,8 +448,12 @@ export abstract class Entity {
   }
 
   get displayDescription(): string {
-    const description = this.isPhysicalEquipment && !this.identified
-      ? this.unupgradedDescription : this.baseDescription;
+    // Artifact flavor describes its normal power without leaking level-scaled
+    // stats or curse-dependent effects from baseDescription.
+    const description = !this.identified && this.equipSlot === "artifact"
+      ? this.description
+      : this.isPhysicalEquipment && !this.identified
+        ? this.unupgradedDescription : this.baseDescription;
     return [description, this.glyphDescription, this.curseDescription].filter(Boolean).join('\n\n');
   }
 
@@ -481,16 +485,16 @@ export abstract class Entity {
   }
 
   // Physical equipment is recognizable; identification reveals its upgrades,
-  // not whether it is a sword, axe, or suit of armor. Rings and artifacts keep
+  // not whether it is a sword, axe, or suit of armor. Rings keep
   // even their type hidden until identified.
   get isPhysicalEquipment(): boolean {
     return this.type === "item" && (this.equipSlot === "weapon" || this.equipSlot === "armor");
   }
 
-  // Only physical gear is recognizable on sight. Artifacts stay unidentified
-  // (type and upgrade level) until a scroll or extended use reveals them.
+  // Physical gear and artifacts are recognizable on sight, but recognizing
+  // their type does not reveal their upgrade level or curse status.
   get isRecognizableEquipment(): boolean {
-    return this.isPhysicalEquipment;
+    return this.isPhysicalEquipment || (this.type === "item" && this.equipSlot === "artifact");
   }
 
   get displayName(): string {
@@ -501,7 +505,10 @@ export abstract class Entity {
       const glyph = this.glyph ? ` [${this.glyphName}]` : "";
       return `${this.name}${level} (Tier ${this.tier})${glyph}`;
     }
-    if (this.identified || this.isRecognizableEquipment) {
+    if (!this.identified && this.isRecognizableEquipment) {
+      return `${this.name} ?`;
+    }
+    if (this.identified) {
       return this.type === "item" && this.level > 0 ? `${this.name} +${this.level}` : this.name;
     }
     const hiddenUpgrade = this.isUpgradable ? " ?" : "";
