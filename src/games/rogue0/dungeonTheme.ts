@@ -20,10 +20,10 @@ export function dungeonTheme(floor: number): { tiles: string; wallFrame: number 
   return { tiles: `${dungeonThemeName(floor)}-tiles`, wallFrame: WALL_TILE };
 }
 
-/** Door artwork per region: oak on floors 1-4, banded iron on 6-9, sandstone
- * slab on 11-14, crystal on 16-19, glowing basalt on 21-24. The shared
- * boundary floors (5, 10, 15, 20, 25) take the incoming region's style, the
- * same way the wall and floor art does. */
+/** Door artwork per region: amber oak on floors 1-4, copper-clad iron on
+ * 5-9, teal stone on 10-14, golden crystal on 15-19, frost-blue basalt on
+ * 20-25. Each palette contrasts with its region's walls; all floors within
+ * a region share the same artwork, including the incoming boundary floor. */
 export type DoorStyle = 'wood' | 'iron' | 'stone-slab' | 'crystal' | 'basalt';
 
 export function doorStyleName(floor: number): DoorStyle {
