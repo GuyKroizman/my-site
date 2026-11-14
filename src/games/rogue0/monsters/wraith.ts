@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import { createWeakenedEffect } from "../effects";
 import { WRAITH_TEXTURE, generateWraithTexture } from "./wraithTexture";
@@ -10,14 +11,13 @@ export default class Wraith extends Monster {
       name: "Wraith",
       description: "A spectral horror that weakens those it touches.",
       textureKey: WRAITH_TEXTURE,
-      healthPoints: 14,
+      ...monsterStats('wraith', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 7,
-      attackDamage: 4,
       protection: 0,
       evasion: 40,
-      xp: 9,
+      xp: MONSTER_XP.wraith,
       range: 0,
       resistance: { physical: 1 }
     }, x, y);

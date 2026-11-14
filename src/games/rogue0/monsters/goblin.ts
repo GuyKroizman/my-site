@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import { createBleedingEffect } from "../effects";
 import { GOBLIN_ARROW_TEXTURE, generateGoblinArrowTexture } from "../projectileTextures";
@@ -10,16 +11,14 @@ export default class Goblin extends Monster {
       name: "Goblin",
       description: "A spiteful, sharp-eared goblin. Fires barbed arrows from a distance that cause bleeding.",
       textureKey: "goblin",
-      healthPoints: 12,
+      ...monsterStats('goblin', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 8,
-      attackDamage: 4,
       protection: 0,
       evasion: 20,
-      xp: 5,
+      xp: MONSTER_XP.goblin,
       range: 5,
-      meleeDamage: 2,
       attackTile: 1,
       projectileTexture: GOBLIN_ARROW_TEXTURE,
       // Loot is currency only: curse relief belongs to the Scroll of Remove

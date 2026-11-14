@@ -218,6 +218,66 @@ five dungeon regions: 32–64 HP, 14–30 damage, 1–3 protection, and 6-tile v
 Legacy 4-HP mimics in browser saves are upgraded once while preserving existing
 damage and provocation state.
 
+## Monster depth progression and balance
+
+`monsterBalance.ts` owns the initial roster, unlocks shared with reinforcements,
+and an XP-based difficulty forecast. New normal-run encounters arrive gradually:
+
+| First floor | New encounter |
+| --- | --- |
+| 1 | Skeletons and Deadly Frogs (frogs retire after floor 4) |
+| 2 | Swarms of Flies and Mimics |
+| 3 | Goblins |
+| 5 | Bone Lord; one guardian on every fifth floor |
+| 6 | Quloptsh |
+| 8 | Ghouls |
+| 11 | Brutes |
+| 13 | Cultists |
+| 16 | Wraiths, including haunted skeletal remains |
+| 18 | Fire Elementals |
+| 21 | Ice Elementals join the elemental pool |
+| 23 | Lightning Elementals join the elemental pool |
+
+Normal floors keep the original Skeleton quota (`2 + min(floor, 5)`) and one
+Mimic from floor 2. Goblins ramp from one on floor 3 to four on floor 6;
+Quloptsh ramp from one on floor 6 to three on floor 8. Other unlocked types get
+one spawn, with one shared elemental slot chosen uniformly from unlocked
+variants. Boss floors still contain only their guardian. Scenarios can
+explicitly place out-of-band monsters.
+
+Skeleton and Mimic stats are unchanged. Swarms now have **28 HP and 6 damage**;
+offspring share the parent's remaining HP and also hit for 6. Other creatures,
+including bosses, receive depth-scaled HP and damage at construction, keeping
+existing XP rewards, defenses, effects and behavior.
+
+The forecast assumes clearing the initial non-Mimic roster on earlier floors.
+It excludes optional Mimic kills, endless reinforcements, summons, split bonus
+XP, haunted remains and XP potions. It uses the hero's actual XP thresholds
+(`8 × current level` to advance), +5 HP and +1 attack per level. Expected entry
+levels at floors **1 / 5 / 10 / 15 / 20 / 25** are **1 / 5 / 9 / 12 / 16 / 19**.
+HP targets also account for mean weapon damage, guaranteed gear availability,
+Strength potions, and a modest equipment budget of one upgrade per completed
+region on each of weapon and armor (8 of 15 scrolls over the run).
+
+Ordinary enemies target roughly 3–4 projected hits to kill, Brutes 6 and bosses
+10, with minimum HP buffs for the early floors; monster defenses and hero
+crits are not included in those hit targets. Physical attacks include an
+allowance for expected armor, while magic/elemental attacks do not. Ranged
+sidearms halve the projected damage after armor rather than becoming harmless
+against late armor. The Bone Lords on floors 5/10/15/20/25 have respectively
+**120/160/250/360/470 HP** and **15/24/33/46/60 base damage**.
+
+This is a fixed depth curve, not live scaling against the player: extra XP or
+better gear remains an advantage. Existing saved monsters keep their stats and
+wounds, and visited floors keep their population; start a new run to experience
+the full progression. Automated coverage includes the `monster-balance`,
+`progression`, `reinforcements`, `swarm` and `deadly-frog` suites (headless checks,
+not a substitute for balance playtesting). Run them with:
+
+```bash
+npm run test:rogue0 -- monster-balance progression reinforcements swarm deadly-frog
+```
+
 ## Glyph stones
 
 Each tall-grass tile the hero tramples has a **12%** independent chance to hide a
@@ -267,8 +327,9 @@ their type hidden while worn.
 
 Each non-boss floor also contains one **Skeletal Remains** bone pile. Walk or
 tap-to-walk into it to search, spending one use-action turn without moving.
-Every pile holds one weapon or armor. If that find is cursed, an awake Wraith
-rises from the pile as well; non-cursed finds never summon one. Loot stays on
+Every pile holds one weapon or armor. From floor 16 onward, if that find is
+cursed, an awake Wraith rises from the pile as well; earlier floors and
+non-cursed finds never summon one. Loot stays on
 the ground, including with a full backpack, and the Wraith guards its tile
 until it moves or is defeated. Contents and haunting are rolled once at
 generation and saved; searching, reloading or revisiting never rerolls them or
@@ -554,7 +615,7 @@ Poisoned for at least 2 units without postponing its damage phase; expiry wins
 ties with a cloud pulse. Clouds are separate from ground features, affect
 levitating actors too, and pause with inactive floors. Rendering only displays
 visible clouds; it never advances their lifetime.
-The **Deadly Frog** (floor 4 onward) uses this system as its signature
+The **Deadly Frog** (floors 1–4 only) uses this system as its signature
 ability: every damaging hit it survives vents a cloud on its tile, and its
 death releases one final cloud. The frog is immune to poison but not to fire
 or steel, so killing it from range still leaves gas where it died.
@@ -570,13 +631,13 @@ balance values, not an exact reproduction of SPD. Entering a floor does not heal
 
 ## Ranged monsters and melee fallback
 
-Goblins and cultists are ranged. Goblins fire barbed arrows up to 5 tiles for
-4 damage plus 3 turns of bleeding. Cultists hurl necromantic bolts up to 5
-tiles for 4 damage (no bleeding) and still raise skeletons. When a target is
+Goblins and cultists are ranged, with depth-scaled damage. Goblins fire barbed
+arrows up to 5 tiles with 3 turns of bleeding. Cultists hurl necromantic bolts
+up to 5 tiles (no bleeding) and still raise skeletons. When a target is
 **adjacent** (Chebyshev distance 1, including diagonals) they cannot use their
-ranged attack and switch to a sidearm: 2 damage, a normal melee lunge animation,
-no arrow bleeding and no bolt. Closing the distance therefore cuts the damage
-the ranged attacker deals in half and stops the goblin's typed bleeding.
+ranged attack and switch to a weaker sidearm with a normal melee lunge
+animation, no arrow bleeding and no bolt. Closing the distance therefore
+reduces damage and stops the goblin's typed bleeding.
 
 The sidearm is configured per monster via `MonsterConfig.meleeDamage`. Any
 monster with `range > 0` opts into the fallback automatically; when the value
@@ -589,7 +650,9 @@ are untouched: `meleeAttack()` returns their full primary damage.
 A floor is never allowed to become empty of hostile monsters. When a death
 removes the last living monster (items, corpses and friendly mirror images do
 not count), the scene immediately draws a small wave — two to four monsters,
-weighted from the regular roster for the current depth but never the Bone Lord.
+weighted from the regular roster for the current depth but never Mimics or the
+Bone Lord. Unlocks match initial generation, including frogs only on floors 1–4
+and depth-gated elemental variants.
 The one exception is a **boss floor** (5, 10, 15, 20, 25): it is the guardian's
 arena, so it is never repopulated — killing the guardian leaves the floor empty
 and the way down open. The wave joins the current action timeline and is always
@@ -666,8 +729,8 @@ outside the artwork, so nobody can stand underneath it; taps anywhere on that
 art target the guardian. The floor is never repopulated after the guardian
 falls. The old five-floor limit
 was for testing.
-Themed regions and later-region enemy scaling are still future work; ordinary
-enemy counts stop growing after floor 5.
+Themed regions remain future work. Encounter variety and enemy strength now
+increase throughout the run; see Monster depth progression and balance above.
 
 Heroes start with **10 Strength**. Strength potions permanently add one Strength,
 not attack. XP still grants +5 max HP / +1 attack; talents are not implemented.

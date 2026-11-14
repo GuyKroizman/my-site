@@ -375,7 +375,7 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   assert.ok(boss.spriteScale > 1, 'the blob is scaled up beyond the 16px monsters');
   assert.deepEqual(boss.footprint, { width: 3, height: 3, originX: 1, originY: 1 },
     'the scaled guardian owns a centre-anchored 3x3 footprint');
-  assert.equal(boss.healthPoints, 60, 'the arena rework keeps the guardian stats');
+  assert.equal(boss.healthPoints, 120, 'the guardian has the new minimum health even outside boss floors');
   boss.takeDamage(1);
   assert.equal(boss.sleeping, false, 'any wound wakes it');
 }

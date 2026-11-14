@@ -1,3 +1,4 @@
+import { xpForHeroLevel } from '../progression';
 import type { EntityType } from "../entity";
 import { Entity, removeEntity, identify } from "../entity";
 import type { GameContext } from "../context";
@@ -419,7 +420,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
   }
 
   xpForNextLevel(): number {
-    return 8 + (this.level - 1) * 8;
+    return xpForHeroLevel(this.level);
   }
 
   gainXp(amount: number) {

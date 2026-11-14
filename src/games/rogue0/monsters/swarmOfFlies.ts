@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { SWARM_HEALTH, SWARM_DAMAGE, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import { forgetInspectedEntity } from "../context.ts";
 import type { Entity } from "../entity";
@@ -18,7 +19,7 @@ const HEALING_POTION_DROP_CHANCE = 0.33;
 export default class SwarmOfFlies extends Monster {
   constructor(context: GameContext, x?: number, y?: number, offspring = false, splitHealth?: number) {
     if (context.scene) generateFlySwarmTexture(context.scene);
-    const health = offspring ? (splitHealth ?? 8) : 16;
+    const health = offspring ? (splitHealth ?? SWARM_HEALTH / 2) : SWARM_HEALTH;
     super(context, {
       name: "Swarm of Flies",
       description: "A buzzing cloud that splits apart when struck with a physical blow.",
@@ -28,9 +29,9 @@ export default class SwarmOfFlies extends Monster {
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 6,
-      attackDamage: 2,
+      attackDamage: SWARM_DAMAGE,
       protection: 0,
-      xp: offspring ? 2 : 5,
+      xp: offspring ? 2 : MONSTER_XP.swarm,
       range: 0,
       scale: offspring ? 0.7 : 1,
       loot: []

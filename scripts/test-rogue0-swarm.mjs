@@ -77,20 +77,24 @@ function setup(swarmX = 5, swarmY = 3) {
   const { swarm } = setup();
   assert.equal(swarm.flying, true, 'swarms are naturally airborne');
   assert.equal(swarm.isFlying, true, 'isFlying reports natural flight');
-  assert.equal(swarm.healthPoints, 16, 'parent swarm has 16 health');
+  assert.equal(swarm.healthPoints, 28, 'parent swarm has 28 health');
+  assert.equal(swarm.attack(), 6, 'damage is tripled from 2 to 6');
 }
 
 // Physical hero hits split a living swarm and preserve its remaining health pool.
 {
   const { context, player, swarm } = setup();
-  swarm.takeDamage(3); // 16 -> 13
+  swarm.takeDamage(3); // 28 -> 25
   swarm.onHitBy(player, 'physical', 3);
   const enemies = context.entities.filter(e => e.type === 'enemy');
   assert.equal(enemies.length, 2, 'a physical hit splits the swarm in two');
   assert.equal(context.entities.includes(swarm), false, 'the parent is replaced');
-  assert.equal(enemies.reduce((sum, e) => sum + e.healthPoints, 0), 13,
+  assert.equal(enemies.reduce((sum, e) => sum + e.healthPoints, 0), 25,
     'the remaining health pool is split between offspring');
-  for (const e of enemies) assert.equal(e.isFlying, true, 'offspring keep flying');
+  for (const e of enemies) {
+    assert.equal(e.isFlying, true, 'offspring keep flying');
+    assert.equal(e.attack(), 6, 'offspring keep tripled damage without multiplying it again');
+  }
 }
 
 // Magical damage and non-player attackers never split the swarm.
@@ -106,8 +110,8 @@ function setup(swarmX = 5, swarmY = 3) {
 // A 1-health swarm is too small to split, preventing infinite splitting.
 {
   const { context, player, swarm } = setup();
-  swarm.takeDamage(15); // 16 -> 1
-  swarm.onHitBy(player, 'physical', 15);
+  swarm.takeDamage(27); // 28 -> 1
+  swarm.onHitBy(player, 'physical', 27);
   assert.equal(context.entities.filter(e => e.type === 'enemy').length, 1,
     'a 1-health swarm cannot split');
 }

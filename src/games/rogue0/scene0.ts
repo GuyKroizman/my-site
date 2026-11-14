@@ -116,6 +116,7 @@ import Wraith from "./monsters/wraith";
 import classes from "./classes";
 import type Monster from "./monsters/monster";
 import { reinforceFloor, type ReinforcementKind } from "./monsterReinforcements";
+import { floorMonsterRoster, elementalKindsForFloor } from './monsterBalance';
 import {
   generateMap,
   findFarthestWalkable,
@@ -1139,14 +1140,16 @@ export class Scene0 extends Phaser.Scene {
       case "brute": return new Brute(context, x, y);
       case "cultist": return new Cultist(context, x, y);
       case "wraith": return new Wraith(context, x, y);
-      case "elemental": {
-        const Elemental = [FireElemental, IceElemental, ShockElemental][
-          Math.floor(Math.random() * 3)
-        ];
-        return new Elemental(context, x, y);
-      }
+      case "elemental": return this.elementalActor(x, y);
       default: return new Skeleton(context, x, y);
     }
+  }
+
+  private elementalActor(x: number, y: number): Monster {
+    const kinds = elementalKindsForFloor(this.context.floor);
+    const kind = kinds[Math.floor(Math.random() * kinds.length)];
+    const Elemental = { fire: FireElemental, ice: IceElemental, shock: ShockElemental }[kind];
+    return new Elemental(this.context, x, y);
   }
 
   private handleMonsterRemoved(entity: Entity, reinforce: boolean): void {
@@ -1936,9 +1939,7 @@ export class Scene0 extends Phaser.Scene {
       context.entities.push(new Gold(context, room.cx, room.cy, 25));
     }
 
-    // Preserve the existing maximum encounter density rather than inflating
-    // floor 25 to dozens of extra enemies just because the test run was shorter.
-    const density = Math.min(floor, 5);
+    // Supplies and encounter unlocks follow the full 25-floor progression.
     const progression = floorProgression(floor);
     const progressionCount = progression.strengthPotions + progression.upgradeScrolls
       + Number(progression.weapon) + Number(progression.armor);
@@ -1947,21 +1948,21 @@ export class Scene0 extends Phaser.Scene {
     // guardian, the treasure chests, one ration and the hidden room's gold are
     // the floor's whole population, so the fight stays the floor's only event.
     const bossFloor = isBossFloor(floor);
-    const roster = (count: number) => (bossFloor ? 0 : count);
-    const skeletonCount = roster(2 + density);
-    const goblinCount = roster(Math.max(0, density - 1));
-    const ghoulCount = roster(floor >= 3 ? 1 : 0);
-    const bruteCount = roster(floor >= 3 ? 1 : 0);
-    const quloptshCount = roster(Math.max(0, density - 2));
-    const swarmCount = roster(floor >= 2 ? 1 : 0);
-    const mimicCount = roster(floor >= 2 ? 1 : 0);
+    const roster = floorMonsterRoster(floor);
+    const skeletonCount = roster.skeleton;
+    const goblinCount = roster.goblin;
+    const ghoulCount = roster.ghoul;
+    const bruteCount = roster.brute;
+    const quloptshCount = roster.quloptsh;
+    const swarmCount = roster.swarm;
+    const mimicCount = roster.mimic;
     const chestCount = 2;
     const remainsCount = bossFloor ? 0 : 1;
     const equipmentCount = Number(rollFloorEquipment(floor));
-    const cultistCount = roster(floor >= 3 ? 1 : 0);
-    const elementalCount = roster(floor >= 3 ? 1 : 0);
-    const wraithCount = roster(floor >= 3 ? 1 : 0);
-    const frogCount = roster(floor >= 4 ? 1 : 0);
+    const cultistCount = roster.cultist;
+    const elementalCount = roster.elemental;
+    const wraithCount = roster.wraith;
+    const frogCount = roster.frog;
     const itemCount = bossFloor ? 0 : 3;
     const cursedGemCount = bossFloor ? 0 : (Math.random() < 0.2 ? 1 : 0);
     const foodCount = 1;
@@ -2081,12 +2082,9 @@ export class Scene0 extends Phaser.Scene {
     spawnGroup(Wraith, wraithCount);
     spawnGroup(DeadlyFrog, frogCount);
 
-    // Elementals: pick a random variant per spawn.
+    // Initial spawns and reinforcements share the same variant unlocks.
     for (let n = 0; n < elementalCount; n++) {
-      const Elemental = [FireElemental, IceElemental, ShockElemental][
-        Math.floor(Math.random() * 3)
-      ];
-      spawnOne((x, y) => new Elemental(context, x, y));
+      spawnOne((x, y) => this.elementalActor(x, y));
     }
 
     // Cursed gem: can appear throughout the run.

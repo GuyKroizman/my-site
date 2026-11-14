@@ -77,10 +77,10 @@ function setup() {
   const goblin = new Goblin(context, 3, 3);
   assert.equal(goblin.name, 'Goblin');
   assert.equal(goblin.textureKey, 'goblin');
-  assert.equal(goblin.healthPoints, 12);
+  assert.equal(goblin.healthPoints, 24);
   assert.equal(goblin.range(), 5);
-  assert.equal(goblin.attackDamage, 4);
-  assert.equal(goblin.meleeAttack(), 2, 'a goblin stabs for less than an arrow hits');
+  assert.equal(goblin.attackDamage, 7);
+  assert.equal(goblin.meleeAttack(), 4, 'a goblin stabs for less than an arrow hits');
   assert.ok(goblin.meleeAttack() < goblin.attack(), 'melee is a downgrade for the archer');
   assert.equal(goblin.hasMeleeSidearm(), true, 'ranged goblins carry a sidearm');
   assert.equal(goblin.projectileTexture, 'monster-goblin-arrow',
@@ -102,7 +102,7 @@ function setup() {
   goblin.turn();
   assert.equal(attacks, before + 1, 'goblin shoots at range');
   assert.equal(lastAttack.tile, goblin.attackTile, 'ranged goblin uses its arrow attack');
-  assert.equal(goblin.meleeAttack(), 2, 'the sidearm never replaces ranged damage');
+  assert.equal(goblin.meleeAttack(), 4, 'the sidearm never replaces ranged damage');
   const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
   assert.ok(scene.includes("this.load.image('goblin', goblinArtUrl)"));
   assert.ok(scene.includes('spawnGroup(Goblin, goblinCount)'));
@@ -138,8 +138,8 @@ function setup() {
     Math.random = () => 0.5; // Hit, no crit, no randomness.
     const shot = combat.resolveAttack(context, goblin, player, { isRanged: true });
     const stab = combat.resolveAttack(context, goblin, player, {});
-    assert.equal(shot.damage, 4, 'arrows keep their full damage');
-    assert.equal(stab.damage, 2, 'the sidearm strike is weaker');
+    assert.equal(shot.damage, 7, 'arrows keep their full damage');
+    assert.equal(stab.damage, 4, 'the sidearm strike is weaker');
     assert.ok(stab.damage < shot.damage, 'closing to melee reduces incoming damage');
   } finally { Math.random = random; }
 }
@@ -327,7 +327,7 @@ assert.equal(context.entities.at(-1).sleeping, false);
   assert.equal(caster.range(), 5, 'cultists attack at range');
   assert.equal(caster.projectileTexture, 'monster-cultist-bolt',
     'cultists draw bolt art, not an opaque tilesheet frame');
-  assert.equal(caster.meleeAttack(), 2, 'staff strikes are weaker than bolts');
+  assert.equal(caster.meleeAttack(), 4, 'staff strikes are weaker than bolts');
   assert.ok(caster.meleeAttack() < caster.attack(), 'melee is a downgrade for the caster');
   assert.equal(caster.hasMeleeSidearm(), true, 'ranged cultists carry a sidearm');
   ranged.context.entities = [ranged.player, caster];

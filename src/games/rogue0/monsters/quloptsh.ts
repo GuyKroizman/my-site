@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import Shoe from "../items/Shoe";
 import { createWeakenedEffect } from "../effects";
@@ -9,14 +10,13 @@ export default class Quloptsh extends Monster {
       name: "Quloptsh",
       description: "A calm, stealthy assassin that weakens its prey.",
       textureKey: 'quloptsh',
-      healthPoints: 12,
+      ...monsterStats('quloptsh', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 7,
-      attackDamage: 2,
       protection: 0,
       evasion: 40,
-      xp: 4,
+      xp: MONSTER_XP.quloptsh,
       range: 0,
       loot: [false, Shoe]
     }, x, y);

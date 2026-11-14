@@ -24,6 +24,8 @@ import * as sight from '../../src/games/rogue0/fov.ts';
 import { bossArenaLayout } from '../../src/games/rogue0/bossArenas.ts';
 import { playMonsterDeath } from '../../src/games/rogue0/monsters/monsterDeathVisuals.ts';
 import * as equipmentGlyphs from '../../src/games/rogue0/equipmentGlyphs.ts';
+import * as monsterBalance from '../../src/games/rogue0/monsterBalance.ts';
+import { xpForHeroLevel } from '../../src/games/rogue0/progression.ts';
 
 // Cache only compilation, never exports or fixture state. Some large suites
 // evaluate the same module repeatedly with different fake dependencies.
@@ -76,7 +78,7 @@ export function loadLogic(path, bindings = {}) {
   // Legacy fixtures may inject the real fusion module; otherwise a harmless
   // no-op keeps their isolated source evaluator loadable.
   const tryFuseWands = (...args) => bindings.tryFuseWands?.(...args);
-  const dependencies = { retireGemsFromSave, ...projectileTextures, applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
+  const dependencies = { ...monsterBalance, xpForHeroLevel, retireGemsFromSave, ...projectileTextures, applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
     terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation, ...actorBodies, ...footprint, ...placement, ...combatFeedback,
     forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, potionSplashCells, tryFuseWands, heroStatsText, heroHudView, bossArenaLayout, playMonsterDeath, ...equipmentGlyphs, ...bindings };
   const exports = {};

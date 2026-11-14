@@ -9,6 +9,7 @@
 // monster constructors.
 
 import type { Entity } from "./entity";
+import { monsterAvailable } from './monsterBalance.ts';
 import type { GameContext } from "./context";
 import { TILE_FOOTPRINT, footprintTiles } from "./footprint.ts";
 import type { Footprint } from "./footprint.ts";
@@ -54,27 +55,28 @@ export function reinforcementCount(floor: number, random: () => number = Math.ra
   return 2 + depthBonus + (random() < 0.35 ? 1 : 0);
 }
 
-// Weighted pool by depth. Floor 1 reinforces with skeletons only; later
-// floors can reuse the regular roster, never the Bone Lord.
+// Weighted pool by depth, using the same unlocks/retirement as generation.
+// Never reinforce with Mimics or the Bone Lord.
 export function pickReinforcementKind(
   floor: number,
   random: () => number = Math.random
 ): ReinforcementKind {
   const table: Array<[ReinforcementKind, number]> = [
     ["skeleton", 4],
-    ["goblin", floor >= 2 ? 2 : 0],
-    ["swarm", floor >= 2 ? 1 : 0],
-    ["quloptsh", floor >= 3 ? 2 : 0],
-    ["ghoul", floor >= 3 ? 1 : 0],
-    ["brute", floor >= 3 ? 1 : 0],
-    ["cultist", floor >= 3 ? 1 : 0],
-    ["wraith", floor >= 3 ? 1 : 0],
-    ["elemental", floor >= 3 ? 2 : 0],
-    ["frog", floor >= 4 ? 1 : 0]
+    ["goblin", 2],
+    ["swarm", 1],
+    ["quloptsh", 2],
+    ["ghoul", 1],
+    ["brute", 1],
+    ["cultist", 1],
+    ["wraith", 1],
+    ["elemental", 2],
+    ["frog", 1]
   ];
-  const total = table.reduce((sum, [, weight]) => sum + weight, 0);
+  const available = table.filter(([kind]) => monsterAvailable(kind, floor));
+  const total = available.reduce((sum, [, weight]) => sum + weight, 0);
   let roll = random() * total;
-  for (const [kind, weight] of table) {
+  for (const [kind, weight] of available) {
     if (weight <= 0) continue;
     roll -= weight;
     if (roll < 0) return kind;

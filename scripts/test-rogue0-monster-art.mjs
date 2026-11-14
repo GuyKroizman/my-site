@@ -16,11 +16,11 @@ const BerserkPotion = class {};
 const Shoe = class {};
 const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 const cases = [
-  ['ghoul', { healthPoints: 12, movementSpeed: 2, attackDamage: 2, evasion: 0, xp: 5 },
+  ['ghoul', { healthPoints: 30, movementSpeed: 2, attackDamage: 6, evasion: 0, xp: 5 },
     [false, false, false, false]],
-  ['brute', { healthPoints: 36, movementSpeed: 1, attackDamage: 6, evasion: 0, xp: 10 },
+  ['brute', { healthPoints: 72, movementSpeed: 1, attackDamage: 12, evasion: 0, xp: 10 },
     [false, false, false, BerserkPotion]],
-  ['quloptsh', { healthPoints: 12, movementSpeed: 1, attackDamage: 2, evasion: 40, xp: 4 },
+  ['quloptsh', { healthPoints: 28, movementSpeed: 1, attackDamage: 7, evasion: 40, xp: 4 },
     [false, Shoe]],
 ];
 const images = [];
@@ -34,7 +34,7 @@ for (const [name, stats, loot] of cases) {
   assert.equal(monster.context, context);
   assert.equal(monster.x, 4);
   assert.equal(monster.y, 6);
-  for (const [stat, value] of Object.entries(stats)) assert.equal(monster[stat], value, `${name}: unchanged ${stat}`);
+  for (const [stat, value] of Object.entries(stats)) assert.equal(monster[stat], value, `${name}: floor-1 ${stat}`);
   assert.deepEqual(monster.loot, loot);
   assert.ok(scene.includes(`import ${name}ArtUrl from './assets/monsters/${name}.png'`));
   assert.ok(scene.includes(`this.load.image('${name}', ${name}ArtUrl)`));
@@ -47,4 +47,4 @@ for (const [name, stats, loot] of cases) {
   for (const other of images) assert.notDeepEqual(png, other, 'each monster has distinct artwork');
   images.push(png);
 }
-console.log('Monster art: three dedicated RGBA sprites, scene loading, frame selection, unchanged constructor stats and loot passed');
+console.log('Monster art: three dedicated RGBA sprites, scene loading, frame selection, balanced constructor stats and unchanged loot passed');

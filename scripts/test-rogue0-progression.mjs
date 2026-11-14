@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { createTerrain } from '../src/games/rogue0/terrain.ts';
+import { floorMonsterRoster, elementalKindsForFloor } from '../src/games/rogue0/monsterBalance.ts';
 const { Entity, upgrade } = load('src/games/rogue0/entity.ts');
 // No rendering in simulation tests; retain the real item constructors/stats.
 Entity.prototype.init = function(context, x, y) { Object.assign(this, { context, x, y }); };
@@ -131,6 +132,22 @@ let equipmentRoll = 0;
 bindings.rollFloorEquipment = floor => equipmentFinds.rollFloorEquipment(floor, () => equipmentRoll);
 bindings.createEquipmentFind = (...args) => Object.assign(equipmentFinds.createEquipmentFind(...args), { bonusFind: true });
 const { Scene0 } = load('src/games/rogue0/scene0.ts', bindings);
+// Exercise the real scene's reinforcement constructor route at both ends of
+// each elemental variant pool, not merely the pure unlock helper.
+{
+  const originalRandom = Math.random;
+  try {
+    for (const [floor, expected] of [[18, ['FireElemental', 'FireElemental']],
+      [21, ['FireElemental', 'IceElemental']], [23, ['FireElemental', 'ShockElemental']]]) {
+      const scene = Object.create(Scene0.prototype);
+      scene.context = { floor };
+      for (const [index, roll] of [0, 0.999999].entries()) {
+        Math.random = () => roll;
+        assert.equal(scene.reinforcementActor('elemental', 2, 3).kind, expected[index]);
+      }
+    }
+  } finally { Math.random = originalRandom; }
+}
 for (let run = 0; run < 5; run++) {
   equipmentRoll = run % 2 ? equipmentFinds.FLOOR_EQUIPMENT_CHANCE : 0;
   // One run settles its chasm room on a single early floor.
@@ -167,6 +184,18 @@ for (let run = 0; run < 5; run++) {
       assert.equal(secretRoom, undefined, 'secret room only appears on band floors');
     }
     const count = kind => items.filter(item => item.kind === kind).length;
+    const roster = floorMonsterRoster(floor);
+    for (const [kind, cls] of Object.entries({ skeleton: 'Skeleton', frog: 'DeadlyFrog', swarm: 'SwarmOfFlies',
+      goblin: 'Goblin', quloptsh: 'Quloptsh', ghoul: 'Ghoul', brute: 'Brute', cultist: 'Cultist',
+      wraith: 'Wraith', mimic: 'Mimic', boss: 'Boss' })) {
+      assert.equal(count(cls), roster[kind], `floor ${floor}: actual ${kind} quota`);
+    }
+    const elementalClasses = { fire: 'FireElemental', ice: 'IceElemental', shock: 'ShockElemental' };
+    assert.equal(Object.values(elementalClasses).reduce((sum, cls) => sum + count(cls), 0), roster.elemental);
+    for (const [kind, cls] of Object.entries(elementalClasses)) {
+      if (!elementalKindsForFloor(floor).includes(kind)) assert.equal(count(cls), 0,
+        `floor ${floor} must not place locked ${kind} elementals`);
+    }
     const spec = progression.floorProgression(floor);
     assert.equal(count('PotionOfStrength'), spec.strengthPotions);
     assert.equal(count('ScrollOfUpgrade'), spec.upgradeScrolls);

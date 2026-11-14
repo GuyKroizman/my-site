@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import Skeleton from "./skelaton";
@@ -13,17 +14,15 @@ export default class Cultist extends Monster {
       name: "Cultist",
       description: "A robed cultist who hurls necromantic bolts and raises skeletons to fight for it.",
       textureKey: "cultist", // Original violet-robed summoner with a bone staff.
-      healthPoints: 16,
+      ...monsterStats('cultist', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 7,
-      attackDamage: 4,
       protection: 0,
-      xp: 8,
+      xp: MONSTER_XP.cultist,
       // A truthy attackTile routes the AI through the ranged branch; the
       // projectile texture supplies the visible bolt, not this tilesheet frame.
       range: 5,
-      meleeDamage: 2,
       projectileTexture: CULTIST_BOLT_TEXTURE,
       loot: [false, false, false, false]
     }, x, y);

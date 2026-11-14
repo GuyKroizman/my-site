@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import BerserkPotion from "../items/berserkPotion";
 import { applyEffect, createStrengthenedEffect } from "../effects";
@@ -11,13 +12,12 @@ export default class Brute extends Monster {
       name: "Brute",
       description: "A hulking brute. Slow, but hits very hard.",
       textureKey: 'brute',
-      healthPoints: 36,
+      ...monsterStats('brute', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 6,
-      attackDamage: 6,
       protection: 1,
-      xp: 10,
+      xp: MONSTER_XP.brute,
       range: 0,
       resistance: { physical: 2 },
       loot: [false, false, false, BerserkPotion]

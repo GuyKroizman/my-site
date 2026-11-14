@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import { LIGHTNING_ELEMENTAL_TEXTURE, generateLightningElementalTexture } from "./lightningElementalTexture";
 import { FIRE_ELEMENTAL_TEXTURE, generateFireElementalTexture } from "./fireElementalTexture";
 import { ICE_ELEMENTAL_TEXTURE, generateIceElementalTexture } from "./iceElementalTexture";
@@ -16,13 +17,12 @@ export class FireElemental extends Monster {
       name: "Fire Elemental",
       description: "A living flame that burns whatever it touches.",
       textureKey: FIRE_ELEMENTAL_TEXTURE,
-      healthPoints: 16,
+      ...monsterStats('elemental', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 7,
-      attackDamage: 4,
       protection: 0,
-      xp: 7,
+      xp: MONSTER_XP.elemental,
       range: 0,
       resistance: { fire: 2 },
       vulnerability: { ice: 1 }
@@ -43,13 +43,12 @@ export class IceElemental extends Monster {
       name: "Ice Elemental",
       description: "A frozen horror whose touch locks victims in place.",
       textureKey: ICE_ELEMENTAL_TEXTURE,
-      healthPoints: 16,
+      ...monsterStats('elemental', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 7,
-      attackDamage: 4,
       protection: 0,
-      xp: 7,
+      xp: MONSTER_XP.elemental,
       range: 0,
       resistance: { ice: 2 },
       vulnerability: { fire: 1 }
@@ -70,13 +69,12 @@ export class ShockElemental extends Monster {
       name: "Lightning Elemental",
       description: "A living bolt of electricity whose crackling touch leaves victims weakened.",
       textureKey: LIGHTNING_ELEMENTAL_TEXTURE,
-      healthPoints: 16,
+      ...monsterStats('elemental', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 7,
-      attackDamage: 4,
       protection: 0,
-      xp: 7,
+      xp: MONSTER_XP.elemental,
       range: 0,
       resistance: { shock: 2 }
     }, x, y);

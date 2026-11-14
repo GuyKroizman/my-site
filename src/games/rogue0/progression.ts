@@ -3,6 +3,10 @@ export const REGION_SIZE = 5;
 export const FINAL_FLOOR = 25;
 export const REGIONS_PER_RUN = FINAL_FLOOR / REGION_SIZE;
 
+export function xpForHeroLevel(level: number): number {
+  return 8 * level;
+}
+
 // Scrolls of Upgrade are a fixed part of the run budget, never a random roll.
 // A standard run therefore contains exactly 15: three per five-floor region,
 // on the region's first, third and fourth floors. The fifth floor of every

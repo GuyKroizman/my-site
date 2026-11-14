@@ -113,12 +113,12 @@ for (const floor of [1, 2, 3, 8, 25]) {
   }
 }
 assert.equal(pickReinforcementKind(1, () => 0), 'skeleton');
-assert.equal(pickReinforcementKind(1, () => 0.999), 'skeleton',
-  'floor 1 does not draw later-floor monsters');
+assert.equal(pickReinforcementKind(1, () => 0.999), 'frog',
+  'floor 1 introduces frogs alongside skeletons');
 const floor3Kinds = new Set();
 for (let i = 0; i < 100; i++) floor3Kinds.add(pickReinforcementKind(3, () => i / 100));
-assert.deepEqual([...floor3Kinds].sort(), ['brute', 'cultist', 'elemental', 'ghoul', 'goblin', 'quloptsh', 'skeleton', 'swarm', 'wraith']);
-assert.equal(pickReinforcementKind(3, () => 0.999), 'elemental');
+assert.deepEqual([...floor3Kinds].sort(), ['frog', 'goblin', 'skeleton', 'swarm']);
+assert.equal(pickReinforcementKind(3, () => 0.999), 'frog');
 
 // --- Whole-floor reinforcement through the real callback --------------------
 const context = {

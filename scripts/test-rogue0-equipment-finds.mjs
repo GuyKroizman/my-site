@@ -38,12 +38,12 @@ function sequence(values) {
     return values.shift();
   };
 }
-function setup({ armor = false, cursed = false } = {}) {
+function setup({ armor = false, cursed = false, floor = 16 } = {}) {
   // Kind, tier, upgrade, curse chance, (when cursed) curse ID, then glyph
   // chance. 0.99 on the glyph roll keeps the find plain so existing gear
   // assertions stay deterministic.
   sequence([armor ? 0.5 : 0, 0.5, 0.99, cursed ? 0 : 0.99, ...(cursed ? [0] : []), 0.99]);
-  const context = { floor: 11, messages: [], entities: [], visibleTiles: new Set() };
+  const context = { floor, messages: [], entities: [], visibleTiles: new Set() };
   let turns = 0, ready = true;
   const player = Object.assign(Object.create(Hero.prototype), {
     context, x: 1, y: 1, nextActionTime: 42, hunger: 100, healthPoints: 30, backpack: [], capacity: 0,
@@ -73,7 +73,7 @@ try {
       const item = remains.contents[0];
       assert.equal(remains.contents.length, 1, 'every bone pile holds loot');
       assert.ok(item instanceof gear[armor ? 'TieredArmor' : 'TieredWeapon']);
-      assert.equal(item.tier, 3);
+      assert.equal(item.tier, 4);
       assert.equal(item.level, 3);
       assert.equal(item.identified, false);
       assert.equal(item.cursed, cursed);
@@ -112,6 +112,13 @@ try {
       ready(true); assert.equal(remains.openContainer(), false);
       assert.equal(turns(), 1, 'search cannot be repeated');
     }
+  }
+  for (const floor of [1, 4, 6, 11, 15]) {
+    const { context, remains } = setup({ cursed: true, floor });
+    assert.equal(remains.contents[0].cursed, true, 'early loot can still be cursed');
+    assert.equal(remains.openContainer(), true);
+    assert.equal(context.entities.some(e => e instanceof Wraith), false,
+      `floor ${floor} remains cannot bypass the floor-16 Wraith unlock`);
   }
   for (const mode of ['keyboard', 'auto-walk']) {
     const { context, player, remains, turns } = setup();

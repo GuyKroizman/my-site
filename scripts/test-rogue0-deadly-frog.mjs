@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { pickReinforcementKind } from '../src/games/rogue0/monsterReinforcements.ts';
+import { floorMonsterRoster } from '../src/games/rogue0/monsterBalance.ts';
 import { applyAttackResult } from '../src/games/rogue0/combatApplication.ts';
 import { UNSEEN_DEATH } from '../src/games/rogue0/combatFeedback.ts';
 
@@ -64,22 +65,22 @@ function makeContext() {
   const { context, gas } = makeContext();
   const frog = new DeadlyFrog(context, 2, 2);
   assert.equal(frog.name, 'Deadly Frog');
-  assert.equal(frog.healthPoints, 14);
-  assert.equal(frog.maxHealthPoints, 14);
+  assert.equal(frog.healthPoints, 22);
+  assert.equal(frog.maxHealthPoints, 22);
   assert.equal(frog.healthPoints, frog.maxHealthPoints);
-  assert.equal(frog.attackDamage, 3);
+  assert.equal(frog.attackDamage, 6);
   assert.equal(frog.range(), 0);
   assert.equal(frog.textureKey, DEADLY_FROG_TEXTURE);
   assert.equal(frog.poisonImmune, true, 'poison immunity is configured through MonsterConfig');
   assert.equal(gas.length, 0, 'merely spawning does not vent gas');
 
   frog.takeDamage(3);
-  assert.equal(frog.healthPoints, 11);
+  assert.equal(frog.healthPoints, 19);
   assert.deepEqual(gas, ['2,2'], 'surviving a hit releases gas on its tile');
   frog.takeDamage(0);
   assert.deepEqual(gas, ['2,2'], 'zero-damage hits never vent');
   frog.takeDamage(4);
-  assert.equal(frog.healthPoints, 7);
+  assert.equal(frog.healthPoints, 15);
   assert.deepEqual(gas, ['2,2', '2,2'], 'each damaging hit vents again');
 }
 
@@ -134,7 +135,7 @@ function makeContext() {
   applyAttackResult(context, attacker, frog, {
     hit: true, damage: 3, crit: false, damageType: 'physical', appliedEffects: []
   }, hooks);
-  assert.equal(frog.healthPoints, 11);
+  assert.equal(frog.healthPoints, 19);
   assert.deepEqual(gas, ['2,2'], 'a non-lethal pipeline hit vents gas');
 
   applyAttackResult(context, attacker, frog, {
@@ -209,20 +210,17 @@ function makeContext() {
 
 // --- Roster wiring: depth-gated spawns and reinforcements -------------------
 {
-  const floor3Kinds = new Set();
-  const floor4Kinds = new Set();
-  for (let i = 0; i < 1000; i++) {
-    const roll = Math.min(0.9999, i / 1000);
-    floor3Kinds.add(pickReinforcementKind(3, () => roll));
-    floor4Kinds.add(pickReinforcementKind(4, () => roll));
+  for (let floor = 1; floor <= 25; floor++) {
+    const kinds = new Set();
+    for (let i = 0; i < 1000; i++) kinds.add(pickReinforcementKind(floor, () => i / 1000));
+    assert.equal(kinds.has('frog'), floor <= 4, 'frog reinforcements stay on floors 1–4');
+    assert.equal(floorMonsterRoster(floor).frog, floor <= 4 ? 1 : 0);
   }
-  assert.equal(floor3Kinds.has('frog'), false, 'frogs start on floor 4, after the floor-3 roster');
-  assert.equal(floor4Kinds.has('frog'), true, 'frogs join reinforcement waves from floor 4');
 
   const scene0 = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
-  assert.match(scene0, /const frogCount = roster\(floor >= 4 \? 1 : 0\)/);
-  assert.match(scene0, /const roster = \(count: number\) => \(bossFloor \? 0 : count\)/,
-    'boss floors suppress the wandering roster');
+  assert.match(scene0, /const frogCount = roster.frog/);
+  assert.match(scene0, /const roster = floorMonsterRoster\(floor\)/,
+    'generation uses the shared depth roster');
   assert.match(scene0, /spawnGroup\(DeadlyFrog, frogCount\)/);
   assert.match(scene0, /case "frog": return new DeadlyFrog\(context, x, y\)/);
   assert.match(scene0, /generateDeadlyFrogTexture\(this\)/,

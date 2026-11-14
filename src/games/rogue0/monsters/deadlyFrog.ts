@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import { announceDeath } from "../combatFeedback";
 import { DEADLY_FROG_TEXTURE, generateDeadlyFrogTexture } from "./deadlyFrogTexture";
@@ -12,13 +13,12 @@ export default class DeadlyFrog extends Monster {
       name: "Deadly Frog",
       description: "A bloated frog with poison warts. Each wound it survives vents toxic gas, and its death releases a final cloud. Poison cannot harm it.",
       textureKey: DEADLY_FROG_TEXTURE,
-      healthPoints: 14,
+      ...monsterStats('frog', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 6,
-      attackDamage: 3,
       protection: 0,
-      xp: 6,
+      xp: MONSTER_XP.frog,
       range: 0,
       poisonImmune: true
     }, x, y);

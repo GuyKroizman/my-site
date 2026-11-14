@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import { applyEffect, createBleedingEffect, createRegenerationEffect, hasEffect } from "../effects";
 
@@ -8,13 +9,12 @@ export default class Ghoul extends Monster {
       name: "Ghoul",
       description: "A fast, ravenous ghoul.",
       textureKey: 'ghoul',
-      healthPoints: 12,
+      ...monsterStats('ghoul', context.floor),
       movementSpeed: 2,
       attackDelay: 1,
       visionRadius: 8,
-      attackDamage: 2,
       protection: 0,
-      xp: 5,
+      xp: MONSTER_XP.ghoul,
       range: 0,
       vulnerability: { fire: 1 },
       loot: [false, false, false, false]

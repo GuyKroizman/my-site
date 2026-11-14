@@ -1,4 +1,5 @@
 import Monster from "./monster";
+import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import PotionOfHealing from "../items/PotionOfHealing";
 import { createCrippledEffect, createWeakenedEffect } from "../effects";
@@ -31,14 +32,13 @@ export default class Boss extends Monster {
       name: "Bone Lord",
       description: "A mountain of gelatinous flesh with one great eye and a mouth full of fangs. The guardian of the dungeon depths. Immune to terror. Extremely dangerous.",
       textureKey: BOSS_TEXTURE,
-      healthPoints: 60,
+      ...monsterStats('boss', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
       visionRadius: 9,
-      attackDamage: 8,
       protection: 2,
       resistance: { physical: 2 },
-      xp: 25,
+      xp: MONSTER_XP.boss,
       range: 0,
       scale: 2,
       loot: [false, PotionOfHealing]
