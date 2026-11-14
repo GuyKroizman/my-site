@@ -20,16 +20,6 @@ import { readScenarioDraft, writeScenarioDraft, type Scenario } from '../games/r
 // per-render value would make every effect that reads it a fresh dependency.
 const DEV_TOOLS = isLocalViteDev()
 
-const CONTROLS = [
-  ['Move', 'Arrows / HJKL; diagonals: Home / PgUp / End / PgDn (or u / i / n / m)'],
-  ['Melee attack', 'Walk into enemy'],
-  ['Ranged attack', 'Equip bow/scroll, then click/tap enemy'],
-  ['Inspect / Search', 'Magnifying glass, then a tile to inspect; tap the button again to search (x: inspect, s: search)'],
-  ['Throw', 'Inventory → item → Throw → tap tile'],
-  ['Wait', 'Space'],
-  ['Inventory', 'b'],
-] as const
-
 const HELP_PAGES = [
   {
     title: 'Basics',
@@ -387,18 +377,6 @@ export default function Rogue0() {
               </button>
             </div>
           )}
-
-          <div className="rogue0-instructions">
-            <h2>How to play</h2>
-            <ul>
-              {CONTROLS.map(([action, keys]) => (
-                <li key={action}>
-                  <span className="rogue0-ctl-action">{action}</span>
-                  <span className="rogue0-ctl-keys">{keys}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
 
           <p className="rogue0-foot">
             <Link to="/">← back to home</Link>

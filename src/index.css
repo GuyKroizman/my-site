@@ -338,64 +338,6 @@ body {
   letter-spacing: 0;
 }
 
-.rogue0-instructions {
-  margin-top: 28px;
-  border-top: 1px solid var(--r0-border);
-  padding-top: 20px;
-  font-size: 1.25rem;
-  color: var(--r0-muted);
-}
-
-.rogue0-instructions h2 {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.7rem;
-  color: var(--r0-gold);
-  margin: 0 0 16px;
-  letter-spacing: 1px;
-  text-align: center;
-}
-
-.rogue0-instructions ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.rogue0-instructions li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 10px;
-  border-radius: 4px;
-}
-
-.rogue0-instructions li:nth-child(odd) {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.rogue0-ctl-action {
-  font-family: 'VT323', monospace;
-  font-size: 1.25rem;
-  color: var(--r0-text);
-}
-
-.rogue0-ctl-keys {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 0.5rem;
-  color: var(--r0-muted);
-  background: var(--r0-panel);
-  border: 1px solid var(--r0-border-strong);
-  border-bottom-width: 3px;
-  padding: 4px 7px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  line-height: 1.8;
-  text-align: center;
-}
-
 .rogue0-foot {
   margin-top: 26px;
   text-align: center;
@@ -910,6 +852,4 @@ body {
   .rogue0-shell { padding: 18px; }
   .rogue0-panel { padding: 24px 16px; }
   .rogue0-classes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .rogue0-instructions li { flex-wrap: wrap; gap: 6px; }
-  .rogue0-ctl-keys { max-width: 100%; text-align: left; }
 }
