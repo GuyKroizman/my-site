@@ -1,5 +1,5 @@
 import type { FeaturePlacement } from '../tiles';
-import { SHOP_FLOOR } from './shopStock.ts';
+import { isShopFloor } from './shopStock.ts';
 
 export type StorePortal = { x: number; y: number; approachX: number; approachY: number };
 const DIRECTIONS = [[0, 1], [1, 0], [0, -1], [-1, 0]] as const;
@@ -26,7 +26,7 @@ export function placeStorePortal(
   spawn: { x: number; y: number },
   options: { random?: () => number; avoid?: readonly { x: number; y: number }[] } = {}
 ): StorePortal | undefined {
-  if (floor !== SHOP_FLOOR) return undefined;
+  if (!isShopFloor(floor)) return undefined;
   const random = options.random ?? Math.random;
   const avoid = new Set((options.avoid ?? []).map(point => key(point.x, point.y)));
   avoid.add(key(spawn.x, spawn.y));

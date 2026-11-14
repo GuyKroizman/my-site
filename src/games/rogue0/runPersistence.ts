@@ -33,6 +33,8 @@ import SwarmOfFlies from './monsters/swarmOfFlies';
 import { IceElemental } from './monsters/elemental';
 import { ICE_ELEMENTAL_TEXTURE } from './monsters/iceElementalTexture';
 import { isChasmRoomFloor, pickChasmRoomFloor } from './mapgen';
+import { isShopFloor } from './store/shopStock';
+import type { ShopState } from './store/shopModel';
 
 export type SavedFloor = {
   savedAt: number;
@@ -46,7 +48,9 @@ export type SavedFloor = {
 };
 
 export type RunState = {
-  shop?: import('./store/shopModel').ShopState;
+  shops?: Map<number, ShopState>;
+  // Legacy single floor-6 store; migrated into shops during decode.
+  shop?: ShopState;
   player: BasicHero;
   floors: Map<number, SavedFloor>;
   floor: number;
@@ -183,14 +187,24 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
       }
     }
   }
-  if (run.shop !== undefined) {
-    // Reject corruption rather than silently replenishing purchased stock.
-    if (run.shop.version !== 1 || run.shop.floor !== 6 || !Array.isArray(run.shop.stock) ||
-        run.shop.stock.length !== 15 || run.shop.stock.some(slot => !slot ||
+  // Reject corruption rather than silently replenishing purchased stock.
+  const validateShop = (shop: ShopState, floor: number) => {
+    if (!isShopFloor(floor) || !shop || shop.version !== 1 || shop.floor !== floor ||
+        !Array.isArray(shop.stock) || shop.stock.length !== 15 || shop.stock.some(slot => !slot ||
           !Number.isSafeInteger(slot.price) || slot.price <= 0 || typeof slot.sold !== 'boolean' ||
           (slot.sold ? slot.item !== undefined : !slot.item || slot.item.type !== 'item' ||
             !Number.isSafeInteger(slot.item.count) || slot.item.count < 1))) throw new Error('Invalid saved store');
+  };
+  if (run.shops !== undefined && !(run.shops instanceof Map)) throw new Error('Invalid saved store');
+  const shops = run.shops ?? new Map<number, ShopState>();
+  for (const [floor, shop] of shops) validateShop(shop, floor);
+  if (run.shop !== undefined) {
+    validateShop(run.shop, 6);
+    if (shops.has(6) && shops.get(6) !== run.shop) throw new Error('Conflicting saved stores');
+    shops.set(6, run.shop);
   }
+  run.shops = shops;
+  delete run.shop;
   const active = run.floors.get(run.floor)!;
   if (!Number.isInteger(run.player.x) || !Number.isInteger(run.player.y) ||
       active.map[run.player.y!]?.[run.player.x!] === undefined) throw new Error('Invalid saved position');
@@ -209,7 +223,8 @@ export function restoreRunState(context: GameContext, run: RunState): void {
   context.simulationTime = run.time;
   restoreConsumableKnowledge(context, run.knowledge);
   context.chasmFallenItems = run.chasmFallen;
-  context.shop = run.shop;
+  context.shops = run.shops ?? new Map();
+  context.shop = context.shops.get(run.floor);
   context.storeOpen = false;
   const items = [...run.player.getAllItems(), ...[...run.floors.values()].flatMap(floor => floor.entities),
     ...(run.chasmFallen ? [...run.chasmFallen.values()].flat() : [])];
@@ -217,7 +232,9 @@ export function restoreRunState(context: GameContext, run: RunState): void {
   for (const ring of [run.player.ring1, run.player.ring2]) {
     if (ring instanceof Ring) ring.onUpgrade();
   }
-  for (const item of [...items, ...(run.shop?.stock.flatMap(slot => slot.item ? [slot.item] : []) ?? [])]) {
+  const stockItems = [...context.shops.values()].flatMap(shop =>
+    shop.stock.flatMap(slot => slot.item ? [slot.item] : []));
+  for (const item of [...items, ...stockItems]) {
     if (item instanceof Wand) item.reconcileChargeScaling();
   }
 }

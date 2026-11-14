@@ -93,7 +93,9 @@ export type GameContext = {
     y: number;
     fusion?: import('./wandFusion').WandFusionResult;
   }) => void;
-  // Store inventory lives outside floor entities and persists for the run.
+  // Independent store inventories persist outside floor entities for the run.
+  shops?: Map<number, import('./store/shopModel').ShopState>;
+  // Active floor's store, selected on floor setup/entry; not saved separately.
   shop?: import('./store/shopModel').ShopState;
   storeOpen?: boolean;
   portal?: import('./store/portal').StorePortal;

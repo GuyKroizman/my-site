@@ -1,4 +1,26 @@
-# rogue0 — Floor-6 Store (design + implementation plan)
+# rogue0 — Stores (design + implementation plan)
+
+## Current multi-floor behavior
+
+- Stores appear on **floors 6, 11, 16, and 21** only (`SHOP_FLOORS` /
+  `isShopFloor` in `store/shopStock.ts`). Each floor has its own portal and
+  independent 15-slot inventory.
+- Gear uses that floor's progression tier: **2, 3, 4, and 5**, respectively.
+  Stock is generated once on first entry; revisits and reloads never restock.
+- `context.shops` / `RunState.shops` is a map keyed by floor, saved in the run
+  root. `context.shop` is only the active floor's UI reference.
+- Older single-store saves migrate `shop` into map entry 6 without changing
+  purchases. Missing portals are added during floor setup, including when
+  resuming on an already-visited floor 11, 16, or 21. No new run is needed.
+- Regression coverage: `portal`, `shop-stock`, `store-glyph`, and `save` check
+  the four floors, independent stock, tier scaling, revisits, migration, and
+  rejection of malformed saved stores.
+
+The original v1 design and verification notes below describe the initial
+floor-6-only release; the schedule and persistence notes above supersede those
+single-store references. Other interaction and economy rules are unchanged.
+
+---
 
 Status: **implemented v1** (portal door, store scene, buy/sell, persistent
 stock, save round-trip). Manual and headless checks are listed below; touch /

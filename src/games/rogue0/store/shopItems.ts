@@ -4,7 +4,7 @@ import type { Entity } from '../entity';
 import { saveRegistry } from '../saveRegistry';
 import Wand from '../items/wand';
 import { createShopState } from './shopModel';
-import { planShopStock } from './shopStock';
+import { isShopFloor, planShopStock, type StockSlot } from './shopStock';
 
 export const SHOP_ITEM_IDS: Record<string, string> = {
   'potion-healing': './items/PotionOfHealing.ts:default',
@@ -47,9 +47,16 @@ export const SHOP_ITEM_IDS: Record<string, string> = {
 
 // `plan` is injectable so deterministic tests can verify a specific shelf item
 // without replacing global RNG. Production always uses the normal weighted plan.
-export function ensureShopState(context: GameContext, plan = planShopStock()): void {
-  if (context.shop) return; // including a completely sold-out store
-  context.shop = createShopState(plan, spec => {
+export function ensureShopState(context: GameContext, plan?: readonly StockSlot[]): void {
+  const floor = context.floor;
+  if (!isShopFloor(floor)) throw new RangeError('Invalid store floor');
+  const shops = context.shops ??= new Map();
+  const existing = shops.get(floor);
+  if (existing) {
+    context.shop = existing; // including a completely sold-out store; never reroll
+    return;
+  }
+  const shop = createShopState(plan ?? planShopStock(floor), spec => {
     const Ctor = saveRegistry[SHOP_ITEM_IDS[spec.kind]] as unknown as
       new (context: GameContext, x?: number, y?: number, tier?: number) => Entity;
     if (!Ctor) throw new Error(`Unknown shop item: ${spec.kind}`);
@@ -58,5 +65,7 @@ export function ensureShopState(context: GameContext, plan = planShopStock()): v
     item.level = spec.level;
     if (item instanceof Wand) { item.reconcileChargeScaling(); item.refill(); }
     return item;
-  });
+  }, floor);
+  shops.set(floor, shop);
+  context.shop = shop;
 }

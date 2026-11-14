@@ -780,7 +780,7 @@ export class Scene0 extends Phaser.Scene {
     try {
       this.saveFloor();
       const graph = encodeGraph({ player: context.player, floors: this.floors,
-        floor: context.floor, kills: context.kills, messages: context.messages, shop: context.shop,
+        floor: context.floor, kills: context.kills, messages: context.messages, shops: context.shops,
         time: this.turnManager.time, nextTick: this.turnManager.nextTick,
         knowledge: saveConsumableKnowledge(context),
         bossesSlain: context.bossesSlain ?? new Set(),
@@ -893,7 +893,8 @@ export class Scene0 extends Phaser.Scene {
     this.context.upstairsY = up.y;
     this.renderStairs(stairsPos.x, stairsPos.y);
 
-    // Uses the completed map/overlay, and also migrates already-visited floor 6.
+    // Also adds missing portals to already-visited store floors in older saves.
+    this.context.shop = this.context.shops?.get(floor);
     const portalFeatures = tiles.snapshot();
     this.context.portal = placeStorePortal(floor, levelArray, portalFeatures, up, {
       avoid: [up, { x: spawn.x, y: spawn.y }, { x: stairsPos.x, y: stairsPos.y }]

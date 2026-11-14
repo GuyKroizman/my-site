@@ -11,10 +11,11 @@ const blank = (w = 30, h = 24) => Array.from({ length: h }, (_, y) =>
   Array.from({ length: w }, (_, x) => x > 4 && x < 24 && y > 5 && y < 18 ? 0 : 1));
 const spawn = { x: 14, y: 11 };
 const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
-{
-  const map = blank();
+for (const floor of [6, 11, 16, 21]) {
+  // An old saved floor has no portal yet; setup uses this same placement path.
+  const map = JSON.parse(JSON.stringify(blank()));
   const features = [];
-  const portal = placeStorePortal(6, map, features, spawn, { random: () => 0.5 });
+  const portal = placeStorePortal(floor, map, features, spawn, { random: () => 0.5 });
   assert.ok(portal);
   assert.equal(map[portal.y][portal.x], 0, 'free-standing door occupies floor, not a wall');
   assert.equal(map[portal.y + 1][portal.x], 0, 'front approach is open');
@@ -24,7 +25,7 @@ const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [
   assert.equal(features.length, 1);
   assert.deepEqual([features[0].x, features[0].y, features[0].feature, features[0].portal],
     [portal.x, portal.y, 'portal', 'closed']);
-  const again = placeStorePortal(6, map, features, spawn, { random: () => 0 });
+  const again = placeStorePortal(floor, map, features, spawn, { random: () => 0 });
   assert.deepEqual(again, portal);
   assert.equal(features.length, 1, 'revisits never add a second portal');
   assert.equal(placeStorePortal(5, map, [], spawn), undefined);
@@ -50,17 +51,24 @@ const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [
   assert.equal(features.length, 1, 'the old wall portal was replaced');
   assert.equal(features[0].portal, 'open', 'an open door stays open across the migration');
 }
-for (let roll = 0; roll < 20; roll++) {
-  const generated = generateMap(6);
+for (const floor of [6, 11, 16, 21]) for (let roll = 0; roll < 20; roll++) {
+  const generated = generateMap(floor);
   const spawnRoom = generated.rooms.find(room => room.cx < 70) ?? generated.rooms[0];
   const features = generated.features.slice();
-  const portal = placeStorePortal(6, generated.map, features, { x: spawnRoom.cx, y: spawnRoom.cy });
-  assert.ok(portal, `floor 6 roll ${roll} must always fit a store door`);
+  const portal = placeStorePortal(floor, generated.map, features, { x: spawnRoom.cx, y: spawnRoom.cy });
+  assert.ok(portal, `floor ${floor} roll ${roll} must always fit a store door`);
   assert.equal(features.filter(tile => tile.feature === 'portal').length, 1);
   assert.equal(generated.map[portal.y][portal.x], 0);
   assert.equal(generated.map[portal.y + 1][portal.x], 0);
   assert.equal(generated.map[portal.y - 1][portal.x], 0);
   assert.notDeepEqual([portal.x, portal.y], [generated.rooms[0].cx, generated.rooms[0].cy]);
+}
+for (let floor = 1; floor <= 26; floor++) {
+  if (![6, 11, 16, 21].includes(floor)) {
+    const features = [];
+    assert.equal(placeStorePortal(floor, blank(), features, spawn), undefined, `no store on floor ${floor}`);
+    assert.deepEqual(features, []);
+  }
 }
 const generated7 = generateMap(7);
 assert.equal(placeStorePortal(7, generated7.map, generated7.features.slice(), { x: 20, y: 20 }), undefined);

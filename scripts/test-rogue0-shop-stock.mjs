@@ -34,6 +34,12 @@ assert.equal(weightOf('stone-blink'), 3);
 assert.equal(weightOf('stone-detect-curse'), 3);
 assert.equal(rowTools.filter(entry => entry.kind === 'stone-infuse').length, 1,
   'the charm occupies exactly one weighted pool entry');
+for (const [floor, tier] of [[6, 2], [11, 3], [16, 4], [21, 5]]) {
+  const plan = planShopStock(floor, () => 0);
+  assert.ok(plan.slice(10).every(slot => slot.kind === 'weapon' && slot.tier === tier),
+    `floor ${floor} sells tier ${tier} gear`);
+  assert.ok(plan.slice(0, 5).every(slot => slot.tier === 1), 'consumables stay tier 1');
+}
 for (const bad of [NaN, -1, 1, Infinity]) assert.throws(() => planShopStock(6, () => bad), RangeError);
 assert.throws(() => planShopStock(0), RangeError);
 console.log('Shop stock passed: all 15 slots random, weighted row pools, duplicates and deterministic RNG coverage.');

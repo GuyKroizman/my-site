@@ -3,7 +3,7 @@ recordTestRun('store-glyph');
 import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { createShopState, buyShopItem } from '../src/games/rogue0/store/shopModel.ts';
-import { planShopStock } from '../src/games/rogue0/store/shopStock.ts';
+import { isShopFloor, planShopStock } from '../src/games/rogue0/store/shopStock.ts';
 import { buyPrice } from '../src/games/rogue0/store/shopPricing.ts';
 import { createInventoryActions } from '../src/games/rogue0/inventory.ts';
 import { STORE_SLOTS } from '../src/games/rogue0/store/storeLayout.ts';
@@ -29,14 +29,14 @@ const { SHOP_ITEM_IDS, ensureShopState } = load('src/games/rogue0/store/shopItem
     'item:stone-of-infusion': StoneOfInfusion,
   },
   Wand: class {},
-  createShopState: (plan, make) => createShopState(plan, make),
+  createShopState, isShopFloor, planShopStock,
 });
 assert.equal(SHOP_ITEM_IDS['stone-infuse'], 'item:stone-of-infusion');
 
 // Fixed plan: the charm is built through the real shop factory, not a stub.
 const plan = Array.from({ length: STORE_SLOTS }, () => ({ kind: 'ration', tier: 1, level: 0, count: 1 }));
 plan[4] = { kind: 'stone-infuse', tier: 1, level: 0, count: 1 };
-const context = { messages: [], entities: [] };
+const context = { floor: 6, messages: [], entities: [] };
 ensureShopState(context, plan);
 const slot = context.shop.stock[4];
 assert.deepEqual(context.shop.stock.length, 15);
@@ -101,10 +101,38 @@ assert.deepEqual(buffered, ['use']);
 // Stacked charms sell and split correctly; the shelf price is per unit.
 const stacked = Array.from({ length: STORE_SLOTS }, () => ({ kind: 'ration', tier: 1, level: 0, count: 1 }));
 stacked[0] = { kind: 'stone-infuse', tier: 1, level: 0, count: 3 };
-const stackedContext = { messages: [], entities: [] };
+const stackedContext = { floor: 6, messages: [], entities: [] };
 ensureShopState(stackedContext, stacked);
 const stackedSlot = stackedContext.shop.stock[0];
 assert.equal(stackedSlot.item.count, 3);
 assert.equal(stackedSlot.price, 90, 'price is for one charm');
 assert.doesNotThrow(() => planShopStock(6, () => 0.5), 'normal weighted stock still plans');
-console.log('Store glyph: rare infusion charm is stocked, priced, bought unspent, targets gear and splits as a stack passed');
+// Each later floor owns fresh stock; revisits (even sold-out ones) do not
+// construct anything or consume RNG. Floor 6 retains the purchase above.
+for (const floor of [11, 16, 21]) {
+  context.floor = floor;
+  ensureShopState(context, plan);
+  assert.equal(context.shop.floor, floor);
+  assert.notEqual(context.shop, shop);
+  assert.equal(context.shop.stock[4].sold, false);
+  assert.notEqual(context.shop.stock[0].item, shop.stock[0].item);
+}
+assert.equal(context.shops.size, 4);
+const floor21 = context.shop;
+for (const slot of floor21.stock) { slot.sold = true; slot.item = undefined; }
+const beforeRevisitRandom = Math.random;
+Math.random = () => { throw new Error('Revisiting a shop must not roll stock'); };
+try {
+  for (const floor of [6, 11, 16, 21, 6]) {
+    context.floor = floor;
+    ensureShopState(context);
+    assert.equal(context.shop, context.shops.get(floor));
+    assert.equal(context.shop.floor, floor);
+  }
+} finally { Math.random = beforeRevisitRandom; }
+assert.equal(context.shop, shop);
+assert.equal(shop.stock[4].sold, true, 'floor 6 purchase survives other store visits');
+assert.ok(floor21.stock.every(slot => slot.sold), 'sold-out stores stay sold out');
+context.floor = 7;
+assert.throws(() => ensureShopState(context, plan), /Invalid store floor/);
+console.log('Store glyph: real stock, purchase/use, stacking and independent persistent stores on 6/11/16/21 passed');

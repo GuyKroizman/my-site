@@ -1,7 +1,9 @@
 import { floorProgression } from '../progression.ts';
 import { STORE_COLUMNS, STORE_SLOTS } from './storeLayout.ts';
 
-export const SHOP_FLOOR = 6;
+export const SHOP_FLOORS = [6, 11, 16, 21] as const;
+export const SHOP_FLOOR = SHOP_FLOORS[0];
+export const isShopFloor = (floor: number): boolean => SHOP_FLOORS.some(value => value === floor);
 
 // Explicit content pools, not constructor names inferred at runtime. The
 // renderer/item factory will resolve these ids; plans themselves need no DOM.
@@ -46,9 +48,9 @@ function choose(pool: readonly WeightedKind[], random: () => number): string {
 }
 
 // No guaranteed slot, no retries to force a particular item, no refresh on
-// visits. Call only when creating a run's shop. Duplicates are allowed.
+// visits. Call only when creating a floor's shop. Duplicates are allowed.
 // Injected RNG keeps tests deterministic without changing the dungeon RNG.
-export function planShopStock(floor = SHOP_FLOOR, random: () => number = Math.random): StockSlot[] {
+export function planShopStock(floor: number = SHOP_FLOOR, random: () => number = Math.random): StockSlot[] {
   if (!Number.isInteger(floor) || floor < 1 || floor > 25) throw new RangeError('Invalid stock floor');
   const bandTier = floorProgression(floor).tier;
   return Array.from({ length: STORE_SLOTS }, (_, index) => {

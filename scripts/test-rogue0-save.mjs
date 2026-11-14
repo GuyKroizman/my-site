@@ -3,6 +3,8 @@ recordTestRun('save');
 import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { encodeGraph, decodeGraph } from '../src/games/rogue0/saveCodec.ts';
+import { isShopFloor, planShopStock } from '../src/games/rogue0/store/shopStock.ts';
+import { createShopState } from '../src/games/rogue0/store/shopModel.ts';
 const { Entity, identify, removeEntity, saveConsumableKnowledge, restoreConsumableKnowledge } = load('src/games/rogue0/entity.ts');
 Entity.prototype.init = function(context, x, y) { Object.assign(this, { context, x, y }); };
 const { TieredWeapon, TieredArmor, WEAPON_TEXTURES } = load('src/games/rogue0/items/tieredEquipment.ts', {
@@ -79,6 +81,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
 // Upgrade scrolls already in a browser save must acquire the new picker flags.
 {
   class SavedHero extends Entity {
+    getAllItems() { return this.backpack; }
     resetTransientState() { this.inputBuffer = []; this.walkPath = []; }
   }
   const ScrollOfUpgrade = load('src/games/rogue0/items/ScrollOfUpgrade.ts', { Entity, Wand: class {} }).default;
@@ -143,8 +146,10 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
       map: [[0]], seen: [[true]], features: [], entities: [legacyIce, legacyRemoveCurse, ...oldMonsters, ...oldGear], savedAt: 0,
       up: { x: 0, y: 0 }, down: { x: 0, y: 0 },
     }]]) }, registry);
-  const { decodeRunSave } = load('src/games/rogue0/runPersistence.ts', {
+  const { decodeRunSave, restoreRunState } = load('src/games/rogue0/runPersistence.ts', {
     decodeGraph, saveRegistry: registry, restoreEffects, ScrollOfUpgrade, ScrollOfRemoveCurse,
+    isShopFloor, restoreConsumableKnowledge, rememberIdentifiedWandTypes() {},
+    Ring: class {}, Wand: class {},
     TieredWeapon, WEAPON_TEXTURES,
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
     Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
@@ -206,6 +211,63 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
       }]]) }, registry);
     assert.throws(() => decodeRunSave({ ...save, graph: JSON.parse(JSON.stringify(corrupt)) }, {}),
       /Invalid saved run/, `floor ${bad} cannot own the run's chasm room`);
+  }
+  // Store migration and all four independent inventories use the real run
+  // decoder, not just the generic graph codec. Saves may be on floor 11 with
+  // only the legacy floor-6 stock, or with no stores generated at all.
+  const shops = new Map([6, 11, 16, 21].map(floor => [floor,
+    createShopState(planShopStock(floor, () => 0), spec => {
+      const item = new TieredWeapon(savedContext, undefined, undefined, spec.tier);
+      return item;
+    }, floor),
+  ]));
+  const bought = shops.get(6).stock[0].item;
+  shops.get(6).stock[0].item = undefined;
+  shops.get(6).stock[0].sold = true;
+  const buildStoreSave = extra => {
+    const base = decodeGraph(graph, registry);
+    base.player.backpack.push(bought);
+    return { ...save, floor: 11, graph: JSON.parse(JSON.stringify(encodeGraph({
+      ...base, floor: 11, floors: new Map([[11, base.floors.get(1)]]), ...extra,
+    }, registry))) };
+  };
+  const storeContext = {};
+  const storeRun = decodeRunSave(buildStoreSave({ shops }), storeContext);
+  restoreRunState(storeContext, storeRun);
+  assert.equal(storeContext.shops.size, 4);
+  assert.equal(storeContext.shop, storeContext.shops.get(11), 'resume selects the current floor store');
+  for (const [floor, shop] of storeContext.shops) {
+    assert.equal(shop.floor, floor);
+    assert.equal(shop.stock.length, 15);
+    assert.ok(shop.stock[11].item instanceof TieredWeapon);
+    assert.equal(shop.stock[11].item.context, storeContext, 'inactive stock is rehydrated too');
+    assert.equal(shop.stock[11].item.tier, Math.floor(floor / 5) + 1);
+    assert.equal(shop.stock[11].price, shops.get(floor).stock[11].price);
+  }
+  assert.equal(storeContext.shops.get(6).stock[0].sold, true);
+  assert.equal(storeContext.shops.get(6).stock[0].item, undefined);
+  assert.equal(storeContext.shops.get(11).stock[0].sold, false);
+  assert.ok(storeContext.player.backpack.at(-1) instanceof TieredWeapon, 'bought stock remains carried');
+  const legacyRun = decodeRunSave(buildStoreSave({ shop: shops.get(6) }), {});
+  assert.equal(legacyRun.shops.size, 1);
+  assert.equal(legacyRun.shops.get(6).stock[0].sold, true, 'migration never replenishes floor 6');
+  assert.equal(legacyRun.shop, undefined, 'legacy root is replaced by the map');
+  restoreRunState(storeContext, legacyRun);
+  assert.equal(storeContext.shop, undefined, 'floor 11 must not reuse the old floor-6 store');
+  assert.equal(decodeRunSave(buildStoreSave({}), {}).shops.size, 0, 'pre-store saves still load');
+  for (const extra of [
+    { shops: [] }, { shops: null },
+    { shops: new Map([[7, { ...shops.get(6), floor: 7 }]]) },
+    { shops: new Map([['6', shops.get(6)]]) },
+    { shops: new Map([[11, shops.get(6)]]) },
+    { shops: new Map([[11, null]]) },
+    { shops: new Map([[11, { ...shops.get(11), stock: [] }]]) },
+    { shops: new Map([[11, { ...shops.get(11), version: 2 }]]) },
+    { shops: new Map([[11, { ...shops.get(11), stock: shops.get(11).stock.map((slot, i) =>
+      i ? slot : { ...slot, sold: true }) }]]) },
+    { shop: { ...shops.get(6), floor: 11 } },
+  ]) {
+    assert.throws(() => decodeRunSave(buildStoreSave(extra), {}), /Invalid saved store/);
   }
   assert.equal(restored.requiresItemTarget, true);
   assert.equal(restored.itemTargetTitle, 'UPGRADE: CHOOSE ITEM');

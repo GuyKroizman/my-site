@@ -2,7 +2,7 @@ import type { Entity } from '../entity';
 import { canStackItems, slotOf, splitStackItem, type InventoryOwner } from '../inventory.ts';
 import { clearItemUI } from '../itemPresentation.ts';
 import { buyPrice, sellPrice } from './shopPricing.ts';
-import { SHOP_FLOOR, type StockSlot } from './shopStock.ts';
+import { SHOP_FLOOR, isShopFloor, type StockSlot } from './shopStock.ts';
 import { STORE_SLOTS } from './storeLayout.ts';
 
 export type ShopStock = { item?: Entity; price: number; sold: boolean };
@@ -25,7 +25,9 @@ const tradable = (item: Entity) => item.type === 'item' && !item.isContainer &&
 // Construction is a runtime boundary: makeItem must return a fresh, unplaced
 // item with its context attached (never push shelf items into world entities).
 // Local identification deliberately does not teach the player all stock types.
-export function createShopState(plan: readonly StockSlot[], makeItem: (slot: StockSlot) => Entity): ShopState {
+export function createShopState(plan: readonly StockSlot[], makeItem: (slot: StockSlot) => Entity,
+  floor: number = SHOP_FLOOR): ShopState {
+  if (!isShopFloor(floor)) throw new RangeError('Invalid store floor');
   if (plan.length !== STORE_SLOTS) throw new RangeError('A store needs exactly 15 slots');
   const seen = new Set<Entity>();
   const stock = plan.map(spec => {
@@ -41,7 +43,7 @@ export function createShopState(plan: readonly StockSlot[], makeItem: (slot: Sto
     item.curseId = '';
     return { item, price: buyPrice(item), sold: false };
   });
-  return { version: 1, floor: SHOP_FLOOR, stock };
+  return { version: 1, floor, stock };
 }
 
 export function sellableItems(owner: ShopOwner): Entity[] {
