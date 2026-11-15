@@ -29,6 +29,7 @@ const { SHOP_ITEM_IDS, ensureShopState } = load('src/games/rogue0/store/shopItem
     'item:stone-of-infusion': StoneOfInfusion,
   },
   Wand: class {},
+  SHOP_FLOORS: [6, 11, 16, 21],
   createShopState, isShopFloor, planShopStock,
 });
 assert.equal(SHOP_ITEM_IDS['stone-infuse'], 'item:stone-of-infusion');

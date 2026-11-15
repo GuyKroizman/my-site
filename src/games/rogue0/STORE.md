@@ -93,10 +93,19 @@ economy playtest, and the final production-site visual pass.
 **Non-goals for this phase**
 
 - No restock/reputation/haggling/shopkeeper dialogue.
-- No Ankh, no new item classes. (Ankh remains a separate roadmap item.)
 - No buying pre-equipped, no selling equipped items, no using/equipping inside.
 - No shops on other floors, no second currency, no stock refresh exploit.
 - No portal on boss floors; floor 5 is the first boss arena and stays as-is.
+
+**Boot revival (planned / in progress)**
+
+- The store v1 no longer treats revival as out of scope. The planned revival
+  item is the **Boot** (not Ankh/Shoe): a normal Boot is **store-only**, carried
+  in the backpack, and is **stocked in every store** (never dropped by monsters).
+  **Blessed Boots are never sold**; they are created by the floor blessing
+  ritual (Boot with Berserk potions left/right and Healing potions above/below,
+  triggered on the last dropped placement). See `PLAN.md` → Phase 10 “Boot
+  revival specification (planned)” for full behavior.
 
 ---
 

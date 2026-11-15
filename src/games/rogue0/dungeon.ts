@@ -355,12 +355,16 @@ const dungeon = {
     const isWall = !!map && map[y]?.[x] === 1;
     const gas = this.context?.poisonClouds?.some(c => c.x === x && c.y === y &&
       c.expiresAt > (this.context?.simulationTime ?? 0) + 1e-9);
-    const description = describeTile(state, isWall) +
-      (gas ? " Poison gas: poisons on entry and while you remain here, even when levitating." : "");
-    const featureLabel = describeTileLabel(state, isWall);
-    const label = featureLabel
-      ? (gas ? `${featureLabel} (poison gas)` : featureLabel)
-      : (gas ? "Poison gas" : undefined);
+    let description = describeTile(state, isWall);
+    let label = describeTileLabel(state, isWall);
+    const mural = this.context?.shoeRitualMural;
+    if (mural && mural.x === x && mural.y === y) {
+      label = 'Ritual mural';
+      description = 'A mural depicting a ritual: a boot at the center, with Berserk potions to its left and right, and Healing potions above and below it.';
+    }
+    description += (gas ? " Poison gas: poisons on entry and while you remain here, even when levitating." : "");
+    if (label && gas) label = `${label} (poison gas)`;
+    else if (!label && gas) label = 'Poison gas';
     return { label, description };
   },
 

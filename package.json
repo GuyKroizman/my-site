@@ -10,6 +10,7 @@
     "test:rogue0:shop-pricing": "node scripts/test-rogue0-shop-pricing.mjs",
     "test:rogue0:shop-stock": "node scripts/test-rogue0-shop-stock.mjs",
     "test:rogue0:shop-transactions": "node scripts/test-rogue0-shop-transactions.mjs",
+    "test:rogue0:shoe": "node scripts/test-rogue0-shoe-revival.mjs",
     "test:rogue0:portal": "node scripts/test-rogue0-portal.mjs",
     "test:rogue0:terrain-core": "node scripts/test-rogue0-terrain-core.mjs",
     "test:rogue0:chasm-drops": "node scripts/test-rogue0-chasm-drops.mjs",

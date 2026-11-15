@@ -99,6 +99,8 @@ export type GameContext = {
   shops?: Map<number, import('./store/shopModel').ShopState>;
   // Active floor's store, selected on floor setup/entry; not saved separately.
   shop?: import('./store/shopModel').ShopState;
+  // Legacy: previously selected which store stocked the revival boot.
+  shoeShopFloor?: number;
   storeOpen?: boolean;
   portal?: import('./store/portal').StorePortal;
   onPortalBump?: (x: number, y: number) => boolean;
@@ -149,6 +151,12 @@ export type GameContext = {
   pendingTrapArrows?: number;
   // Re-centers the camera on the player after a free pan.
   onResumeFollow?: () => void;
+  // Forget the current floor's explored memory (used by Boot revival).
+  onForgetFloorMemory?: () => void;
+  // Called after an item is visually placed on the floor.
+  onFloorItemPlaced?: (item: import('./entity').Entity) => void;
+  // Wall tile carrying the floor-7 boot blessing ritual mural, when present.
+  shoeRitualMural?: { x: number; y: number };
   onEnd?: (result: EndResult) => void;
   savedRun?: import('./saveStorage').RunSave;
   // Phase 17 local-only dev tooling: an authored start state, set by the

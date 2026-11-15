@@ -44,5 +44,8 @@ export function applyAttackResult(
   }
   hooks.afterEffects?.();
   if (hooks.notifyVictim !== false) victim.onHitBy?.(attacker, result.damageType, result.damage);
-  if (victim.healthPoints <= 0) hooks.removeEntity(context, victim);
+  if (victim.healthPoints <= 0) {
+    if (victim === context.player && (victim as any).tryRevive?.()) return;
+    hooks.removeEntity(context, victim);
+  }
 }

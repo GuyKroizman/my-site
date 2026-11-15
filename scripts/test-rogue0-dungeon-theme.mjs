@@ -28,7 +28,7 @@ assert.ok(dungeon.includes('theme.tiles,') && dungeon.includes('theme.wallFrame'
 assert.ok(scene.includes('const theme = dungeonThemeName(this.context.floor)'));
 assert.ok(scene.includes('this.add.sprite(x * 16, y * 16, `${theme}-tiles`, WALL_TILE)'),
   'raised walls reuse the theme sheet instead of a second wall PNG');
-assert.ok(scene.includes('this.syncWallDecal(key, x, y, theme, raised)'));
+assert.ok(scene.includes('this.syncWallDecal(key, x, y, theme, raised,'), 'decals follow every wall cell (with optional forced frame, e.g. floor-7 ritual mural)');
 for (const theme of ['stone', 'crypt', 'sandstone', 'crystal', 'volcanic']) {
   assert.ok(scene.includes(`this.load.spritesheet('${theme}-tiles', ${theme}TilesUrl, THEME_SHEET)`));
   // All five sheets share one layout, so the shared wall frame index is valid.

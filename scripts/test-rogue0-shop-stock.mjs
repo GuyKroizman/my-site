@@ -12,12 +12,25 @@ assert.equal(high.length, 15);
 assert.notDeepEqual(low, high);
 assert.ok(low.slice(10).every(slot => slot.kind === 'weapon'), 'duplicates are permitted');
 assert.ok(high.slice(10).every(slot => slot.kind === 'fang-of-the-beast'));
+// Every store always stocks a normal Boot in the tools row (row 2).
+assert.equal(low.filter(slot => slot.kind === 'boot').length, 1, 'low roll store stocks one boot');
+assert.equal(high.filter(slot => slot.kind === 'boot').length, 1, 'high roll store stocks one boot');
+assert.equal(low[5 + (6 % 5)].kind, 'boot', 'boot replaces a deterministic tools-row slot');
+assert.equal(high[5 + (6 % 5)].kind, 'boot', 'boot replaces a deterministic tools-row slot');
 // Sweep weighted intervals deterministically rather than using a flaky sample.
 const seen = SHOP_POOLS.map(() => new Set());
 for (let roll = 0; roll < 1000; roll++) {
   const plan = planShopStock(6, () => roll / 1000);
+  assert.equal(plan.filter(slot => slot.kind === 'boot').length, 1, 'every store stocks one boot');
   plan.forEach((slot, i) => {
     const row = Math.floor(i / 5);
+    if (slot.kind === 'boot') {
+      assert.equal(row, 1, 'boot occupies tools row');
+      assert.equal(slot.count, 1);
+      assert.equal(slot.level, 0);
+      assert.equal(slot.tier, 1);
+      return;
+    }
     assert.ok(SHOP_POOLS[row].some(entry => entry.kind === slot.kind));
     assert.equal(slot.count, 1);
     assert.equal(slot.level, 0);
@@ -36,10 +49,11 @@ assert.equal(rowTools.filter(entry => entry.kind === 'stone-infuse').length, 1,
   'the charm occupies exactly one weighted pool entry');
 for (const [floor, tier] of [[6, 2], [11, 3], [16, 4], [21, 5]]) {
   const plan = planShopStock(floor, () => 0);
+  assert.equal(plan.filter(slot => slot.kind === 'boot').length, 1, `floor ${floor} stocks one boot`);
   assert.ok(plan.slice(10).every(slot => slot.kind === 'weapon' && slot.tier === tier),
     `floor ${floor} sells tier ${tier} gear`);
   assert.ok(plan.slice(0, 5).every(slot => slot.tier === 1), 'consumables stay tier 1');
 }
 for (const bad of [NaN, -1, 1, Infinity]) assert.throws(() => planShopStock(6, () => bad), RangeError);
 assert.throws(() => planShopStock(0), RangeError);
-console.log('Shop stock passed: all 15 slots random, weighted row pools, duplicates and deterministic RNG coverage.');
+console.log('Shop stock passed: all 15 slots random, weighted row pools, duplicates, and a guaranteed boot in every store.');

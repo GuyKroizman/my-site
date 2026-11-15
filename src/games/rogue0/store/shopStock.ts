@@ -50,12 +50,21 @@ function choose(pool: readonly WeightedKind[], random: () => number): string {
 // No guaranteed slot, no retries to force a particular item, no refresh on
 // visits. Call only when creating a floor's shop. Duplicates are allowed.
 // Injected RNG keeps tests deterministic without changing the dungeon RNG.
-export function planShopStock(floor: number = SHOP_FLOOR, random: () => number = Math.random): StockSlot[] {
+// The normal Boot is always stocked in every store (never the Blessed Boot).
+export function planShopStock(floor: number = SHOP_FLOOR, random: () => number = Math.random, includeBoot = true): StockSlot[] {
   if (!Number.isInteger(floor) || floor < 1 || floor > 25) throw new RangeError('Invalid stock floor');
   const bandTier = floorProgression(floor).tier;
-  return Array.from({ length: STORE_SLOTS }, (_, index) => {
+  const plan = Array.from({ length: STORE_SLOTS }, (_, index) => {
     const kind = choose(SHOP_POOLS[Math.floor(index / STORE_COLUMNS)], random);
     const gear = kind === 'weapon' || kind === 'armor' || kind.startsWith('wand-') || kind.startsWith('ring-');
     return { kind, tier: gear ? bandTier : 1, level: 0, count: 1 };
   });
+  if (includeBoot) {
+    // Replace a tools-row slot (row 2) so the boot sits with other utility
+    // items in every store. Keep RNG consumption at one roll per slot.
+    const start = STORE_COLUMNS;
+    const index = start + (Math.max(0, floor) % STORE_COLUMNS);
+    plan[index] = { kind: 'boot', tier: 1, level: 0, count: 1 };
+  }
+  return plan;
 }

@@ -363,4 +363,76 @@ memory.set(SAVE_KEY, '{broken'); assert.ok(readRunSave().error);
 memory.set(SAVE_KEY, JSON.stringify({ ...save, version: 999 })); assert.ok(readRunSave().error);
 assert.equal(clearRunSave(), true);
 assert.deepEqual(readRunSave(), {});
+
+// Shoe revival persistence: once-per-run store floor, Blessed Shoe, and DroppedBackpack contents.
+{
+  const BlessedShoe = load('src/games/rogue0/items/BlessedShoe.ts', { Entity }).default;
+  const DroppedBackpack = load('src/games/rogue0/items/droppedBackpack.ts', { Entity }).default;
+  const Shoe = load('src/games/rogue0/items/Shoe.ts', { Entity }).default;
+  const Ration = load('src/games/rogue0/items/ration.ts', { Entity }).default;
+  class SavedHero extends Entity {
+    getAllItems() { return [...(this.backpack ?? []), this.weapon, this.armor, this.ring1, this.ring2, this.artifact].filter(Boolean); }
+    resetTransientState() { this.inputBuffer = []; this.walkPath = []; }
+  }
+  const savedContext = { messages: [] };
+  const hero = new SavedHero();
+  Object.assign(hero, {
+    type: 'player', healthPoints: 30, maxHealthPoints: 30, x: 1, y: 1,
+    backpack: [], quickslots: [undefined, undefined, undefined, undefined],
+    weapon: undefined, armor: undefined, ring1: undefined, ring2: undefined, artifact: undefined,
+    effects: [], inputBuffer: [], walkPath: [],
+  });
+  const blessed = new BlessedShoe(savedContext);
+  const ration = new Ration(savedContext);
+  const pack = new DroppedBackpack(savedContext, [ration], 2, 2);
+  hero.backpack = [blessed];
+  const shoeRegistry = {
+    hero: SavedHero,
+    'item:blessed-shoe': BlessedShoe,
+    'item:dropped-backpack': DroppedBackpack,
+    'item:ration': Ration,
+    'item:shoe': Shoe,
+  };
+  const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
+  const graph = encodeGraph({
+    player: hero, floor: 6, time: 0, nextTick: 1, messages: [],
+    bossesSlain: new Set(), shoeShopFloor: 11,
+    knowledge: { appearances: [], known: [] },
+    floors: new Map([[6, {
+      map: [[0, 0, 0], [0, 0, 0], [0, 0, 0]], seen: [[true, true, true], [true, true, true], [true, true, true]],
+      features: [], entities: [pack], savedAt: 0, up: { x: 0, y: 0 }, down: { x: 2, y: 2 },
+    }]]),
+  }, shoeRegistry);
+  const { decodeRunSave, restoreRunState } = load('src/games/rogue0/runPersistence.ts', {
+    decodeGraph, saveRegistry: shoeRegistry, restoreEffects,
+    restoreConsumableKnowledge, rememberIdentifiedWandTypes() {},
+    isShopFloor, Ring: class {}, Wand: class {},
+    BasicHero: SavedHero, classes: { Warrior: SavedHero },
+    ScrollOfUpgrade: class {}, ScrollOfRemoveCurse: class {}, TieredWeapon: class {},
+    WEAPON_TEXTURES: [], Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
+    CHEST_TEXTURE: 'chest-closed', IceElemental: class {}, Ghoul: class {}, Brute: class {},
+    Quloptsh: class {}, CursedGem: class {}, Skeleton: class {}, Shield: class {}, Sword: class {},
+    Axe: class {}, LongSword: class {}, Hammer: class {}, Shoe,
+    ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
+    isChasmRoomFloor: mapgen.isChasmRoomFloor, pickChasmRoomFloor: mapgen.pickChasmRoomFloor,
+  });
+  const save = { version: 1, heroClass: 'Warrior', floor: 6, graph: JSON.parse(JSON.stringify(graph)) };
+  const run = decodeRunSave(save, {});
+  assert.equal(run.shoeShopFloor, 11, 'shoeShopFloor survives save/decode');
+  assert.ok(run.player.backpack[0] instanceof BlessedShoe, 'Blessed Shoe survives save/decode');
+  const restoredPack = run.floors.get(6).entities.find(entity => entity instanceof DroppedBackpack);
+  assert.ok(restoredPack, 'DroppedBackpack survives save/decode');
+  assert.equal(restoredPack.contents.length, 1, 'DroppedBackpack contents survive save/decode');
+  assert.ok(restoredPack.contents[0] instanceof Ration, 'DroppedBackpack item contents keep type');
+  const restoredContext = {};
+  restoreRunState(restoredContext, run);
+  assert.equal(restoredContext.shoeShopFloor, 11, 'shoeShopFloor restored to context');
+
+  const bad = JSON.parse(JSON.stringify(graph));
+  const badRun = decodeGraph(bad, shoeRegistry);
+  badRun.shoeShopFloor = 7;
+  const badSave = { version: 1, heroClass: 'Warrior', floor: 6, graph: encodeGraph(badRun, shoeRegistry) };
+  assert.throws(() => decodeRunSave(badSave, {}), /Invalid saved store/, 'invalid shoeShopFloor rejected');
+}
+
 console.log('Rogue0 save graph, prototypes, shared inventory, floor state, sparse fog, effects, knowledge, clocks and storage errors passed');

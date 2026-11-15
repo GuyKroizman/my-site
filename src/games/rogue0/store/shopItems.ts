@@ -43,6 +43,7 @@ export const SHOP_ITEM_IDS: Record<string, string> = {
   'ration': './items/ration.ts:default',
   'chalice-of-blood': './items/ChaliceOfBlood.ts:default',
   'fang-of-the-beast': './items/FangOfTheBeast.ts:default',
+  'boot': './items/Shoe.ts:default',
 };
 
 // `plan` is injectable so deterministic tests can verify a specific shelf item
@@ -56,7 +57,8 @@ export function ensureShopState(context: GameContext, plan?: readonly StockSlot[
     context.shop = existing; // including a completely sold-out store; never reroll
     return;
   }
-  const shop = createShopState(plan ?? planShopStock(floor), spec => {
+  // The normal Boot is always stocked in every store (never the Blessed Boot).
+  const shop = createShopState(plan ?? planShopStock(floor, Math.random, true), spec => {
     const Ctor = saveRegistry[SHOP_ITEM_IDS[spec.kind]] as unknown as
       new (context: GameContext, x?: number, y?: number, tier?: number) => Entity;
     if (!Ctor) throw new Error(`Unknown shop item: ${spec.kind}`);

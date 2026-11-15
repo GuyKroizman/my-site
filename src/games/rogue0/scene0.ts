@@ -62,7 +62,6 @@ import { generateChestTextures } from './chestTextures';
 import CursedGem from "./items/cursedGem";
 import Gold from './items/gold';
 import type { Room } from './mapgen';
-import Shoe from "./items/Shoe";
 import ScrollOfIdentify from "./items/ScrollOfIdentify";
 import ScrollOfUpgrade from "./items/ScrollOfUpgrade";
 import ScrollOfRemoveCurse from "./items/ScrollOfRemoveCurse";
@@ -133,7 +132,7 @@ import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownIt
 import { generateRingTextures } from "./ringTextures";
 import { generateGlyphStoneTextures } from './glyphStoneTextures';
 import { dropTrampledGlyphStone } from './glyphStoneDrop';
-import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE } from './wallDecals';
+import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE, SHOE_RITUAL_MURAL_FRAME } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
 import { generateJunkTextures } from "./junkTextures";
 import { generateWeaponTextures } from "./weaponTextures";
@@ -213,8 +212,7 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   [RingOfHaste, 2],
   [RingOfMight, 2],
   [ChaliceOfBlood, 1],
-  [FangOfTheBeast, 1],
-  [Shoe, 1]
+  [FangOfTheBeast, 1]
 ];
 
 // The floor's random loot table. Levitation is deliberately absent while the
@@ -553,6 +551,11 @@ export class Scene0 extends Phaser.Scene {
     this.context.onTerrainEvent = () => tickGas(this.context);
     // Re-center the camera on the player after a free pan.
     this.context.onResumeFollow = () => this.resumeFollow();
+    this.context.onForgetFloorMemory = () => this.forgetFloorMemory();
+    import('./shoeBlessingRitual').then(({ tryBlessShoeRitual }) => {
+      this.context.onFloorItemPlaced = (item) => tryBlessShoeRitual(this.context, item);
+    }).catch(() => {});
+    this.context.onFloorItemPlaced = () => {};
   }
 
   private setupZoomControls(): void {
@@ -645,6 +648,18 @@ export class Scene0 extends Phaser.Scene {
     if (!this.panning) {
       this.cameras.main.startFollow(this.context.player!.sprite!);
     }
+  }
+
+  private forgetFloorMemory(): void {
+    const level = dungeon.getCurrentLevel();
+    if (!level?.length) return;
+    this.seen = level.map(row => row.map(() => false));
+    this.visible = new Set();
+    this.lastFovX = undefined;
+    this.lastFovY = undefined;
+    this.lastVisionState = '';
+    this.redrawFog();
+    this.refreshFovIfNeeded();
   }
 
   private resizeCamera(): void {
@@ -782,6 +797,7 @@ export class Scene0 extends Phaser.Scene {
       this.saveFloor();
       const graph = encodeGraph({ player: context.player, floors: this.floors,
         floor: context.floor, kills: context.kills, messages: context.messages, shops: context.shops,
+        shoeShopFloor: context.shoeShopFloor,
         time: this.turnManager.time, nextTick: this.turnManager.nextTick,
         knowledge: saveConsumableKnowledge(context),
         bossesSlain: context.bossesSlain ?? new Set(),
@@ -1049,7 +1065,7 @@ export class Scene0 extends Phaser.Scene {
       }
       dungeon.log(this.context, "You fall into the abyss. There is no floor below!");
       player.takeDamage(player.healthPoints);
-      removeEntity(this.context, player);
+      if (player.healthPoints <= 0) removeEntity(this.context, player);
       return;
     }
     if (blinkFall) {
@@ -1579,6 +1595,30 @@ export class Scene0 extends Phaser.Scene {
     this.wallDecals ??= new Map();
     const wallKeys = new Set<string>();
     const raisedKeys = new Set<string>();
+    // Floor 7 mural: pick one deterministic raised wall facing a floor tile
+    // (south face visible from below) to depict the boot blessing ritual.
+    let muralKey: string | undefined;
+    this.context.shoeRitualMural = undefined;
+    if (this.context.floor === 7) {
+      const spawnX = this.context.upstairsX ?? this.context.player?.x ?? 0;
+      const spawnY = this.context.upstairsY ?? this.context.player?.y ?? 0;
+      let best: { key: string; x: number; y: number; d: number } | undefined;
+      for (let y = 0; y < level.length; y++) {
+        for (let x = 0; x < level[y].length; x++) {
+          if (level[y][x] !== 1 || tiles.getFeature(x, y) === 'portal') continue;
+          if (!wallOverhang(level, x, y)) continue;
+          // Prefer a wall whose face is visible from a walkable tile below it.
+          if (level[y + 1]?.[x] !== 0) continue;
+          const key = `${x},${y}`;
+          const d = Math.abs(x - spawnX) + Math.abs(y - spawnY);
+          if (!best || d < best.d) best = { key, x, y, d };
+        }
+      }
+      if (best) {
+        muralKey = best.key;
+        this.context.shoeRitualMural = { x: best.x, y: best.y };
+      }
+    }
     for (let y = 0; y < level.length; y++) {
       for (let x = 0; x < level[y].length; x++) {
         if (level[y][x] !== 1 || tiles.getFeature(x, y) === 'portal') continue;
@@ -1595,7 +1635,7 @@ export class Scene0 extends Phaser.Scene {
           }
           this.wallSprites.get(key)!.setVisible(this.seen[y]?.[x] === true);
         }
-        this.syncWallDecal(key, x, y, theme, raised);
+        this.syncWallDecal(key, x, y, theme, raised, key === muralKey ? SHOE_RITUAL_MURAL_FRAME : undefined);
       }
     }
     for (const [key, sprite] of this.wallSprites) {
@@ -1732,9 +1772,9 @@ export class Scene0 extends Phaser.Scene {
   /** One decal sprite per decorated wall cell. Raised faces share the wall
    * copy's lift and sit just above it (below actors north of it). Flat wall
    * tops sit just above the tilemap layer, under every actor and prop. */
-  private syncWallDecal(key: string, x: number, y: number, theme: string, raised: boolean): void {
+  private syncWallDecal(key: string, x: number, y: number, theme: string, raised: boolean, forcedFrame?: number): void {
     this.wallDecals ??= new Map();
-    const frame = raised ? decalFrameFor(theme, x, y) : flatDecalFrameFor(theme, x, y);
+    const frame = forcedFrame ?? (raised ? decalFrameFor(theme, x, y) : flatDecalFrameFor(theme, x, y));
     const existing = this.wallDecals.get(key);
     if (frame === undefined) {
       if (existing) { existing.sprite.destroy(); this.wallDecals.delete(key); }
@@ -2115,6 +2155,7 @@ export class Scene0 extends Phaser.Scene {
     if (victory) {
       sfx.victory();
     } else {
+      sfx.playerDeath();
       sfx.gameover();
     }
 

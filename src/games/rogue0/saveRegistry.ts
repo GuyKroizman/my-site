@@ -42,6 +42,8 @@ import ScrollOfTerror from './items/ScrollOfTerror';
 import ScrollOfUpgrade from './items/ScrollOfUpgrade';
 import Shield from './items/shield';
 import Shoe from './items/Shoe';
+import BlessedShoe from './items/BlessedShoe';
+import DroppedBackpack from './items/droppedBackpack';
 import StoneOfBlink from './items/stoneOfBlink';
 import StoneOfDetectCurse from './items/stoneOfDetectCurse';
 import StoneOfInfusion from './items/stoneOfInfusion';
@@ -120,6 +122,8 @@ export const saveRegistry: Registry = {
   './items/ScrollOfUpgrade.ts:default': ScrollOfUpgrade,
   './items/shield.ts:default': Shield,
   './items/Shoe.ts:default': Shoe,
+  'item:blessed-shoe': BlessedShoe,
+  'item:dropped-backpack': DroppedBackpack,
   'item:stone-of-blink': StoneOfBlink,
   'item:stone-of-detect-curse': StoneOfDetectCurse,
   'item:stone-of-infusion': StoneOfInfusion,

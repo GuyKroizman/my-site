@@ -51,6 +51,8 @@ export type RunState = {
   shops?: Map<number, ShopState>;
   // Legacy single floor-6 store; migrated into shops during decode.
   shop?: ShopState;
+  // The one store floor that stocks the normal revival Shoe this run.
+  shoeShopFloor?: number;
   player: BasicHero;
   floors: Map<number, SavedFloor>;
   floor: number;
@@ -98,7 +100,7 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
       : entity instanceof LongSword ? 'weapon-longsword'
       : entity instanceof Axe ? 'weapon-axe'
       : entity instanceof Hammer ? 'weapon-hammer'
-      : entity instanceof Shoe ? 'junk-shoe' : undefined;
+      : entity instanceof Shoe ? 'junk-boot' : undefined;
     if (gearArt) {
       entity.textureKey = gearArt;
     }
@@ -106,6 +108,12 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     // contents, shop stock and pending chasm drops, not only floor entities.
     if (entity instanceof TieredWeapon) {
       entity.textureKey = WEAPON_TEXTURES[entity.tier - 1];
+    }
+    // Boot rename migration (keeps old saves readable).
+    if (entity instanceof Shoe) entity.textureKey = 'junk-boot';
+    if ((entity as any)?.name === 'Blessed Shoe' || (entity as any)?.textureKey === 'blessed-shoe') {
+      if (entity.textureKey === 'blessed-shoe') entity.textureKey = 'blessed-boot';
+      if (entity.name === 'Blessed Shoe') entity.name = 'Blessed Boot';
     }
     if (entity instanceof CursedGem) {
       entity.textureKey = 'cursed-gem';
@@ -205,6 +213,7 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
   }
   run.shops = shops;
   delete run.shop;
+  if (run.shoeShopFloor !== undefined && !isShopFloor(run.shoeShopFloor)) throw new Error('Invalid saved store');
   const active = run.floors.get(run.floor)!;
   if (!Number.isInteger(run.player.x) || !Number.isInteger(run.player.y) ||
       active.map[run.player.y!]?.[run.player.x!] === undefined) throw new Error('Invalid saved position');
@@ -224,6 +233,7 @@ export function restoreRunState(context: GameContext, run: RunState): void {
   restoreConsumableKnowledge(context, run.knowledge);
   context.chasmFallenItems = run.chasmFallen;
   context.shops = run.shops ?? new Map();
+  context.shoeShopFloor = run.shoeShopFloor;
   context.shop = context.shops.get(run.floor);
   context.storeOpen = false;
   const items = [...run.player.getAllItems(), ...[...run.floors.values()].flatMap(floor => floor.entities),

@@ -16,6 +16,9 @@ const NAMED_VALUES: Readonly<Record<string, number>> = {
   // The rare grass find that engraves a weapon or armor glyph. Named
   // explicitly so it outvalues the 18g utility stones.
   'Stone of Infusion': 60,
+  // Revival item: store-only, stocked in every store.
+  'Boot': 120,
+  'Blessed Boot': 240,
 };
 
 function nonnegative(value: number): number {

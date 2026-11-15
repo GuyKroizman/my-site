@@ -114,6 +114,17 @@ export const sfx = {
     tone(320, 0.28, 'square', 0.1, 0, 55);
     noise(0.18, 0.08);
   },
+  playerDeath(): void {
+    tone(220, 0.35, 'sawtooth', 0.12, 0, 45);
+    tone(140, 0.45, 'square', 0.08, 0.08, 30);
+    noise(0.3, 0.12);
+  },
+  revive(): void {
+    tone(392, 0.1, 'sine', 0.08);
+    tone(523, 0.12, 'sine', 0.08, 0.08);
+    tone(659, 0.16, 'sine', 0.09, 0.16);
+    tone(784, 0.22, 'triangle', 0.07, 0.24);
+  },
   pickup(): void {
     tone(880, 0.06, 'square', 0.07);
     tone(1318, 0.08, 'square', 0.06, 0.06);

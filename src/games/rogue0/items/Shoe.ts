@@ -1,43 +1,42 @@
-// TypeScript errors after site migration - ignoring for game functionality
 import type { EntityType } from "../entity";
 import type { GameContext } from "../context";
-import { Entity} from "../entity";
-import dungeon from "../dungeon";
+import { Entity } from "../entity";
 
-
+// Repurposed revival item. Kept under the historical save-registry/file ID.
 export default class Shoe extends Entity {
-  name: string = "Shoe";
-  description: string = "A shoe";
-  moving: boolean = false;
+  name = "Boot";
+  description = "A strange boot. Carried in the backpack, it will save you from death.";
+  moving = false;
   type: EntityType = "item";
-  textureKey = 'junk-shoe';
+  textureKey = "junk-boot";
   tier = 1;
-  equipSlot: "junk" = "junk";
+  equipSlot = "junk" as const;
+  consumable = false;
 
   constructor(context: GameContext, x?: number, y?: number) {
     super();
+    this.identified = true;
     this.init(context, x, y);
   }
 
-  equip() {
-    if (!this.context.player) {
-      return;
-    }
-    dungeon.log(this.context, 'You cannot use this shoe.');
+  equip(): void {
+  }
+
+  turn(): void {
+  }
+
+  refresh(): void {
+  }
+
+  isOver(): boolean {
+    return true;
+  }
+
+  onDestroy(): void {
   }
 
   damage(): number {
     return 0;
-  }
-
-  turn() {
-  }
-
-  refresh() {
-  }
-
-  isOver() {
-   return true;
   }
 
   attack(): number {
@@ -50,8 +49,5 @@ export default class Shoe extends Entity {
 
   range(): number {
     return 0;
-  }
-
-  onDestroy() {
   }
 }

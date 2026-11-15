@@ -21,7 +21,7 @@ const cases = [
   ['brute', { healthPoints: 72, movementSpeed: 1, attackDamage: 12, evasion: 0, xp: 10 },
     [false, false, false, BerserkPotion]],
   ['quloptsh', { healthPoints: 28, movementSpeed: 1, attackDamage: 7, evasion: 40, xp: 4 },
-    [false, Shoe]],
+    [false]],
 ];
 const images = [];
 for (const [name, stats, loot] of cases) {

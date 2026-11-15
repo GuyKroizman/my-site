@@ -667,6 +667,9 @@ export abstract class Entity {
 }
 
 export function removeEntity(context: GameContext, entity: Entity) {
+  if (entity === context.player && entity.healthPoints <= 0 && (entity as any).tryRevive?.()) {
+    return;
+  }
   const victimIndexInEntities = context.entities.findIndex((e) => e === entity);
   if (victimIndexInEntities === -1) {
     return;

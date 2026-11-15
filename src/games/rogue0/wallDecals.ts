@@ -17,7 +17,6 @@ const SIZE = 16;
 export const DECAL_CHANCE = 20;
 /** Wall tops and side faces are larger, flatter areas: decorate them less. */
 export const FLAT_DECAL_CHANCE = 11;
-
 type Palette = {
   crack: number;
   crackLight: number;
@@ -85,8 +84,9 @@ const THEME_DECALS: Record<string, DecalKind[]> = {
 };
 
 export type DecalFrame = { theme: string; kind: DecalKind; variant: number; frame: number };
+export type SpecialDecalFrame = { special: 'shoe-ritual-mural'; frame: number };
 
-export const DECAL_FRAMES: DecalFrame[] = [];
+export const DECAL_FRAMES: Array<DecalFrame | SpecialDecalFrame> = [];
 for (const [theme, kinds] of Object.entries(THEME_DECALS)) {
   for (const kind of kinds) {
     for (let variant = 0; variant < DECAL_VARIANTS; variant++) {
@@ -94,7 +94,11 @@ for (const [theme, kinds] of Object.entries(THEME_DECALS)) {
     }
   }
 }
-const FRAME_INDEX = new Map(DECAL_FRAMES.map((f) => [`${f.theme}/${f.kind}/${f.variant}`, f.frame]));
+const FRAME_INDEX = new Map(
+  DECAL_FRAMES.filter((f): f is DecalFrame => 'theme' in f).map((f) => [`${f.theme}/${f.kind}/${f.variant}`, f.frame])
+);
+export const SHOE_RITUAL_MURAL_FRAME = DECAL_FRAMES.length;
+DECAL_FRAMES.push({ special: 'shoe-ritual-mural', frame: SHOE_RITUAL_MURAL_FRAME });
 
 function hashText(text: string): number {
   let hash = 0x811c9dc5;
@@ -305,6 +309,19 @@ function stain(pixels: number[], ink: Palette, rand: () => number): void {
   }
 }
 
+function shoeRitualMuralPixels(): number[] {
+  const pixels = emptyPixels();
+  const border = 0x6b5a3e, bg = 0x2a241c, shoe = 0xb37654, heal = 0xff5555, berserk = 0xffa500, line = 0xd9cfb2;
+  for (let x = 1; x < 15; x++) for (let y = 1; y < 15; y++) put(pixels, x, y, bg);
+  for (let i = 1; i < 15; i++) { put(pixels, i, 1, border); put(pixels, i, 14, border); put(pixels, 1, i, border); put(pixels, 14, i, border); }
+  // Cross layout: center shoe, left/right berserk, top/bottom healing.
+  for (const [cx, cy, color] of [[8,8,shoe],[4,8,berserk],[12,8,berserk],[8,4,heal],[8,12,heal]] as const) {
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) put(pixels, cx + dx, cy + dy, color);
+  }
+  put(pixels, 6, 8, line); put(pixels, 10, 8, line); put(pixels, 8, 6, line); put(pixels, 8, 10, line);
+  return pixels;
+}
+
 /** Pure pixels (0xRRGGBB, or -1 for transparent) for one decal frame. */
 export function decalPixels(theme: string, kind: DecalKind, variant: number): number[] {
   const ink = PALETTES[theme] ?? PALETTES.stone;
@@ -330,7 +347,10 @@ export function generateWallDecalTextures(scene: Phaser.Scene): void {
   const context = texture.getContext();
   for (const entry of DECAL_FRAMES) {
     const image = context.createImageData(SIZE, SIZE);
-    decalPixels(entry.theme, entry.kind, entry.variant).forEach((color, i) => {
+    const pixels = 'special' in entry
+      ? shoeRitualMuralPixels()
+      : decalPixels(entry.theme, entry.kind, entry.variant);
+    pixels.forEach((color, i) => {
       image.data[i * 4] = color < 0 ? 0 : color >> 16;
       image.data[i * 4 + 1] = color < 0 ? 0 : (color >> 8) & 255;
       image.data[i * 4 + 2] = color < 0 ? 0 : color & 255;

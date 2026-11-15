@@ -20,6 +20,7 @@ import { resolveAttack } from "../combat";
 import { announceHit, isEnemyVisible } from '../combatFeedback';
 import { applyAttackResult } from '../combatApplication';
 import { heroInventory } from '../heroInventory';
+import { tryReviveHero } from '../shoeRevival';
 import { splitStackItem, type EquipSlotKey } from '../inventory';
 import { placeFloorItem } from '../itemPresentation';
 import { stashChasmFallen } from '../chasmDrops';
@@ -394,7 +395,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
       this.takeDamage(1, !wasStarving);
       spawnEntityFloatingText(this, "-1");
       dungeon.log(this.context, "You are starving! You take 1 damage.");
-      if (this.healthPoints <= 0) {
+      if (this.healthPoints <= 0 && !tryReviveHero(this.context)) {
         removeEntity(this.context, this);
       }
     }
@@ -931,6 +932,10 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
   onDestroy() {
     this.context.scene?.events.emit("player-died");
+  }
+
+  tryRevive(): boolean {
+    return tryReviveHero(this.context);
   }
 
   damage(): number {

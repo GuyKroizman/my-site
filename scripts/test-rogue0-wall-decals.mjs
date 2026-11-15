@@ -19,11 +19,14 @@ const { dungeonThemeName, dungeonTheme } = evaluate(fs.readFileSync('src/games/r
 const THEMES = ['stone', 'crypt', 'sandstone', 'crystal', 'volcanic'];
 const KINDS = ['crack', 'vine', 'ore', 'bones', 'moss', 'stain'];
 const SIZE = 16;
+const THEMED_FRAMES = DECAL_FRAMES.filter((f) => 'theme' in f);
+const MURAL = DECAL_FRAMES.find((f) => f.special === 'shoe-ritual-mural');
 
 // --- pixel buffers ---------------------------------------------------------
-assert.equal(DECAL_FRAMES.length, THEMES.reduce((n, t) => n + DECAL_FRAMES.filter((f) => f.theme === t).length, 0));
+assert.equal(THEMED_FRAMES.length, THEMES.reduce((n, t) => n + THEMED_FRAMES.filter((f) => f.theme === t).length, 0));
+assert.ok(MURAL, 'floor 7 shoe ritual mural frame is included');
 const drawn = [];
-for (const entry of DECAL_FRAMES) {
+for (const entry of THEMED_FRAMES) {
   const pixels = decalPixels(entry.theme, entry.kind, entry.variant);
   assert.equal(pixels.length, SIZE * SIZE);
   assert.ok(pixels.every(Number.isInteger));
@@ -42,7 +45,7 @@ assert.ok(averageInk > 16 && averageInk < 34, `decals stay sparse (${averageInk.
 
 // Variants of the same motif must not be clones, and themes must recolor them.
 for (const theme of THEMES) {
-  for (const kind of new Set(DECAL_FRAMES.filter((f) => f.theme === theme).map((f) => f.kind))) {
+  for (const kind of new Set(THEMED_FRAMES.filter((f) => f.theme === theme).map((f) => f.kind))) {
     const variants = Array.from({ length: DECAL_VARIANTS }, (_, v) => decalPixels(theme, kind, v).join(','));
     assert.equal(new Set(variants).size, DECAL_VARIANTS, `${theme}/${kind} has distinct variants`);
     assert.ok(KINDS.includes(kind), `unknown decal kind ${kind}`);
@@ -56,7 +59,7 @@ for (const kind of ['crack', 'bones']) {
 const previousRandom = Math.random;
 try {
   Math.random = () => { throw Error('decals must not use gameplay randomness'); };
-  for (const entry of DECAL_FRAMES) decalPixels(entry.theme, entry.kind, entry.variant);
+  for (const entry of THEMED_FRAMES) decalPixels(entry.theme, entry.kind, entry.variant);
   for (let x = 0; x < 40; x++) for (let y = 0; y < 40; y++) {
     decalFrameFor(THEMES[x % THEMES.length], x, y);
     flatDecalFrameFor(THEMES[x % THEMES.length], x, y);
@@ -76,8 +79,8 @@ for (const theme of THEMES) {
       assert.equal(frame, decalFrameFor(theme, x, y), 'placement is deterministic');
       if (frame === undefined) continue;
       decorated++;
-      const entry = DECAL_FRAMES.find((f) => f.frame === frame);
-      assert.ok(entry, 'frame index belongs to the atlas');
+      const entry = THEMED_FRAMES.find((f) => f.frame === frame);
+      assert.ok(entry, 'frame index belongs to the themed atlas');
       assert.equal(entry.theme, theme, 'decal matches the floor theme');
       seenKinds.get(theme).add(entry.kind);
       if (entry.theme === 'stone') seenVariants.add(entry.variant);
@@ -88,7 +91,7 @@ const density = decorated / cells * 100;
 assert.ok(density >= DECAL_CHANCE - 6 && density <= DECAL_CHANCE + 6, `decorates a sparse minority (${density.toFixed(1)}%)`);
 for (const theme of THEMES) {
   assert.ok(seenKinds.get(theme).size >= 3, `${theme} uses its full motif set`);
-  const kinds = new Set(DECAL_FRAMES.filter((f) => f.theme === theme).map((f) => f.kind));
+  const kinds = new Set(THEMED_FRAMES.filter((f) => f.theme === theme).map((f) => f.kind));
   if (theme !== 'crystal' && theme !== 'volcanic') assert.ok(kinds.has('crack'));
 }
 assert.equal(seenVariants.size, DECAL_VARIANTS, 'all variants appear');
@@ -109,7 +112,7 @@ for (const theme of THEMES) {
       assert.equal(flat, flatDecalFrameFor(theme, x, y), 'flat placement is deterministic');
       if (flat === undefined) continue;
       flatDecorated++;
-      assert.ok(DECAL_FRAMES.some((f) => f.frame === flat && f.theme === theme));
+      assert.ok(THEMED_FRAMES.some((f) => f.frame === flat && f.theme === theme));
       if (decalFrameFor(theme, x, y) === flat) mirrored++;
     }
   }
@@ -174,7 +177,7 @@ assert.equal(new Set(added.map(([, , x, y]) => `${x},${y}`)).size, DECAL_FRAMES.
 const scene0 = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 assert.ok(scene0.includes('generateWallDecalTextures(this)'), 'atlas is created at startup');
 assert.ok(scene0.includes('private wallDecals'));
-assert.ok(scene0.includes('this.syncWallDecal(key, x, y, theme, raised)'), 'decals follow every wall cell');
+assert.ok(scene0.includes('this.syncWallDecal(key, x, y, theme, raised,'), 'decals follow every wall cell (with optional forced frame)');
 assert.ok(/setDepth\(raised \? worldDepth\(y \* 16, 'terrain'\) \+ 0\.02 : 0\.3\)/.test(scene0),
   'raised decals sit above their wall face, flat ones just above the tilemap');
 assert.ok(/setOrigin\(0, raised \? UPRIGHT_LIFT \/ 16 : 0\)/.test(scene0), 'decals share their wall anchoring');

@@ -51,6 +51,8 @@ export function loadLogic(path, bindings = {}) {
   // Legacy fixtures previously got a fresh overlay by evaluating tiles.ts.
   // Keep that fixture ownership, but execute the complete extracted modules.
   if (path.endsWith('/tiles.ts')) return { ...tilePresentation, ...createTerrain() };
+  // Store/stock fixtures load shop logic through stripped imports.
+  if (path.endsWith('/store/shopStock.ts')) return { SHOP_FLOORS: [6, 11, 16, 21], isShopFloor: (floor) => [6,11,16,21].includes(floor), ...createTerrain(), ...bindings };
   // Keep these fixtures' explicitly injected vision boundary, even where the
   // combat/AI fixture supplies a different, partial movement-terrain fake.
   if (path.endsWith('/fov.ts')) return { ...sight,
@@ -80,7 +82,7 @@ export function loadLogic(path, bindings = {}) {
   const tryFuseWands = (...args) => bindings.tryFuseWands?.(...args);
   const dependencies = { ...monsterBalance, xpForHeroLevel, retireGemsFromSave, ...projectileTextures, applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
     terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation, ...actorBodies, ...footprint, ...placement, ...combatFeedback,
-    forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, potionSplashCells, tryFuseWands, heroStatsText, heroHudView, bossArenaLayout, playMonsterDeath, ...equipmentGlyphs, ...bindings };
+    forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, potionSplashCells, tryFuseWands, heroStatsText, heroHudView, bossArenaLayout, playMonsterDeath, ...equipmentGlyphs, tryReviveHero: () => false, ...bindings };
   const exports = {};
   new Function('exports', ...Object.keys(dependencies), js)(exports, ...Object.values(dependencies));
   return exports;

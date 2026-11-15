@@ -87,7 +87,8 @@ has been playtested. Checked boxes mean the described implementation exists.
   wakes on damage, noise, a visible hero within 2 tiles, or when the dormancy
   runs out.
 - Hunger, starvation, well-fed regeneration, rations and monster gold rewards
-  exist. Shops, trading and revival items do not.
+  exist. Portal stores (buy/sell, persistent stock on floors 6/11/16/21) exist;
+  revival items do not yet. Shoes are planned as the revival item (see Phase 10).
 - `context.ts` defaults to **25 floors**. Five floors was a testing limit.
   The Bone Lord guards floors 5/10/15/20/25; its stats are unchanged.
   Five-floor equipment/supply bands exist. Themed regions are visual-only so
@@ -824,10 +825,97 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
 - [x] Hunger, starvation, well-fed regeneration and ration drops.
 - [x] Monster kills award gold (kills and chests drop piles; the wallet is
       displayed in the HUD).
-- [ ] Shop room + stock (Identify/Upgrade/Remove Curse, food, Ankh); no shop
-      room is generated yet and **gold currently has no sink**. Cooking later.
-- [ ] Sell unwanted items; buy back sold items.
-- [ ] Ankh (revival) + blessed Ankh (full heal on death).
+- [x] Portal stores (not shop rooms) with stock, buy/sell and persistent
+      inventory on floors 6/11/16/21 (Identify/Upgrade/Remove Curse, food,
+      tools, gear). Cooking later.
+- [x] Sell unwanted items; buy back sold items.
+- [ ] Boot revival (in progress): normal Boot (store-only, stocked in every
+      store) and Blessed Boot (ritual-only, never sold), plus a floor-7 mural
+      hint depicting the ritual. See specification below.
+
+#### Boot revival specification (planned)
+
+**Items and carry rules**
+
+- Repurpose the existing junk shoe item (`items/Shoe.ts`, keep its save-registry
+  wire ID/file compatibility) as the normal revival **Boot**: `identified: true`,
+  not cursed, not manually usable, **not equipable**, `count: 1`, carried in
+  the **backpack only**. Revival triggers **only from a backpack boot**.
+- Add **Blessed Boot** as a distinct item/class with a permanent semantic wire
+  ID and distinct generated art/name/description. It follows the same
+  carry/trigger constraints and is **never sold in stores**.
+- **No monster drops:** remove the revival boot from all monster loot, the
+  global loot table and any other drop source. The normal Boot is
+  **store-only** and is **stocked in every store** (never the Blessed Boot).
+
+**Trigger and priority**
+
+- Automatic when the hero would die (HP <= 0) on any audited lethal path
+  (combat, starvation, falls/terrain/chasm or other direct lethal damage).
+  Intercept **before** hero removal, `player-died`, `endGame(false)` and run-save
+  clear. A successful revive means no end and no save clear; autosave after a
+  consistent state.
+- Consume exactly one triggering boot (remove/destroy it and clear references
+  such as quickslots). If both types are present, consume a **Blessed Boot with
+  greater priority**.
+
+**Common revive outcome**
+
+- `healthPoints = maxHealthPoints`, `hunger = maxHunger` (full satiété).
+- Relocate the hero to a **random safe, passable, unoccupied** tile on the
+  **same floor** (not blocked/chasm/occupied by rules), with a deterministic
+  fallback so revival cannot fail.
+- Clear lethal/transient state as needed and harmful timed effects
+  (burning, poison, frozen, stun/crippled/chilled/bleed, etc.) without breaking
+  permanent passives (talents and passives from items that remain valid). Floor,
+  layout/terrain/entities, XP/level/stats, gold and kills remain.
+
+**Normal Boot outcome**
+
+- **Kept on hero:** equipped **weapon and armor only**, kept equipped with
+  their existing state/curses/glyphs/upgrades intact.
+- **Dropped at the death tile:** the **entire backpack** and the other equipped
+  items — **`ring1`, `ring2`, `artifact`**.
+  - Backpack contents become a **single recoverable container** on the death
+    tile. The rings/artifact are **separate loose floor items on the same tile,
+    beneath that container**, ready to pick up.
+  - If the death tile cannot hold the container/items, fall back to the
+    **nearest valid tile** for those drops (the hero still revives elsewhere).
+  - Dropped items remain on the floor/in `context.entities`, are
+    pickable/interactable, persist in the floor save, and lose quickslot/carried
+    references.
+- **Memory:** forget this floor’s map memory — reset explored/`seen` state to
+  unknown, restore fog of war, recompute FOV from the revive position, and
+  persist the reset in the active floor snapshot/save.
+
+**Blessed Boot outcome**
+
+- **Kept:** backpack and all carried/equipped state retained.
+- **Dropped:** nothing.
+- **Memory:** retained (no seen/fog reset).
+
+**Blessing ritual (Blessed Boot source; never in stores)**
+
+- **Pattern (strictly cardinal, axis-aligned, all five on valid floor tiles):**
+  a **Boot** on the center tile; a **Potion of Berserk** (`BerserkPotion`) on
+  the tile **left** of the boot; a **Potion of Berserk** on the tile **right**;
+  a **Potion of Healing** (`PotionOfHealing`) on the tile **above**; a
+  **Potion of Healing** on the tile **below**.
+- **Trigger:** when the **last required item is dropped/placed onto the floor**
+  into a valid cross. The Boot may be **thrown** into position; thrown potions
+  shatter and therefore cannot complete the ritual.
+- **Result:** play an animation and **transform** the floor Boot into a
+  **Blessed Boot** at the same tile; **consume/remove all four potions**. The
+  transformed item and removed reagents persist/save normally.
+- **Discoverability:** a **mural on floor 7** depicts the boot blessing ritual
+  (boot at center, Berserk potions left/right, Healing potions above/below) as
+  an in-world hint. On revive, play a death cue then revival sound and light.
+- **Regression:** headless coverage for normal/blessed revive (including
+  starvation and other lethal paths), priority, backpack-only trigger,
+  relocation/drop/memory behavior, death-tile fallback, save/load round-trips,
+  ritual detection/transform/consumption, absence from monster loot, and
+  store-only normal Boot stock in every store. Visual/animation and balance
+  playtesting remain required.
 - **Acceptance:** the player budgets food/gold across a region, not just HP.
 
 ### Phase 11 — Consumables & alchemy
@@ -1049,19 +1137,23 @@ at user request.
 (`src/components/rogue0/ScenarioSetupPanel.tsx`) plus `scenario.ts` and the
 scene apply step: floor, hero loadout, exact inventory and monster set in one
 click. Use it to hand-test every priority below instead of grinding to a floor.
-1. **Shops and a gold sink (Phase 10).** This is the biggest live gap: gold is
-awarded by kills and chests but has **no use at all**. A single shop room per
-region selling Identify / Upgrade / Remove Curse / food / Ankh would convert
-three already-built systems (identification, curses, hunger) into decisions.
-Add buy/sell with a real price curve and an Ankh revival item. The first
-concrete design is the floor-6 portal store in **`STORE.md`** (15-slot
-`shop.png` scene, buy/sell, persistent stock). **v1 is implemented**: free-standing room door,
-store scene, pricing, buy/sell, save round-trip and six store suites. Stores
-now appear on floors **6, 11, 16, and 21**, with independent persistent stock
-and floor-scaled gear; old saves retain purchases and gain missing portals.
-The rare Stone of Infusion is stocked in the tool row (weight 1 vs 3 for ordinary
-glyph stones) at 90g, so the charm can also be bought rather than only found.
-Ankh remains future work.
+1. **Shoe revival and the remaining gold sink (Phase 10).** Portal stores are
+implemented on floors **6, 11, 16, and 21** with buy/sell, persistent stock and
+floor-scaled gear (see **`STORE.md`**); gold now has a sink, but revival does
+not yet exist. Replace the planned Ankh with **Shoe** revival (planned, see
+Phase 10 spec): the normal **Shoe** is a **store-only** item that appears
+**once at any store** in a run (never dropped by monsters), carried in the
+backpack and auto-triggered on death with **greater-priority Blessed Shoe**
+consumption. A normal Shoe revives on the same floor at a random safe tile with
+full HP/hunger but keeps only equipped weapon and armor, drops the backpack as a
+recoverable container plus `ring1`/`ring2`/`artifact` beneath it at the death
+tile (or nearest valid tile), and forgets that floor's map memory/fog. A
+**Blessed Shoe** (never sold) is created by the floor ritual — place a Shoe with
+a Potion of Berserk left/right and a Potion of Healing above/below, triggering
+on the last dropped placement (thrown potions shatter) with an animation that
+transforms the Shoe and consumes the four potions — and revives with backpack
+and memory retained. Concrete store price/rarity/row and the dropped-container
+entity/UX remain implementation details to finalize against the spec.
 2. **Finish Phase 8 signatures.** Remaining: monsters avoiding burning terrain,
    then Quloptsh concealment/backstab and ghoul lifesteal. Boss redesign
    (multi-phase Bone Lord) stays deferred.
