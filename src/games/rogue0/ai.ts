@@ -397,7 +397,13 @@ export function swarmTurn(entity: Entity): void {
     if (ringTile) {
       const step = nextStepToward(entity, ringTile.x, ringTile.y);
       const action = step ? followStep(entity, step) : null;
-      if (action) { acted = true; moveAction = action; }
+      if (action) {
+        // This successful surround skips the fallback movement block below.
+        // Pay here, or the scheduler keeps choosing this same timestamp and
+        // the swarm can chase across the room and attack in a single turn.
+        entity.spendTime(action);
+        return;
+      }
     }
   }
 

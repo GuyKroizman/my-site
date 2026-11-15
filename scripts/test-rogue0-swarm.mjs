@@ -4,9 +4,10 @@ import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { actorOrigin } from '../src/games/rogue0/rendering.ts';
 import { forgetInspectedEntity } from '../src/games/rogue0/context.ts';
+import { actionCost } from '../src/games/rogue0/timing.ts';
 
 const tiles = load('src/games/rogue0/tiles.ts');
-const { Entity } = load('src/games/rogue0/entity.ts', { actionCost: () => 1 });
+const { Entity } = load('src/games/rogue0/entity.ts', { actionCost });
 Entity.prototype.init = function (context, x, y) {
   this.context = context;
   this.x = x;
@@ -153,9 +154,13 @@ function setup(swarmX = 5, swarmY = 3) {
   swarm.turn();
   assert.equal(attacks, 1, 'adjacent swarm attacks');
   assert.equal(moves, 0, 'adjacent swarm does not move');
+  assert.equal(swarm.nextActionTime, 1, 'attacking spends exactly one action');
 
   const second = setup(5, 3); // two tiles away, an open ring tile ahead
+  second.swarm.actionReady = true;
   second.swarm.turn();
+  assert.equal(second.swarm.nextActionTime, 1, 'surround movement spends a turn, not just an animation');
+  assert.equal(second.swarm.actionReady, false, 'a chasing swarm relinquishes its action');
   assert.equal(attacks, 0, 'distant swarm does not attack yet');
   assert.equal(moves, 1, 'distant swarm advances one tile');
   const cheb = Math.max(Math.abs(second.swarm.x - second.player.x), Math.abs(second.swarm.y - second.player.y));
@@ -164,4 +169,40 @@ function setup(swarmX = 5, swarmY = 3) {
     'swarm boxes in instead of occupying the hero');
 }
 
-console.log('Rogue0 swarm of flies: flight, splitting, magical immunity, potion drops and swarming AI passed');
+// Surrounding obeys the same movement costs as other AI paths. A door is a
+// fixed-cost action even when the fly's ordinary movement is faster/slower.
+for (const [effect, speed, expectedCost, door] of [
+  [undefined, 2, 0.5, false],
+  ['haste', 1, 0.5, false],
+  ['chilled', 1, 2, false],
+  [undefined, 2, 1, true],
+  ['chilled', 1, 1, true],
+]) {
+  const { swarm } = setup(7, 3);
+  swarm.movementSpeed = speed;
+  if (effect) swarm.effects.push({ id: effect });
+  swarm.actionReady = true;
+  const originalOpenDoor = dungeon.openDoor;
+  try {
+    if (door) {
+      // The straight-line fixture's first step toward the surrounding ring.
+      tiles.setFeature(6, 2, 'door', { door: 'closed' });
+      dungeon.openDoor = (x, y) => {
+        assert.deepEqual([x, y], [6, 2]);
+        tiles.setDoorState(x, y, 'open');
+        return true;
+      };
+    }
+    swarm.turn();
+    assert.equal(moves, 1);
+    assert.equal(attacks, 0);
+    assert.equal(swarm.nextActionTime, expectedCost, `${effect ?? 'normal'} surround cost, door=${door}`);
+    assert.equal(swarm.actionReady, false);
+    if (door) assert.equal(tiles.getDoorState(6, 2), 'open');
+  } finally {
+    dungeon.openDoor = originalOpenDoor;
+    tiles.clearAllFeatures();
+  }
+}
+
+console.log('Rogue0 swarm of flies: flight, splitting, magical immunity, potion drops, swarming AI and action costs passed');
