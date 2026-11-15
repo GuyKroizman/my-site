@@ -13,6 +13,7 @@ import { announceHit, isEnemyVisible } from './combatFeedback';
 import dungeon from "./dungeon";
 import { actorFootprint } from "./actorBodies.ts";
 import { footprintContains } from "./footprint.ts";
+import { logStatusEffect as log, removeEffect as removeStatusEffect, tickEffects as tickStatusEffects } from './effectLifecycle.ts';
 
 export type DamageType =
   | "physical"
@@ -47,14 +48,6 @@ export type StatusEffect = {
   tick?(entity: Entity, context: GameContext): void;
   remove?(entity: Entity, context: GameContext): void;
 };
-
-function log(entity: Entity, text: string): void {
-  const context = entity.context;
-  // Off-screen effects still run, but must not leak monster activity into the log.
-  if (entity.type === "enemy" && !context.visibleTiles.has(`${entity.x},${entity.y}`)) return;
-  context.messages.unshift(text);
-  context.messages = context.messages.slice(0, 20);
-}
 
 // Damage ticks are worth a distant sound even when the victim is unseen, while
 // a status application or expiry stays silent off screen.
@@ -104,32 +97,11 @@ export function applyEffect(entity: Entity, effect: StatusEffect, affectTerrain 
 }
 
 export function removeEffect(entity: Entity, effectId: string): void {
-  const index = entity.effects.findIndex((e) => e.id === effectId);
-  if (index === -1) return;
-
-  const [effect] = entity.effects.splice(index, 1);
-  effect.remove?.(entity, entity.context);
-  log(entity, `${entity.type === "player" ? "Your" : `${entity.name}'s`} ${effect.name} wears off.`);
+  removeStatusEffect(entity, effectId);
 }
 
 export function tickEffects(entity: Entity, context: GameContext): void {
-  for (const effect of [...entity.effects]) {
-    const now = context.simulationTime ?? 0;
-    if (effect.nextTick === undefined) effect.nextTick = now + 1;
-    if (effect.nextTick > now + 1e-9) continue;
-    effect.nextTick += 1;
-    effect.tick?.(entity, context);
-
-    // The tick callback may have removed the effect itself.
-    if (!entity.effects.includes(effect)) continue;
-
-    if (effect.manualExpiry) continue;
-
-    effect.duration -= 1;
-    if (effect.duration <= 0) {
-      removeEffect(entity, effect.id);
-    }
-  }
+  tickStatusEffects(entity, context);
 }
 
 export function createBurningEffect(duration = 3): StatusEffect {

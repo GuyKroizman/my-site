@@ -5,7 +5,7 @@ import { forgetInspectedEntity } from "./context.ts";
 import type { GameContext } from "./context";
 import { sfx } from "./audio";
 import type { DamageType, StatusEffect } from "./effects";
-import { tickEffects as tickStatusEffects } from "./effects";
+import { tickEffects as tickStatusEffects } from "./effectLifecycle.ts";
 import { actionCost, type ActionKind } from "./timing";
 import { CURSE_NAMES, CURSE_FLAVOR } from "./curseData";
 import type { CurseId } from "./curseData";
