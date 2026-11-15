@@ -20,11 +20,11 @@ const THEMES = ['stone', 'crypt', 'sandstone', 'crystal', 'volcanic'];
 const KINDS = ['crack', 'vine', 'ore', 'bones', 'moss', 'stain'];
 const SIZE = 16;
 const THEMED_FRAMES = DECAL_FRAMES.filter((f) => 'theme' in f);
-const MURAL = DECAL_FRAMES.find((f) => f.special === 'shoe-ritual-mural');
+const MURAL = DECAL_FRAMES.find((f) => f.special === 'boot-ritual-mural' || f.special === 'shoe-ritual-mural');
 
 // --- pixel buffers ---------------------------------------------------------
 assert.equal(THEMED_FRAMES.length, THEMES.reduce((n, t) => n + THEMED_FRAMES.filter((f) => f.theme === t).length, 0));
-assert.ok(MURAL, 'floor 7 shoe ritual mural frame is included');
+assert.ok(MURAL, 'floor 7 boot ritual mural frame is included');
 const drawn = [];
 for (const entry of THEMED_FRAMES) {
   const pixels = decalPixels(entry.theme, entry.kind, entry.variant);

@@ -364,7 +364,7 @@ memory.set(SAVE_KEY, JSON.stringify({ ...save, version: 999 })); assert.ok(readR
 assert.equal(clearRunSave(), true);
 assert.deepEqual(readRunSave(), {});
 
-// Shoe revival persistence: once-per-run store floor, Blessed Shoe, and DroppedBackpack contents.
+// Boot revival persistence: once-per-run store floor, Blessed Boot, and DroppedBackpack contents.
 {
   const BlessedShoe = load('src/games/rogue0/items/BlessedShoe.ts', { Entity }).default;
   const DroppedBackpack = load('src/games/rogue0/items/droppedBackpack.ts', { Entity }).default;
@@ -419,7 +419,7 @@ assert.deepEqual(readRunSave(), {});
   const save = { version: 1, heroClass: 'Warrior', floor: 6, graph: JSON.parse(JSON.stringify(graph)) };
   const run = decodeRunSave(save, {});
   assert.equal(run.shoeShopFloor, 11, 'shoeShopFloor survives save/decode');
-  assert.ok(run.player.backpack[0] instanceof BlessedShoe, 'Blessed Shoe survives save/decode');
+  assert.ok(run.player.backpack[0] instanceof BlessedShoe, 'Blessed Boot survives save/decode');
   const restoredPack = run.floors.get(6).entities.find(entity => entity instanceof DroppedBackpack);
   assert.ok(restoredPack, 'DroppedBackpack survives save/decode');
   assert.equal(restoredPack.contents.length, 1, 'DroppedBackpack contents survive save/decode');

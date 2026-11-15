@@ -357,7 +357,7 @@ const dungeon = {
       c.expiresAt > (this.context?.simulationTime ?? 0) + 1e-9);
     let description = describeTile(state, isWall);
     let label = describeTileLabel(state, isWall);
-    const mural = this.context?.shoeRitualMural;
+    const mural = this.context?.bootRitualMural;
     if (mural && mural.x === x && mural.y === y) {
       label = 'Ritual mural';
       description = 'A mural depicting a ritual: a boot at the center, with Berserk potions to its left and right, and Healing potions above and below it.';

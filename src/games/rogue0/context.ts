@@ -156,7 +156,7 @@ export type GameContext = {
   // Called after an item is visually placed on the floor.
   onFloorItemPlaced?: (item: import('./entity').Entity) => void;
   // Wall tile carrying the floor-7 boot blessing ritual mural, when present.
-  shoeRitualMural?: { x: number; y: number };
+  bootRitualMural?: { x: number; y: number };
   onEnd?: (result: EndResult) => void;
   savedRun?: import('./saveStorage').RunSave;
   // Phase 17 local-only dev tooling: an authored start state, set by the

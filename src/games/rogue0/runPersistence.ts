@@ -51,7 +51,7 @@ export type RunState = {
   shops?: Map<number, ShopState>;
   // Legacy single floor-6 store; migrated into shops during decode.
   shop?: ShopState;
-  // The one store floor that stocks the normal revival Shoe this run.
+  // Legacy: previously selected which store stocked the revival boot.
   shoeShopFloor?: number;
   player: BasicHero;
   floors: Map<number, SavedFloor>;

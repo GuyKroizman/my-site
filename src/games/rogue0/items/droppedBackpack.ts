@@ -2,7 +2,7 @@ import { Entity } from '../entity';
 import type { GameContext } from '../context';
 import dungeon from '../dungeon';
 
-/** A recoverable container left behind by a normal Shoe revival. */
+/** A recoverable container left behind by a normal Boot revival. */
 export default class DroppedBackpack extends Entity {
   type = 'item' as const;
   name = 'Dropped Backpack';

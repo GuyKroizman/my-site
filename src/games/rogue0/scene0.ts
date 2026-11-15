@@ -132,7 +132,7 @@ import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownIt
 import { generateRingTextures } from "./ringTextures";
 import { generateGlyphStoneTextures } from './glyphStoneTextures';
 import { dropTrampledGlyphStone } from './glyphStoneDrop';
-import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE, SHOE_RITUAL_MURAL_FRAME } from './wallDecals';
+import { decalFrameFor, flatDecalFrameFor, generateWallDecalTextures, DECAL_TEXTURE, BOOT_RITUAL_MURAL_FRAME } from './wallDecals';
 import { generateArmorTextures } from "./armorTextures";
 import { generateJunkTextures } from "./junkTextures";
 import { generateWeaponTextures } from "./weaponTextures";
@@ -1598,7 +1598,7 @@ export class Scene0 extends Phaser.Scene {
     // Floor 7 mural: pick one deterministic raised wall facing a floor tile
     // (south face visible from below) to depict the boot blessing ritual.
     let muralKey: string | undefined;
-    this.context.shoeRitualMural = undefined;
+    this.context.bootRitualMural = undefined;
     if (this.context.floor === 7) {
       const spawnX = this.context.upstairsX ?? this.context.player?.x ?? 0;
       const spawnY = this.context.upstairsY ?? this.context.player?.y ?? 0;
@@ -1616,7 +1616,7 @@ export class Scene0 extends Phaser.Scene {
       }
       if (best) {
         muralKey = best.key;
-        this.context.shoeRitualMural = { x: best.x, y: best.y };
+        this.context.bootRitualMural = { x: best.x, y: best.y };
       }
     }
     for (let y = 0; y < level.length; y++) {
@@ -1635,7 +1635,7 @@ export class Scene0 extends Phaser.Scene {
           }
           this.wallSprites.get(key)!.setVisible(this.seen[y]?.[x] === true);
         }
-        this.syncWallDecal(key, x, y, theme, raised, key === muralKey ? SHOE_RITUAL_MURAL_FRAME : undefined);
+        this.syncWallDecal(key, x, y, theme, raised, key === muralKey ? BOOT_RITUAL_MURAL_FRAME : undefined);
       }
     }
     for (const [key, sprite] of this.wallSprites) {

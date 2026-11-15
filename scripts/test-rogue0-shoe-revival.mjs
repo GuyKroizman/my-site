@@ -17,7 +17,7 @@ const itemPresentationSrc = fs.readFileSync('src/games/rogue0/itemPresentation.t
 
 assert.ok(!/loot: \[false, Shoe\]/.test(quloptsh), 'Quloptsh must not drop revival boot');
 assert.ok(!/\[Shoe, 1\]/.test(scene0), 'Boot must not be in LOOT_TABLE');
-assert.ok(/SHOE_RITUAL_MURAL_FRAME/.test(scene0), 'floor 7 ritual mural is wired in scene');
+assert.ok(/BOOT_RITUAL_MURAL_FRAME|SHOE_RITUAL_MURAL_FRAME/.test(scene0), 'floor 7 ritual mural is wired in scene');
 assert.ok(/floor-7 mural/i.test(plan), 'plan documents the floor-7 ritual mural');
 assert.ok(/find\(item => item instanceof BlessedShoe\)/.test(shoeRevivalSrc), 'blessed priority');
 assert.ok(/onForgetFloorMemory/.test(shoeRevivalSrc), 'normal revive forgets floor memory');
@@ -64,4 +64,4 @@ assert.ok(/playerDeath/.test(scene0) || /gameover/.test(scene0), 'death presenta
   assert.ok(/item:dropped-backpack/.test(regSrc), 'DroppedBackpack registered for saves');
 }
 
-console.log('Shoe revival tests passed.');
+console.log('Boot revival tests passed.');

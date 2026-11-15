@@ -88,7 +88,7 @@ has been playtested. Checked boxes mean the described implementation exists.
   runs out.
 - Hunger, starvation, well-fed regeneration, rations and monster gold rewards
   exist. Portal stores (buy/sell, persistent stock on floors 6/11/16/21) exist;
-  revival items do not yet. Shoes are planned as the revival item (see Phase 10).
+  revival items do not yet. Boots are planned as the revival item (see Phase 10).
 - `context.ts` defaults to **25 floors**. Five floors was a testing limit.
   The Bone Lord guards floors 5/10/15/20/25; its stats are unchanged.
   Five-floor equipment/supply bands exist. Themed regions are visual-only so
@@ -141,7 +141,7 @@ The following snapshot explains the original depth gap:
 - 6 monsters: Skeleton, Quloptsh, Archer (ranged), Ghoul (2 moves/turn),
   Brute (tanky), Bone Lord (boss). Boss = big stats, no mechanics.
 - 15 items: swords/axe/bow/hammer/shield, gems, scrolls (fireball, lightning),
-  potions (heal ×2, holy), berserk potion, shoe. Items are **auto-identified**
+  potions (heal ×2, holy), berserk potion, boot. Items are **auto-identified**
   and there is no tier/upgrade/cursed/charged system.
 - Combat: `attacker.attack() - victim.protection()`, resolved inline in
   `dungeon.attackEntity`. No accuracy/evasion, no damage types, no status
