@@ -29,6 +29,7 @@ import grass1Url from './assets/tall-grass-1.png';
 import grass2Url from './assets/tall-grass-2.png';
 import { updateHeroAnimation } from './heroAnimation';
 import { updateHeroBurning, clearHeroBurning } from './heroBurningVisuals';
+import { updateMonsterStatusVisuals, clearMonsterStatusVisuals } from './monsterStatusVisuals';
 import { updateHeroChilled, clearHeroChilled } from './heroChilledVisuals';
 import { updateHeroLevitating, clearHeroLevitating } from './heroLevitatingVisuals';
 import { showWandZap, showShockArc, updateWandZaps, clearWandZaps } from './wandZapVisuals';
@@ -333,6 +334,7 @@ export class Scene0 extends Phaser.Scene {
     generatePortalTexture(this);
     this.events.once("shutdown", () => {
       clearMonsterSleepVisuals(this);
+      clearMonsterStatusVisuals(this);
       clearSurpriseVisuals(this);
       clearGrassBurns(this);
       clearHeroBurning(this);
@@ -731,6 +733,7 @@ export class Scene0 extends Phaser.Scene {
     updateHeroChilled(this, this.context.player, this.time.now);
     updateHeroLevitating(this, this.context.player, this.time.now);
     if (isModalOpen(this.context)) {
+      updateMonsterStatusVisuals(this, this.context.entities, this.time.now);
       this.autosave();
       if (this.context.player) {
         this.context.player.inputBuffer = [];
@@ -752,6 +755,7 @@ export class Scene0 extends Phaser.Scene {
     this.checkStairs();
     this.checkPortalHint();
     this.refreshFovIfNeeded();
+    updateMonsterStatusVisuals(this, this.context.entities, this.time.now);
     updateMonsterSleepVisuals(this, this.context.entities, this.time.now);
     updateSurpriseVisuals(this, this.context, this.time.now);
 
@@ -856,6 +860,7 @@ export class Scene0 extends Phaser.Scene {
   ) {
     const tiles = terrainFor(this.context);
     clearMonsterSleepVisuals(this);
+    clearMonsterStatusVisuals(this);
     clearSurpriseVisuals(this);
     clearGrassBurns(this);
     clearHeroBurning(this);

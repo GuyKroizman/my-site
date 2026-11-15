@@ -603,6 +603,17 @@ same frame. Status names, durations and descriptions are formatted by
 `statusDurationLabel`/`describeEffect`, so the icon badge, tooltip and
 character modal always agree.
 
+Monster status icons appear in the **inspection description**, with effect names
+and remaining durations. The list uses two columns (one on narrow screens) and
+paginates when needed. There are no status badges floating over monsters.
+Instead, burning monsters have small animated body flames, confused monsters
+have a rotating violet spiral above their heads, and poison/frozen/stunned apply
+green/blue/white silhouette-shaped washes. If those tints overlap, stun takes
+priority over frozen, then poison; flames and confusion can coexist with any tint.
+These visuals follow the actual sprite/frame, respect visibility and fog, and
+vanish on cure, death, or removal. They leave the sprite's original tint and hit
+flashes untouched and never reveal monsters sensed through mind vision.
+
 Hunger and regeneration tick per elapsed world-time unit. Buffs keep their own
 tick phase (a two-time-unit buff applied at 0.5 expires at 2.5). Faster movement
 does not accelerate hunger or poison. Floor changes preserve the clock and buff

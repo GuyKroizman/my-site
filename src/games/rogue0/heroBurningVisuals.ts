@@ -15,6 +15,11 @@ export function updateHeroBurning(scene: Phaser.Scene, hero: Entity | undefined,
     fire = scene.add.graphics();
     flames.set(scene, fire);
   }
+  drawActorFlames(fire, sprite, now);
+}
+
+/** Shared by hero and monsters; never alters the actor's sprite or effects. */
+export function drawActorFlames(fire: Phaser.GameObjects.Graphics, sprite: Phaser.GameObjects.Sprite, now: number): void {
   fire.clear().setVisible(sprite.visible).setAlpha(sprite.alpha);
   // Track interpolated movement and the walking bob without touching the hero.
   fire.setDepth(Math.min(99, sprite.depth + 0.1));

@@ -16,6 +16,7 @@ import {
   statusIconFrame
 } from './statusIconTextures';
 import { LOG_STRIP_GAP, LOG_STRIP_HEIGHT, statusIconLayout } from './statusHudLayout';
+import { MonsterInspectStatuses } from './monsterInspectStatuses';
 
 // Slots are cheap and effects are capped in practice, but leave headroom so a
 // heavily buffed hero still shows every status.
@@ -81,6 +82,8 @@ export class UI extends Phaser.Scene {
   private inspectBackdrop: Phaser.GameObjects.Rectangle | undefined;
   private inspectChoiceRows: Phaser.GameObjects.Text[] = [];
   private inspectChoicePage = 0;
+  private inspectStatuses: MonsterInspectStatuses | undefined;
+  private inspectStatusHeight = 0;
   private renderedInspectChoices: GameContext["inspectChoices"];
 
   private logPanel: Phaser.GameObjects.Rectangle | undefined;
@@ -499,6 +502,7 @@ export class UI extends Phaser.Scene {
       wordWrap: { width: w - 20 }
     });
     root.add(this.inspectModalText);
+    this.inspectStatuses = new MonsterInspectStatuses(this, root);
     this.inspectModal = root;
 
     this.inspectCloseBtn = this.add
@@ -596,16 +600,20 @@ export class UI extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     const inspW = Math.min(340, w - 16);
+    this.inspectModalText.setWordWrapWidth(inspW - 20);
     let contentBottom = 60;
     if (this.context.inspectChoices?.length) {
       contentBottom = this.inspectChoiceRows.reduce(
         (max, row) => Math.max(max, row.y + row.height), contentBottom);
     } else if (this.inspectModalText.visible) {
       contentBottom = this.inspectModalText.y + this.inspectModalText.height;
+      if (this.inspectStatusHeight) {
+        this.inspectStatuses?.setY(contentBottom + 6);
+        contentBottom += this.inspectStatusHeight + 6;
+      }
     }
     const inspH = Math.min(Math.max(96, contentBottom + 14), h - 16);
     this.inspectModalBg.setSize(inspW, inspH);
-    this.inspectModalText.setWordWrapWidth(inspW - 20);
     const ix = (w - inspW) / 2;
     const iy = Phaser.Math.Clamp((h - inspH) / 2, 8, Math.max(8, h - inspH - 8));
     this.inspectModal.setPosition(ix, iy);
@@ -750,6 +758,10 @@ export class UI extends Phaser.Scene {
     if (!this.inspectModal || !this.inspectModalText) return;
 
     const choices = this.context.inspectChoices;
+    const inspected = !choices?.length && this.context.inspectedEntity?.type === 'enemy'
+      ? this.context.inspectedEntity : undefined;
+    this.inspectStatusHeight = this.inspectStatuses?.update(inspected,
+      Math.min(340, this.scale.width - 16) - 20, Math.max(84, this.scale.height / 3)) ?? 0;
     if (choices !== this.renderedInspectChoices) {
       this.inspectChoicePage = 0;
       this.renderedInspectChoices = choices;
