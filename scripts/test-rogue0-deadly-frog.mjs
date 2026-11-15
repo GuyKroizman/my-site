@@ -55,7 +55,10 @@ function makeContext() {
   const context = {
     entities: [], messages: [], visibleTiles: new Set(['2,2']), simulationTime: 0, kills: 0,
     player: { gainXp() {}, artifact: undefined },
-    onCreatePoisonGas: (x, y) => { gas.push(`${x},${y}`); return 1; }
+    onCreatePoisonGas: (x, y, source) => {
+      assert.equal(source, 'frog', 'wounds and death request the stronger, slower frog gas');
+      gas.push(`${x},${y}`); return 1;
+    }
   };
   return { context, gas };
 }

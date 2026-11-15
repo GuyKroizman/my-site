@@ -617,8 +617,15 @@ levitating actors too, and pause with inactive floors. Rendering only displays
 visible clouds; it never advances their lifetime.
 The **Deadly Frog** (floors 1–4 only) uses this system as its signature
 ability: every damaging hit it survives vents a cloud on its tile, and its
-death releases one final cloud. The frog is immune to poison but not to fire
-or steel, so killing it from range still leaves gas where it died.
+death releases one final cloud. Frog gas spreads one cardinal ring every **1.5
+world-time units** (ordinary gas: 1) and inflicts **3 poison damage per unit**
+(ordinary poison: 1). After a normal-speed melee attack, immediately walking
+away outruns the cloud without being poisoned; staying nearby or entering the
+gas is dangerous. Its radius remains 3 and it still dissipates outside-in.
+The stronger poison briefly lingers after exposure, uses one non-stacking
+status, and retains its strength across saves. Potion and curse gas keep their
+original balance. The frog is immune to poison but not to fire or steel, so
+killing it from range still leaves gas where it died.
 Animation durations and frame rate never determine logical action costs.
 
 Food drops by 0.25 per world-time unit. Fed (30–100 Food) heroes naturally

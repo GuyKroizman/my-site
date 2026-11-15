@@ -41,6 +41,8 @@ export type StatusEffect = {
   // the unspent healing intact.
   remainingHeal?: number;
   healPerTick?: number;
+  // Strong frog toxin persists through save/load; omitted in legacy poison.
+  poisonDamage?: number;
   apply?(entity: Entity, context: GameContext): void;
   tick?(entity: Entity, context: GameContext): void;
   remove?(entity: Entity, context: GameContext): void;
@@ -84,6 +86,9 @@ export function applyEffect(entity: Entity, effect: StatusEffect, affectTerrain 
   const existing = entity.effects.find((e) => e.id === effect.id);
   if (existing) {
     existing.duration = Math.max(existing.duration, effect.duration);
+    if (effect.id === "poisoned") {
+      existing.poisonDamage = Math.max(existing.poisonDamage ?? 1, effect.poisonDamage ?? 1);
+    }
     existing.nextTick = (entity.context.simulationTime ?? 0) + 1;
     // Refresh silently; the active status remains visible.
     return;
@@ -141,13 +146,14 @@ export function createBurningEffect(duration = 3): StatusEffect {
   };
 }
 
-export function createPoisonedEffect(duration = 3): StatusEffect {
+export function createPoisonedEffect(duration = 3, poisonDamage = 1): StatusEffect {
   return {
     id: "poisoned",
     name: "Poisoned",
     duration,
+    poisonDamage,
     tick(entity) {
-      const amount = 1;
+      const amount = this.poisonDamage ?? 1;
       entity.takeDamage(amount);
       if (showFloatingDamage(entity)) spawnEntityFloatingText(entity, `-${amount}`);
       logDamage(entity, `${entity.type === "player" ? "You take" : `${entity.name} takes`} ${amount} poison damage.`);
@@ -448,6 +454,9 @@ const EFFECT_DESCRIPTIONS: Record<string, string> = {
 };
 
 export function describeEffect(effect: StatusEffect): string {
+  if (effect.id === "poisoned" && !effect.description) {
+    return `Takes ${effect.poisonDamage ?? 1} poison damage per turn.`;
+  }
   return effect.description ?? EFFECT_DESCRIPTIONS[effect.id] ?? "";
 }
 

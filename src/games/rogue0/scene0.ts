@@ -547,7 +547,7 @@ export class Scene0 extends Phaser.Scene {
     this.context.onMonsterRemoved = entity => this.handleMonsterRemoved(entity, !scenario);
     this.context.onFrostTerrain = (x, y) => dungeon.freezeWater(this.context, x, y);
     this.context.onShockWater = (target, damage) => dungeon.conductShock(this.context, target, damage);
-    this.context.onCreatePoisonGas = (x, y) => createPoisonGas(this.context, dungeon.getCurrentLevel(), x, y);
+    this.context.onCreatePoisonGas = (x, y, source) => createPoisonGas(this.context, dungeon.getCurrentLevel(), x, y, source);
     this.context.onGasContact = actor => exposeToGas(this.context, actor);
     this.context.nextTerrainEvent = () => nextGasEvent(this.context);
     this.context.onTerrainEvent = () => tickGas(this.context);

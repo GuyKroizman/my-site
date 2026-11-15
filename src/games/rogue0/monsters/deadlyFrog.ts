@@ -11,7 +11,7 @@ export default class DeadlyFrog extends Monster {
     if (context.scene) generateDeadlyFrogTexture(context.scene);
     super(context, {
       name: "Deadly Frog",
-      description: "A bloated frog with poison warts. Each wound it survives vents toxic gas, and its death releases a final cloud. Poison cannot harm it.",
+      description: "A bloated frog with poison warts. Each wound it survives vents slow-spreading gas that deals 3 poison damage per turn, and its death releases a final cloud. Retreat quickly to avoid the gas. Poison cannot harm it.",
       textureKey: DEADLY_FROG_TEXTURE,
       ...monsterStats('frog', context.floor),
       movementSpeed: 1,
@@ -41,6 +41,6 @@ export default class DeadlyFrog extends Monster {
 
   private releaseGas(): void {
     if (this.x === undefined || this.y === undefined) return;
-    this.context.onCreatePoisonGas?.(this.x, this.y);
+    this.context.onCreatePoisonGas?.(this.x, this.y, "frog");
   }
 }

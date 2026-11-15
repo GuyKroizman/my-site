@@ -15,7 +15,7 @@ function setup() {
   tiles.clearAllFeatures(); dungeon.currentLevel = map.map(row => [...row]);
   const ctx = { entities: [], messages: [], visibleTiles: new Set(['2,2']), simulationTime: 0.5 };
   ctx.currentLevel = dungeon.currentLevel;
-  ctx.onCreatePoisonGas = (x, y) => gas.createPoisonGas(ctx, dungeon.currentLevel, x, y);
+  ctx.onCreatePoisonGas = (x, y, source) => gas.createPoisonGas(ctx, dungeon.currentLevel, x, y, source);
   ctx.onGasContact = actor => gas.exposeToGas(ctx, actor);
   ctx.nextTerrainEvent = () => gas.nextGasEvent(ctx);
   ctx.onTerrainEvent = () => gas.tickGas(ctx);
@@ -170,6 +170,87 @@ for (const type of ['enemy', 'player']) {
   const entrant = actor(ctx, 0, 3, 'player');
   dungeon.moveEntityTo(ctx, entrant, 2, 3);
   assert.equal(effects.hasEffect(entrant, 'poisoned'), true, 'hero contact also exposes');
+}
+// Frog gas gives an adjacent normal-speed attacker time to walk away, using
+// the real scheduler and movement contact hook (not just direct clock jumps).
+{
+  const ctx = setup();
+  const player = actor(ctx, 3, 2, 'player');
+  ctx.map = { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 };
+  ctx.scene = { tweens: { add(config) { config.onComplete(); } } };
+  manager.time = 0.5; manager.nextTick = 1; manager.reset(ctx.entities, true);
+  ctx.onCreatePoisonGas(2, 2, 'frog');
+  player.spendTime('attack'); manager.update(ctx.entities);
+  assert.equal(ctx.simulationTime, 1.5);
+  assert.equal(effects.hasEffect(player, 'poisoned'), false, 'first ring waits until after attack recovery');
+  for (const x of [4, 5, 6]) {
+    dungeon.moveEntityTo(ctx, player, x, 2);
+    player.spendTime('move'); manager.update(ctx.entities);
+    assert.equal(effects.hasEffect(player, 'poisoned'), false, 'walking away outruns each ring');
+  }
+  for (let n = 0; n < 5; n++) { player.spendTime('wait'); manager.update(ctx.entities); }
+  assert.equal(ctx.simulationTime, 9.5, 'completed movement animations let the scheduler advance');
+  assert.equal(player.healthPoints, 20, 'retreat avoids all gas damage, including lingering poison');
+  assert.equal(ctx.poisonClouds.length, 0);
+}
+// Waiting beside the frog instead gets hit by the stronger toxin.
+{
+  const ctx = setup();
+  const player = actor(ctx, 3, 2, 'player');
+  manager.time = 0.5; manager.nextTick = 1; manager.reset(ctx.entities, true);
+  ctx.onCreatePoisonGas(2, 2, 'frog');
+  for (let n = 0; n < 3; n++) { player.spendTime('wait'); manager.update(ctx.entities); }
+  assert.equal(ctx.simulationTime, 3.5);
+  assert.equal(player.healthPoints, 17, 'frog poison deals 3 damage on its first tick');
+  assert.equal(effects.describeEffect(player.effects[0]), 'Takes 3 poison damage per turn.');
+  player.spendTime('wait'); manager.update(ctx.entities);
+  assert.equal(player.healthPoints, 14, 'continued exposure deals 3 per unit, not per contact');
+}
+// Slow expansion still reaches radius 3 and dissipates from the outside inward.
+{
+  const ctx = setup();
+  ctx.onCreatePoisonGas(2, 2, 'frog');
+  for (const [time, count] of [[0.5, 1], [1.5, 1], [2, 5], [3, 5], [3.5, 13],
+    [5, 23], [6.5, 23], [7, 13], [7.5, 5], [8, 1], [8.5, 0]]) {
+    ctx.simulationTime = time; gas.tickGas(ctx);
+    assert.equal(ctx.poisonClouds.length, count, `frog cloud size at t=${time}`);
+    assert.ok(ctx.poisonClouds.every(c => c.source === 'frog'), 'all rings inherit frog potency and speed');
+  }
+}
+// Potency survives repeated/mixed exposure and save restoration without stacking
+// statuses or delaying an already scheduled poison tick.
+{
+  const ctx = setup();
+  const victim = actor(ctx, 2, 2);
+  ctx.onCreatePoisonGas(2, 2);
+  const phase = victim.effects[0].nextTick;
+  ctx.onCreatePoisonGas(2, 2, 'frog');
+  ctx.onCreatePoisonGas(2, 2);
+  for (let n = 0; n < 5; n++) ctx.onGasContact(victim);
+  assert.equal(victim.effects.length, 1);
+  assert.equal(victim.effects[0].poisonDamage, 3);
+  assert.equal(victim.effects[0].nextTick, phase);
+  const { restoreEffects } = load('saveEffects', { effects });
+  victim.effects = restoreEffects(JSON.parse(JSON.stringify(victim.effects)));
+  ctx.simulationTime = phase; victim.tickEffects();
+  assert.equal(victim.healthPoints, 17, 'restored poison ticks with saved potency, not factory defaults');
+  effects.applyEffect(victim, effects.createPoisonedEffect());
+  assert.equal(victim.effects[0].poisonDamage, 3, 'ordinary poison cannot weaken the active toxin');
+
+  const fresh = setup();
+  fresh.onCreatePoisonGas(2, 2, 'frog');
+  const saved = JSON.parse(JSON.stringify(fresh.poisonClouds));
+  fresh.poisonClouds = gas.restoreGas(saved, 20);
+  assert.equal(fresh.poisonClouds[0].source, 'frog');
+  assert.equal(fresh.poisonClouds[0].nextExpand, 22);
+  fresh.simulationTime = 22; gas.tickGas(fresh);
+  assert.equal(cloudAt(fresh, 3, 2).nextExpand, 23.5, 'restored clouds retain slower expansion');
+  const entrant = actor(fresh, 3, 2); fresh.onGasContact(entrant);
+  assert.equal(entrant.effects[0].poisonDamage, 3);
+
+  victim.effects = restoreEffects([{ id: 'poisoned', name: 'Poisoned', duration: 2, nextTick: phase + 1 }]);
+  ctx.simulationTime = phase + 1; victim.tickEffects();
+  assert.equal(victim.healthPoints, 16, 'legacy poison saves still deal 1 damage');
 }
 // Real potion and throw handlers create clouds and consume empty-tile splashes.
 {

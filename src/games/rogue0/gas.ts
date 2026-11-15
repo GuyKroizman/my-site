@@ -10,6 +10,10 @@ const EPSILON = 1e-9;
 // then dissipates from its outer edge back toward the impact tile.
 export const GAS_MAX_RADIUS = 3;
 export const GAS_EXPAND_INTERVAL = 1;
+// A normal melee attack takes 1 unit: the extra half-unit lets the attacker
+// retreat before the first ring reaches them. Subsequent rings are slower too.
+export const FROG_GAS_EXPAND_INTERVAL = 1.5;
+export const FROG_GAS_DAMAGE = 3;
 // Base lifetime of the impact tile. Each farther ring expires this much sooner,
 // so the cloud visibly shrinks instead of vanishing all at once.
 export const GAS_CELL_LIFETIME = 8;
@@ -20,11 +24,16 @@ export function exposeToGas(context: GameContext, actor: Entity): void {
   if ((actor.type !== "player" && actor.type !== "enemy") || actor.healthPoints <= 0) return;
   // Poison-immune creatures (e.g. the Deadly Frog) breathe their own gas safely.
   if (actor.poisonImmune) return;
-  if (context.poisonClouds?.some(c => c.x === actor.x && c.y === actor.y && c.expiresAt > now + EPSILON)) {
-    // Gas is airborne: levitation does not protect against it.
+  const cloud = context.poisonClouds?.find(c => c.x === actor.x && c.y === actor.y && c.expiresAt > now + EPSILON);
+  if (cloud) {
+    // Gas is airborne: levitation does not protect against it. Stronger gas
+    // upgrades existing poison without stacking it or postponing its tick.
+    const damage = cloud.source === "frog" ? FROG_GAS_DAMAGE : 1;
     const poison = actor.effects.find(e => e.id === "poisoned");
-    if (poison) poison.duration = Math.max(poison.duration, 2);
-    else applyEffect(actor, createPoisonedEffect(2));
+    if (poison) {
+      poison.duration = Math.max(poison.duration, 2);
+      poison.poisonDamage = Math.max(poison.poisonDamage ?? 1, damage);
+    } else applyEffect(actor, createPoisonedEffect(2, damage));
   }
 }
 
@@ -38,19 +47,21 @@ function gasExpiresAt(birth: number, radius: number): number {
   return birth + GAS_CELL_LIFETIME - radius * GAS_FADE_STEP;
 }
 
-function makeCloud(x: number, y: number, birth: number, radius: number): PoisonCloud {
+function makeCloud(x: number, y: number, birth: number, radius: number, source?: PoisonCloud["source"]): PoisonCloud {
   return {
     x,
     y,
     bornAt: birth,
     expiresAt: gasExpiresAt(birth, radius),
     nextTick: birth + 1,
-    nextExpand: radius < GAS_MAX_RADIUS ? birth + GAS_EXPAND_INTERVAL : Infinity,
-    radius
+    nextExpand: radius < GAS_MAX_RADIUS
+      ? birth + (source === "frog" ? FROG_GAS_EXPAND_INTERVAL : GAS_EXPAND_INTERVAL) : Infinity,
+    radius,
+    source
   };
 }
 
-export function createPoisonGas(context: GameContext, map: number[][], x: number, y: number): number {
+export function createPoisonGas(context: GameContext, map: number[][], x: number, y: number, source?: PoisonCloud["source"]): number {
   const now = context.simulationTime ?? 0;
   if (!isOpen(context, map, x, y)) return 0;
 
@@ -60,9 +71,11 @@ export function createPoisonGas(context: GameContext, map: number[][], x: number
     // Repeated splashes merge: they extend the cloud but never postpone its
     // pulse phase, so exposure damage cannot be deferred forever.
     existing.expiresAt = Math.max(existing.expiresAt, gasExpiresAt(now, 0));
+    // Mixed clouds retain their scheduled expansion but keep the stronger toxin.
+    if (source === "frog") existing.source = source;
   } else {
     if (existing) context.poisonClouds.splice(context.poisonClouds.indexOf(existing), 1);
-    context.poisonClouds.push(makeCloud(x, y, now, 0));
+    context.poisonClouds.push(makeCloud(x, y, now, 0, source));
   }
 
   for (const actor of context.entities) {
@@ -104,9 +117,10 @@ export function tickGas(context: GameContext): void {
         const existing = clouds.find(c => c.x === nx && c.y === ny);
         if (existing) {
           existing.expiresAt = Math.max(existing.expiresAt, gasExpiresAt(now, radius + 1));
+          if (cloud.source === "frog") existing.source = cloud.source;
           continue;
         }
-        clouds.push(makeCloud(nx, ny, now, radius + 1));
+        clouds.push(makeCloud(nx, ny, now, radius + 1, cloud.source));
         newlyCovered.add(`${nx},${ny}`);
       }
       cloud.nextExpand = Infinity;

@@ -23,6 +23,8 @@ export type PoisonCloud = {
   nextExpand?: number;
   radius?: number;
   bornAt?: number;
+  // Omitted for ordinary potion/curse gas and legacy saves.
+  source?: "frog";
 };
 
 // One entry in the shared-tile inspect list: a visible entity or the terrain
@@ -74,7 +76,7 @@ export type GameContext = {
   // Items (or an enemy's loot) that fell into a chasm, keyed by the floor they
   // will land on. The scene fills this queue when the receiving floor is built.
   chasmFallenItems?: Map<number, Entity[]>;
-  onCreatePoisonGas?: (x: number, y: number) => number;
+  onCreatePoisonGas?: (x: number, y: number, source?: PoisonCloud["source"]) => number;
   onGasContact?: (actor: Entity) => void;
   nextTerrainEvent?: () => number;
   onTerrainEvent?: () => void;
