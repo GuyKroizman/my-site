@@ -136,10 +136,14 @@ export class StoreScene extends Phaser.Scene {
           });
         this.icon(item, cx + (cell - 4) / 2, cy + (cell - 4) / 2, Math.min(32, cell - 12));
         this.text(cx + 4, cy + cell - 20, `${sellPrice(item)}g`, 14).setColor(GOLD);
+        if (item.cursed && (item.identified || (item as any).curseScanned)) this.text(cx + 6, cy + 6, '!', 16).setColor('#e69898').setOrigin(0);
         if (item.count > 1) this.text(cx + cell - 8, cy + cell - 8, String(item.count), 16).setOrigin(1);
       });
       const selected = items[this.sellSelected];
-      if (selected) this.text(x + 14, y + mh - 100, `${selected.displayName} · ${sellPrice(selected)}g each`, 20, mw - 28);
+      if (selected) {
+        const cursedMark = selected.cursed && (selected.identified || (selected as any).curseScanned) ? ' (cursed)' : '';
+        this.text(x + 14, y + mh - 100, `${selected.displayName}${cursedMark} · ${sellPrice(selected)}g each`, 20, mw - 28);
+      }
       this.button(x + 14, y + mh - 54, mw - 28, 'Back [Esc]', () => this.back());
       return;
     }
@@ -147,14 +151,21 @@ export class StoreScene extends Phaser.Scene {
     const buying = this.mode === 'buy';
     this.icon(item, x + 40, y + 40, 42);
     this.text(x + 72, y + 14, item.displayName, 23, mw - 86).setColor(GOLD);
+    let ay = y + 44;
+    const cursedVisible = item.cursed && (item.identified || (item as any).curseScanned);
+    if (cursedVisible) {
+      this.text(x + 72, ay, '(cursed)', 18).setColor('#e69898');
+      ay += 22;
+    }
     const description = item.identified
       ? [item.displayDescription, item.strengthDescription(this.context.player!.strength)].filter(Boolean).join('\n')
       : ['You have not identified this item.', item.curseDescription].filter(Boolean).join('\n');
-    const desc = this.text(x + 14, y + 80, description, 19, mw - 28);
+    const descY = Math.max(y + 80, ay);
+    const desc = this.text(x + 14, descY, description, 19, mw - 28);
     // Long descriptions scroll inside the panel instead of covering buttons.
     // Phaser 4 only supports geometry masks in Canvas mode, so the panel window
     // is a crop over the text texture instead: cropY is how far it has scrolled.
-    const maxDescHeight = Math.max(30, mh - 254);
+    const maxDescHeight = Math.max(30, mh - (descY - y) - 174);
     const descWidth = mw - 28;
     let cropY = 0;
     const applyCrop = () => {
@@ -169,7 +180,7 @@ export class StoreScene extends Phaser.Scene {
       cropY = next;
       applyCrop();
     };
-    this.add.rectangle(x + 14, y + 80, descWidth, maxDescHeight, 0x000000, 0).setOrigin(0).setInteractive()
+    this.add.rectangle(x + 14, descY, descWidth, maxDescHeight, 0x000000, 0).setOrigin(0).setInteractive()
       .on('wheel', (_p: unknown, _over: unknown, _dx: number, dy: number) => scroll(dy))
       .on('pointerdown', (p: Phaser.Input.Pointer) => { dragY = p.y; })
       .on('pointermove', (p: Phaser.Input.Pointer) => { if (p.isDown && dragY !== undefined) { scroll(dragY - p.y); dragY = p.y; } })
