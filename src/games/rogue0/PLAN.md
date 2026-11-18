@@ -25,8 +25,10 @@ has been playtested. Checked boxes mean the described implementation exists.
   thrown-weapon damage path; `test-rogue0-thrown-items.mjs` covers weapons,
   legacy damage-bearing non-weapons, consumables and the landing/trap path.
 - Five classes share one innate passive each; per-class active skills were
-  removed. First-tier (passive) class talents are implemented; subclasses and
-  later talent tiers remain future work.
+  removed. First-tier (passive) class talents are implemented as a single
+  two-rank talent per class, shown in a small tab of the Hero panel; subclasses
+  and later talent tiers remain future work. Replacing that tab with a
+  fullscreen, point-spendable **talent tree** is planned (Phase 18).
 - `effects.ts` and `combat.ts` provide timed statuses, accuracy/evasion,
   physical armour, elemental resistance/vulnerability, crits and surprise
   attacks (auto-hit, bonus damage, possible bleed).
@@ -153,24 +155,48 @@ The following snapshot explains the original depth gap:
 
 ## 2. Depth gap analysis
 
-The middle column is the **original baseline**; consult §1 and phase status
-notes for current implementation.
+For each pillar below, the first value is the **original baseline**; consult §1
+and phase status notes for current implementation.
 
-| SPD pillar | Original baseline | Target |
-|---|---|---|
-| Status effects & damage types | none (raw HP) | burning, poison, frost, bleed, cripple, blind, buffs; fire/ice/shock/poison interactions |
-| Item risk (identify/curses) | items known & safe | unidentified potions/scrolls, cursed gear, identify/upgrade scrolls |
-| Equipment progression | damage ranges only | tiers (1–5), upgrade levels, enchantments/glyphs, rings, artifacts, wands |
-| Terrain interactivity | floor/wall | doors (open/closed/secret), traps, grass, water, chasms |
-| Enemy tactical identity | mostly stat diffs | every enemy has a signature ability that changes tactics |
-| Boss design | stat sponge | phases, summons, telegraphed attacks, arena hazards |
-| Build depth | none | subclasses, talents, level-up choices, per-class skills |
-| Survival economy | HP only | hunger/food, gold + shop, item durability/charges |
-| Consumable variety | 2 scrolls, 3 potions | full scroll/potion/seed set + alchemy brewing |
-| Run length & pacing | 3 floors | ~25 floors across themed regions |
-| Replayability | none | seeds, challenges, bestiary, achievements, run stats, save/load |
-| UI & inventory | fixed sidebar, auto-growing inline slot grid, no open/close | bottom HUD (portrait/HP/buffs) + backpack button opening a full inventory window |
-| Graphics & art | 16×16 Kenney sheet, magic-number tile lookups, missing/wrong sprites | cohesive 16×16 custom set (generated), named texture keys, crisp at zoom |
+- **Status effects & damage types**
+  - Original baseline: none (raw HP)
+  - Target: burning, poison, frost, bleed, cripple, blind, buffs; fire/ice/shock/poison interactions
+- **Item risk (identify/curses)**
+  - Original baseline: items known & safe
+  - Target: unidentified potions/scrolls, cursed gear, identify/upgrade scrolls
+- **Equipment progression**
+  - Original baseline: damage ranges only
+  - Target: tiers (1–5), upgrade levels, enchantments/glyphs, rings, artifacts, wands
+- **Terrain interactivity**
+  - Original baseline: floor/wall
+  - Target: doors (open/closed/secret), traps, grass, water, chasms
+- **Enemy tactical identity**
+  - Original baseline: mostly stat diffs
+  - Target: every enemy has a signature ability that changes tactics
+- **Boss design**
+  - Original baseline: stat sponge
+  - Target: phases, summons, telegraphed attacks, arena hazards
+- **Build depth**
+  - Original baseline: none
+  - Target: subclasses, talents, level-up choices, per-class skills
+- **Survival economy**
+  - Original baseline: HP only
+  - Target: hunger/food, gold + shop, item durability/charges
+- **Consumable variety**
+  - Original baseline: 2 scrolls, 3 potions
+  - Target: full scroll/potion/seed set + alchemy brewing
+- **Run length & pacing**
+  - Original baseline: 3 floors
+  - Target: ~25 floors across themed regions
+- **Replayability**
+  - Original baseline: none
+  - Target: seeds, challenges, bestiary, achievements, run stats, save/load
+- **UI & inventory**
+  - Original baseline: fixed sidebar, auto-growing inline slot grid, no open/close
+  - Target: bottom HUD (portrait/HP/buffs) + backpack button opening a full inventory window
+- **Graphics & art**
+  - Original baseline: 16×16 Kenney sheet, magic-number tile lookups, missing/wrong sprites
+  - Target: cohesive 16×16 custom set (generated), named texture keys, crisp at zoom
 
 ## 3. Guiding principles
 
@@ -468,29 +494,53 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
 
   *Weapon curses (SPD → rogue0):*
 
-  | Curse | SPD behaviour | rogue0 mapping |
-  |---|---|---|
-  | Wayward | attacks often miss | equipped weapon halves `effectiveAccuracy` — **implemented** |
-  | Sacrificial | you pay for each hit | hero takes ~25% of the damage dealt — **implemented** |
-  | Displacing | struck enemy is flung away | teleport the victim via `randomWalkableTile` (reuse the teleport-trap helper) — **implemented** |
-  | Annoying | strikes draw enemies | wake living enemies within 8 tiles to investigate (reuse the alarm-trap helper) — **implemented** |
-  | Polarized | wildly random damage | damage ×0.5–×1.5 each hit — **implemented** |
-  | Exhausting | you tire yourself | chance to apply `crippled` to the hero — **implemented** |
+  - **Wayward**
+    - SPD: attacks often miss
+    - rogue0 mapping: equipped weapon halves `effectiveAccuracy` — **implemented**
+  - **Sacrificial**
+    - SPD: you pay for each hit
+    - rogue0 mapping: hero takes ~25% of the damage dealt — **implemented**
+  - **Displacing**
+    - SPD: struck enemy is flung away
+    - rogue0 mapping: teleport the victim via `randomWalkableTile` (reuse the teleport-trap helper) — **implemented**
+  - **Annoying**
+    - SPD: strikes draw enemies
+    - rogue0 mapping: wake living enemies within 8 tiles to investigate (reuse the alarm-trap helper) — **implemented**
+  - **Polarized**
+    - SPD: wildly random damage
+    - rogue0 mapping: damage ×0.5–×1.5 each hit — **implemented**
+  - **Exhausting**
+    - SPD: you tire yourself
+    - rogue0 mapping: chance to apply `crippled` to the hero — **implemented**
 
   Friendly was removed: its enemy-only charm helped the player. Existing saved items with this curse are cleansed on load.
 
   *Armor curses (SPD → rogue0):*
 
-  | Curse | SPD behaviour | rogue0 mapping |
-  |---|---|---|
-  | Multiplicity | hit → an image of you appears | spawn a friendly mirror-image decoy that enemies may target (new decoy entity) — **implemented** |
-  | Displacement | hit → you teleport | teleport the hero via `randomWalkableTile` (reuse the teleport-trap helper) — **implemented** |
-  | Anti-entropy | thermal chaos | chance to ignite the hero and freeze cardinally adjacent enemies — **implemented** |
-  | Corrosion | caustic gas on hit | splash the wearer with caustic ooze (`poisoned`) — **implemented** |
-  | Stench | toxic gas on hit | emit the existing toxic-gas cloud (reuse `gas.ts` as-is) — **implemented** |
-  | Overgrowth | grass sprouts around you | grow grass on the hero's tile and cardinal neighbours — **implemented** |
-  | Metabolism | you hunger faster | double hunger drain while worn — **implemented** |
-  | Bulk | you are slowed | apply the existing movement slow while worn — **implemented** |
+  - **Multiplicity**
+    - SPD: hit → an image of you appears
+    - rogue0 mapping: spawn a friendly mirror-image decoy that enemies may target (new decoy entity) — **implemented**
+  - **Displacement**
+    - SPD: hit → you teleport
+    - rogue0 mapping: teleport the hero via `randomWalkableTile` (reuse the teleport-trap helper) — **implemented**
+  - **Anti-entropy**
+    - SPD: thermal chaos
+    - rogue0 mapping: chance to ignite the hero and freeze cardinally adjacent enemies — **implemented**
+  - **Corrosion**
+    - SPD: caustic gas on hit
+    - rogue0 mapping: splash the wearer with caustic ooze (`poisoned`) — **implemented**
+  - **Stench**
+    - SPD: toxic gas on hit
+    - rogue0 mapping: emit the existing toxic-gas cloud (reuse `gas.ts` as-is) — **implemented**
+  - **Overgrowth**
+    - SPD: grass sprouts around you
+    - rogue0 mapping: grow grass on the hero's tile and cardinal neighbours — **implemented**
+  - **Metabolism**
+    - SPD: you hunger faster
+    - rogue0 mapping: double hunger drain while worn — **implemented**
+  - **Bulk**
+    - SPD: you are slowed
+    - rogue0 mapping: apply the existing movement slow while worn — **implemented**
 
   *Ring curses (SPD):* cursed rings **invert** their passive — Might →
   `-Strength`, Haste → slower movement, Accuracy → `-accuracy`, Evasion →
@@ -784,11 +834,15 @@ swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅, Deadly
 - [ ] Subclasses / specialisations (e.g. Warrior → Gladiator/Berserker,
       Dwarf → Vanguard/Siegebreaker, Cleric → Warden/Sun, Elf → Sniper/Ranger,
       Wizard → Pyro/Storm).
-- [x] First-tier class talent points: one point at levels 2, 3 and 4; two
-      class-specific talents with two ranks each. Three points cannot max both.
-      Hero panel → Talents shows descriptions, ranks and available points;
-      tap to spend permanently without consuming world time. Points can be saved.
-- [ ] Later talent unlock bands and subclasses.
+- [x] First-tier class talent points: one class-specific talent per class with
+      two ranks (`CLASS_TALENTS` in `classes/basicHero.ts`); the current derived
+      rule is `min(2, level - 1) - spent`, so only two ranks are ever spendable.
+      Hero panel → Talents shows the description, rank and available points;
+      tap to spend permanently without consuming world time. Ranks persist in
+      saves. The full tree of branches, prerequisites and a real point economy
+      is Phase 18, which will replace this tab (see below).
+- [ ] Later talent unlock bands and subclasses (Phase 18 builds the tree UI and
+      a first set of branches; subclasses stay separate).
 - [x] Define initial XP thresholds and level-based HP/combat scaling: retain
       `8 × current level` XP per next level (excess carries over), +5 max HP
       and +1 base ATK per level, without healing on level-up. Strength remains
@@ -799,19 +853,18 @@ swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅, Deadly
 
 Each bonus below is **per rank** (maximum 2):
 
-| Class | Talent |
-|---|---|
-| Warrior | Deep Fury: +1 damage at/below half HP |
-| Dwarf | Iron Skin: +1 physical armor |
-| Cleric | Greater Mending: +1 HP regenerated each turn |
-| Elf | Light Footwork: +5 evasion before armor penalties |
-| Wizard | Focused Mastery: +1 fire/shock/magic damage |
+- **Warrior** — Deep Fury: +1 damage at/below half HP
+- **Dwarf** — Iron Skin: +1 physical armor
+- **Cleric** — Greater Mending: +1 HP regenerated each turn
+- **Elf** — Light Footwork: +5 evasion before armor penalties
+- **Wizard** — Focused Mastery: +1 fire/shock/magic damage
 
-Talent capacity equals the number of ranks available to the class, so points
-never pile up unspendable. Other equipment, Strength and XP tracks are
+Talent capacity currently equals the number of ranks available to the class,
+so points never pile up unspendable. Other equipment, Strength and XP tracks are
 unchanged. `scripts/test-rogue0-talents.mjs` covers awards (including
 multi-level gains), rank/point/class guards, each passive bonus and Hero-panel
-actions.
+actions. These five nodes are the **tier-1 roots** of the Phase 18 tree; keep
+their ids (`fury`, `armor`, `mending`, `grace`, `mastery`) as stable wire ids.
 Visual verification and full-run/five-class balance playtesting remain deferred.
 
 - [ ] Per-class active skill with a cooldown — removed from the game (see
@@ -1118,10 +1171,255 @@ any inventory.
       inventory are pinned; **map layout is not** (see the determinism note in
       §7). Ascending from a mid-run start is out of scope.
 - **Acceptance:** from a cold page load, one click and a few form fields
-      produce e.g. “floor 12, Dwarf, level 5, two Potions of Frost, 4 goblins,
-      nothing else” and the run plays normally from there; clearing the floor
+      produce e.g. "floor 12, Dwarf, level 5, two Potions of Frost, 4 goblins,
+      nothing else" and the run plays normally from there; clearing the floor
       does not spawn a reinforcement wave; the same scenario can be re-run
       after a reload.
+
+### Phase 18 — Fullscreen talent tree
+*Depends on Phase 9's talent data and the modal conventions from G8/Phase 15; planned, not implemented.*
+
+**Problem.** Talents are currently a 320×360 tab inside the Hero modal, with one
+two-rank talent per class and a point total derived from level (`min(2, level -
+1) - spent`). That is a single decision, capped by level 3, not a tree; the
+"Talent point earned!" log at levels 2–4 even promises more points than the
+formula can spend. The store already establishes the right pattern for a screen
+that genuinely stops the run: its own scene, the dungeon scene paused, and the
+HUD scene asleep.
+
+**Current state (source-audited; no code changes in this phase yet).**
+
+- `src/games/rogue0/ui.ts` builds the Hero modal (`buildHeroModal`,
+  `toggleHeroModal`, `updateHeroModal`): a `showingTalents` tab, exactly two
+  hard-coded `talentRows`, viewport scaling via `heroScale`, and a backdrop. It
+  gates input through `isModalOpen()`; it does **not** stop scene 0's update or
+  sleep the HUD. The portrait button in `buildToolbar` is the only entry.
+- `classes/basicHero.ts` holds `CLASS_TALENTS` (five classes × one node),
+  `MAX_TALENT_RANK = 2`, `talentRanks`, the derived `talentPoints` getter and
+  `learnTalent()`; `gainXp()` logs point awards at levels ≤ 4. Bonuses are read
+  back through `attack()`, `protection()`, `effectiveEvasion` and `refresh()`.
+- `context.ts` has `heroModalOpen` and `isModalOpen()`, but no talent-scene
+  flag. `config.ts` registers only `Scene0` and `StoreScene`.
+- `scene0.ts` `tryStoreDoor()` is the pause template: save checkpoint, clear
+  input/cursor state, set the flag, `scene.sleep('ui-scene')`,
+  `scene.launch(...)`, `scene.bringToTop(...)`, `scene.pause()`. `StoreScene`
+  reverses it on exit and clears the flag in its `shutdown` handler;
+  `Rogue0.tsx` hides the DOM game menu while `storeOpen` is set.
+- `store/storeLayout.ts` plus `scripts/test-rogue0-store-layout.mjs` show the
+  tested responsive pattern: one pure layout function, an aspect-ratio mode
+  switch, contain-never-cover scaling, screen-space buttons and inverse hit
+  tests. `STORE.md` documents the scene stack.
+- `scenario.ts` authors ranks by calling `learnTalent()`; saves carry
+  `talentRanks` in the hero object graph (no separate field today).
+
+**Goals.** (1) A fullscreen talent screen opened from existing UI, with the same
+hard pause as the store. (2) A real per-class tree with branches, prerequisites
+and meaningful point scarcity. (3) A point source that is explicit, saveable
+and extensible. (4) Readable, reachable on both desktop and a phone in portrait
+or landscape. **Non-goals:** respecing/refunds, subclasses, new art, new combat
+systems, and auto-opening the screen on level-up.
+
+#### 1. Scene stack and pause semantics
+
+- [ ] New scene `talent-scene` in
+      `src/games/rogue0/talents/TalentScene.ts`, registered with
+      `active: false` in `config.ts` beside `StoreScene`. It owns its own
+      camera, an opaque background and all input; it never builds a tilemap or
+      touches the dungeon.
+- [ ] Add `talentTreeOpen?: boolean` and
+      `onTalentTreeOpenChange?: (open: boolean) => void` to `GameContext`, and
+      include the flag in `isModalOpen()`. `Rogue0.tsx` mirrors `storeOpen`:
+      hide the DOM game menu while the tree is open.
+- [ ] Entry paths: the Hero modal's **Talents** tab becomes an **Open talent
+      tree (n)** button (close the Hero modal first), and a `t` hotkey opens it
+      directly from play (`t` is currently unused by hero input). Reject entry
+      when another modal is open, the hero is dead, a fall/trap-arrow is
+      pending, or an actor is moving — the same guards as `tryStoreDoor()`.
+      Spending a rank must never call `spendTurn()`.
+- [ ] Open exactly like the store: `saveNow()`, clear `inputBuffer`/`walkPath`
+      and cursor/throw modes, set the flag, sleep `ui-scene`, launch +
+      `bringToTop('talent-scene')`, then `scene.pause()` scene 0. This is the
+      "stop the game" requirement: no scheduler ticks, hunger, regeneration,
+      effect durations, monster moves, autosaves or animations advance. Input
+      gating alone (`isModalOpen`) is *not* sufficient.
+- [ ] Close with `Escape`, a large **Close** button, or a tap outside the tree
+      panel: `saveNow()`, clear the flag, wake `ui-scene`, resume scene 0, stop
+      the scene. Its `shutdown` handler clears `context.talentTreeOpen` and
+      calls `onTalentTreeOpenChange(false)` so a destroyed game cannot leave a
+      stale modal flag. The Hero modal stays closed on return.
+- [ ] Both scenes' keyboard listeners check their own open flag and call
+      `preventDefault()`, so HUD/map hotkeys cannot fire underneath the tree.
+
+#### 2. Data model and point economy
+
+- [ ] New pure module `talents/talentTree.ts` (no Phaser): `TalentNode = {
+      id, name, description, maxRank, tier, requires: string[], minLevel }`,
+      `TALENT_TREE: Record<HeroClassName, TalentNode[]>` and lookup helpers
+      (`nodeById`, `prerequisitesFor`, `isUnlocked`, `rankCost`). Node ids are
+      stable wire ids; the five existing ids (`fury`, `armor`, `mending`,
+      `grace`, `mastery`) stay as tier-1 roots, and `CLASS_TALENTS` becomes a
+      compatibility view of those roots so current callers keep working.
+- [ ] Store ranks in the existing `talentRanks: Record<string, number>`. Add an
+      explicit `talentPointsEarned: number` on `BasicHero`; spendable points are
+      `talentPointsEarned - sum(ranks)`. `learnTalent(id)` additionally checks
+      `isUnlocked` (prerequisites and tier gate), and re-computes derived stats
+      through the existing getters — no direct mutation of attack/armor/evasion.
+- [ ] Replace the derived point getter with a single `awardTalentPoint(source)`
+      path called from `gainXp()`. Log the source ("Talent point earned! …")
+      once per award, and update the stale level-2–4 wording.
+
+  - **XP / level** — **v1 source:** 1 point per level, earned from level 2 (`earned = level - 1`). Predictable, rewards the core loop, and tracks the 25-floor arc (expected levels 1/5/9/12/16/19 at floors 1/5/10/15/20/25 → ~0/4/8/11/15/18 points).
+  - **Region milestones (floors 6/11/16/21)** — Optional later. Guarantees pacing if level curves change; would need a save flag per milestone. Not in v1.
+  - **Phase 12 quest rewards** — Optional later: one point as a quest reward choice. Fits branching goals but depends on an unbuilt phase.
+  - **Gold / consumables / store** — Rejected. Buying build power would turn progression into a resource purchase and undermine the XP track.
+
+  Keeping `awardTalentPoint(source)` central means the optional sources above
+  can be added later without touching the tree or the UI.
+- [ ] Save compatibility: old saves have ranks but no earned counter. On load,
+      `talentPointsEarned = max(sum(talentRanks), level - 1)` so ranks are kept
+      and the new entitlement is granted without double-counting; new saves
+      persist the counter. Retire unknown/removed node ids on load the same way
+      retired curse ids are cleansed, instead of letting them inflate `spent`.
+- [ ] Scenario harness: authored ranks must bypass the point gate (set the
+      earned counter to at least the authored rank sum) so a level-1 scenario
+      can still carry a ranked tree, matching today's `applyScenarioHero`.
+- [ ] Balance guard: with one point per level, total tree capacity (~18 ranks,
+      below) exceeds a typical mid-run budget, so points are scarce for most of
+      the run; leftover points at the final level are acceptable. If maxing
+      everything proves too strong, tune point cadence or node ranks — not the
+      prerequisite structure — in a later balance pass.
+
+#### 3. Tree content (initial proposal)
+
+- [ ] Shape: three branches per class, each with tier 1 (level 2), tier 2
+      (level 5, requires ≥1 rank in its tier-1 parent) and tier 3 (level 9,
+      requires ≥1 rank in its tier-2 parent). Ranks 2/2/2 per branch → 18 ranks
+      per class. Partial ranks unlock the next tier so points can spread; no
+      prerequisite ever needs a maxed parent.
+- [ ] v1 bonuses stick to hooks that already exist: `maxHealthPoints`,
+      `protection()`, `effectiveEvasion`, `refresh()` regeneration, the
+      Warrior/Wizard low-HP and typed-damage additions in `attack()`,
+      Strength-deficit and hunger math. Bonuses needing new hooks (wand
+      recharge rate, hunger-drain multiplier, crit chance) are deferred so the
+      tree does not also become a combat refactor.
+- [ ] Keep the five current nodes as the tier-1 roots of their class. Branch
+      themes for the first tree:
+
+  - **Warrior**
+    - Branch A (root): Fury — Deep Fury
+    - Branch B: Guard — HP / armor / low-HP regen
+    - Branch C: Momentum — attack speed / push resistance
+  - **Dwarf**
+    - Branch A (root): Fortress — Iron Skin
+    - Branch B: Demolition — weapon damage / tier penalties
+    - Branch C: Thrift — hunger / upgrade value
+  - **Cleric**
+    - Branch A (root): Mending — Greater Mending
+    - Branch B: Light — magic damage / blind resistance
+    - Branch C: Ward — elemental resistance / blessing
+  - **Elf**
+    - Branch A (root): Footwork — Light Footwork
+    - Branch B: Marksman — accuracy / ranged damage
+    - Branch C: Wilderness — evasion in grass / poison resistance
+  - **Wizard**
+    - Branch A (root): Mastery — Focused Mastery
+    - Branch B: Arcana — wand damage / charges
+    - Branch C: Control — freeze / teleport utility
+
+- [ ] Worked example (Warrior, to fix the data shape; other classes follow the
+      same structure):
+
+  - **Fury**
+    - Tier 1 · level 2: Deep Fury (existing): +1 damage at ≤½ HP / rank, max 2
+    - Tier 2 · level 5: Bloodletter: +1 damage vs bleeding or poisoned targets / rank, max 2
+    - Tier 3 · level 9: Sustained Rage: +1 HP regen per turn while ≤½ HP / rank, max 2
+  - **Guard**
+    - Tier 1 · level 2: Iron Resolve: +3 max HP / rank, max 2
+    - Tier 2 · level 5: Bulwark: +1 physical armor / rank, max 2
+    - Tier 3 · level 9: Second Wind: +2 HP regen per turn while hungry / rank, max 2
+  - **Momentum**
+    - Tier 1 · level 2: Quickstep: +2 evasion / rank, max 2
+    - Tier 2 · level 5: Relentless: −10% weapon delay / rank, max 2
+    - Tier 3 · level 9: Unyielding: +1 armor while crippled or chilled / rank, max 2
+
+  Names and numbers here are a proposal for implementation, not balance-tested
+  facts; the acceptance criterion is that two runs of one class diverge, not
+  that these exact values are final.
+
+#### 4. Layout — computer and phone
+
+- [ ] Pure `talents/talentTreeLayout.ts`, modelled on `storeLayout`: invalid
+      viewport throws `RangeError`; `mode = wide` when `viewW / viewH >= 1.2`,
+      otherwise `narrow`; contain-never-cover scaling; exported helpers for
+      node rects, connector endpoints and hit testing so layout is testable in
+      node without Phaser.
+- [ ] **Desktop / landscape (wide):** centred panel at most
+      `min(w - 32, 960) × min(h - 32, 720)`. Three columns (tiers) × three rows
+      (branches) of ~200×90 px cards; prerequisite links drawn with
+      `Graphics.lineBetween`. A detail pane on the right (≥240 px) shows the
+      selected node's full description, next-rank preview, lock reason and
+      **Rank up (1 point)** button. Hover selects; arrow keys move selection;
+      Enter/Space ranks up; Escape closes. Keep a 12 px safe margin and clamp
+      font sizes with the layout scale.
+- [ ] **Phone portrait (narrow):** single tier-per-row column, cards ≥44 px
+      tall, drag/wheel scrolling of the tree region, detail pane pinned to the
+      bottom (≤35% of viewport height) with large **Rank up** and **Close**
+      buttons. No horizontal scrolling and no clipped labels. Phaser 4's WebGL
+      `setMask` is a no-op here, so scroll/clip with `setCrop` (as the store's
+      item detail and the message strip already do).
+- [ ] **Phone landscape / small laptop:** aspect ≥1.2 still uses wide mode, but
+      cap scale by height as the store does; if the detail pane cannot fit
+      beside the tree, move it below without covering nodes.
+- [ ] Test viewport matrix (mirroring `test-rogue0-store-layout.mjs`):
+      `[1920,1080], [1280,720], [800,400], [390,844], [360,640], [320,240]`.
+      Assert every node and both buttons stay inside the viewport, narrow-mode
+      touch targets meet the minimum, and inverse hit testing maps each node's
+      centre back to its id.
+- [ ] No new art dependency: panels, connector lines and rank pips are drawn
+      shapes plus the already-loaded VT323/Press Start 2P fonts; node icons can
+      reuse existing generated status/item textures. A dedicated art pass is
+      optional and separate.
+
+#### 5. Feedback, saves and docs
+
+- [ ] Locked nodes are visibly dimmed and name their requirement
+      ("Requires Deep Fury 1" / "Unlocks at level 5"); capped nodes show maxed
+      pips; unavailable Rank up shows why (no points, locked, maxed).
+- [ ] Do **not** auto-open on level-up: it would interrupt combat and force a
+      stop mid-fight. Instead keep the level-up log line, add a point badge to
+      the Hero portrait/tab when points are unspent, and let the player open
+      the tree when safe. This is a deliberate choice, not an omission.
+- [ ] Learning a rank logs `Learned <name> (r/max)` as today and saves; no
+      confirmation dialog is needed for a reversible-in-spirit UI action, but
+      respecing stays out of scope and must not be implied by the copy.
+- [ ] Update the stale docs during implementation: the **Talents** help page in
+      `src/pages/Rogue0.tsx` (currently "Blood Fury … one passive talent") and
+      the `README.md` line saying talents are not implemented, plus this
+      PLAN.md's Phase 9 checkboxes once the tree replaces the tab.
+
+#### 6. Tests and acceptance
+
+- [ ] New headless suite `scripts/test-rogue0-talent-tree.mjs` added to
+      `npm run test:rogue0`: tree integrity (unique ids, acyclic prerequisites,
+      tier gates), award/spend rules, no time consumed (`simulationTime` and
+      `spentTurn` unchanged), save/load round-trip and legacy-save migration,
+      scenario ranks, pure layout for the viewport matrix above, and a source
+      audit that `config.ts` registers the scene and the open/close paths pause
+      and sleep exactly like the store. Extend `scripts/test-rogue0-talents.mjs`
+      for the new unlock/point rules rather than deleting its existing bonus
+      coverage.
+- [ ] Follow the test-reporting rules in `AGENTS.md`: focused runs while
+      developing, a full `npm run test:rogue0` before completion, and record
+      any failure's cause/resolution in the history (game bug vs test bug vs
+      environment) instead of hiding it.
+
+- **Acceptance:** tapping the portrait → **Open talent tree** (or `t`) shows a
+  fullscreen tree on desktop and phone; the dungeon, monsters, hunger, effects
+  and scheduler are frozen while it is open (verified by unchanged
+  `simulationTime` across frames), and closing returns to the identical state
+  without spending a turn. Points come from levels through one central award
+  path, ranks obey prerequisites and caps, saves/scenarios preserve them, and
+  two runs of the same class can diverge meaningfully by floor 5.
 
 ---
 
@@ -1137,7 +1435,12 @@ at user request.
 (`src/components/rogue0/ScenarioSetupPanel.tsx`) plus `scenario.ts` and the
 scene apply step: floor, hero loadout, exact inventory and monster set in one
 click. Use it to hand-test every priority below instead of grinding to a floor.
-1. **Shoe revival and the remaining gold sink (Phase 10).** Portal stores are
+1. **Fullscreen talent tree (Phase 18) — planned.** Replace the Hero panel's
+   Talents tab with a dedicated fullscreen scene that pauses the dungeon like
+   the store, and grow the single rankable talent per class into a three-branch
+   tree with prerequisites. Points come from levels through one explicit award
+   path; layout must work on desktop and phone. Full specification in Phase 18.
+2. **Shoe revival and the remaining gold sink (Phase 10).** Portal stores are
 implemented on floors **6, 11, 16, and 21** with buy/sell, persistent stock and
 floor-scaled gear (see **`STORE.md`**); gold now has a sink, but revival does
 not yet exist. Replace the planned Ankh with **Shoe** revival (planned, see
@@ -1154,18 +1457,19 @@ on the last dropped placement (thrown potions shatter) with an animation that
 transforms the Shoe and consumes the four potions — and revives with backpack
 and memory retained. Concrete store price/rarity/row and the dropped-container
 entity/UX remain implementation details to finalize against the spec.
-2. **Finish Phase 8 signatures.** Remaining: monsters avoiding burning terrain,
+3. **Finish Phase 8 signatures.** Remaining: monsters avoiding burning terrain,
    then Quloptsh concealment/backstab and ghoul lifesteal. Boss redesign
    (multi-phase Bone Lord) stays deferred.
-3. **Phase 9 build breadth:** later talent bands, then subclasses. First-tier
-talents already give a real level-up choice.
-4. **Phase 14 region identity:** per-region enemy/trap sets and scaling on top
+4. **Phase 9 build breadth after Phase 18:** the tree supplies later unlock
+   bands; subclasses remain a separate, later step. First-tier talents already
+   give a real level-up choice.
+5. **Phase 14 region identity:** per-region enemy/trap sets and scaling on top
 of the five existing palettes. Today difficulty scales by floor number, not by
 region, so floors 5→6 and 10→11 feel the same apart from colour.
-5. **Phase 13 meta** (seeds, challenges, bestiary, run stats, achievements) and
+6. **Phase 13 meta** (seeds, challenges, bestiary, run stats, achievements) and
 the remaining Phase 15 polish (backpack quick-key paging, Inspect action,
 small-screen verification).
-6. **Phase 12 NPCs** last. Phase 16's atlas removal is done; what remains there
+7. **Phase 12 NPCs** last. Phase 16's atlas removal is done; what remains there
 is class-specific hero art and a palette pass, neither of which affects depth.
 
 ### Original dependency order (reference)
@@ -1241,6 +1545,21 @@ is class-specific hero art and a palette pass, neither of which affects depth.
   base, not `lootTier`'s random ±1 roll); `equip` goes through `equipItem` (so
   `onEquip` and capacity rules still apply) and `cursed` is opt-in. Purpose:
   reproduce one situation, not sample the loot table.
+- **The talent tree is a fullscreen scene that stops the run (Phase 18).** Copy
+  the store's scene stack — pause scene 0, sleep `ui-scene`, own the input,
+  clear the flag on shutdown — rather than layering another modal over the HUD.
+  The Hero panel keeps stats and links into the tree; it no longer owns talent
+  selection.
+- **Talent points come from XP/level in v1**, one per level from level 2, via a
+  single `awardTalentPoint(source)` path and an explicit saved counter. Region
+  milestones and quest rewards are optional future sources; gold/store and
+  consumable purchases are rejected. Do not reintroduce the old derived
+  `min(2, level - 1)` cap once the tree exists.
+- **Talent tree layout is tested on desktop and phone before implementation is
+  called done.** One pure layout function with wide/narrow modes, ≥44px touch
+  targets on phones, `setCrop` instead of WebGL masks, and the store's viewport
+  matrix. Do not auto-open on level-up: the player opens the tree when it is
+  safe, and the stop is real once they do.
 - **Out of scope by decision:** goblin archers do **not** kite/retreat, wraiths
   do **not** phase through walls, and monsters do **not** call allies. Do not
   re-propose these or implement them as extras.

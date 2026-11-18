@@ -4,6 +4,7 @@ import type { Entity } from '../entity';
 import { buyShopItem, purchaseFailure, sellableItems, sellShopItem, type ShopResult } from './shopModel';
 import { sellPrice } from './shopPricing';
 import { artToScreen, moveSelection, shelfSlots, storeLayout } from './storeLayout';
+import { buttonLabel, isTouchFirstDevice } from '../uiLabels';
 
 const FONT = 'VT323, monospace';
 const GOLD = '#f0c477';
@@ -88,13 +89,15 @@ export class StoreScene extends Phaser.Scene {
     this.text(w / 2, toolbarY - 25, `STORE  ·  ${this.context.player!.gold} gold`, 23).setOrigin(0.5, 0).setColor(GOLD);
     const bw = (panelW - 16) / 3;
     const short = bw < 120;
-    this.button(left, toolbarY, bw, short ? 'Sell' : 'Sell [S]', () => this.openSell());
-    this.button(left + bw + 8, toolbarY, bw, short ? 'View' : 'View [Enter]', () => this.openBuy());
-    this.button(left + 2 * (bw + 8), toolbarY, bw, short ? 'Leave' : 'Leave [Q]', () => this.leave());
+    this.button(left, toolbarY, bw, short ? 'Sell' : buttonLabel('Sell [S]'), () => this.openSell());
+    this.button(left + bw + 8, toolbarY, bw, short ? 'View' : buttonLabel('View [Enter]'), () => this.openBuy());
+    this.button(left + 2 * (bw + 8), toolbarY, bw, short ? 'Leave' : buttonLabel('Leave [Q]'), () => this.leave());
     this.text(left, toolbarY + 50, this.message, 18, panelW);
-    // Large screen-space navigation is also available on touch devices whose
-    // downscaled shelf bands are shorter than 44px (no overlapping hit boxes).
-    if (layout.mode === 'stacked') {
+    // On a narrow keyboard layout, large arrow buttons make shelf selection
+    // possible when the downscaled bands are shorter than a comfortable target.
+    // On a phone the shelves are tapped directly (a tap selects and opens the
+    // item), so these arrows would only clutter the screen.
+    if (layout.mode === 'stacked' && !isTouchFirstDevice()) {
       const y = Math.max(toolbarY + 110, layout.offsetY + 338 * layout.scale + 16);
       const labels = ['←', '↑', '↓', '→'];
       const dirs = [[-1, 0], [0, -1], [0, 1], [1, 0]];
@@ -144,7 +147,7 @@ export class StoreScene extends Phaser.Scene {
         const cursedMark = selected.cursed && (selected.identified || (selected as any).curseScanned) ? ' (cursed)' : '';
         this.text(x + 14, y + mh - 100, `${selected.displayName}${cursedMark} · ${sellPrice(selected)}g each`, 20, mw - 28);
       }
-      this.button(x + 14, y + mh - 54, mw - 28, 'Back [Esc]', () => this.back());
+      this.button(x + 14, y + mh - 54, mw - 28, buttonLabel('Back [Esc]'), () => this.back());
       return;
     }
     const item = this.detail!;
@@ -190,9 +193,9 @@ export class StoreScene extends Phaser.Scene {
     this.text(x + 14, y + mh - 166, `${price} gold each · Wallet: ${this.context.player!.gold}g`, 22, mw - 28).setColor(GOLD);
     if (reason) this.text(x + 14, y + mh - 140, reason.replace(/-/g, ' '), 18, mw - 28).setColor('#e69898');
     this.button(x + 14, y + mh - 110, buying ? mw - 28 : (mw - 36) / 2,
-      buying ? 'Buy [Enter]' : 'Sell 1 [Enter]', () => this.trade(1), !reason);
-    if (!buying) this.button(x + mw / 2 + 4, y + mh - 110, (mw - 36) / 2, `Sell all [A]`, () => this.trade(item.count));
-    this.button(x + 14, y + mh - 54, mw - 28, 'Back [Esc]', () => this.back());
+      buttonLabel(buying ? 'Buy [Enter]' : 'Sell 1 [Enter]'), () => this.trade(1), !reason);
+    if (!buying) this.button(x + mw / 2 + 4, y + mh - 110, (mw - 36) / 2, buttonLabel('Sell all [A]'), () => this.trade(item.count));
+    this.button(x + 14, y + mh - 54, mw - 28, buttonLabel('Back [Esc]'), () => this.back());
   }
 
   private trade(quantity: number): void {

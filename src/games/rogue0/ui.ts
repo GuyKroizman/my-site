@@ -17,6 +17,7 @@ import {
 } from './statusIconTextures';
 import { LOG_STRIP_GAP, LOG_STRIP_HEIGHT, statusIconLayout } from './statusHudLayout';
 import { MonsterInspectStatuses } from './monsterInspectStatuses';
+import { buttonLabel } from './uiLabels';
 
 // Slots are cheap and effects are capped in practice, but leave headroom so a
 // heavily buffed hero still shows every status.
@@ -232,14 +233,14 @@ export class UI extends Phaser.Scene {
       g.strokeCircle(0, 0, 7);
       g.lineBetween(0, 0, 0, -4);
       g.lineBetween(0, 0, 4, 2);
-    }, "Wait  [Space]"));
+    }, buttonLabel("Wait  [Space]")));
 
     // One tap targets inspection; a second tap on this button searches.
     this.toolbar.push(this.makeButton(() => this.context.player?.inspectOrSearch(), (g) => {
       g.lineStyle(2, iconColor, 1);
       g.strokeCircle(0, 0, 6);
       g.lineBetween(4, 4, 10, 10);
-    }, "Inspect  [x] · Search  [s]"));
+    }, buttonLabel("Inspect  [x] · Search  [s]")));
 
     // Backpack.
     this.toolbar.push(this.makeButton(() => {
@@ -249,7 +250,7 @@ export class UI extends Phaser.Scene {
       g.lineStyle(2, iconColor, 1);
       g.strokeRect(-6, -3, 12, 9);
       g.strokeCircle(0, -4, 2);
-    }, "Backpack  [b]"));
+    }, buttonLabel("Backpack  [b]")));
 
   }
 
