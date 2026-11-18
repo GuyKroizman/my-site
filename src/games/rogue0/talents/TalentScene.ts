@@ -79,11 +79,11 @@ export class TalentScene extends Phaser.Scene {
     });
   }
 
-  private button(rect: Rect, label: string, action: () => void, enabled = true): void {
+  private button(rect: Rect, label: string, action: () => void, enabled = true, fontSize?: number): void {
     const bg = this.add.rectangle(rect.x, rect.y, rect.width, rect.height, 0x302432)
       .setOrigin(0).setStrokeStyle(1, enabled ? 0xb29061 : 0x514752);
     this.text(rect.x + rect.width / 2, rect.y + rect.height / 2, label,
-      Math.max(13, Math.min(22, rect.height * 0.42))).setOrigin(0.5)
+      fontSize ?? Math.max(13, Math.min(22, rect.height * 0.42))).setOrigin(0.5)
       .setColor(enabled ? GOLD : DIM);
     if (enabled) bg.setInteractive({ useHandCursor: true }).on('pointerup', action);
   }
@@ -259,11 +259,11 @@ export class TalentScene extends Phaser.Scene {
       const entry = nodes[this.selected];
       const rank = player.talentRank(entry.id);
       const unlocked = isTalentUnlocked(entry, ranks, player.level);
-      const bodySize = Math.max(14, Math.min(26,
-        Math.min(22 * Math.min(1.6, layout.scale), m.height * 0.09)));
+      const bodySize = Math.max(18, Math.min(34,
+        Math.min(30 * Math.min(1.6, layout.scale), m.height * 0.12)));
       let y = m.y + 14;
       this.drawIcon(modalIcons, entry.bonus?.kind, m.x + 16, y + 2, bodySize * 1.8);
-      this.text(m.x + 20 + bodySize * 1.8, y, entry.name, bodySize + 4,
+      this.text(m.x + 20 + bodySize * 1.8, y, entry.name, bodySize + 6,
         m.width - 68 - bodySize * 1.8).setColor(GOLD);
       this.button(layout.modalClose, '×', () => { this.detailOpen = false; this.renderTree(); });
       y += bodySize + 18;
@@ -281,7 +281,7 @@ export class TalentScene extends Phaser.Scene {
       const reason = !unlocked ? 'Locked' : rank >= entry.maxRank ? 'Maxed'
         : player.talentPoints <= 0 ? 'No points' : '';
       this.button(layout.modalRankUp, reason ? `Rank up · ${reason}` : 'Rank up (1 point)',
-        () => this.rankUp(), canLearn);
+        () => this.rankUp(), canLearn, Math.max(20, bodySize));
     }
   }
 
