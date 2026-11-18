@@ -5,7 +5,7 @@ import type { GameContext } from "../context";
 import dungeon from "../dungeon";
 import Wand from "../items/wand";
 import { terrainFor } from '../terrain';
-import { hasLineOfSight, hasClearProjectilePath } from "../fov";
+import { hasClearProjectilePath, projectileLandingTile } from "../fov";
 import { sfx } from "../audio";
 import {
   applyEffect,
@@ -621,12 +621,22 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
     // Wands fire past the edge of sight: darkness, fog and an unlit room never
     // gate a zap. The bolt only needs a wall/door-free straight path to its
-    // destination, where the first actor intercepts it. Ordinary thrown items
-    // keep requiring line of sight.
+    // destination, where the first actor intercepts it.
+    //
+    // Ordinary thrown objects are physical too. They keep flying past the edge
+    // of sight until they bump into solid terrain, landing in the last free
+    // cell before a wall or disguised door (or on a closed door, which they
+    // knock open). Darkness, fog and tall grass never stop a thrown object.
     const terrain = terrainFor(this.context);
-    const blocked = this.zapping
-      ? !inBounds || isWall || !hasClearProjectilePath(level, this.x, this.y, tx, ty, terrain)
-      : !inBounds || isWall || !hasLineOfSight(level, this.x, this.y, tx, ty, terrain);
+    let blocked: boolean;
+    if (this.zapping) {
+      blocked = !inBounds || isWall || !hasClearProjectilePath(level, this.x, this.y, tx, ty, terrain);
+    } else if (!inBounds) {
+      blocked = true;
+    } else {
+      [tx, ty] = projectileLandingTile(level, this.x, this.y, tx, ty, terrain);
+      blocked = false;
+    }
 
     // Thrown items have no distance cap; only wands keep their own range
     // (which is already unlimited for every wand currently in the game).

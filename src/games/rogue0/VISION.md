@@ -12,6 +12,9 @@ last-seen pursuit memory, so no special door-investigation AI is needed. If the
 player then leaves sight, monsters pursue that remembered doorway, not the
 player's hidden current position. Bresenham paths remain available separately
 for physical projectiles; this change does not make projectiles pass walls.
+Thrown objects use those physical paths too, so a stone flies past the edge of
+sight (including through tall grass) until it bumps into a wall, closed or
+secret door, or a creature, whether or not the hero can see the obstruction.
 
 - Base-map walls (`1`) block sight, including solid pillars/barricades represented
   as wall cells. Closed doors and tall grass also block sight.

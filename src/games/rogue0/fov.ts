@@ -103,6 +103,34 @@ export function hasClearProjectilePath(
   return true;
 }
 
+// Where a physical object actually comes to rest when thrown toward a tile.
+// Unlike optical sight, this ignores darkness, fog and tall grass: the object
+// keeps flying until it bumps into solid terrain. It lands on the cell just
+// before a wall or disguised door, but on a closed ordinary door itself so the
+// landing handler can knock it open. The caller still resolves living actors
+// in the (possibly shortened) path separately.
+export function projectileLandingTile(
+  map: number[][],
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  terrain?: ProjectileTerrain
+): [number, number] {
+  const points = bresenhamLine(x0, y0, x1, y1);
+  let previous: [number, number] = [x0, y0];
+  for (let i = 1; i < points.length; i++) {
+    const [x, y] = points[i];
+    if (!blocksProjectile(map, x, y, terrain)) {
+      previous = [x, y];
+      continue;
+    }
+    if (terrain?.getDoorState?.(x, y) === 'closed') return [x, y];
+    return previous;
+  }
+  return [x1, y1];
+}
+
 export function hasLineOfSight(
   map: number[][],
   x0: number,

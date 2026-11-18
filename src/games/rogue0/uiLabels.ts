@@ -36,8 +36,8 @@ export function throwTargetHint(name: string, wand: boolean, touch = isTouchFirs
       : `Target ${name}: tap an enemy to select it, tap it again (or Enter) to fire. Move the cursor past your sight to zap into the dark; walls and closed doors still block the bolt. Tap the wand again to fire at the highlighted foe. Open the backpack or press Esc to cancel.`;
   }
   return touch
-    ? `Target ${name}: tap any tile in sight to throw. Open the backpack to cancel.`
-    : `Target ${name}: tap any tile in sight, or move cursor + Enter. Esc cancels.`;
+    ? `Target ${name}: tap any tile to throw. It flies until it hits something, even beyond your sight. Open the backpack to cancel.`
+    : `Target ${name}: tap any tile, or move cursor + Enter. It flies past your sight until it hits something. Esc cancels.`;
 }
 
 /**

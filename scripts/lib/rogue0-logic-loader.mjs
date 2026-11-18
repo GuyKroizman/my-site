@@ -82,7 +82,7 @@ export function loadLogic(path, bindings = {}) {
   // Legacy fixtures may inject the real fusion module; otherwise a harmless
   // no-op keeps their isolated source evaluator loadable.
   const tryFuseWands = (...args) => bindings.tryFuseWands?.(...args);
-  const dependencies = { log: logStatusEffect, removeStatusEffect, tickStatusEffects, ...monsterBalance, xpForHeroLevel, retireGemsFromSave, ...talentTree, ...projectileTextures, applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
+  const dependencies = { log: logStatusEffect, removeStatusEffect, tickStatusEffects, ...monsterBalance, xpForHeroLevel, retireGemsFromSave, ...talentTree, ...projectileTextures, ...sight, applyAttackResult, heroInventory, heroControlsFor: () => heroControls, isHostile, hostileAtTile,
     terrainFor: () => bindings.tiles ?? bindings, ...tilePresentation, ...actorBodies, ...footprint, ...placement, ...combatFeedback,
     forgetInspectedEntity, splitStackItem, placeFloorItem, stashChasmFallen, potionSplashCells, tryFuseWands, heroStatsText, heroHudView, bossArenaLayout, playMonsterDeath, ...equipmentGlyphs, tryReviveHero: () => false, ...bindings };
   const exports = {};

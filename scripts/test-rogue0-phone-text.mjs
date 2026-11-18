@@ -17,9 +17,10 @@ assert.doesNotMatch(wandPhone, KEYBOARD, `phone wand hint leaks a keyboard refer
 
 const throwDesktop = throwTargetHint('Potion of Healing', false, false);
 const throwPhone = throwTargetHint('Potion of Healing', false, true);
-assert.match(throwDesktop, /move cursor \+ Enter\. Esc cancels\./);
+assert.match(throwDesktop, /move cursor \+ Enter\./);
+assert.match(throwDesktop, /past your sight until it hits something\. Esc cancels\./);
 assert.equal(throwPhone,
-  'Target Potion of Healing: tap any tile in sight to throw. Open the backpack to cancel.');
+  'Target Potion of Healing: tap any tile to throw. It flies until it hits something, even beyond your sight. Open the backpack to cancel.');
 assert.doesNotMatch(throwPhone, KEYBOARD, `phone throw hint leaks a keyboard reference: ${throwPhone}`);
 
 // Stairs messages: same information, tap wording on phones.
