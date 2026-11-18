@@ -42,7 +42,7 @@ class FireWand extends Wand {
     }, x, y);
   }
   get damageBounds() { return [3, 6]; }
-  wandEffect() { return { id: 'burning', duration: 3 }; }
+  wandEffect() { return { id: 'burning', duration: 9 }; }
 }
 class FrostWand extends Wand {
   constructor(context, x, y) {

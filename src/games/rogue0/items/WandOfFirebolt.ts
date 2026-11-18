@@ -32,6 +32,6 @@ export default class WandOfFirebolt extends Wand {
   }
 
   wandEffect() {
-    return createBurningEffect(3);
+    return createBurningEffect(9);
   }
 }

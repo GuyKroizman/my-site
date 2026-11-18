@@ -130,7 +130,7 @@ const potion = (name, texture = 'potion-3') => ({
   hero.resolveThrowLanding(flask, 5, 5);
   const burning = applied.filter(a => a.effect.id === 'burning').map(a => a.entity.name);
   assert.deepEqual(burning.sort(), ['Goblin', 'Rat'], 'the whole 4x4 splash ignites');
-  assert.equal(applied.find(a => a.effect.id === 'burning').effect.duration, 4,
+  assert.equal(applied.find(a => a.effect.id === 'burning').effect.duration, 12,
     'thrown fire keeps its longer burn');
   assert.equal(outside.effects.length, 0, 'creatures outside the splash are untouched');
   assert.ok(!context.terrain.getFeature(4, 4), 'grass in the splash burns away');

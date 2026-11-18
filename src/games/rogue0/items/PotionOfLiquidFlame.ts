@@ -23,7 +23,7 @@ export default class PotionOfLiquidFlame extends Entity {
     const player = this.context.player;
     if (!player) return;
 
-    applyEffect(player, createBurningEffect(4));
+    applyEffect(player, createBurningEffect(12));
 
     player.removeItem(this);
     removeEntity(this.context, this);

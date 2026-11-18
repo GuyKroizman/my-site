@@ -104,7 +104,7 @@ export function tickEffects(entity: Entity, context: GameContext): void {
   tickStatusEffects(entity, context);
 }
 
-export function createBurningEffect(duration = 3): StatusEffect {
+export function createBurningEffect(duration = 9): StatusEffect {
   return {
     id: "burning",
     name: "Burning",

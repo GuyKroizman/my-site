@@ -32,7 +32,7 @@ export class FireElemental extends Monster {
   }
 
   onHitEffects() {
-    return [createBurningEffect(3)];
+    return [createBurningEffect(9)];
   }
 }
 

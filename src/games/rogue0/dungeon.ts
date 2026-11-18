@@ -1095,7 +1095,7 @@ const dungeon = {
         victim.healthPoints <= 0 || victim.type !== "enemy") return;
 
     if (glyph === "fire") {
-      applyEffect(victim, createBurningEffect(3));
+      applyEffect(victim, createBurningEffect(9));
       if (isEnemyVisible(context, victim)) this.log(context, `${weapon.displayName} sets ${victim.name} on fire!`);
     } else if (glyph === "frost") {
       applyEffect(victim, createFrozenEffect(1));

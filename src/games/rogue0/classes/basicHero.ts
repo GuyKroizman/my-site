@@ -919,7 +919,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
 
     const name = item.name.toLowerCase();
     if (name.includes("liquid flame")) {
-      applyEffect(enemy, createBurningEffect(4));
+      applyEffect(enemy, createBurningEffect(12));
     } else if (name.includes("toxic gas")) {
       applyEffect(enemy, createPoisonedEffect(4));
       if (enemy.x !== undefined && enemy.y !== undefined) context.onCreatePoisonGas?.(enemy.x, enemy.y);

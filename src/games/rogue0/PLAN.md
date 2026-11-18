@@ -343,7 +343,7 @@ HUD + modal window system.
 - [ ] Balance progression across all five classes over 25 floors; expand
       same-tier weapon trade-offs. Boss balancing is explicitly deferred.
 - [x] Add weapon enchantments / armor glyphs after the core progression loop.
-      Fire burns for 3 ticks; Frost freezes one action and chills; Luck rerolls
+      Fire burns for 9 ticks; Frost freezes one action and chills; Luck rerolls
       empty monster item drops and doubles gold fallback odds; Reach hits at
       distance 2. Push moves one cardinal tile (horizontal on diagonal contact).
       Armor Thorns returns 25% of melee damage (rounded, minimum 1); Push

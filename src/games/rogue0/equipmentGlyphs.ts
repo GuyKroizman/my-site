@@ -29,7 +29,7 @@ const GLYPH_NAMES: Record<EquipmentGlyph, string> = {
 };
 
 const WEAPON_GLYPH_DESCRIPTIONS: Record<WeaponGlyph, string> = {
-  fire: "Successful hits set the target on fire, dealing 1 fire damage per turn for 3 turns.",
+  fire: "Successful hits set the target on fire, dealing 1 fire damage per turn for 9 turns.",
   frost: "Successful hits chill the target and can freeze it for one action.",
   luck: "Enemies you slay are more likely to drop loot or gold.",
   range: "This weapon can strike enemies up to 2 tiles away.",
