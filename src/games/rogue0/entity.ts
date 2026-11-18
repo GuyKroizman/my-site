@@ -372,6 +372,11 @@ export abstract class Entity {
   glyph: EquipmentGlyph | "" = "";
   // Friendly actor (mirror image) rendered as an enemy but never hostile.
   isDecoy: boolean = false;
+  // A dormant mimic is disguised as a chest. While disguised it is a fixed
+  // obstacle for the hero's route planning, just like real loot, so auto-walk
+  // bends around it instead of bumping into (and provoking) it. Only Mimic
+  // overrides this.
+  get isDormantMimic(): boolean { return false; }
   blessed: boolean = false;
   level: number = 0;
   // Successful uses since the item was found. Tracked for unknown equipment

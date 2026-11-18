@@ -242,6 +242,21 @@ const dungeon = {
         }
       });
     }
+    // A dormant mimic looks and behaves like a treasure chest. For the hero's
+    // routes its tile is another fixed obstacle, so planning avoids it instead
+    // of feeding a hostile body into stepAutoWalk's bump-attack. The explicitly
+    // selected destination is allowed so clicking the mimic still deliberately
+    // attacks it. Monster AI keeps planning freely through the dungeon.
+    if (actor?.type === 'player') {
+      for (const entity of this.context?.entities ?? []) {
+        if (entity.isDormantMimic && (entity.healthPoints ?? 0) > 0 &&
+            entity.x !== undefined && entity.y !== undefined &&
+            grid.isInside(entity.x, entity.y) &&
+            !(entity.x === tx && entity.y === ty)) {
+          grid.setWalkableAt(entity.x, entity.y, false);
+        }
+      }
+    }
     if (!grid.isInside(sx, sy) || !grid.isInside(tx, ty)) return [];
     const fp = actorFootprint(actor);
     const multi = fp.width > 1 || fp.height > 1;

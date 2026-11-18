@@ -87,6 +87,16 @@ export function createHeroNavigation(services: HeroControlServices) {
           return;
         }
       }
+      // A dormant mimic is disguised as a chest. Even if a route slips one
+      // into the next step (a mimic restored or spawned mid-route), never
+      // bump-attack it: stop rather than wake it. A mimic the hero explicitly
+      // targeted is a deliberate attack, so keep that behaviour.
+      if (entity && isHostile(entity) && entity.isDormantMimic &&
+          hero.walkTargetEntity !== entity) {
+        hero.walkPath = [];
+        hero.walkTargetEntity = undefined;
+        return;
+      }
       if (entity && isHostile(entity)) {
         hero.walkPath = [];
         hero.walkTargetEntity = undefined;

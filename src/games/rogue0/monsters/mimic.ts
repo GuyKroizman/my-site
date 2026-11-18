@@ -12,6 +12,12 @@ export default class Mimic extends Monster {
     return this.provoked ? MIMIC_TEXTURE : CHEST_TEXTURE;
   }
 
+  // Disguised as a chest until provoked. Navigation treats that disguise as a
+  // chest-shaped obstacle and walks around it rather than waking the mimic.
+  get isDormantMimic(): boolean {
+    return !this.provoked;
+  }
+
   private provoke(): void {
     if (this.provoked) return;
     this.provoked = true;

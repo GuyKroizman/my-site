@@ -819,6 +819,33 @@ realDungeon.pathGrid.setWalkableAt(2, 2, true);
 const diagonalAI = load('src/games/rogue0/ai.ts', { dungeon: realDungeon });
 assert.deepEqual(diagonalAI.nextStepToward({ x: 1, y: 1 }, 3, 3), { x: 2, y: 2 });
 
+// A dormant mimic is disguised as a chest, so hero routes bend around its tile
+// instead of walking into it and provoking it. The explicit destination stays
+// reachable (click to attack), and monster AI is unaffected.
+{
+  const mimic = Object.assign(new Entity(), {
+    type: 'enemy', name: 'Mimic', healthPoints: 10, x: 3, y: 1, sprite: {},
+  });
+  Object.defineProperty(mimic, 'isDormantMimic', { value: true, writable: true, configurable: true });
+  const heroActor = Object.assign(new Entity(), { type: 'player', healthPoints: 10 });
+  const monsterActor = Object.assign(new Entity(), { type: 'enemy', healthPoints: 10 });
+  const previousContext = realDungeon.context;
+  realDungeon.context = { entities: [mimic] };
+
+  const detour = realDungeon.findPath(1, 1, 5, 1, true, true, heroActor);
+  assert.ok(detour.length > 1, 'a route around the mimic exists');
+  assert.ok(!detour.some(([x, y]) => x === 3 && y === 1), 'hero path bends around a dormant mimic');
+  assert.deepEqual(realDungeon.findPath(1, 1, 3, 1, true, true, heroActor),
+    [[1, 1], [2, 1], [3, 1]], 'the mimic tile stays reachable as the explicit destination');
+  assert.ok(realDungeon.findPath(1, 1, 5, 1, true, true, monsterActor)
+    .some(([x, y]) => x === 3 && y === 1), 'monster AI still plans through the dungeon');
+
+  mimic.isDormantMimic = false;
+  assert.ok(realDungeon.findPath(1, 1, 5, 1, true, true, heroActor)
+    .some(([x, y]) => x === 3 && y === 1), 'a provoked mimic no longer bends the hero route');
+  realDungeon.context = previousContext;
+}
+
 // All four keyboard diagonals move and bump-attack, without extra time cost.
 hero.effects = [];
 hero.x = 3; hero.y = 3;

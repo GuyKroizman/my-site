@@ -372,6 +372,31 @@ for (const stale of ['floor', 'position', 'death', 'readiness', 'modal', 'none']
   assert.deepEqual(f.state.moves, [], 'no movement into a wide body');
 }
 
+// A dormant mimic is disguised as a chest. Auto-walk must not bump-attack it
+// (which would provoke it): it stops instead. Provoked or explicitly targeted
+// mimics are still attacked like any other enemy.
+{
+  const f = fixture();
+  const mimic = enemy(f, 2, 1, { name: 'Mimic', isDormantMimic: true });
+  f.hero.setWalkTarget(5, 1);
+  f.hero.stepAutoWalk();
+  assert.deepEqual(f.state.attacks, [], 'auto-walk never attacks a dormant mimic');
+  assert.deepEqual(f.state.moves, [], 'auto-walk stops instead of entering its tile');
+  assert.deepEqual(f.hero.walkPath, [], 'the route is cancelled rather than repeated');
+
+  ready(f);
+  mimic.isDormantMimic = false; // provoked mimics are ordinary hostiles
+  f.hero.setWalkTarget(5, 1);
+  f.hero.stepAutoWalk();
+  assert.deepEqual(f.state.attacks.at(-1), [f.hero, mimic], 'a provoked mimic is attacked');
+
+  ready(f);
+  mimic.isDormantMimic = true;
+  f.hero.setWalkTarget(mimic.x, mimic.y, mimic);
+  f.hero.stepAutoWalk();
+  assert.deepEqual(f.state.attacks.at(-1), [f.hero, mimic], 'clicking a mimic is a deliberate attack');
+}
+
 // A scaled monster's art can cover tiles beyond its own cell. A tap anywhere
 // on the visible art must still select that monster, while an exact tile hit
 // keeps its usual precedence.
