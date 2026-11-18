@@ -248,7 +248,7 @@ export class TalentScene extends Phaser.Scene {
       this.text(p.x + 16, p.y + 12 + 2 * titleSize, this.message,
         Math.max(13, Math.min(20, 17 * uiScale))).setColor(GOLD);
     }
-    this.button(layout.close, buttonLabel('Close [Esc]'), () => this.close());
+    this.button(layout.close, buttonLabel('X'), () => this.close());
 
     // Descriptions live only in this floating modal, opened by clicking a
     // node; the tree itself stays uncluttered.

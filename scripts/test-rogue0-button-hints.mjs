@@ -19,7 +19,8 @@ const HUD_LABELS = [
   ['Backpack  [b]', 'Backpack'],
 ];
 const TALENT_LABELS = [
-  ['Close [Esc]', 'Close'],
+  // The compact talent-tree close button is just "X"; Esc still closes it.
+  ['X', 'X'],
 ];
 const ALL_LABELS = [...STORE_LABELS, ...HUD_LABELS, ...TALENT_LABELS];
 
@@ -86,7 +87,7 @@ assert.match(ui, /buttonLabel\("Inspect  \[x\] · Search  \[s\]"\)/);
 assert.match(ui, /buttonLabel\("Backpack  \[b\]"\)/);
 
 const talents = fs.readFileSync(new URL('../src/games/rogue0/talents/TalentScene.ts', import.meta.url), 'utf8');
-assert.match(talents, /buttonLabel\('Close \[Esc\]'\)/,
+assert.match(talents, /buttonLabel\('X'\)/,
   'talent screen Close button drops its keyboard hint on phones');
 assert.match(talents, /import \{ buttonLabel \} from '\.\.\/uiLabels'/);
 
