@@ -1,5 +1,6 @@
-// Pure, renderer-free layout for the fullscreen talent tree. The tree lives in
-// a large scrollable viewport; the detail panel stays pinned beside/below it.
+// Pure, renderer-free layout for the fullscreen talent tree. The tree is drawn
+// on a canvas larger than the viewport in both directions, so it pans freely;
+// branches fan outward from their roots and connect with lines.
 
 export type Rect = { x: number; y: number; width: number; height: number };
 export type TalentLayoutMode = "wide" | "narrow";
@@ -9,8 +10,9 @@ export type TalentLayout = {
   scale: number;
   panel: Rect;
   viewport: Rect;
-  contentHeight: number;
   detail: Rect;
+  contentWidth: number;
+  contentHeight: number;
   nodes: TalentNodeBox[];
   rankUp: Rect;
   close: Rect;
@@ -18,18 +20,10 @@ export type TalentLayout = {
 
 const BRANCHES = 3;
 const TIERS = 3;
-const WIDE = { width: 1000, height: 620 };
-const NARROW = { width: 360, height: 620 };
-const GAP = 20;
-
-function toScreen(rect: Rect, scale: number, ox: number, oy: number): Rect {
-  return {
-    x: ox + rect.x * scale,
-    y: oy + rect.y * scale,
-    width: rect.width * scale,
-    height: rect.height * scale,
-  };
-}
+const CONTENT = {
+  wide: { width: 1000, height: 900, radius: 64 },
+  narrow: { width: 780, height: 1150, radius: 58 },
+} as const;
 
 export function talentTreeLayout(
   viewW: number,
@@ -40,21 +34,24 @@ export function talentTreeLayout(
     throw new RangeError("Talent tree viewport must have positive finite dimensions");
   }
   const mode: TalentLayoutMode = viewW / viewH >= 1.2 ? "wide" : "narrow";
-  const design = mode === "wide" ? WIDE : NARROW;
-  const scale = Math.min(viewW / design.width, viewH / design.height, 2);
-  const ox = (viewW - design.width * scale) / 2;
-  const oy = (viewH - design.height * scale) / 2;
+  const content = CONTENT[mode];
+  // Always draw the tree larger than the pane in both axes so panning matters.
+  const scale = Math.max(0.55, Math.min(4,
+    1.25 * Math.max(viewW / content.width, viewH / content.height)));
 
-  // Tree gets almost the whole screen; detail is a slim pinned strip.
-  const viewport: Rect = mode === "wide"
-    ? { x: 12, y: 62, width: 690, height: 542 }
-    : { x: 8, y: 48, width: 344, height: 352 };
-  const detail: Rect = mode === "wide"
-    ? { x: 712, y: 62, width: 276, height: 542 }
-    : { x: 8, y: 408, width: 344, height: 200 };
-  const close: Rect = mode === "wide"
-    ? { x: design.width - 116, y: 14, width: 100, height: 38 }
-    : { x: design.width - 84, y: 6, width: 76, height: 34 };
+  const panel: Rect = { x: 0, y: 0, width: viewW, height: viewH };
+  let viewport: Rect, detail: Rect, close: Rect;
+  if (mode === "wide") {
+    const detailW = Math.min(300, Math.max(220, viewW * 0.26));
+    detail = { x: viewW - detailW - 14, y: 62, width: detailW, height: viewH - 76 };
+    viewport = { x: 14, y: 62, width: Math.max(120, detail.x - 26), height: viewH - 76 };
+    close = { x: viewW - 116, y: 14, width: 100, height: 38 };
+  } else {
+    const detailH = Math.min(210, Math.max(170, viewH * 0.3));
+    detail = { x: 12, y: viewH - detailH - 12, width: viewW - 24, height: detailH };
+    viewport = { x: 12, y: 52, width: viewW - 24, height: Math.max(120, detail.y - 62) };
+    close = { x: viewW - 84, y: 8, width: 76, height: 34 };
+  }
   const rankUp: Rect = {
     x: detail.x + 12,
     y: detail.y + detail.height - 58,
@@ -62,60 +59,58 @@ export function talentTreeLayout(
     height: 46,
   };
 
-  // Content is wider/taller than the viewport on phones so it scrolls; node
-  // rects are in content space (y = 0 at the top of the scrollable area).
-  const cellW = viewport.width / BRANCHES;
-  const nodeW = mode === "wide" ? Math.min(196, cellW - 14) : cellW - 10;
-  const nodeH = 132;
-  const rowH = nodeH + GAP;
-  const contentHeight = TIERS * rowH + GAP;
+  const radius = content.radius;
+  const yFor = (tier: number) => [140, content.height * 0.46, content.height * 0.78][tier];
+  const xFor = (branch: number, tier: number) => mode === "wide"
+    ? [300 + branch * 200, 220 + branch * 280, 140 + branch * 360][tier]
+    : [190 + branch * 175, 145 + branch * 225, 95 + branch * 265][tier];
+
   const boxes: TalentNodeBox[] = nodes.slice(0, BRANCHES * TIERS).map((entry, index) => {
     const branch = Math.floor(index / TIERS);
     const tier = index % TIERS;
+    // x/y are measured from the top-left of the scrollable content, in screen
+    // pixels; the scene offsets them by -scrollX/-scrollY.
     return {
       id: entry.id,
       branch,
       tier,
       rect: {
-        x: viewport.x + tier * cellW + (cellW - nodeW) / 2,
-        y: viewport.y + GAP + branch * rowH,
-        width: nodeW,
-        height: nodeH,
+        x: xFor(branch, tier) * scale,
+        y: yFor(tier) * scale,
+        width: radius * 2 * scale,
+        height: radius * 2 * scale,
       },
     };
   });
 
-  // Wide shows tiers left→right and branches top→bottom; narrow stacks tiers
-  // vertically with the three branches side by side.
-  if (mode === "narrow") {
-    const narrowCellW = viewport.width / BRANCHES;
-    boxes.forEach(box => {
-      box.rect.x = viewport.x + box.branch * narrowCellW + (narrowCellW - nodeW) / 2;
-      box.rect.y = viewport.y + GAP + box.tier * rowH;
-    });
-  }
-
   return {
     mode,
     scale,
-    panel: toScreen({ x: 0, y: 0, ...design }, scale, ox, oy),
-    viewport: toScreen(viewport, scale, ox, oy),
-    contentHeight: contentHeight * scale,
-    detail: toScreen(detail, scale, ox, oy),
-    nodes: boxes.map(box => ({ ...box, rect: toScreen(box.rect, scale, ox, oy) })),
-    rankUp: toScreen(rankUp, scale, ox, oy),
-    close: toScreen(close, scale, ox, oy),
+    panel,
+    viewport,
+    detail,
+    contentWidth: content.width * scale,
+    contentHeight: content.height * scale,
+    nodes: boxes,
+    rankUp,
+    close,
   };
 }
 
-export function maxTreeScroll(layout: TalentLayout): number {
-  return Math.max(0, layout.contentHeight - layout.viewport.height);
+export function treeScrollBounds(layout: TalentLayout): { maxX: number; maxY: number } {
+  return {
+    maxX: Math.max(0, layout.contentWidth - layout.viewport.width),
+    maxY: Math.max(0, layout.contentHeight - layout.viewport.height),
+  };
 }
 
-export function talentNodeAt(layout: TalentLayout, x: number, y: number, scrollY: number): string | undefined {
+export function talentNodeAt(layout: TalentLayout, x: number, y: number,
+  scrollX: number, scrollY: number): string | undefined {
+  const cx = x - layout.viewport.x + scrollX;
+  const cy = y - layout.viewport.y + scrollY;
   return layout.nodes.find(box =>
-    x >= box.rect.x && x < box.rect.x + box.rect.width &&
-    y + scrollY >= box.rect.y && y + scrollY < box.rect.y + box.rect.height)?.id;
+    cx >= box.rect.x && cx < box.rect.x + box.rect.width &&
+    cy >= box.rect.y && cy < box.rect.y + box.rect.height)?.id;
 }
 
 export function rectContains(rect: Rect, x: number, y: number): boolean {

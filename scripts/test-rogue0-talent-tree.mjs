@@ -3,7 +3,7 @@ recordTestRun('talent-tree');
 import assert from 'node:assert/strict';
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 import { TALENT_TREE, talentNodeById, isTalentUnlocked } from '../src/games/rogue0/talents/talentTree.ts';
-import { talentTreeLayout, talentNodeAt, maxTreeScroll } from '../src/games/rogue0/talents/talentTreeLayout.ts';
+import { talentTreeLayout, talentNodeAt, treeScrollBounds } from '../src/games/rogue0/talents/talentTreeLayout.ts';
 
 const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 const { Entity } = load('entity');
@@ -68,7 +68,7 @@ assert.equal(old.talentRanks.grace, undefined);
 assert.equal(old.talentRank('fury'), 2);
 assert.ok(old.talentPoints >= 3, 'level-based entitlement is restored');
 
-// Layout containment and hit testing on desktop and phone viewports.
+// Pane/chrome containment, a two-axis scrollable canvas, and hit testing.
 for (const [width, height] of [[1920, 1080], [1280, 720], [800, 400], [390, 844], [360, 640], [320, 240]]) {
   const layout = talentTreeLayout(width, height, TALENT_TREE.Warrior);
   const inside = rect => rect.x >= -1e-6 && rect.y >= -1e-6 &&
@@ -76,14 +76,22 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [800, 400], [390, 844]
   assert.ok(inside(layout.panel) && inside(layout.detail) && inside(layout.rankUp) && inside(layout.close),
     `${width}x${height} keeps panel and buttons on screen`);
   assert.ok(inside(layout.viewport), `${width}x${height} keeps the tree pane on screen`);
+  const bounds = treeScrollBounds(layout);
+  assert.ok(layout.contentWidth > layout.viewport.width && bounds.maxX > 0,
+    `${width}x${height} scrolls horizontally`);
+  assert.ok(layout.contentHeight > layout.viewport.height && bounds.maxY > 0,
+    `${width}x${height} scrolls vertically`);
   for (const box of layout.nodes) {
-    assert.ok(inside(box.rect), `${width}x${height} keeps ${box.id} on screen`);
-    const scroll = Math.max(0, box.rect.y + box.rect.height / 2 -
-      (layout.viewport.y + layout.viewport.height));
-    assert.equal(talentNodeAt(layout, box.rect.x + box.rect.width / 2,
-      box.rect.y - scroll + box.rect.height / 2, scroll), box.id);
+    assert.ok(box.rect.x >= 0 && box.rect.y >= 0 &&
+      box.rect.x + box.rect.width <= layout.contentWidth + 1e-6 &&
+      box.rect.y + box.rect.height <= layout.contentHeight + 1e-6,
+      `${width}x${height} keeps ${box.id} inside the tree canvas`);
+    const cx = box.rect.x + box.rect.width / 2, cy = box.rect.y + box.rect.height / 2;
+    const scrollX = Math.max(0, Math.min(bounds.maxX, cx - layout.viewport.width / 2));
+    const scrollY = Math.max(0, Math.min(bounds.maxY, cy - layout.viewport.height / 2));
+    assert.equal(talentNodeAt(layout, layout.viewport.x + cx - scrollX,
+      layout.viewport.y + cy - scrollY, scrollX, scrollY), box.id);
   }
-  if (width < height) assert.ok(maxTreeScroll(layout) > 0, 'phone tree pane scrolls');
 }
 assert.throws(() => talentTreeLayout(0, 100, []), RangeError);
 console.log('Talent tree integrity, points, prerequisites, migration and layout passed');

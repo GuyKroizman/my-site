@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { GameContext } from '../context';
 import {
   talentTreeLayout,
-  maxTreeScroll,
+  treeScrollBounds,
   type TalentLayout,
   type Rect,
 } from './talentTreeLayout';
@@ -29,11 +29,14 @@ export class TalentScene extends Phaser.Scene {
   private context: GameContext;
   private selected = 0;
   private message = '';
+  private scrollX = 0;
   private scrollY = 0;
   private dragging = false;
   private dragged = false;
+  private dragStartX = 0;
   private dragStartY = 0;
-  private dragStartScroll = 0;
+  private dragStartScrollX = 0;
+  private dragStartScrollY = 0;
 
   constructor(context: GameContext) {
     super({ key: 'talent-scene', active: false });
@@ -43,6 +46,7 @@ export class TalentScene extends Phaser.Scene {
   create(): void {
     this.selected = 0;
     this.message = '';
+    this.scrollX = 0;
     this.scrollY = 0;
     this.cameras.main.setBackgroundColor('#171117');
     this.input.keyboard?.on('keydown', this.onKey, this);
@@ -86,6 +90,10 @@ export class TalentScene extends Phaser.Scene {
     return this.context.player?.talentTreeNodes ?? [];
   }
 
+  private currentLayout(): TalentLayout {
+    return talentTreeLayout(this.scale.width, this.scale.height, this.nodes());
+  }
+
   private inViewport(point: { x: number; y: number }, layout: TalentLayout): boolean {
     const v = layout.viewport;
     return point.x >= v.x && point.x < v.x + v.width && point.y >= v.y && point.y < v.y + v.height;
@@ -95,11 +103,12 @@ export class TalentScene extends Phaser.Scene {
     this.children.removeAll(true);
     const player = this.context.player;
     if (!player) return;
-    const nodes = this.nodes();
-    if (!nodes.length) return;
-    this.selected = Phaser.Math.Clamp(this.selected, 0, nodes.length - 1);
-    const layout = talentTreeLayout(this.scale.width, this.scale.height, nodes);
-    this.scrollY = Phaser.Math.Clamp(this.scrollY, 0, maxTreeScroll(layout));
+    if (!this.nodes().length) return;
+    this.selected = Phaser.Math.Clamp(this.selected, 0, this.nodes().length - 1);
+    const layout = this.currentLayout();
+    const bounds = treeScrollBounds(layout);
+    this.scrollX = Phaser.Math.Clamp(this.scrollX, 0, bounds.maxX);
+    this.scrollY = Phaser.Math.Clamp(this.scrollY, 0, bounds.maxY);
     this.drawLayout(layout, player);
   }
 
@@ -150,40 +159,48 @@ export class TalentScene extends Phaser.Scene {
   private drawLayout(layout: TalentLayout, player: NonNullable<GameContext['player']>): void {
     const nodes = this.nodes();
     const ranks = player.talentRanks ?? {};
+    const v = layout.viewport;
+    const screenCenter = (index: number) => {
+      const box = layout.nodes[index].rect;
+      return {
+        x: v.x + box.x + box.width / 2 - this.scrollX,
+        y: v.y + box.y + box.height / 2 - this.scrollY,
+      };
+    };
+
     this.add.rectangle(layout.panel.x, layout.panel.y, layout.panel.width, layout.panel.height, PANEL)
       .setOrigin(0).setStrokeStyle(2, 0x7a6247);
 
-    // Tree content, shifted by the scroll offset. A covering frame below hides
-    // anything outside the pane (Phaser 4 WebGL ignores geometry masks).
+    // Branching connectors, drawn before the nodes. A line brightens once its
+    // parent has a rank, showing which children are open to the player.
     const links = this.add.graphics();
-    nodes.forEach(entry => {
+    nodes.forEach((entry, index) => {
       entry.requires.forEach(requirement => {
-        const from = layout.nodes.find(box => box.id === requirement)?.rect;
-        const to = layout.nodes.find(box => box.id === entry.id)?.rect;
-        if (!from || !to) return;
+        const parentIndex = nodes.findIndex(node => node.id === requirement);
+        if (parentIndex < 0) return;
+        const from = screenCenter(parentIndex), to = screenCenter(index);
         const active = (ranks[requirement] ?? 0) >= 1;
-        links.lineStyle(Math.max(1, Math.round(2 * layout.scale)), active ? 0xe0b45f : 0x6b5a70, active ? 0.95 : 0.7);
-        links.lineBetween(from.x + from.width / 2, from.y + from.height - this.scrollY,
-          to.x + to.width / 2, to.y - this.scrollY);
+        links.lineStyle(Math.max(1.5, 3 * layout.scale), active ? 0xe0b45f : 0x6b5a70, active ? 0.95 : 0.65);
+        links.lineBetween(from.x, from.y, to.x, to.y);
+        links.fillStyle(active ? 0xe0b45f : 0x6b5a70, 0.9);
+        links.fillCircle(to.x, to.y, Math.max(2, 4 * layout.scale));
       });
     });
 
-    const views = nodes.map((entry, index) => ({
-      entry,
-      box: layout.nodes[index].rect,
-      y: layout.nodes[index].rect.y - this.scrollY,
-      index,
-    }));
-    // Backgrounds first, then icons, then labels — creation order is draw
-    // order, so icons sit above their cards and below the covering frame.
-    views.forEach(view => {
-      const { box, y, index, entry } = view;
+    const views = nodes.map((entry, index) => {
+      const center = screenCenter(index);
+      const box = layout.nodes[index].rect;
+      return { entry, index, center, radius: box.width / 2, box };
+    });
+    views.forEach(({ entry, index, center, radius }) => {
       const unlocked = isTalentUnlocked(entry, ranks, player.level);
-      const bg = this.add.rectangle(box.x, y, box.width, box.height,
-        index === this.selected ? 0x3a2c45 : 0x271e30)
-        .setOrigin(0)
-        .setStrokeStyle(index === this.selected ? 2 : 1, unlocked ? 0xd0a25c : 0x514752);
-      bg.setInteractive({ useHandCursor: true })
+      const selected = index === this.selected;
+      this.add.circle(center.x, center.y, radius, selected ? 0x4a3450 : 0x2d2438)
+        .setStrokeStyle(selected ? 3 : 2, unlocked ? 0xd0a25c : 0x514752);
+      // Circle geometry is only decorative; a transparent square hit area
+      // keeps taps reliable on touch screens.
+      this.add.rectangle(center.x, center.y, radius * 2, radius * 2, 0x000000, 0)
+        .setInteractive({ useHandCursor: true })
         .on('pointerover', () => {
           if (this.selected !== index && !this.dragging) { this.selected = index; this.renderTree(); }
         })
@@ -193,41 +210,38 @@ export class TalentScene extends Phaser.Scene {
         });
     });
     const nodeIcons = this.add.graphics();
-    views.forEach(({ entry, box, y }) => {
-      if (y + box.height < layout.viewport.y || y > layout.viewport.y + layout.viewport.height) return;
-      this.drawIcon(nodeIcons, entry.bonus?.kind, box.x + 10, y + 10,
-        Math.min(30 * layout.scale, box.height * 0.28));
+    views.forEach(({ entry, center, radius }) => {
+      if (center.y + radius < v.y || center.y - radius > v.y + v.height ||
+          center.x + radius < v.x || center.x - radius > v.x + v.width) return;
+      const iconSize = radius * 0.55;
+      this.drawIcon(nodeIcons, entry.bonus?.kind,
+        center.x - iconSize / 2, center.y - radius * 0.72, iconSize);
     });
-    views.forEach(({ entry, box, y }) => {
-      const rank = player.talentRank(entry.id);
+    views.forEach(({ entry, center, radius }) => {
       const unlocked = isTalentUnlocked(entry, ranks, player.level);
-      const iconSize = Math.min(30 * layout.scale, box.height * 0.28);
-      const textX = box.x + 14 + iconSize;
-      const nameSize = Math.max(10, Math.min(17, 16 * layout.scale));
-      this.text(textX, y + 8, entry.name, nameSize, box.width - (textX - box.x) - 8)
-        .setColor(unlocked ? GOLD : DIM);
-      this.text(box.x + 10, y + 14 + iconSize, `T${entry.tier} · ${rank}/${entry.maxRank}${unlocked ? '' : ' · locked'}`,
-        Math.max(9, Math.min(14, 13 * layout.scale))).setColor(unlocked ? '#e8e1d5' : DIM);
-      this.text(box.x + 10, y + 18 + iconSize + 14, entry.description,
-        Math.max(9, Math.min(13, 12 * layout.scale)), box.width - 20)
-        .setColor(unlocked ? '#c9bfae' : DIM);
+      const rank = player.talentRank(entry.id);
+      const nameSize = Math.max(9, Math.min(15, radius * 0.2));
+      this.text(center.x - radius * 0.86, center.y - radius * 0.16, entry.name, nameSize, radius * 1.72)
+        .setOrigin(0.5, 0).setColor(unlocked ? GOLD : DIM);
+      this.text(center.x, center.y + radius * 0.36, `${rank}/${entry.maxRank}${unlocked ? '' : ' · locked'}`,
+        Math.max(9, Math.min(13, radius * 0.17))).setOrigin(0.5).setColor(unlocked ? '#e8e1d5' : DIM);
     });
 
     // Opaque frame over the scrolled content, then the fixed chrome on top.
-    const p = layout.panel, v = layout.viewport;
+    const p = layout.panel;
     this.add.rectangle(p.x, p.y, p.width, v.y - p.y, PANEL).setOrigin(0);
     this.add.rectangle(p.x, v.y + v.height, p.width, p.y + p.height - v.y - v.height, PANEL).setOrigin(0);
     this.add.rectangle(p.x, v.y, v.x - p.x, v.height, PANEL).setOrigin(0);
     this.add.rectangle(v.x + v.width, v.y, p.x + p.width - v.x - v.width, v.height, PANEL).setOrigin(0);
 
-    const titleSize = Math.max(14, Math.min(24, 22 * layout.scale));
+    const titleSize = Math.max(14, Math.min(24, 22 * Math.min(1.4, layout.scale)));
     this.text(p.x + 16, p.y + 10, `TALENTS · ${player.name}`, titleSize).setColor(GOLD);
     this.text(p.x + 16, p.y + 12 + titleSize,
-      `Level ${player.level} · unspent points: ${player.talentPoints} · drag or scroll the tree`,
-      Math.max(10, Math.min(16, 15 * layout.scale)));
+      `Level ${player.level} · unspent points: ${player.talentPoints} · drag to pan in any direction`,
+      Math.max(10, Math.min(16, 15 * Math.min(1.4, layout.scale))));
     if (this.message) {
       this.text(p.x + 16, p.y + 12 + 2 * titleSize, this.message,
-        Math.max(10, Math.min(15, 14 * layout.scale))).setColor(GOLD);
+        Math.max(10, Math.min(15, 14 * Math.min(1.4, layout.scale)))).setColor(GOLD);
     }
     this.button(layout.close, 'Close [Esc]', () => this.close());
 
@@ -238,7 +252,7 @@ export class TalentScene extends Phaser.Scene {
     const entry = nodes[this.selected];
     const rank = player.talentRank(entry.id);
     const unlocked = isTalentUnlocked(entry, ranks, player.level);
-    const bodySize = Math.max(11, Math.min(18, 17 * layout.scale));
+    const bodySize = Math.max(11, Math.min(18, 17 * Math.min(1.4, layout.scale)));
     let y = detail.y + 10;
     this.drawIcon(detailIcons, entry.bonus?.kind, detail.x + 12, y + 2, bodySize * 1.6);
     this.text(detail.x + 18 + bodySize * 1.6, y, entry.name, bodySize + 2, detail.width - 34 - bodySize * 1.6).setColor(GOLD);
@@ -285,33 +299,35 @@ export class TalentScene extends Phaser.Scene {
     this.scene.stop();
   }
 
-  private scrollBy(delta: number): void {
-    const layout = talentTreeLayout(this.scale.width, this.scale.height, this.nodes());
-    this.scrollY = Phaser.Math.Clamp(this.scrollY + delta, 0, maxTreeScroll(layout));
+  private panBy(dx: number, dy: number): void {
+    const bounds = treeScrollBounds(this.currentLayout());
+    this.scrollX = Phaser.Math.Clamp(this.scrollX + dx, 0, bounds.maxX);
+    this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, 0, bounds.maxY);
     this.renderTree();
   }
 
-  private onWheel(_pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number): void {
+  private onWheel(_pointer: Phaser.Input.Pointer, _over: unknown, dx: number, dy: number): void {
     if (!this.context.talentTreeOpen) return;
-    const layout = talentTreeLayout(this.scale.width, this.scale.height, this.nodes());
-    if (!this.inViewport({ x: this.input.activePointer.x, y: this.input.activePointer.y }, layout)) return;
-    this.scrollBy(dy);
+    if (!this.inViewport({ x: this.input.activePointer.x, y: this.input.activePointer.y }, this.currentLayout())) return;
+    this.panBy(dx, dy);
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
-    const layout = talentTreeLayout(this.scale.width, this.scale.height, this.nodes());
-    if (!this.inViewport(pointer, layout)) return;
+    if (!this.inViewport(pointer, this.currentLayout())) return;
     this.dragging = true;
     this.dragged = false;
+    this.dragStartX = pointer.x;
     this.dragStartY = pointer.y;
-    this.dragStartScroll = this.scrollY;
+    this.dragStartScrollX = this.scrollX;
+    this.dragStartScrollY = this.scrollY;
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
     if (!this.dragging) return;
-    const delta = pointer.y - this.dragStartY;
-    if (Math.abs(delta) > 6) this.dragged = true;
-    this.scrollY = this.dragStartScroll - delta;
+    const dx = pointer.x - this.dragStartX, dy = pointer.y - this.dragStartY;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) this.dragged = true;
+    this.scrollX = this.dragStartScrollX - dx;
+    this.scrollY = this.dragStartScrollY - dy;
     this.renderTree();
   }
 
@@ -326,9 +342,9 @@ export class TalentScene extends Phaser.Scene {
     if (key === 'Escape') { this.close(); return; }
     const nodes = this.nodes();
     if (!nodes.length) return;
-    const layout = talentTreeLayout(this.scale.width, this.scale.height, nodes);
-    const horizontalStep = layout.mode === 'wide' ? 1 : 3;
+    const layout = this.currentLayout();
     const verticalStep = layout.mode === 'wide' ? 3 : 1;
+    const horizontalStep = layout.mode === 'wide' ? 1 : 3;
     const moves: Record<string, number> = {
       ArrowLeft: -horizontalStep, h: -horizontalStep, ArrowRight: horizontalStep, l: horizontalStep,
       ArrowUp: -verticalStep, k: -verticalStep, ArrowDown: verticalStep, j: verticalStep,
@@ -337,11 +353,16 @@ export class TalentScene extends Phaser.Scene {
       this.selected = Phaser.Math.Clamp(this.selected + moves[key], 0, nodes.length - 1);
       this.message = '';
       const box = layout.nodes[this.selected].rect;
-      const top = box.y - this.scrollY, bottom = top + box.height;
-      if (top < layout.viewport.y) this.scrollBy(top - layout.viewport.y);
-      else if (bottom > layout.viewport.y + layout.viewport.height) {
-        this.scrollBy(bottom - layout.viewport.y - layout.viewport.height);
-      } else this.renderTree();
+      const cx = layout.viewport.x + box.x + box.width / 2;
+      const cy = layout.viewport.y + box.y + box.height / 2;
+      const dx = cx < layout.viewport.x + 40 ? cx - layout.viewport.x - 40
+        : cx > layout.viewport.x + layout.viewport.width - 40
+          ? cx - layout.viewport.x - layout.viewport.width + 40 : 0;
+      const dy = cy < layout.viewport.y + 40 ? cy - layout.viewport.y - 40
+        : cy > layout.viewport.y + layout.viewport.height - 40
+          ? cy - layout.viewport.y - layout.viewport.height + 40 : 0;
+      if (dx || dy) this.panBy(dx, dy);
+      else this.renderTree();
     } else if (key === 'Enter' || key === ' ') {
       this.rankUp();
     }

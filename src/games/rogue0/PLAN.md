@@ -1361,26 +1361,26 @@ not re-litigate them.
 
 #### 4. Layout — computer and phone
 
-- [x] Pure `talents/talentTreeLayout.ts`, modelled on `storeLayout`: invalid
-      viewport throws `RangeError`; `mode = wide` when `viewW / viewH >= 1.2`,
-      otherwise `narrow`; contain-never-cover scaling; exported helpers for
-      node rects, connector endpoints and hit testing so layout is testable in
-      node without Phaser.
-- [x] **Desktop / landscape (wide):** centred panel at most
-      `min(w - 32, 960) × min(h - 32, 720)`. A large scrollable tree pane fills
-      most of it, with three tier columns × three branch rows of ~196×132 px
-      cards. Lines connect each node to the children it unlocks and brighten
-      once the parent has a rank. A narrow detail strip on the right shows the
-      selected node's icon, full description, rank, lock reason and **Rank up
-      (1 point)** button. Hover selects; arrows move; Enter/Space ranks up;
+- [x] Pure `talents/talentTreeLayout.ts`: invalid viewport throws `RangeError`;
+      `mode = wide` when `viewW / viewH >= 1.2`, otherwise `narrow`. The tree is
+      laid out on a canvas deliberately **larger than the pane in both axes**,
+      so it pans horizontally and vertically; exported helpers give content
+      bounds, circular node boxes, scroll limits and two-axis hit testing,
+      all testable in node without Phaser.
+- [x] **Desktop / landscape (wide):** a large tree pane fills most of the
+      screen with a narrow detail strip on the right. On the oversized canvas,
+      each branch's tier-1 root sits near the top and its tier-2/tier-3
+      children fan outward, so the connector lines form three branching trees
+      rather than a grid. Nodes are **circles** with an icon, name and rank;
+      parent→child lines brighten once the parent has a rank. Drag/wheel pans
+      in any direction; hover selects, arrows move, Enter/Space ranks up,
       Escape closes.
-- [x] **Phone portrait (narrow):** the tree pane takes the upper ~2/3 of the
-      screen and its taller content scrolls by drag or wheel; three branch
-      columns stack three tier rows of ~104 px cards. The detail pane is pinned
-      to the bottom with large **Rank up** and **Close** buttons. Overflow is
-      hidden by opaque cover rectangles drawn over the pane, not by WebGL
-      masks (Phaser 4's `setMask` is a no-op), and off-pane nodes are not
-      tappable. The pane is the primary UI; nothing important is off-screen.
+- [x] **Phone portrait (narrow):** the tree pane takes the upper part of the
+      screen with the detail strip pinned below and large **Rank up** /
+      **Close** buttons. The same fan-shaped circular tree is drawn on a canvas
+      wider and taller than the pane, so it pans by touch drag in both axes.
+      Overflow is hidden by opaque cover rectangles, not WebGL masks (Phaser
+      4's `setMask` is a no-op), and off-pane nodes are not tappable.
 - [x] **Phone landscape / small laptop:** aspect ≥1.2 still uses wide mode, but
       cap scale by height as the store does; if the detail pane cannot fit
       beside the tree, move it below without covering nodes.
@@ -1583,11 +1583,12 @@ is class-specific hero art and a palette pass, neither of which affects depth.
   suite plus the existing game suites; no per-node balance tests, no scene
   source audits, no new browser test framework. Gameplay/visual behaviour is
   verified manually with the dev scenario harness.
-- **The talent pane is scrollable and shows the tree, not a list.** One large
-  pane holds every node as a card with its own icon; connector lines point from
-  an acquired node to the nodes it unlocks. Branches stay independent so a
-  player can specialise in only part of the tree — no "spend everything"
-  requirement and no cross-branch prerequisites.
+- **The talent pane shows a branching tree, not a grid or a list.** Nodes are
+  circles with their own icon, fanned outward by tier so parent→child lines
+  read as branches. The canvas is intentionally larger than the pane in both
+  axes, so it pans horizontally and vertically to reach every node. Branches
+  stay independent so a player can specialise in only part of the tree — no
+  "spend everything" requirement and no cross-branch prerequisites.
 - **Out of scope by decision:** goblin archers do **not** kite/retreat, wraiths
   do **not** phase through walls, and monsters do **not** call allies. Do not
   re-propose these or implement them as extras.
