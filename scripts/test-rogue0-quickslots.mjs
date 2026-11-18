@@ -7,7 +7,7 @@ const scrollOnFloor = { type: 'item', x: 2, y: 3 };
 const potionOnFloor = { type: 'item', x: 2, y: 3 };
 const monsterOnFloor = { type: 'enemy', x: 2, y: 3 };
 const playerOnFloor = { type: 'player', x: 2, y: 3 };
-assert.deepEqual([...foregroundEntities([scrollOnFloor, potionOnFloor])], [scrollOnFloor]);
+assert.deepEqual([...foregroundEntities([scrollOnFloor, potionOnFloor])], [scrollOnFloor, potionOnFloor]);
 assert.deepEqual([...foregroundEntities([scrollOnFloor, monsterOnFloor, potionOnFloor])], [monsterOnFloor]);
 assert.deepEqual([...foregroundEntities([monsterOnFloor, scrollOnFloor])], [monsterOnFloor]);
 assert.deepEqual([...foregroundEntities([scrollOnFloor, playerOnFloor], playerOnFloor)], [playerOnFloor]);

@@ -24,6 +24,27 @@ export function floorItemView(textureKey?: string): FloorItemView {
   return FILLED_CELL_VIEW;
 }
 
+/** Inset that keeps half-size artwork centred in its 16px cell. */
+export function floorItemInset(textureKey?: string): number {
+  const view = floorItemView(textureKey);
+  return view.centred ? 8 * (1 - view.scale) : 0;
+}
+
+/** Pixel offsets for items sharing one cell. Index 0 keeps the original cell
+ * origin (a lone item never moves); later items step right/down so the parts
+ * of every sprite that the others do not cover stay on screen. */
+const FLOOR_ITEM_FAN: ReadonlyArray<readonly [number, number]> = [
+  [0, 0],
+  [5, 0],
+  [0, 5],
+  [5, 5],
+];
+
+export function floorItemFanOffset(index: number): { dx: number; dy: number } {
+  const step = FLOOR_ITEM_FAN[index % FLOOR_ITEM_FAN.length];
+  return { dx: step[0], dy: step[1] };
+}
+
 type FloorSprite = {
   x: number;
   y: number;
@@ -37,10 +58,8 @@ type FloorSprite = {
 export function presentFloorItem(sprite: FloorSprite, textureKey?: string): void {
   const view = floorItemView(textureKey);
   if (view.scale !== 1) sprite.setScale(view.scale);
-  if (!view.centred) return;
-  // Half of the 16px cell that the shrunken artwork no longer fills.
-  const inset = 8 * (1 - view.scale);
-  sprite.setPosition(sprite.x + inset, sprite.y + inset);
+  const inset = floorItemInset(textureKey);
+  if (inset) sprite.setPosition(sprite.x + inset, sprite.y + inset);
 }
 
 /** Passage direction, not the direction the door panel faces. Out-of-map
@@ -104,17 +123,29 @@ export function fogFeatherRects(seen: Array<boolean[] | null | undefined>): Arra
   return rects;
 }
 
-// Only one foreground entity is drawn per cell.
+/** Actors stay one-per-cell so bodies never overlap; every item in a cell is
+ * drawn so a pile shows all of its sprites. Loot under a living actor is still
+ * concealed — the actor wins that cell as before. */
 export function foregroundEntities<T extends { x?: number; y?: number; type: string }>(entities: T[], player?: T): Set<T> {
   const cells = new Map<string, T>();
+  const itemCells = new Map<string, T[]>();
   const priority = (entity: T) => entity === player ? 3 : entity.type === 'item' ? 1 : 2;
   for (const entity of entities) {
     if (entity.x === undefined || entity.y === undefined) continue;
     const key = `${entity.x},${entity.y}`;
+    if (entity.type === 'item') {
+      const pile = itemCells.get(key);
+      if (pile) pile.push(entity); else itemCells.set(key, [entity]);
+      continue;
+    }
     const current = cells.get(key);
-    // Stable item choice: first item wins until removed from the cell.
     if (!current || priority(entity) > priority(current)) cells.set(key, entity);
   }
-  return new Set(cells.values());
+  const foreground = new Set(cells.values());
+  for (const [key, pile] of itemCells) {
+    if (cells.has(key)) continue;
+    for (const item of pile) foreground.add(item);
+  }
+  return foreground;
 }
 

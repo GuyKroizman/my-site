@@ -48,7 +48,7 @@ import { createPoisonGas, exposeToGas, nextGasEvent, tickGas, restoreGas } from 
 import { updateGasVisuals, clearGasVisuals } from './gasVisuals';
 import { removeEntity } from './entity';
 import { decodeRunSave, restoreRunState, type RunState, type SavedFloor } from './runPersistence';
-import { foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects } from './rendering';
+import { foregroundEntities, UPRIGHT_LIFT, worldDepth, doorPassage, wallOverhang, actorOriginY, fogFeatherRects, floorItemFanOffset, floorItemInset } from './rendering';
 import dungeon from "./dungeon";
 // Keep this after `dungeon`: saveRegistry loads the whole entity/item graph and
 // must not be the first entry into the entity → effects → dungeon cycle.
@@ -724,11 +724,16 @@ export class Scene0 extends Phaser.Scene {
     updateGasVisuals(this, this.context, this.time.now, isModalOpen(this.context));
     // Use interpolated sprite positions so walking/lunging actors swap order
     // smoothly, including monsters and items spawned after floor creation.
+    // Stacked items are fanned inside their cell, so their depth follows the
+    // tile anchor rather than the nudged artwork.
     // Overlapping actors stay opaque; alpha belongs to effects/animations.
     for (const entity of this.context.entities) {
       const sprite = entity.sprite;
       if (!sprite) continue;
-      sprite.setDepth(worldDepth(sprite.y, entity.type === 'item' ? 'item' : 'actor'));
+      const isItem = entity.type === 'item';
+      const footY = isItem && entity.y !== undefined
+        ? (this.context.map?.tileToWorldY(entity.y) ?? entity.y * 16) : sprite.y;
+      sprite.setDepth(worldDepth(footY, isItem ? 'item' : 'actor'));
     }
     updateHeroAnimation(this.context.player, this.time.now);
     updateHeroBurning(this, this.context.player, this.time.now);
@@ -1469,6 +1474,7 @@ export class Scene0 extends Phaser.Scene {
       decal.sprite.setVisible(this.seen[y]?.[x] === true);
     }
     const foreground = foregroundEntities(this.context.entities, player);
+    const itemSlots = new Map<string, number>();
 
     for (const entity of this.context.entities) {
       if (entity === player) continue;
@@ -1476,6 +1482,25 @@ export class Scene0 extends Phaser.Scene {
       if (entity.x === undefined || entity.y === undefined) {
         entity.sprite?.setVisible(false);
         continue;
+      }
+
+      if (entity.type === 'item') {
+        const cell = `${entity.x},${entity.y}`;
+        const slot = itemSlots.get(cell) ?? 0;
+        itemSlots.set(cell, slot + 1);
+        const sprite = entity.sprite;
+        const map = this.context.map;
+        if (sprite && map) {
+          const { dx, dy } = floorItemFanOffset(slot);
+          const inset = floorItemInset(entity.spriteTextureKey);
+          const baseX = map.tileToWorldX(entity.x)!;
+          const baseY = map.tileToWorldY(entity.y)!;
+          sprite.setPosition(baseX + inset + dx, baseY + inset + dy);
+          // The first item in entity order stays on top — the same one pickup
+          // selects — while later ones peek out behind it. The nudge is far
+          // smaller than the actor layer's offset, so monsters still cover loot.
+          sprite.setDepth(worldDepth(baseY, 'item') - slot * 0.0001);
+        }
       }
 
       const seen = this.seen[entity.y]?.[entity.x] === true;
