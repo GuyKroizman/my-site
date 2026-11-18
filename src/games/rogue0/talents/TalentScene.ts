@@ -215,18 +215,18 @@ export class TalentScene extends Phaser.Scene {
     views.forEach(({ entry, center, radius }) => {
       if (center.y + radius < v.y || center.y - radius > v.y + v.height ||
           center.x + radius < v.x || center.x - radius > v.x + v.width) return;
-      const iconSize = radius * 0.55;
+      const iconSize = radius * 0.5;
       this.drawIcon(nodeIcons, entry.bonus?.kind,
-        center.x - iconSize / 2, center.y - radius * 0.72, iconSize);
+        center.x - iconSize / 2, center.y - radius * 0.78, iconSize);
     });
     views.forEach(({ entry, center, radius }) => {
       const unlocked = isTalentUnlocked(entry, ranks, player.level);
       const rank = player.talentRank(entry.id);
-      const nameSize = Math.max(9, Math.min(15, radius * 0.2));
-      this.text(center.x - radius * 0.86, center.y - radius * 0.16, entry.name, nameSize, radius * 1.72)
+      const nameSize = Math.max(9, Math.min(15, radius * 0.17));
+      this.text(center.x, center.y - radius * 0.14, entry.name, nameSize, radius * 1.66)
         .setOrigin(0.5, 0).setColor(unlocked ? GOLD : DIM);
-      this.text(center.x, center.y + radius * 0.36, `${rank}/${entry.maxRank}${unlocked ? '' : ' · locked'}`,
-        Math.max(9, Math.min(13, radius * 0.17))).setOrigin(0.5).setColor(unlocked ? '#e8e1d5' : DIM);
+      this.text(center.x, center.y + radius * 0.42, `${rank}/${entry.maxRank}${unlocked ? '' : ' · locked'}`,
+        Math.max(9, Math.min(13, radius * 0.15))).setOrigin(0.5).setColor(unlocked ? '#e8e1d5' : DIM);
     });
 
     // Opaque frame over the scrolled content, then the fixed chrome on top.
@@ -259,13 +259,14 @@ export class TalentScene extends Phaser.Scene {
       const entry = nodes[this.selected];
       const rank = player.talentRank(entry.id);
       const unlocked = isTalentUnlocked(entry, ranks, player.level);
-      const bodySize = Math.max(11, Math.min(18, 17 * Math.min(1.4, layout.scale)));
+      const bodySize = Math.max(14, Math.min(26,
+        Math.min(22 * Math.min(1.6, layout.scale), m.height * 0.09)));
       let y = m.y + 14;
-      this.drawIcon(modalIcons, entry.bonus?.kind, m.x + 16, y + 2, bodySize * 1.6);
-      this.text(m.x + 18 + bodySize * 1.6, y, entry.name, bodySize + 2,
-        m.width - 60 - bodySize * 1.6).setColor(GOLD);
+      this.drawIcon(modalIcons, entry.bonus?.kind, m.x + 16, y + 2, bodySize * 1.8);
+      this.text(m.x + 20 + bodySize * 1.8, y, entry.name, bodySize + 4,
+        m.width - 68 - bodySize * 1.8).setColor(GOLD);
       this.button(layout.modalClose, '×', () => { this.detailOpen = false; this.renderTree(); });
-      y += bodySize + 14;
+      y += bodySize + 18;
       this.text(m.x + 16, y, `${entry.branch} · rank ${rank}/${entry.maxRank} · level ${entry.minLevel}+`,
         bodySize, m.width - 32);
       y += bodySize + 8;

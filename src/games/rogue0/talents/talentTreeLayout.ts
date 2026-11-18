@@ -22,8 +22,8 @@ export type TalentLayout = {
 const BRANCHES = 3;
 const TIERS = 3;
 const CONTENT = {
-  wide: { width: 1000, height: 900, radius: 64 },
-  narrow: { width: 780, height: 1150, radius: 58 },
+  wide: { width: 1000, height: 900, radius: 84 },
+  narrow: { width: 780, height: 1150, radius: 76 },
 } as const;
 
 export function talentTreeLayout(
@@ -49,8 +49,8 @@ export function talentTreeLayout(
     : { x: viewW - 84, y: 8, width: 76, height: 34 };
 
   // Floating detail modal, centred over the tree and only shown on click.
-  const modalW = Math.min(440, viewport.width - 24);
-  const modalH = Math.min(300, viewport.height - 24);
+  const modalW = Math.min(520, viewport.width - 24);
+  const modalH = Math.min(420, viewport.height - 24);
   const modal: Rect = {
     x: viewport.x + (viewport.width - modalW) / 2,
     y: viewport.y + (viewport.height - modalH) / 2,
@@ -59,11 +59,11 @@ export function talentTreeLayout(
   };
   const modalRankUp: Rect = {
     x: modal.x + 16,
-    y: modal.y + modal.height - 58,
+    y: modal.y + modal.height - 66,
     width: modal.width - 32,
-    height: 46,
+    height: 52,
   };
-  const modalClose: Rect = { x: modal.x + modal.width - 40, y: modal.y + 8, width: 32, height: 32 };
+  const modalClose: Rect = { x: modal.x + modal.width - 44, y: modal.y + 8, width: 36, height: 36 };
 
   const radius = content.radius;
   const yFor = (tier: number) => [140, content.height * 0.46, content.height * 0.78][tier];
@@ -81,7 +81,8 @@ export function talentTreeLayout(
       branch,
       tier,
       rect: {
-        x: xFor(branch, tier) * scale,
+        // xFor gives the circle centre in content coordinates.
+        x: xFor(branch, tier) * scale - radius * scale,
         y: yFor(tier) * scale,
         width: radius * 2 * scale,
         height: radius * 2 * scale,
