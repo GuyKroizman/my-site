@@ -554,7 +554,7 @@ assert.ok(thrownSetup.ctx.entities.includes(thrownSetup.item), 'hit cannot remov
 
 // Actual potion and cursed-gem classes: throw one from a stack onto the plate or
 // into an enemy. The remaining inventory entity survives both paths.
-const Potion = load('items/PotionOfHealing', { Entity }).default;
+const Potion = load('items/PotionOfHealing', { Entity, spawnEntityFloatingText() {} }).default;
 const CursedGem = load('items/cursedGem', { Entity }).default;
 // Pickup may merge only equivalent stack state, never silently erase it.
 for (const difference of [

@@ -15,6 +15,7 @@ const { Entity, removeEntity } = load('entity.ts', { actionCost: () => 1 });
 const dungeon = { log(context, text) { context.messages.push(text); } };
 const PotionOfHealing = load('items/PotionOfHealing.ts', {
   Entity, removeEntity, dungeon,
+  spawnEntityFloatingText() {},
   applyEffect: effects.applyEffect,
   createPotionHealingEffect: effects.createPotionHealingEffect,
   cureDebuffs: effects.cureDebuffs,
@@ -46,20 +47,21 @@ function tick(context, times) {
   }
 }
 
-// The drink banks 80% of max health + 14, capped to the health actually
-// missing, and pays it out over ten world-time ticks.
+// Half of the nominal dose lands on the drink itself; the remainder is capped
+// at the missing health and paid out over ten world-time ticks.
 {
   const { context, player, potion } = setup({ healthPoints: 10 });
   potion.equip();
   assert.equal(player.items.includes(potion), false, 'the flask is consumed');
   assert.equal(context.entities.includes(potion), false, 'the floor copy is gone');
+  assert.equal(player.healthPoints, 57, '47 of the missing 90 points arrive immediately');
   const mending = player.effects.find(effect => effect.id === 'potion-healing');
-  assert.ok(mending, 'drinking starts a healing-over-time effect');
-  assert.equal(mending.remainingHeal, 90, 'the bank is capped at the missing health');
-  assert.equal(mending.healPerTick, 9, '94 total over ten ticks is capped by the missing 90');
+  assert.ok(mending, 'the unspent healing stays as a Mending effect');
+  assert.equal(mending.remainingHeal, 43, 'only the unspent 43 points are banked');
+  assert.equal(mending.healPerTick, 5, '43 banked points pay out five per tick');
 
-  tick(context, 9);
-  assert.equal(player.healthPoints, 91, 'nine ticks pay out nine per tick');
+  tick(context, 8);
+  assert.equal(player.healthPoints, 97, 'eight ticks pay out five each');
   assert.ok(player.effects.some(effect => effect.id === 'potion-healing'),
     'the effect lasts until the bank is empty');
   tick(context, 1);
@@ -86,6 +88,19 @@ function tick(context, times) {
   assert.equal(player.effects.some(effect => effect.id === 'potion-healing'), false);
 }
 
+// A critical hero gets a survivable jump on the drink itself, before any turn passes.
+{
+  const { context, player, potion } = setup({ maxHealthPoints: 40, healthPoints: 7 });
+  potion.equip();
+  assert.equal(player.healthPoints, 30, '7 HP jumps to 30 the instant the flask is drunk');
+  const mending = player.effects.find(effect => effect.id === 'potion-healing');
+  assert.equal(mending.remainingHeal, 10, 'the remaining ten points keep mending');
+  assert.equal(mending.healPerTick, 1);
+  tick(context, 10);
+  assert.equal(player.healthPoints, 40, 'the residual mending finishes the job');
+  assert.equal(player.effects.some(effect => effect.id === 'potion-healing'), false);
+}
+
 // Non-permanent debuffs are cured immediately; buffs and curses survive.
 {
   const { player, potion } = setup({ healthPoints: 20 });
@@ -101,6 +116,7 @@ function tick(context, times) {
   assert.equal(player.accuracy, 65, 'blindness has lowered accuracy');
 
   potion.equip();
+  assert.equal(player.healthPoints, 67, 'the immediate burst still lands while curing');
   const ids = player.effects.map(effect => effect.id).sort();
   assert.deepEqual(ids, ['cursed', 'potion-healing', 'strengthened'],
     'timed debuffs are cured, curses and buffs remain');
@@ -114,6 +130,7 @@ function tick(context, times) {
   const { context, player, potion } = setup({ healthPoints: 50 });
   potion.count = 2;
   potion.equip();
+  assert.equal(player.healthPoints, 97, 'one flask pays out its immediate burst');
   assert.equal(potion.count, 1, 'one flask leaves the stack');
   assert.equal(context.entities.includes(potion), true, 'the stack stays on the floor');
   assert.equal(player.items.includes(potion), true, 'the stack stays in the backpack');
@@ -123,18 +140,19 @@ function tick(context, times) {
 // A second flask cannot bank more healing than the hero is actually missing:
 // an active bank already covers those wounds.
 {
-  const { context, player, potion } = setup({ maxHealthPoints: 200, healthPoints: 150 });
+  const { context, player, potion } = setup({ maxHealthPoints: 200, healthPoints: 100 });
   potion.equip();
   tick(context, 2);
-  assert.equal(player.healthPoints, 160);
+  assert.equal(player.healthPoints, 191);
   const second = new PotionOfHealing(context);
   player.items.push(second);
   context.entities.push(second);
   second.equip();
   const mending = player.effects.filter(effect => effect.id === 'potion-healing');
   assert.equal(mending.length, 1, 'one Mending effect carries the flasks');
-  assert.equal(mending[0].remainingHeal, 40,
-    'the bank stays capped at the 40 health still missing');
+  assert.equal(mending[0].remainingHeal, 9,
+    'the bank stays capped at the 9 health still missing');
+  assert.equal(player.healthPoints, 191, 'the second flask adds nothing it cannot spend');
   tick(context, 8);
   assert.equal(player.healthPoints, 200, 'the banked healing is delivered');
   assert.equal(player.effects.some(effect => effect.id === 'potion-healing'), false);
@@ -153,4 +171,4 @@ function tick(context, times) {
   assert.equal(fs.existsSync('src/games/rogue0/items/fullHealPotion.ts'), false);
 }
 
-console.log('Rogue0 Potion of Healing heals 80% + 14 over time, cures timed debuffs, and stays a rare single potion passed');
+console.log('Rogue0 Potion of Healing bursts half its dose immediately, mends the rest, cures timed debuffs, and stays a rare single potion passed');

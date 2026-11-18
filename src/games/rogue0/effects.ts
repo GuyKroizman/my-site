@@ -166,8 +166,8 @@ export function createRegenerationEffect(duration = 4): StatusEffect {
   };
 }
 
-// Potion of Healing: the whole draught is paid out over a handful of turns
-// rather than in one instant, so a flask drunk mid-fight keeps mending. The
+// Potion of Healing: the banked remainder is paid out over a handful of turns
+// after the immediate burst, so a flask drunk mid-fight keeps mending. The
 // amount was already capped to the hero's missing health when it was drunk.
 // manualExpiry keeps unspent healing from evaporating at full health.
 export const POTION_HEAL_TICKS = 10;
