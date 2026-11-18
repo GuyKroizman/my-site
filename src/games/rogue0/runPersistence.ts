@@ -79,6 +79,8 @@ export type RunState = {
 export function decodeRunSave(save: RunSave, context: GameContext, registry: Registry = saveRegistry): RunState {
   const run: RunState = decodeGraph(retireGemsFromSave(save.graph), registry, (entity: Entity) => {
     entity.context = context;
+    // Old saves carry talent ranks but no earned-point counter.
+    if (entity instanceof BasicHero) entity.migrateTalentPoints?.();
     // Friendly was retired. Cleanse old items rather than leaving an invisible
     // equipment lock or replacing it with a different, harmful curse.
     if (entity.type === 'item' && entity.curseId === 'friendly') {

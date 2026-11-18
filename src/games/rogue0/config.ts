@@ -2,6 +2,7 @@
 import Phaser from "phaser";
 import { Scene0 } from "./scene0";
 import { StoreScene } from './store/StoreScene';
+import { TalentScene } from './talents/TalentScene';
 import type { GameContext } from "./context";
 
 export function createRogue0Config(context: GameContext): Phaser.Types.Core.GameConfig {
@@ -12,7 +13,7 @@ export function createRogue0Config(context: GameContext): Phaser.Types.Core.Game
     height: 50 * 16,
     backgroundColor: "#000000",
     pixelArt: true,
-    scene: [new Scene0(context), new StoreScene(context)],
+    scene: [new Scene0(context), new StoreScene(context), new TalentScene(context)],
     physics: {
       default: "arcade",
       arcade: {

@@ -27,6 +27,17 @@ import { stashChasmFallen } from '../chasmDrops';
 import { tryFuseWands } from '../wandFusion';
 import { potionSplashCells } from '../potionSplash';
 import { heroStatsText } from '../heroViewModel';
+import {
+  TALENT_TREE,
+  talentNodesFor,
+  talentNodeById,
+  talentRankOf,
+  spentTalentRanks,
+  isTalentUnlocked,
+  talentBonus,
+  type HeroClassName,
+  type TalentNode,
+} from '../talents/talentTree';
 
 import { heroControlsFor } from '../heroControls';
 import { hostileAtTile, isHostile } from '../heroControlRules';
@@ -41,23 +52,11 @@ import type { ActionKind } from "../timing";
 const FROST_POTION_FIRE_DAMAGE = 4;
 
 // Every talent is a passive: the game has no active class abilities.
-export const CLASS_TALENTS = {
-  Warrior: [
-    { id: "fury", name: "Deep Fury", description: "+1 damage at/below half HP per rank." }
-  ],
-  Dwarf: [
-    { id: "armor", name: "Iron Skin", description: "+1 physical armor per rank." }
-  ],
-  Cleric: [
-    { id: "mending", name: "Greater Mending", description: "+1 HP regenerated each turn per rank." }
-  ],
-  Elf: [
-    { id: "grace", name: "Light Footwork", description: "+5 evasion per rank (before armor penalties)." }
-  ],
-  Wizard: [
-    { id: "mastery", name: "Focused Mastery", description: "+1 fire/shock/magic damage per rank." }
-  ]
-} as const;
+// Legacy view of each class's tier-1 root, kept for the scenario panel and old
+// callers; the full tree lives in talents/talentTree.ts and is used for ranks.
+export const CLASS_TALENTS = Object.fromEntries(
+  (Object.keys(TALENT_TREE) as HeroClassName[]).map(cls => [cls, [talentNodesFor(cls)[0]]])
+) as Record<HeroClassName, TalentNode[]>;
 
 /** Rank cap for every talent. */
 export const MAX_TALENT_RANK = 2;
@@ -77,30 +76,68 @@ export default class BasicHero extends Entity implements HeroControlHost {
   private regenerationTicks: number = 0;
   xp: number = 0;
   level: number = 1;
-  talentClass?: keyof typeof CLASS_TALENTS;
+  talentClass?: HeroClassName;
   talentRanks: Record<string, number> = {};
+  talentPointsEarned = 0;
 
   get availableTalents() {
     return this.talentClass ? CLASS_TALENTS[this.talentClass] : [];
   }
 
+  get talentTreeNodes(): TalentNode[] {
+    return talentNodesFor(this.talentClass);
+  }
+
   talentRank(id: string): number {
-    return this.availableTalents.some(t => t.id === id) ? (this.talentRanks?.[id] ?? 0) : 0;
+    return this.talentTreeNodes.some(entry => entry.id === id)
+      ? talentRankOf(this.talentRanks ?? {}, id) : 0;
+  }
+
+  spentTalentRankCount(): number {
+    return spentTalentRanks(this.talentRanks ?? {}, this.talentClass);
   }
 
   get talentPoints(): number {
-    const spent = this.availableTalents.reduce((sum, t) => sum + this.talentRank(t.id), 0);
-    const capacity = this.availableTalents.length * MAX_TALENT_RANK;
-    return Math.max(0, Math.min(capacity, this.level - 1) - spent);
+    // Fixtures and very old saves may lack the counter; derive it once.
+    const earned = Number.isFinite(this.talentPointsEarned)
+      ? this.talentPointsEarned : Math.max(0, this.level - 1);
+    return Math.max(0, earned - this.spentTalentRankCount());
+  }
+
+  talentBonusValue(kind: Parameters<typeof talentBonus>[0]): number {
+    return talentBonus(kind, this.talentRanks ?? {}, this.talentClass);
   }
 
   learnTalent(id: string): boolean {
-    if (this.healthPoints <= 0 || !this.availableTalents.some(t => t.id === id) ||
-        this.talentPoints <= 0 || this.talentRank(id) >= MAX_TALENT_RANK) return false;
+    const entry = talentNodeById(id);
+    if (this.healthPoints <= 0 || !entry || !this.talentTreeNodes.some(node => node.id === id) ||
+        this.talentPoints <= 0 || this.talentRank(id) >= entry.maxRank ||
+        !isTalentUnlocked(entry, this.talentRanks ?? {}, this.level)) return false;
     this.talentRanks[id] = this.talentRank(id) + 1;
-    const talent = this.availableTalents.find(t => t.id === id)!;
-    dungeon.log(this.context, `Learned ${talent.name} (${this.talentRank(id)}/${MAX_TALENT_RANK}).`);
+    if (entry.bonus?.kind === "maxHealth") {
+      this.maxHealthPoints += entry.bonus.amount;
+      this.healthPoints += entry.bonus.amount;
+    }
+    dungeon.log(this.context, `Learned ${entry.name} (${this.talentRank(id)}/${entry.maxRank}).`);
     return true;
+  }
+
+  awardTalentPoint(): void {
+    this.talentPointsEarned = (Number.isFinite(this.talentPointsEarned) ? this.talentPointsEarned : 0) + 1;
+    dungeon.log(this.context, "Talent point earned! Open the talent tree (T) to spend it.");
+  }
+
+  // Old saves have ranks but no explicit earned counter. Keep their ranks,
+  // grant the new level-based entitlement, and drop foreign/retired ids so
+  // they cannot consume points they never earned.
+  migrateTalentPoints(): void {
+    if (this.talentPointsEarned == null || !Number.isFinite(this.talentPointsEarned)) {
+      this.talentPointsEarned = Math.max(this.spentTalentRankCount(), this.level - 1);
+    }
+    const valid = new Set(this.talentTreeNodes.map(entry => entry.id));
+    for (const id of Object.keys(this.talentRanks ?? {})) {
+      if (!valid.has(id)) delete this.talentRanks[id];
+    }
   }
   baseAttack: number = 0;
   strength: number = 10;
@@ -337,7 +374,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
   }
 
   get effectiveEvasion(): number {
-    return (this.evasion + 5 * this.talentRank("grace")) / Math.pow(1.2, this.strengthDeficit(this.armor));
+    return (this.evasion + this.talentBonusValue("evasion")) / Math.pow(1.2, this.strengthDeficit(this.armor));
   }
 
   movementCostMultiplier(): number {
@@ -346,7 +383,9 @@ export default class BasicHero extends Entity implements HeroControlHost {
   }
 
   attackCostMultiplier(): number {
-    return Math.pow(1.2, this.strengthDeficit(this.weapon));
+    const haste = typeof this.talentBonusValue === "function"
+      ? Math.max(0, 1 - this.talentBonusValue("haste")) : 1;
+    return Math.pow(1.2, this.strengthDeficit(this.weapon)) * Math.max(0.5, haste);
   }
 
   attack() {
@@ -357,11 +396,18 @@ export default class BasicHero extends Entity implements HeroControlHost {
     for (const item of [this.ring1, this.ring2, this.artifact]) {
       if (item) total += item.damage();
     }
+    if (this.healthPoints <= this.maxHealthPoints / 2) {
+      total += this.talentBonusValue("lowHpDamage");
+    }
+    const type = this.weapon?.damageType;
+    if (type === "fire" || type === "shock" || type === "magic") {
+      total += this.talentBonusValue("typedDamage");
+    }
     return total;
   }
 
   protection() {
-    let total = 0;
+    let total = this.talentBonusValue("armor");
     if (this.armor) {
       total += this.armor.protection();
     }
@@ -411,6 +457,12 @@ export default class BasicHero extends Entity implements HeroControlHost {
     } else {
       this.regenerationTicks = 0;
     }
+
+    // Talent regeneration is independent of natural (fed-only) healing.
+    const talentRegen = this.talentBonusValue("regen");
+    if (talentRegen > 0 && this.healthPoints < this.maxHealthPoints) {
+      this.healthPoints = Math.min(this.maxHealthPoints, this.healthPoints + talentRegen);
+    }
   }
 
   restoreHunger(amount: number): void {
@@ -434,9 +486,7 @@ export default class BasicHero extends Entity implements HeroControlHost {
       this.baseAttack += 1;
       sfx.levelUp();
       dungeon.log(this.context, `You leveled up! You are now level ${this.level} (+5 HP, +1 ATK).`);
-      if (this.level <= 4 && this.availableTalents.length) {
-        dungeon.log(this.context, "Talent point earned! Open the Hero panel to choose a talent.");
-      }
+      this.awardTalentPoint();
     }
   }
 

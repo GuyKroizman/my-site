@@ -541,6 +541,7 @@ export class Scene0 extends Phaser.Scene {
     this.context.onPortalBump = (x, y) => this.tryStoreDoor(x, y);
     this.context.onDescend = () => this.tryDescend();
     this.context.onAscend = () => this.tryAscend();
+    this.context.onOpenTalentTree = () => this.openTalentTree();
     this.context.onSummonTrap = (x, y) => this.summonFromTrap(x, y);
     // Boss state is always tracked; only the normal (non-scenario) flow adds
     // the empty-floor reinforcement wave.
@@ -1303,6 +1304,26 @@ export class Scene0 extends Phaser.Scene {
     this.scene.bringToTop('store-scene');
     this.scene.pause();
     return true;
+  }
+
+  // Fullscreen talents: same hard pause as the store (Phase 18). No world
+  // action occurs, so opening the tree never spends a turn.
+  private openTalentTree(): void {
+    const context = this.context, player = context.player;
+    if (this.ended || isModalOpen(context) || !player?.canAct() ||
+        context.pendingFall || (context.pendingTrapArrows ?? 0) > 0 ||
+        context.entities.some(entity => entity.moving)) return;
+    player.inputBuffer = [];
+    player.walkPath = [];
+    player.walkTargetEntity = undefined;
+    player.exitCursorModes();
+    context.saveNow?.();
+    context.talentTreeOpen = true;
+    context.onTalentTreeOpenChange?.(true);
+    this.scene.sleep('ui-scene');
+    this.scene.launch('talent-scene');
+    this.scene.bringToTop('talent-scene');
+    this.scene.pause();
   }
 
   private tryAscend() {

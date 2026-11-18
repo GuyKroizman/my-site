@@ -29,6 +29,6 @@ export default class Dwarf extends BasicHero {
 
   // Passive: Dwarven Armor — +1 armor (stacks with the equipped shield).
   protection() {
-    return super.protection() + 1 + this.talentRank("armor");
+    return super.protection() + 1;
   }
 }

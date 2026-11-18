@@ -30,7 +30,7 @@ export default class Cleric extends BasicHero {
 
     if (this.healthPoints < this.maxHealthPoints) {
       this.healthPoints = Math.min(this.maxHealthPoints,
-        this.healthPoints + 1 + this.talentRank("mending"))
+        this.healthPoints + 1)
       // Passive healing updates the health display without log chatter.
     }
   }

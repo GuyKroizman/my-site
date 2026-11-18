@@ -102,6 +102,10 @@ export type GameContext = {
   // Legacy: previously selected which store stocked the revival boot.
   shoeShopFloor?: number;
   storeOpen?: boolean;
+  // Fullscreen talent tree scene (Phase 18). Runtime-only, never serialized.
+  talentTreeOpen?: boolean;
+  onTalentTreeOpenChange?: (open: boolean) => void;
+  onOpenTalentTree?: () => void;
   portal?: import('./store/portal').StorePortal;
   onPortalBump?: (x: number, y: number) => boolean;
   onStoreOpenChange?: (open: boolean) => void;
@@ -169,7 +173,7 @@ export type GameContext = {
 };
 
 export function isModalOpen(context: GameContext): boolean {
-  return !!(context.storeOpen || context.inventoryOpen || context.heroModalOpen || context.logModalOpen || context.confirmationOpen || context.helpOpen ||
+  return !!(context.storeOpen || context.talentTreeOpen || context.inventoryOpen || context.heroModalOpen || context.logModalOpen || context.confirmationOpen || context.helpOpen ||
     context.knowledgeOpen ||
     context.inspectChoices?.length || context.inspectedEntity || context.inspectedTerrain);
 }

@@ -751,7 +751,10 @@ Themed regions remain future work. Encounter variety and enemy strength now
 increase throughout the run; see Monster depth progression and balance above.
 
 Heroes start with **10 Strength**. Strength potions permanently add one Strength,
-not attack. XP still grants +5 max HP / +1 attack; talents are not implemented.
+not attack. XP grants +5 max HP / +1 attack and one talent point per level from
+level 2. The fullscreen talent tree (Hero panel → Talents or `T`) has three
+branches per class with three tiers each; ranks are permanent, prerequisites
+need one rank in the parent, and the game is paused while the tree is open.
 Physical equipment requires `8 + 2 × tier` Strength. Upgrades reduce that
 requirement at +1, +3, +6, +10, … (minimum 0). For each missing point, weapons
 multiply attack time by 1.2 and divide accuracy by 1.2; armor multiplies movement

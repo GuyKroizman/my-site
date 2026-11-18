@@ -70,9 +70,7 @@ export class UI extends Phaser.Scene {
   private heroModalBg: Phaser.GameObjects.Rectangle | undefined;
   private heroModalText: Phaser.GameObjects.Text | undefined;
   private heroModalOpen = false;
-  private showingTalents = false;
-  private talentRows: Phaser.GameObjects.Text[] = [];
-  private talentTab?: Phaser.GameObjects.Text;
+  private talentButton?: Phaser.GameObjects.Text;
   private heroCloseBtn: Phaser.GameObjects.Text | undefined;
   private heroBackdrop: Phaser.GameObjects.Rectangle | undefined;
 
@@ -165,7 +163,10 @@ export class UI extends Phaser.Scene {
           return;
         }
       }
-      if (key === "b" || key === "B") {
+      if (key === "t" || key === "T") {
+        this.closeHeroModal();
+        this.context.onOpenTalentTree?.();
+      } else if (key === "b" || key === "B") {
         this.closeHeroModal();
         this.inventoryWindow?.toggle();
       } else if (key === "Escape") {
@@ -406,8 +407,6 @@ export class UI extends Phaser.Scene {
   private buildHeroModal() {
     const w = 320;
     const h = 360;
-    this.showingTalents = false;
-    this.talentRows = [];
     this.heroBackdrop = this.add
       .rectangle(0, 0, 1, 1, 0x000000, 0.5)
       .setOrigin(0)
@@ -435,29 +434,14 @@ export class UI extends Phaser.Scene {
       wordWrap: { width: w - 20 }
     });
     root.add(this.heroModalText);
-    this.talentTab = this.add.text(70, 5, "Talents", {
+    this.talentButton = this.add.text(70, 5, "Talents (0)", {
       fontFamily: `${FONT_MONO}, monospace`, fontSize: 17, color: COL.gold
     }).setInteractive({ useHandCursor: true });
-    this.talentTab.on("pointerup", () => {
-      this.showingTalents = !this.showingTalents;
-      this.updateHeroModal();
+    this.talentButton.on("pointerup", () => {
+      this.closeHeroModal();
+      this.context.onOpenTalentTree?.();
     });
-    root.add(this.talentTab);
-    for (let index = 0; index < 2; index++) {
-      const row = this.add.text(10, 85 + index * 100, "", {
-        fontFamily: `${FONT_MONO}, monospace`, fontSize: 17, color: COL.gold,
-        wordWrap: { width: w - 20 }
-      }).setInteractive({ useHandCursor: true }).setVisible(false);
-      row.on("pointerup", () => {
-        if (!this.heroModalOpen || !this.showingTalents) return;
-        const player = this.context.player;
-        const talent = player?.availableTalents[index];
-        if (talent) player?.learnTalent(talent.id);
-        this.updateHeroModal();
-      });
-      this.talentRows.push(row);
-      root.add(row);
-    }
+    root.add(this.talentButton);
     this.heroCloseBtn = this.add
       .text(w - 12, 8, "Close", {
         fontFamily: `${FONT_MONO}, monospace`,
@@ -580,7 +564,6 @@ export class UI extends Phaser.Scene {
     const heroH = 360;
     this.heroModalBg?.setSize(heroW, heroH);
     this.heroModalText?.setWordWrapWidth(heroW - 20);
-    this.talentRows.forEach(row => row.setWordWrapWidth(heroW - 20));
     this.heroCloseBtn?.setPosition(heroW - 12, 8);
     const heroScale = Math.min(1, Math.max(0.1, (h - 16) / heroH));
     this.heroModal?.setScale(heroScale);
@@ -683,21 +666,11 @@ export class UI extends Phaser.Scene {
     const p = this.context.player;
     if (!p) return;
 
-    this.talentTab?.setText(this.showingTalents ? "Stats" : `Talents (${p.talentPoints})`);
-    this.talentRows.forEach((row, index) => {
-      const talent = p.availableTalents[index];
-      row.setVisible(this.showingTalents && !!talent);
-      if (!talent) return;
-      const rank = p.talentRank(talent.id);
-      const canLearn = p.talentPoints > 0 && rank < 2;
-      row.setColor(canLearn ? COL.gold : COL.muted);
-      row.setText(`${talent.name} ${rank}/2${canLearn ? "  [+]" : ""}\n${talent.description}`);
-    });
-    if (this.showingTalents) {
-      this.heroModalText.setText(`Points: ${p.talentPoints} (levels 2–4)\nTap a talent to rank up.\nPermanent choices; rank cap 2.`);
-      return;
-    }
+    this.talentButton?.setText(`Talents (${p.talentPoints})`);
     let text = p.statsText();
+    if (p.talentPoints > 0) {
+      text += `\n\nUnspent talent points: ${p.talentPoints} — open Talents to spend.`;
+    }
     if (p.effects.length) {
       text += "\n\nEffects:";
       for (const e of p.effects) {

@@ -15,6 +15,7 @@ import type { Entity } from './entity';
 import { identify, rememberIdentifiedWandTypes } from './entity';
 import { saveRegistry } from './saveRegistry';
 import BasicHero from './classes/basicHero';
+import { talentNodeById, spentTalentRanks } from './talents/talentTree';
 import Monster from './monsters/monster';
 import Ring from './items/ring';
 import Wand from './items/wand';
@@ -361,9 +362,15 @@ export function applyScenarioHero(hero: BasicHero, scenario: Scenario): void {
   // 0 is allowed: starting at 0 Food is how the starvation path gets tested.
   if (spec.hunger !== undefined) hero.hunger = clampInt(spec.hunger, 0, hero.maxHunger);
   if (spec.gold !== undefined) hero.gold = Math.max(0, Math.floor(spec.gold));
-  for (const [id, rank] of Object.entries(spec.talents ?? {})) {
+  // Tier order matters: a deeper node cannot be learned before its parent.
+  const authored = Object.entries(spec.talents ?? {}).sort(([a], [b]) =>
+    (talentNodeById(a)?.tier ?? 0) - (talentNodeById(b)?.tier ?? 0));
+  for (const [id, rank] of authored) {
     for (let i = 0; i < clampInt(rank, 0, 2); i++) hero.learnTalent(id);
   }
+  // Authored ranks are not paid for with level-ups in a scenario.
+  hero.talentPointsEarned = Math.max(hero.talentPointsEarned ?? 0,
+    spentTalentRanks(hero.talentRanks ?? {}, hero.talentClass));
 }
 
 // Removes the starting gear a class constructor rolled, leaving the hero

@@ -20,8 +20,8 @@ function hero(name) {
     refreshUI() {}, spendTurn() { this.spent = (this.spent ?? 0) + 1; } });
   return h;
 }
-// Talent capacity is the class's available ranks, so points never accumulate
-// beyond what can actually be spent (one passive talent per class).
+// One point is earned per level from level 2; rank caps live on individual
+// tree nodes, so unspent points can accumulate across levels.
 assert.equal(MAX_TALENT_RANK, 2);
 for (const name of Object.keys(classes)) {
   const h = hero(name);
@@ -35,12 +35,12 @@ for (const name of Object.keys(classes)) {
   assert.equal(h.learnTalent(a.id), false, 'cannot overspend');
   assert.equal(h.talentPoints, 0);
   h.gainXp(16 + 24);
-  assert.equal(h.level, 4); assert.equal(h.talentPoints, 1);
+  assert.equal(h.level, 4); assert.equal(h.talentPoints, 2, 'one point per level');
   assert.equal(h.learnTalent(a.id), true);
   assert.equal(h.learnTalent(a.id), false, 'rank cap');
-  assert.equal(h.talentPoints, 0, 'no unspendable points at higher levels');
+  assert.equal(h.talentPoints, 1);
   h.gainXp(32 + 40);
-  assert.equal(h.level, 6); assert.equal(h.talentPoints, 0, 'points stop at the rank capacity');
+  assert.equal(h.level, 6); assert.equal(h.talentPoints, 3, 'points keep accruing with levels');
   assert.equal(h.strength, 10); assert.equal(h.baseAttack, 5);
   assert.equal(h.maxHealthPoints, 55);
   assert.equal(h.context.simulationTime, 12.5); assert.equal(h.spent, undefined);
@@ -80,7 +80,8 @@ wizard.talentRanks = {}; wizard.weapon.damageType = 'shock'; assert.equal(wizard
 const foreign = hero('Warrior'); foreign.level = 4;
 assert.equal(foreign.learnTalent('grace'), false);
 foreign.talentRanks.grace = 2; assert.equal(foreign.talentRank('grace'), 0);
-// Real Hero-panel callbacks: tap navigation, spending and hidden-panel guards.
+// The Hero-panel Talents button opens the fullscreen tree; ranks are spent
+// there, never from the small modal, and opening it costs no world time.
 const { UI } = load('ui', { Phaser: { Scene: class {} } });
 function widget() {
   return { events: {}, text: '', visible: true,
@@ -95,21 +96,16 @@ function widget() {
 const ui = Object.create(UI.prototype);
 const choosing = hero('Warrior'); choosing.level = 2; choosing.effects = [];
 choosing.statsText = () => 'Hero stats';
-ui.context = { player: choosing, simulationTime: 12.5 };
+let opened = 0;
+ui.context = { player: choosing, simulationTime: 12.5, onOpenTalentTree: () => { opened += 1; } };
 ui.add = { container: widget, rectangle: widget, text: widget };
 ui.buildHeroModal(); ui.heroModalOpen = true;
-ui.talentTab.events.pointerup();
-assert.equal(ui.talentRows[0].visible, true);
-assert.equal(ui.talentRows[1].visible, false, 'classes without a second talent show one row');
-assert.match(ui.heroModalText.text, /Points: 1/);
-ui.talentRows[0].events.pointerup();
-assert.equal(choosing.talentRank('fury'), 1);
-assert.match(ui.heroModalText.text, /Points: 0/);
-ui.talentRows[1].events.pointerup(); assert.equal(choosing.talentRank('fury'), 1);
-choosing.level = 3; ui.heroModalOpen = false;
-ui.talentRows[0].events.pointerup(); assert.equal(choosing.talentRank('fury'), 1);
-ui.heroModalOpen = true; ui.talentTab.events.pointerup();
-assert.equal(ui.talentRows[0].visible, false);
-ui.talentRows[0].events.pointerup(); assert.equal(choosing.talentRank('fury'), 1);
+ui.updateHeroModal();
+assert.match(ui.talentButton.text, /Talents \(1\)/);
+assert.match(ui.heroModalText.text, /Unspent talent points: 1/);
+ui.talentButton.events.pointerup();
+assert.equal(opened, 1, 'Talents button opens the fullscreen scene');
+assert.equal(ui.heroModalOpen, false, 'the small modal closes first');
+assert.equal(choosing.talentRank('fury'), 0, 'no spending happens in the modal');
 assert.equal(choosing.spent, undefined); assert.equal(ui.context.simulationTime, 12.5);
 console.log('Rogue0 talent awards, ranks, class restrictions, passive bonuses and panel actions passed');

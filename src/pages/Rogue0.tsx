@@ -40,7 +40,7 @@ const HELP_PAGES = [
   },
   {
     title: 'Talents',
-    body: `• You have an innate passive plus one passive talent.\n• Blood Fury (Warrior, innate): +2 damage while below half health.\n• You gain a talent point at levels 2–4. Open the character panel, switch to Talents, and tap a talent to rank it up (max 2).`,
+    body: `• Every class has a talent tree with three branches. Each branch has three tiers; put a rank in a parent to unlock the next tier.\n• You gain one talent point per level from level 2. Open the character panel and press Talents, or press T, to spend them. The game is paused while the tree is open.\n• Each talent has two ranks. Your innate class passive is unchanged — the Warrior's Blood Fury still gives +2 damage while below half health.`,
   },
   {
     title: 'Terrain',
@@ -117,6 +117,7 @@ export default function Rogue0() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [storeOpen, setStoreOpen] = useState(false)
+  const [talentTreeOpen, setTalentTreeOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -171,6 +172,8 @@ export default function Rogue0() {
     context.onInspectModeChange = (mode) => setInspectMode(mode)
     // The store is its own scene/UI; hide the dungeon DOM menu over it.
     context.onStoreOpenChange = (open) => setStoreOpen(open)
+    // The talent tree is a fullscreen Phaser scene; hide the DOM menu over it.
+    context.onTalentTreeOpenChange = (open) => setTalentTreeOpen(open)
     contextRef.current = context
 
     let cancelled = false
@@ -394,7 +397,7 @@ export default function Rogue0() {
         {/could not be saved|storage.*blocked/i.test(saveStatus) && (
           <p className="rogue0-save-warning" role="alert">{saveStatus}</p>
         )}
-        {!storeOpen && <div
+        {!storeOpen && !talentTreeOpen && <div
           className="rogue0-game-menu"
           ref={menuRef}
           onBlur={(event) => {

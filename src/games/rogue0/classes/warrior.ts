@@ -27,7 +27,7 @@ export default class Warrior extends BasicHero {
   attack() {
     let total = super.attack()
     if (this.healthPoints <= this.maxHealthPoints / 2) {
-      total += 2 + this.talentRank("fury")
+      total += 2
     }
     return total
   }

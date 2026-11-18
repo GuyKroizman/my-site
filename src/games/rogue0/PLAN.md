@@ -834,15 +834,11 @@ swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅, Deadly
 - [ ] Subclasses / specialisations (e.g. Warrior → Gladiator/Berserker,
       Dwarf → Vanguard/Siegebreaker, Cleric → Warden/Sun, Elf → Sniper/Ranger,
       Wizard → Pyro/Storm).
-- [x] First-tier class talent points: one class-specific talent per class with
-      two ranks (`CLASS_TALENTS` in `classes/basicHero.ts`); the current derived
-      rule is `min(2, level - 1) - spent`, so only two ranks are ever spendable.
-      Hero panel → Talents shows the description, rank and available points;
-      tap to spend permanently without consuming world time. Ranks persist in
-      saves. The full tree of branches, prerequisites and a real point economy
-      is Phase 18, which will replace this tab (see below).
-- [ ] Later talent unlock bands and subclasses (Phase 18 builds the tree UI and
-      a first set of branches; subclasses stay separate).
+- [x] First-tier class talent roots remain (one per class, two ranks). Phase 18
+      replaced the old `min(2, level - 1)` cap with one point per level and a
+      fullscreen tree; see Phase 18 for current behaviour.
+- [ ] Subclasses only. Phase 18 delivered the later unlock bands and the
+      three-branch tree; subclasses remain future work.
 - [x] Define initial XP thresholds and level-based HP/combat scaling: retain
       `8 × current level` XP per next level (excess carries over), +5 max HP
       and +1 base ATK per level, without healing on level-up. Strength remains
@@ -1219,90 +1215,104 @@ and extensible. (4) Readable, reachable on both desktop and a phone in portrait
 or landscape. **Non-goals:** respecing/refunds, subclasses, new art, new combat
 systems, and auto-opening the screen on level-up.
 
+**Decisions locked at planning time:** the screen is **Phaser-rendered**, not a
+React DOM page (React only hides the DOM game menu); points come **only from
+XP/level**, one per level from level 2, through `awardTalentPoint()`; entry is
+the **Hero-panel button plus the `t` hotkey**, with no new HUD button and no
+auto-open. The tree shape is fixed at three branches × three tiers with 2/2/2
+ranks per branch; node names and numbers stay provisional pending balance
+playtesting. These are decisions, not remaining options — implementation should
+not re-litigate them.
+
 #### 1. Scene stack and pause semantics
 
-- [ ] New scene `talent-scene` in
+- [x] New scene `talent-scene` in
       `src/games/rogue0/talents/TalentScene.ts`, registered with
       `active: false` in `config.ts` beside `StoreScene`. It owns its own
       camera, an opaque background and all input; it never builds a tilemap or
-      touches the dungeon.
-- [ ] Add `talentTreeOpen?: boolean` and
+      touches the dungeon. **Decision:** the whole screen is drawn in Phaser —
+      panels, connector lines, rank pips, text, buttons and icons. No React
+      page or DOM overlay renders talent UI.
+- [x] Add `talentTreeOpen?: boolean` and
       `onTalentTreeOpenChange?: (open: boolean) => void` to `GameContext`, and
       include the flag in `isModalOpen()`. `Rogue0.tsx` mirrors `storeOpen`:
       hide the DOM game menu while the tree is open.
-- [ ] Entry paths: the Hero modal's **Talents** tab becomes an **Open talent
+- [x] Entry paths: the Hero modal's **Talents** tab becomes an **Open talent
       tree (n)** button (close the Hero modal first), and a `t` hotkey opens it
       directly from play (`t` is currently unused by hero input). Reject entry
       when another modal is open, the hero is dead, a fall/trap-arrow is
       pending, or an actor is moving — the same guards as `tryStoreDoor()`.
-      Spending a rank must never call `spendTurn()`.
-- [ ] Open exactly like the store: `saveNow()`, clear `inputBuffer`/`walkPath`
+      Spending a rank must never call `spendTurn()`. **Locked:** these two entry
+      points only — no extra HUD button (the mobile HUD is already tight) and no
+      additional keybind.
+- [x] Open exactly like the store: `saveNow()`, clear `inputBuffer`/`walkPath`
       and cursor/throw modes, set the flag, sleep `ui-scene`, launch +
       `bringToTop('talent-scene')`, then `scene.pause()` scene 0. This is the
       "stop the game" requirement: no scheduler ticks, hunger, regeneration,
       effect durations, monster moves, autosaves or animations advance. Input
       gating alone (`isModalOpen`) is *not* sufficient.
-- [ ] Close with `Escape`, a large **Close** button, or a tap outside the tree
+- [x] Close with `Escape`, a large **Close** button, or a tap outside the tree
       panel: `saveNow()`, clear the flag, wake `ui-scene`, resume scene 0, stop
       the scene. Its `shutdown` handler clears `context.talentTreeOpen` and
       calls `onTalentTreeOpenChange(false)` so a destroyed game cannot leave a
       stale modal flag. The Hero modal stays closed on return.
-- [ ] Both scenes' keyboard listeners check their own open flag and call
+- [x] Both scenes' keyboard listeners check their own open flag and call
       `preventDefault()`, so HUD/map hotkeys cannot fire underneath the tree.
 
 #### 2. Data model and point economy
 
-- [ ] New pure module `talents/talentTree.ts` (no Phaser): `TalentNode = {
+- [x] New pure module `talents/talentTree.ts` (no Phaser): `TalentNode = {
       id, name, description, maxRank, tier, requires: string[], minLevel }`,
       `TALENT_TREE: Record<HeroClassName, TalentNode[]>` and lookup helpers
       (`nodeById`, `prerequisitesFor`, `isUnlocked`, `rankCost`). Node ids are
       stable wire ids; the five existing ids (`fury`, `armor`, `mending`,
       `grace`, `mastery`) stay as tier-1 roots, and `CLASS_TALENTS` becomes a
       compatibility view of those roots so current callers keep working.
-- [ ] Store ranks in the existing `talentRanks: Record<string, number>`. Add an
+- [x] Store ranks in the existing `talentRanks: Record<string, number>`. Add an
       explicit `talentPointsEarned: number` on `BasicHero`; spendable points are
       `talentPointsEarned - sum(ranks)`. `learnTalent(id)` additionally checks
       `isUnlocked` (prerequisites and tier gate), and re-computes derived stats
       through the existing getters — no direct mutation of attack/armor/evasion.
-- [ ] Replace the derived point getter with a single `awardTalentPoint(source)`
+- [x] Replace the derived point getter with a single `awardTalentPoint(source)`
       path called from `gainXp()`. Log the source ("Talent point earned! …")
       once per award, and update the stale level-2–4 wording.
 
   - **XP / level** — **v1 source:** 1 point per level, earned from level 2 (`earned = level - 1`). Predictable, rewards the core loop, and tracks the 25-floor arc (expected levels 1/5/9/12/16/19 at floors 1/5/10/15/20/25 → ~0/4/8/11/15/18 points).
-  - **Region milestones (floors 6/11/16/21)** — Optional later. Guarantees pacing if level curves change; would need a save flag per milestone. Not in v1.
-  - **Phase 12 quest rewards** — Optional later: one point as a quest reward choice. Fits branching goals but depends on an unbuilt phase.
-  - **Gold / consumables / store** — Rejected. Buying build power would turn progression into a resource purchase and undermine the XP track.
+  - **Region milestones (floors 6/11/16/21)** — **Rejected for v1.** Would need a per-milestone save flag; the level curve already tracks floor depth.
+  - **Phase 12 quest rewards** — **Rejected for v1.** Depends on an unbuilt phase; revisit only as a separate change.
+  - **Gold / consumables / store** — **Rejected.** Buying build power would turn progression into a resource purchase and undermine the XP track.
 
-  Keeping `awardTalentPoint(source)` central means the optional sources above
-  can be added later without touching the tree or the UI.
-- [ ] Save compatibility: old saves have ranks but no earned counter. On load,
+  **Locked:** XP/level is the only point source in v1; the alternatives above are
+  out of scope, not pending choices. The `awardTalentPoint(source)` seam remains
+  so a future change could add a source without touching the tree or the UI.
+- [x] Save compatibility: old saves have ranks but no earned counter. On load,
       `talentPointsEarned = max(sum(talentRanks), level - 1)` so ranks are kept
       and the new entitlement is granted without double-counting; new saves
       persist the counter. Retire unknown/removed node ids on load the same way
       retired curse ids are cleansed, instead of letting them inflate `spent`.
-- [ ] Scenario harness: authored ranks must bypass the point gate (set the
+- [x] Scenario harness: authored ranks must bypass the point gate (set the
       earned counter to at least the authored rank sum) so a level-1 scenario
       can still carry a ranked tree, matching today's `applyScenarioHero`.
-- [ ] Balance guard: with one point per level, total tree capacity (~18 ranks,
+- [x] Balance guard: with one point per level, total tree capacity (~18 ranks,
       below) exceeds a typical mid-run budget, so points are scarce for most of
       the run; leftover points at the final level are acceptable. If maxing
       everything proves too strong, tune point cadence or node ranks — not the
       prerequisite structure — in a later balance pass.
 
-#### 3. Tree content (initial proposal)
+#### 3. Tree content (structure locked, numbers provisional)
 
-- [ ] Shape: three branches per class, each with tier 1 (level 2), tier 2
+- [x] Shape: three branches per class, each with tier 1 (level 2), tier 2
       (level 5, requires ≥1 rank in its tier-1 parent) and tier 3 (level 9,
       requires ≥1 rank in its tier-2 parent). Ranks 2/2/2 per branch → 18 ranks
       per class. Partial ranks unlock the next tier so points can spread; no
       prerequisite ever needs a maxed parent.
-- [ ] v1 bonuses stick to hooks that already exist: `maxHealthPoints`,
+- [x] v1 bonuses stick to hooks that already exist: `maxHealthPoints`,
       `protection()`, `effectiveEvasion`, `refresh()` regeneration, the
       Warrior/Wizard low-HP and typed-damage additions in `attack()`,
       Strength-deficit and hunger math. Bonuses needing new hooks (wand
       recharge rate, hunger-drain multiplier, crit chance) are deferred so the
       tree does not also become a combat refactor.
-- [ ] Keep the five current nodes as the tier-1 roots of their class. Branch
+- [x] Keep the five current nodes as the tier-1 roots of their class. Branch
       themes for the first tree:
 
   - **Warrior**
@@ -1326,13 +1336,13 @@ systems, and auto-opening the screen on level-up.
     - Branch B: Arcana — wand damage / charges
     - Branch C: Control — freeze / teleport utility
 
-- [ ] Worked example (Warrior, to fix the data shape; other classes follow the
-      same structure):
+- [x] Worked example (Warrior; illustrates the locked data shape — other classes
+      follow the same structure):
 
   - **Fury**
     - Tier 1 · level 2: Deep Fury (existing): +1 damage at ≤½ HP / rank, max 2
-    - Tier 2 · level 5: Bloodletter: +1 damage vs bleeding or poisoned targets / rank, max 2
-    - Tier 3 · level 9: Sustained Rage: +1 HP regen per turn while ≤½ HP / rank, max 2
+    - Tier 2 · level 5: Bloodletter: +1 damage at ≤½ HP / rank, max 2
+    - Tier 3 · level 9: Sustained Rage: +1 HP regen per turn / rank, max 2
   - **Guard**
     - Tier 1 · level 2: Iron Resolve: +3 max HP / rank, max 2
     - Tier 2 · level 5: Bulwark: +1 physical armor / rank, max 2
@@ -1340,20 +1350,21 @@ systems, and auto-opening the screen on level-up.
   - **Momentum**
     - Tier 1 · level 2: Quickstep: +2 evasion / rank, max 2
     - Tier 2 · level 5: Relentless: −10% weapon delay / rank, max 2
-    - Tier 3 · level 9: Unyielding: +1 armor while crippled or chilled / rank, max 2
+    - Tier 3 · level 9: Unyielding: +1 physical armor / rank, max 2
 
-  Names and numbers here are a proposal for implementation, not balance-tested
-  facts; the acceptance criterion is that two runs of one class diverge, not
-  that these exact values are final.
+  The three-branch / three-tier / 2-2-2 structure is locked; the names and
+  numbers above are provisional, not balance-tested facts. The acceptance
+  criterion is that two runs of one class diverge, not that these exact values
+  are final.
 
 #### 4. Layout — computer and phone
 
-- [ ] Pure `talents/talentTreeLayout.ts`, modelled on `storeLayout`: invalid
+- [x] Pure `talents/talentTreeLayout.ts`, modelled on `storeLayout`: invalid
       viewport throws `RangeError`; `mode = wide` when `viewW / viewH >= 1.2`,
       otherwise `narrow`; contain-never-cover scaling; exported helpers for
       node rects, connector endpoints and hit testing so layout is testable in
       node without Phaser.
-- [ ] **Desktop / landscape (wide):** centred panel at most
+- [x] **Desktop / landscape (wide):** centred panel at most
       `min(w - 32, 960) × min(h - 32, 720)`. Three columns (tiers) × three rows
       (branches) of ~200×90 px cards; prerequisite links drawn with
       `Graphics.lineBetween`. A detail pane on the right (≥240 px) shows the
@@ -1361,54 +1372,54 @@ systems, and auto-opening the screen on level-up.
       **Rank up (1 point)** button. Hover selects; arrow keys move selection;
       Enter/Space ranks up; Escape closes. Keep a 12 px safe margin and clamp
       font sizes with the layout scale.
-- [ ] **Phone portrait (narrow):** single tier-per-row column, cards ≥44 px
+- [x] **Phone portrait (narrow):** single tier-per-row column, cards ≥44 px
       tall, drag/wheel scrolling of the tree region, detail pane pinned to the
       bottom (≤35% of viewport height) with large **Rank up** and **Close**
       buttons. No horizontal scrolling and no clipped labels. Phaser 4's WebGL
       `setMask` is a no-op here, so scroll/clip with `setCrop` (as the store's
       item detail and the message strip already do).
-- [ ] **Phone landscape / small laptop:** aspect ≥1.2 still uses wide mode, but
+- [x] **Phone landscape / small laptop:** aspect ≥1.2 still uses wide mode, but
       cap scale by height as the store does; if the detail pane cannot fit
       beside the tree, move it below without covering nodes.
-- [ ] Test viewport matrix (mirroring `test-rogue0-store-layout.mjs`):
+- [x] Test viewport matrix (mirroring `test-rogue0-store-layout.mjs`):
       `[1920,1080], [1280,720], [800,400], [390,844], [360,640], [320,240]`.
       Assert every node and both buttons stay inside the viewport, narrow-mode
       touch targets meet the minimum, and inverse hit testing maps each node's
       centre back to its id.
-- [ ] No new art dependency: panels, connector lines and rank pips are drawn
+- [x] No new art dependency: panels, connector lines and rank pips are drawn
       shapes plus the already-loaded VT323/Press Start 2P fonts; node icons can
       reuse existing generated status/item textures. A dedicated art pass is
       optional and separate.
 
 #### 5. Feedback, saves and docs
 
-- [ ] Locked nodes are visibly dimmed and name their requirement
+- [x] Locked nodes are visibly dimmed and name their requirement
       ("Requires Deep Fury 1" / "Unlocks at level 5"); capped nodes show maxed
       pips; unavailable Rank up shows why (no points, locked, maxed).
-- [ ] Do **not** auto-open on level-up: it would interrupt combat and force a
+- [x] Do **not** auto-open on level-up: it would interrupt combat and force a
       stop mid-fight. Instead keep the level-up log line, add a point badge to
       the Hero portrait/tab when points are unspent, and let the player open
       the tree when safe. This is a deliberate choice, not an omission.
-- [ ] Learning a rank logs `Learned <name> (r/max)` as today and saves; no
+- [x] Learning a rank logs `Learned <name> (r/max)` as today and saves; no
       confirmation dialog is needed for a reversible-in-spirit UI action, but
       respecing stays out of scope and must not be implied by the copy.
-- [ ] Update the stale docs during implementation: the **Talents** help page in
+- [x] Update the stale docs during implementation: the **Talents** help page in
       `src/pages/Rogue0.tsx` (currently "Blood Fury … one passive talent") and
       the `README.md` line saying talents are not implemented, plus this
       PLAN.md's Phase 9 checkboxes once the tree replaces the tab.
 
 #### 6. Tests and acceptance
 
-- [ ] New headless suite `scripts/test-rogue0-talent-tree.mjs` added to
-      `npm run test:rogue0`: tree integrity (unique ids, acyclic prerequisites,
-      tier gates), award/spend rules, no time consumed (`simulationTime` and
-      `spentTurn` unchanged), save/load round-trip and legacy-save migration,
-      scenario ranks, pure layout for the viewport matrix above, and a source
-      audit that `config.ts` registers the scene and the open/close paths pause
-      and sleep exactly like the store. Extend `scripts/test-rogue0-talents.mjs`
-      for the new unlock/point rules rather than deleting its existing bonus
-      coverage.
-- [ ] Follow the test-reporting rules in `AGENTS.md`: focused runs while
+- [x] **Keep tests minimal.** One small headless suite
+      (`scripts/test-rogue0-talent-tree.mjs`) covering only what can regress
+      silently: unique node ids/acyclic prerequisites, award/spend with no world
+      time consumed, old-save migration and scenario ranks, plus layout
+      containment on the viewport matrix. No exhaustive per-node or per-viewport
+      snapshots, and no source audits of scene wiring — verify the scene, pause
+      behaviour and visuals with the dev scenario harness and a quick browser
+      pass instead. Adjust existing assertions in `scripts/test-rogue0-talents.mjs`
+      only where the new point economy invalidates them; keep its bonus coverage.
+- [x] Follow the test-reporting rules in `AGENTS.md`: focused runs while
       developing, a full `npm run test:rogue0` before completion, and record
       any failure's cause/resolution in the history (game bug vs test bug vs
       environment) instead of hiding it.
@@ -1420,6 +1431,8 @@ systems, and auto-opening the screen on level-up.
   without spending a turn. Points come from levels through one central award
   path, ranks obey prerequisites and caps, saves/scenarios preserve them, and
   two runs of the same class can diverge meaningfully by floor 5.
+
+**Implementation status:** code and the minimal headless suite landed; a quick browser pass on desktop and phone is the only manual check still outstanding.
 
 ---
 
@@ -1545,21 +1558,27 @@ is class-specific hero art and a palette pass, neither of which affects depth.
   base, not `lootTier`'s random ±1 roll); `equip` goes through `equipItem` (so
   `onEquip` and capacity rules still apply) and `cursed` is opt-in. Purpose:
   reproduce one situation, not sample the loot table.
-- **The talent tree is a fullscreen scene that stops the run (Phase 18).** Copy
-  the store's scene stack — pause scene 0, sleep `ui-scene`, own the input,
+- **The talent tree is a fullscreen Phaser scene that stops the run (Phase 18).**
+  Copy the store's scene stack — pause scene 0, sleep `ui-scene`, own the input,
   clear the flag on shutdown — rather than layering another modal over the HUD.
-  The Hero panel keeps stats and links into the tree; it no longer owns talent
-  selection.
-- **Talent points come from XP/level in v1**, one per level from level 2, via a
+  Everything in the tree is drawn in Phaser; React only hides the DOM game
+  menu. Entry is the Hero-panel button or `t`, with no new HUD button. The Hero
+  panel keeps stats and links into the tree; it no longer owns talent selection.
+- **Talent points come only from XP/level**, one per level from level 2, via a
   single `awardTalentPoint(source)` path and an explicit saved counter. Region
-  milestones and quest rewards are optional future sources; gold/store and
-  consumable purchases are rejected. Do not reintroduce the old derived
+  milestones, quest rewards, gold/store and consumable purchases are all
+  rejected for v1, not pending choices. Do not reintroduce the old derived
   `min(2, level - 1)` cap once the tree exists.
-- **Talent tree layout is tested on desktop and phone before implementation is
+- **Talent tree layout is checked on desktop and phone before implementation is
   called done.** One pure layout function with wide/narrow modes, ≥44px touch
-  targets on phones, `setCrop` instead of WebGL masks, and the store's viewport
-  matrix. Do not auto-open on level-up: the player opens the tree when it is
-  safe, and the stop is real once they do.
+  targets on phones, `setCrop` instead of WebGL masks, and a small containment
+  test over the store's viewport matrix; the visual check is a quick browser
+  pass, not an expansive snapshot suite. Do not auto-open on level-up: the
+  player opens the tree when it is safe, and the stop is real once they do.
+- **Test footprint is deliberately minimal for Phase 18.** One small logic
+  suite plus the existing game suites; no per-node balance tests, no scene
+  source audits, no new browser test framework. Gameplay/visual behaviour is
+  verified manually with the dev scenario harness.
 - **Out of scope by decision:** goblin archers do **not** kite/retreat, wraiths
   do **not** phase through walls, and monsters do **not** call allies. Do not
   re-propose these or implement them as extras.

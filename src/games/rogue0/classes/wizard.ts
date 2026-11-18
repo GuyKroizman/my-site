@@ -38,7 +38,7 @@ export default class Wizard extends BasicHero {
     let total = super.attack();
     const type = this.currentWeapon()?.damageType;
     if (type === "fire" || type === "shock" || type === "magic") {
-      total += 1 + this.talentRank("mastery");
+      total += 1;
     }
     return total;
   }
