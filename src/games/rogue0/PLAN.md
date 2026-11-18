@@ -1367,23 +1367,24 @@ not re-litigate them.
       so it pans horizontally and vertically; exported helpers give content
       bounds, circular node boxes, scroll limits and two-axis hit testing,
       all testable in node without Phaser.
-- [x] **Desktop / landscape (wide):** a large tree pane fills most of the
-      screen with a narrow detail strip on the right. On the oversized canvas,
-      each branch's tier-1 root sits near the top and its tier-2/tier-3
-      children fan outward, so the connector lines form three branching trees
-      rather than a grid. Nodes are **circles** with an icon, name and rank;
+- [x] **Desktop / landscape (wide):** a large tree pane fills almost the whole
+      screen. On the oversized canvas, each branch's tier-1 root sits near the
+      top and its tier-2/tier-3 children fan outward, so the connector lines
+      form three branching trees rather than a grid. Nodes are **circles** with
+      an icon, name and rank — descriptions are **not** drawn on the tree;
       parent→child lines brighten once the parent has a rank. Drag/wheel pans
-      in any direction; hover selects, arrows move, Enter/Space ranks up,
-      Escape closes.
-- [x] **Phone portrait (narrow):** the tree pane takes the upper part of the
-      screen with the detail strip pinned below and large **Rank up** /
-      **Close** buttons. The same fan-shaped circular tree is drawn on a canvas
-      wider and taller than the pane, so it pans by touch drag in both axes.
-      Overflow is hidden by opaque cover rectangles, not WebGL masks (Phaser
-      4's `setMask` is a no-op), and off-pane nodes are not tappable.
-- [x] **Phone landscape / small laptop:** aspect ≥1.2 still uses wide mode, but
-      cap scale by height as the store does; if the detail pane cannot fit
-      beside the tree, move it below without covering nodes.
+      in any direction; hover selects, arrows move, Enter/Space opens the detail
+      modal, Escape closes the modal (or the scene).
+- [x] **Phone portrait (narrow):** the tree uses nearly the whole screen. The
+      same fan-shaped circular tree is drawn on a canvas wider and taller than
+      the pane, so it pans by touch drag in both axes. Overflow is hidden by
+      opaque cover rectangles, not WebGL masks (Phaser 4's `setMask` is a
+      no-op), and off-pane nodes are not tappable.
+- [x] **Floating detail modal:** clicking/tapping a node (or pressing Enter)
+      opens a modal centred over the pane with that talent's icon, name, rank,
+      full description, unlock requirement and **Rank up** button. Tapping the
+      backdrop, its × button or Escape dismisses it. Nothing descriptive is
+      shown permanently on the tree.
 - [x] Test viewport matrix (mirroring `test-rogue0-store-layout.mjs`):
       `[1920,1080], [1280,720], [800,400], [390,844], [360,640], [320,240]`.
       Assert every node and both buttons stay inside the viewport, narrow-mode
@@ -1391,9 +1392,9 @@ not re-litigate them.
       centre back to its id.
 - [x] Every node has its own icon drawn as shapes keyed by its bonus type
       (heart = HP, shield = armor, chevrons = evasion/haste, cross = regen,
-      blade = low-HP damage, bolt = typed damage), on the card and again in the
-      detail strip. No new art assets are needed; a dedicated pixel-art pass is
-      optional and separate.
+      blade = low-HP damage, bolt = typed damage), on the circular node and
+      again in the floating detail modal. No new art assets are needed; a
+      dedicated pixel-art pass is optional and separate.
 
 #### 5. Feedback, saves and docs
 

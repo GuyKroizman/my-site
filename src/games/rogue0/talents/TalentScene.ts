@@ -28,6 +28,7 @@ const ICON_COLORS: Record<TalentBonusKind, number> = {
 export class TalentScene extends Phaser.Scene {
   private context: GameContext;
   private selected = 0;
+  private detailOpen = false;
   private message = '';
   private scrollX = 0;
   private scrollY = 0;
@@ -45,6 +46,7 @@ export class TalentScene extends Phaser.Scene {
 
   create(): void {
     this.selected = 0;
+    this.detailOpen = false;
     this.message = '';
     this.scrollX = 0;
     this.scrollY = 0;
@@ -206,7 +208,7 @@ export class TalentScene extends Phaser.Scene {
         })
         .on('pointerup', (pointer: Phaser.Input.Pointer) => {
           if (this.dragged || !this.inViewport(pointer, layout)) return;
-          this.selected = index; this.message = ''; this.renderTree();
+          this.selected = index; this.message = ''; this.detailOpen = true; this.renderTree();
         });
     });
     const nodeIcons = this.add.graphics();
@@ -237,7 +239,7 @@ export class TalentScene extends Phaser.Scene {
     const titleSize = Math.max(14, Math.min(24, 22 * Math.min(1.4, layout.scale)));
     this.text(p.x + 16, p.y + 10, `TALENTS · ${player.name}`, titleSize).setColor(GOLD);
     this.text(p.x + 16, p.y + 12 + titleSize,
-      `Level ${player.level} · unspent points: ${player.talentPoints} · drag to pan in any direction`,
+      `Level ${player.level} · unspent points: ${player.talentPoints} · drag to pan · click a talent for details`,
       Math.max(10, Math.min(16, 15 * Math.min(1.4, layout.scale))));
     if (this.message) {
       this.text(p.x + 16, p.y + 12 + 2 * titleSize, this.message,
@@ -245,35 +247,41 @@ export class TalentScene extends Phaser.Scene {
     }
     this.button(layout.close, 'Close [Esc]', () => this.close());
 
-    const detail = layout.detail;
-    this.add.rectangle(detail.x, detail.y, detail.width, detail.height, 0x221a29)
-      .setOrigin(0).setStrokeStyle(1, 0xaa8864);
-    const detailIcons = this.add.graphics();
-    const entry = nodes[this.selected];
-    const rank = player.talentRank(entry.id);
-    const unlocked = isTalentUnlocked(entry, ranks, player.level);
-    const bodySize = Math.max(11, Math.min(18, 17 * Math.min(1.4, layout.scale)));
-    let y = detail.y + 10;
-    this.drawIcon(detailIcons, entry.bonus?.kind, detail.x + 12, y + 2, bodySize * 1.6);
-    this.text(detail.x + 18 + bodySize * 1.6, y, entry.name, bodySize + 2, detail.width - 34 - bodySize * 1.6).setColor(GOLD);
-    y += bodySize + 12;
-    this.text(detail.x + 12, y, `${entry.branch} · rank ${rank}/${entry.maxRank} · level ${entry.minLevel}+`,
-      bodySize, detail.width - 24);
-    y += bodySize + 6;
-    this.text(detail.x + 12, y, entry.description, bodySize, detail.width - 24);
-    y += bodySize + 10;
-    if (!unlocked) {
-      this.text(detail.x + 12, y, `Unlocked by: ${entry.requires.map(id =>
-        nodes.find(node => node.id === id)?.name ?? id).join(', ') || `level ${entry.minLevel}`}`,
-        bodySize, detail.width - 24).setColor('#e69898');
+    // Descriptions live only in this floating modal, opened by clicking a
+    // node; the tree itself stays uncluttered.
+    if (this.detailOpen) {
+      this.add.rectangle(p.x, p.y, p.width, p.height, 0x000000, 0.6).setOrigin(0).setInteractive()
+        .on('pointerup', () => { this.detailOpen = false; this.renderTree(); });
+      const m = layout.modal;
+      this.add.rectangle(m.x, m.y, m.width, m.height, 0x221a29)
+        .setOrigin(0).setStrokeStyle(2, 0xaa8864).setInteractive();
+      const modalIcons = this.add.graphics();
+      const entry = nodes[this.selected];
+      const rank = player.talentRank(entry.id);
+      const unlocked = isTalentUnlocked(entry, ranks, player.level);
+      const bodySize = Math.max(11, Math.min(18, 17 * Math.min(1.4, layout.scale)));
+      let y = m.y + 14;
+      this.drawIcon(modalIcons, entry.bonus?.kind, m.x + 16, y + 2, bodySize * 1.6);
+      this.text(m.x + 18 + bodySize * 1.6, y, entry.name, bodySize + 2,
+        m.width - 60 - bodySize * 1.6).setColor(GOLD);
+      this.button(layout.modalClose, '×', () => { this.detailOpen = false; this.renderTree(); });
+      y += bodySize + 14;
+      this.text(m.x + 16, y, `${entry.branch} · rank ${rank}/${entry.maxRank} · level ${entry.minLevel}+`,
+        bodySize, m.width - 32);
+      y += bodySize + 8;
+      const description = this.text(m.x + 16, y, entry.description, bodySize, m.width - 32);
+      y += description.height + 10;
+      if (!unlocked) {
+        this.text(m.x + 16, y, `Unlocked by: ${entry.requires.map(id =>
+          nodes.find(node => node.id === id)?.name ?? id).join(', ') || `level ${entry.minLevel}`}`,
+          bodySize, m.width - 32).setColor('#e69898');
+      }
+      const canLearn = unlocked && rank < entry.maxRank && player.talentPoints > 0 && player.healthPoints > 0;
+      const reason = !unlocked ? 'Locked' : rank >= entry.maxRank ? 'Maxed'
+        : player.talentPoints <= 0 ? 'No points' : '';
+      this.button(layout.modalRankUp, reason ? `Rank up · ${reason}` : 'Rank up (1 point)',
+        () => this.rankUp(), canLearn);
     }
-    this.text(detail.x + 12, y + bodySize + 4, 'Branches are independent — specialise in part of the tree.',
-      Math.max(10, bodySize - 1), detail.width - 24).setColor(DIM);
-    const canLearn = unlocked && rank < entry.maxRank && player.talentPoints > 0 && player.healthPoints > 0;
-    const reason = !unlocked ? 'Locked' : rank >= entry.maxRank ? 'Maxed'
-      : player.talentPoints <= 0 ? 'No points' : '';
-    this.button(layout.rankUp, reason ? `Rank up · ${reason}` : 'Rank up (1 point)',
-      () => this.rankUp(), canLearn);
   }
 
   private rankUp(): void {
@@ -339,7 +347,11 @@ export class TalentScene extends Phaser.Scene {
     if (!this.context.talentTreeOpen || event.repeat) return;
     event.preventDefault();
     const key = event.key;
-    if (key === 'Escape') { this.close(); return; }
+    if (key === 'Escape') {
+      if (this.detailOpen) { this.detailOpen = false; this.renderTree(); }
+      else this.close();
+      return;
+    }
     const nodes = this.nodes();
     if (!nodes.length) return;
     const layout = this.currentLayout();
@@ -364,7 +376,8 @@ export class TalentScene extends Phaser.Scene {
       if (dx || dy) this.panBy(dx, dy);
       else this.renderTree();
     } else if (key === 'Enter' || key === ' ') {
-      this.rankUp();
+      this.detailOpen = true;
+      this.renderTree();
     }
   }
 }

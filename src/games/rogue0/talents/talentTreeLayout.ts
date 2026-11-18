@@ -10,11 +10,12 @@ export type TalentLayout = {
   scale: number;
   panel: Rect;
   viewport: Rect;
-  detail: Rect;
+  modal: Rect;
   contentWidth: number;
   contentHeight: number;
   nodes: TalentNodeBox[];
-  rankUp: Rect;
+  modalRankUp: Rect;
+  modalClose: Rect;
   close: Rect;
 };
 
@@ -40,24 +41,29 @@ export function talentTreeLayout(
     1.25 * Math.max(viewW / content.width, viewH / content.height)));
 
   const panel: Rect = { x: 0, y: 0, width: viewW, height: viewH };
-  let viewport: Rect, detail: Rect, close: Rect;
-  if (mode === "wide") {
-    const detailW = Math.min(300, Math.max(220, viewW * 0.26));
-    detail = { x: viewW - detailW - 14, y: 62, width: detailW, height: viewH - 76 };
-    viewport = { x: 14, y: 62, width: Math.max(120, detail.x - 26), height: viewH - 76 };
-    close = { x: viewW - 116, y: 14, width: 100, height: 38 };
-  } else {
-    const detailH = Math.min(210, Math.max(170, viewH * 0.3));
-    detail = { x: 12, y: viewH - detailH - 12, width: viewW - 24, height: detailH };
-    viewport = { x: 12, y: 52, width: viewW - 24, height: Math.max(120, detail.y - 62) };
-    close = { x: viewW - 84, y: 8, width: 76, height: 34 };
-  }
-  const rankUp: Rect = {
-    x: detail.x + 12,
-    y: detail.y + detail.height - 58,
-    width: detail.width - 24,
+  const viewport: Rect = mode === "wide"
+    ? { x: 14, y: 62, width: viewW - 28, height: viewH - 76 }
+    : { x: 12, y: 52, width: viewW - 24, height: viewH - 64 };
+  const close: Rect = mode === "wide"
+    ? { x: viewW - 116, y: 14, width: 100, height: 38 }
+    : { x: viewW - 84, y: 8, width: 76, height: 34 };
+
+  // Floating detail modal, centred over the tree and only shown on click.
+  const modalW = Math.min(440, viewport.width - 24);
+  const modalH = Math.min(300, viewport.height - 24);
+  const modal: Rect = {
+    x: viewport.x + (viewport.width - modalW) / 2,
+    y: viewport.y + (viewport.height - modalH) / 2,
+    width: modalW,
+    height: modalH,
+  };
+  const modalRankUp: Rect = {
+    x: modal.x + 16,
+    y: modal.y + modal.height - 58,
+    width: modal.width - 32,
     height: 46,
   };
+  const modalClose: Rect = { x: modal.x + modal.width - 40, y: modal.y + 8, width: 32, height: 32 };
 
   const radius = content.radius;
   const yFor = (tier: number) => [140, content.height * 0.46, content.height * 0.78][tier];
@@ -88,11 +94,12 @@ export function talentTreeLayout(
     scale,
     panel,
     viewport,
-    detail,
+    modal,
     contentWidth: content.width * scale,
     contentHeight: content.height * scale,
     nodes: boxes,
-    rankUp,
+    modalRankUp,
+    modalClose,
     close,
   };
 }

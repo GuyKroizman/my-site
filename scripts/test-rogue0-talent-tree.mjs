@@ -73,7 +73,8 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [800, 400], [390, 844]
   const layout = talentTreeLayout(width, height, TALENT_TREE.Warrior);
   const inside = rect => rect.x >= -1e-6 && rect.y >= -1e-6 &&
     rect.x + rect.width <= width + 1e-6 && rect.y + rect.height <= height + 1e-6;
-  assert.ok(inside(layout.panel) && inside(layout.detail) && inside(layout.rankUp) && inside(layout.close),
+  assert.ok(inside(layout.panel) && inside(layout.modal) && inside(layout.modalRankUp) &&
+    inside(layout.modalClose) && inside(layout.close),
     `${width}x${height} keeps panel and buttons on screen`);
   assert.ok(inside(layout.viewport), `${width}x${height} keeps the tree pane on screen`);
   const bounds = treeScrollBounds(layout);
