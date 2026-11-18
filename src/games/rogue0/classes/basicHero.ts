@@ -260,6 +260,10 @@ export default class BasicHero extends Entity implements HeroControlHost {
     return heroInventory.addItem(this, item);
   }
 
+  recoverItems(items: Entity[]): Entity[] {
+    return heroInventory.recoverItems(this, items);
+  }
+
   equipItem(item: Entity): void {
     heroInventory.equipItem(this, item);
   }

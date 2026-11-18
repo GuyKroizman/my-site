@@ -102,39 +102,65 @@ export function createInventoryActions(services: InventoryServices) {
     item.unequip?.();
   }
 
+  // Pickup only stows/merges items; starting gear is explicitly equipped by
+  // hero constructors. Rejected pickups leave both floor and inventory intact.
+  function addItem(owner: InventoryOwner, item: Entity): boolean {
+    if (item.isContainer) return false;
+    if (item.goldAmount > 0) {
+      const index = owner.context.entities.indexOf(item);
+      if (index === -1 || item.x === undefined || item.y === undefined) return false;
+      owner.gold += item.goldAmount;
+      owner.context.entities.splice(index, 1);
+      return true;
+    }
+    const existing = owner.backpack.find(candidate => canStackItems(candidate, item));
+    if (existing) {
+      existing.count += item.count;
+      const index = owner.context.entities.indexOf(item);
+      if (index !== -1) owner.context.entities.splice(index, 1);
+      services.clearFloorSprite(owner.context, item);
+      return true;
+    }
+    if (owner.backpack.length >= owner.capacity) {
+      services.log(owner.context, 'Your backpack is full.');
+      return false;
+    }
+    if (!owner.context.entities.includes(item)) owner.context.entities.push(item);
+    item.context = owner.context;
+    item.x = undefined;
+    item.y = undefined;
+    services.clearFloorSprite(owner.context, item);
+    owner.backpack.push(item);
+    return true;
+  }
+
   return {
     slotFor, slotOf, equippedItems, allItems,
+    addItem,
 
-    // Pickup only stows/merges items; starting gear is explicitly equipped by
-    // hero constructors. Rejected pickups leave both floor and inventory intact.
-    addItem(owner: InventoryOwner, item: Entity): boolean {
-      if (item.isContainer) return false;
-      if (item.goldAmount > 0) {
-        const index = owner.context.entities.indexOf(item);
-        if (index === -1 || item.x === undefined || item.y === undefined) return false;
-        owner.gold += item.goldAmount;
-        owner.context.entities.splice(index, 1);
-        return true;
-      }
-      const existing = owner.backpack.find(candidate => canStackItems(candidate, item));
-      if (existing) {
-        existing.count += item.count;
-        const index = owner.context.entities.indexOf(item);
-        if (index !== -1) owner.context.entities.splice(index, 1);
+    // Recovering a dropped backpack stows everything that was carried back into
+    // the inventory using the same stacking/capacity rules as a normal pickup.
+    // Contents never include equipped rings/artifacts (those stay loose on the
+    // floor from the revival drop). Anything that does not fit is returned so
+    // the caller can leave it on the floor at the container's tile.
+    recoverItems(owner: InventoryOwner, items: Entity[]): Entity[] {
+      const overflow: Entity[] = [];
+      for (const item of items) {
+        // Carried items have no floor position or sprite; treat them like a
+        // fresh pickup so gold is credited and gear is stowed/stacked normally.
+        item.context = owner.context;
+        item.x = undefined;
+        item.y = undefined;
         services.clearFloorSprite(owner.context, item);
-        return true;
+        if (item.goldAmount > 0) {
+          owner.gold += item.goldAmount;
+          const index = owner.context.entities.indexOf(item);
+          if (index >= 0) owner.context.entities.splice(index, 1);
+          continue;
+        }
+        if (!addItem(owner, item)) overflow.push(item);
       }
-      if (owner.backpack.length >= owner.capacity) {
-        services.log(owner.context, 'Your backpack is full.');
-        return false;
-      }
-      if (!owner.context.entities.includes(item)) owner.context.entities.push(item);
-      item.context = owner.context;
-      item.x = undefined;
-      item.y = undefined;
-      services.clearFloorSprite(owner.context, item);
-      owner.backpack.push(item);
-      return true;
+      return overflow;
     },
 
     equipItem(owner: InventoryOwner, item: Entity): void {

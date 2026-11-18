@@ -110,6 +110,9 @@ export type GameContext = {
   onPortalBump?: (x: number, y: number) => boolean;
   onStoreOpenChange?: (open: boolean) => void;
   inventoryOpen?: boolean;
+  // Set by the UI scene so world interactions (e.g. recovering a dropped
+  // backpack) can open the inventory modal and show the recovered items.
+  onOpenInventory?: () => void;
   onChooseItemTarget?: (item: Entity) => void;
   heroModalOpen?: boolean;
   logModalOpen?: boolean;

@@ -131,6 +131,9 @@ export class UI extends Phaser.Scene {
     this.knowledgeWindow = new KnowledgeWindow(this, this.context);
     // The React game menu opens the knowledge modal through the context.
     this.context.onOpenKnowledge = () => this.knowledgeWindow?.openWindow();
+    // Recovering the dropped backpack opens the inventory so the player can
+    // immediately see every item that was carried in it.
+    this.context.onOpenInventory = () => this.inventoryWindow?.openWindow();
 
     // b toggles the inventory window; i is a movement key (up-right diagonal).
     // Esc dismisses the topmost dialog.

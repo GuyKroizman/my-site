@@ -928,6 +928,10 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
   - Backpack contents become a **single recoverable container** on the death
     tile. The rings/artifact are **separate loose floor items on the same tile,
     beneath that container**, ready to pick up.
+  - Walking into the container stows its contents directly into the inventory
+    (stacking/capacity rules still apply) and opens the inventory window so the
+    recovered items are visible. The loose rings/artifact are left on the floor.
+    Anything that no longer fits stays on the tile.
   - If the death tile cannot hold the container/items, fall back to the
     **nearest valid tile** for those drops (the hero still revives elsewhere).
   - Dropped items remain on the floor/in `context.entities`, are
