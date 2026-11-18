@@ -228,7 +228,7 @@ export class TalentScene extends Phaser.Scene {
         .setOrigin(0.5, 0).setColor(unlocked ? GOLD : DIM);
       const rankY = layout.mode === "narrow" ? 0.55 : 0.44;
       this.text(center.x, center.y + radius * rankY, `${rank}/${entry.maxRank}${unlocked ? '' : ' · locked'}`,
-        Math.max(11, Math.min(19, radius * 0.21))).setOrigin(0.5).setColor(unlocked ? '#e8e1d5' : DIM);
+        Math.max(15, Math.min(26, radius * 0.29))).setOrigin(0.5).setColor(unlocked ? '#e8e1d5' : DIM);
     });
 
     // Opaque frame over the scrolled content, then the fixed chrome on top.
@@ -238,14 +238,15 @@ export class TalentScene extends Phaser.Scene {
     this.add.rectangle(p.x, v.y, v.x - p.x, v.height, PANEL).setOrigin(0);
     this.add.rectangle(v.x + v.width, v.y, p.x + p.width - v.x - v.width, v.height, PANEL).setOrigin(0);
 
-    const titleSize = Math.max(14, Math.min(24, 22 * Math.min(1.4, layout.scale)));
-    this.text(p.x + 16, p.y + 10, `TALENTS · ${player.name}`, titleSize).setColor(GOLD);
-    this.text(p.x + 16, p.y + 12 + titleSize,
+    const uiScale = Math.min(1.6, layout.scale);
+    const titleSize = Math.max(20, Math.min(32, 26 * uiScale));
+    this.text(p.x + 16, p.y + 8, `TALENTS · ${player.name}`, titleSize).setColor(GOLD);
+    this.text(p.x + 16, p.y + 10 + titleSize,
       `Level ${player.level} · unspent points: ${player.talentPoints} · drag to pan · click a talent for details`,
-      Math.max(10, Math.min(16, 15 * Math.min(1.4, layout.scale))));
+      Math.max(14, Math.min(22, 18 * uiScale)));
     if (this.message) {
       this.text(p.x + 16, p.y + 12 + 2 * titleSize, this.message,
-        Math.max(10, Math.min(15, 14 * Math.min(1.4, layout.scale)))).setColor(GOLD);
+        Math.max(13, Math.min(20, 17 * uiScale))).setColor(GOLD);
     }
     this.button(layout.close, buttonLabel('Close [Esc]'), () => this.close());
 

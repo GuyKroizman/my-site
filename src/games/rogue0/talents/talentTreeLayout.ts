@@ -42,11 +42,11 @@ export function talentTreeLayout(
 
   const panel: Rect = { x: 0, y: 0, width: viewW, height: viewH };
   const viewport: Rect = mode === "wide"
-    ? { x: 14, y: 62, width: viewW - 28, height: viewH - 76 }
-    : { x: 12, y: 52, width: viewW - 24, height: viewH - 64 };
+    ? { x: 14, y: 96, width: viewW - 28, height: viewH - 110 }
+    : { x: 12, y: 86, width: viewW - 24, height: viewH - 98 };
   const close: Rect = mode === "wide"
-    ? { x: viewW - 116, y: 14, width: 100, height: 38 }
-    : { x: viewW - 84, y: 8, width: 76, height: 34 };
+    ? { x: viewW - 116, y: 28, width: 100, height: 38 }
+    : { x: viewW - 84, y: 24, width: 76, height: 34 };
 
   // Floating detail modal, centred over the tree and only shown on click.
   const modalW = Math.min(520, viewport.width - 24);
