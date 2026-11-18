@@ -434,9 +434,20 @@ export class UI extends Phaser.Scene {
       wordWrap: { width: w - 20 }
     });
     root.add(this.heroModalText);
-    this.talentButton = this.add.text(70, 5, "Talents (0)", {
+    // A real button, not a tab/toggle: it always opens the fullscreen tree.
+    const talentsBg = this.add.rectangle(10, h - 52, w - 20, 40, 0x302432)
+      .setOrigin(0).setStrokeStyle(1, 0xb29061)
+      .setInteractive({ useHandCursor: true });
+    talentsBg.on("pointerover", () => talentsBg.setStrokeStyle(2, 0xf0b429));
+    talentsBg.on("pointerout", () => talentsBg.setStrokeStyle(1, 0xb29061));
+    talentsBg.on("pointerup", () => {
+      this.closeHeroModal();
+      this.context.onOpenTalentTree?.();
+    });
+    root.add(talentsBg);
+    this.talentButton = this.add.text(10 + (w - 20) / 2, h - 32, "Talents (0) →", {
       fontFamily: `${FONT_MONO}, monospace`, fontSize: 17, color: COL.gold
-    }).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     this.talentButton.on("pointerup", () => {
       this.closeHeroModal();
       this.context.onOpenTalentTree?.();
@@ -666,7 +677,7 @@ export class UI extends Phaser.Scene {
     const p = this.context.player;
     if (!p) return;
 
-    this.talentButton?.setText(`Talents (${p.talentPoints})`);
+    this.talentButton?.setText(`Talents (${p.talentPoints}) →`);
     let text = p.statsText();
     if (p.talentPoints > 0) {
       text += `\n\nUnspent talent points: ${p.talentPoints} — open Talents to spend.`;
