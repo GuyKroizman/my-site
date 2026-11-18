@@ -18,15 +18,19 @@ const HUD_LABELS = [
   ['Inspect  [x] · Search  [s]', 'Inspect · Search'],
   ['Backpack  [b]', 'Backpack'],
 ];
+const TALENT_LABELS = [
+  ['Close [Esc]', 'Close'],
+];
+const ALL_LABELS = [...STORE_LABELS, ...HUD_LABELS, ...TALENT_LABELS];
 
 // With a keyboard, the hints stay exactly as authored.
-for (const [label] of [...STORE_LABELS, ...HUD_LABELS]) {
+for (const [label] of ALL_LABELS) {
   assert.equal(buttonLabel(label, false), label, `desktop keeps "${label}"`);
 }
 
 // On a touch-first device every bracketed shortcut disappears, including the
 // second hint on the combined inspect/search button.
-for (const [label, expected] of [...STORE_LABELS, ...HUD_LABELS]) {
+for (const [label, expected] of ALL_LABELS) {
   assert.equal(buttonLabel(label, true), expected, `phone rewrites "${label}" to "${expected}"`);
 }
 
@@ -80,5 +84,10 @@ const ui = fs.readFileSync(new URL('../src/games/rogue0/ui.ts', import.meta.url)
 assert.match(ui, /buttonLabel\("Wait  \[Space\]"\)/);
 assert.match(ui, /buttonLabel\("Inspect  \[x\] · Search  \[s\]"\)/);
 assert.match(ui, /buttonLabel\("Backpack  \[b\]"\)/);
+
+const talents = fs.readFileSync(new URL('../src/games/rogue0/talents/TalentScene.ts', import.meta.url), 'utf8');
+assert.match(talents, /buttonLabel\('Close \[Esc\]'\)/,
+  'talent screen Close button drops its keyboard hint on phones');
+assert.match(talents, /import \{ buttonLabel \} from '\.\.\/uiLabels'/);
 
 console.log('Rogue0 phone UI: button labels drop keyboard shortcuts and stacked-layout arrow buttons are hidden; keyboard layouts keep both');

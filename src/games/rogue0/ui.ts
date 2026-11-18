@@ -17,7 +17,7 @@ import {
 } from './statusIconTextures';
 import { LOG_STRIP_GAP, LOG_STRIP_HEIGHT, statusIconLayout } from './statusHudLayout';
 import { MonsterInspectStatuses } from './monsterInspectStatuses';
-import { buttonLabel } from './uiLabels';
+import { buttonLabel, throwTargetHint } from './uiLabels';
 
 // Slots are cheap and effects are capped in practice, but leave headroom so a
 // heavily buffed hero still shows every status.
@@ -648,10 +648,11 @@ export class UI extends Phaser.Scene {
     if (!this.log) return;
 
     const hint = this.context.throwMode
-        ? this.context.throwItem instanceof Wand
-          ? `Target ${this.context.throwItem.displayName}: tap an enemy to select it, tap it again (or Enter) to fire. Move the cursor past your sight to zap into the dark; walls and closed doors still block the bolt. Tap the wand again to fire at the highlighted foe. Open the backpack or press Esc to cancel.`
-          : `Target ${this.context.throwItem?.displayName ?? "item"}: tap any tile in sight, or move cursor + Enter. Esc cancels.`
-        : undefined;
+      ? throwTargetHint(
+          this.context.throwItem?.displayName ?? "item",
+          this.context.throwItem instanceof Wand
+        )
+      : undefined;
     const logText = hint ?? this.context.messages.join("\n");
     // A new string rebuilds the text texture, which drops the crop with it.
     if (logText !== this.lastLogText) {

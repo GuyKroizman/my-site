@@ -13,6 +13,7 @@ import { toggleMuted, unlockAudio } from '../games/rogue0/audio'
 import { readRunSave, clearRunSave, type RunSave } from '../games/rogue0/saveStorage'
 import { DEFAULT_HERO_CLASS } from '../games/rogue0/classes'
 import { isLocalViteDev } from '../utils/runtime'
+import { isTouchFirstDevice } from '../games/rogue0/uiLabels'
 import ScenarioSetupPanel from '../components/rogue0/ScenarioSetupPanel'
 import { readScenarioDraft, writeScenarioDraft, type Scenario } from '../games/rogue0/scenario'
 
@@ -24,6 +25,7 @@ const HELP_PAGES = [
   {
     title: 'Basics',
     body: `• Move with the Arrow keys or HJKL. Diagonals: Home (↖), Page Up (↗), End (↙), Page Down (↘) — or u (↖), i (↗), n (↙), m (↘). Click/tap a destination to walk the shortest available route.\n• Walk into an enemy to attack it (melee).\n• Space waits one turn.\n• Press b to open your backpack.\n• Press the magnifying-glass button or x, then tap/click a tile to inspect it. Tap the button again instead to search nearby (or press s).`,
+    touchBody: `• Tap a destination to walk the shortest available route.\n• Walk into an enemy to attack it (melee).\n• Tap the wait button to rest one turn.\n• Tap the backpack button to open your backpack.\n• Tap the magnifying-glass button, then tap a tile to inspect it. Tap the button again instead to search nearby.`,
   },
   {
     title: 'Combat',
@@ -41,6 +43,7 @@ const HELP_PAGES = [
   {
     title: 'Talents',
     body: `• Every class has a talent tree with three branches. Each branch has three tiers; put a rank in a parent to unlock the next tier.\n• You gain one talent point per level from level 2. Open the character panel and press Talents, or press T, to spend them. The game is paused while the tree is open.\n• Each talent has two ranks. Your innate class passive is unchanged — the Warrior's Blood Fury still gives +2 damage while below half health.`,
+    touchBody: `• Every class has a talent tree with three branches. Each branch has three tiers; put a rank in a parent to unlock the next tier.\n• You gain one talent point per level from level 2. Open the character panel and tap Talents to spend them. The game is paused while the tree is open.\n• Each talent has two ranks. Your innate class passive is unchanged — the Warrior's Blood Fury still gives +2 damage while below half health.`,
   },
   {
     title: 'Terrain',
@@ -49,6 +52,7 @@ const HELP_PAGES = [
   {
     title: 'Progress',
     body: `• Use > (or .) to descend and < (or ,) to ascend. On mobile, tap the stairs while standing on them.\n• Visited floors keep their map, exploration, terrain changes, monsters and loot during your run. Inactive floors pause.\n• The entrance on floor 1 is sealed. Escape at the bottom floor.\n• Monsters drop gold and grant XP.\n• Floor 6 holds a store portal: move into the strange door to open it, then move into it again to shop. Time is paused inside.\n• Leveling up raises max HP and attack.\n• Dying ends the run — plan food, health, and positioning.`,
+    touchBody: `• Tap the stairs while standing on them to descend; tap the upward stairs to ascend.\n• Visited floors keep their map, exploration, terrain changes, monsters and loot during your run. Inactive floors pause.\n• The entrance on floor 1 is sealed. Escape at the bottom floor.\n• Monsters drop gold and grant XP.\n• Floor 6 holds a store portal: move into the strange door to open it, then move into it again to shop. Time is paused inside.\n• Leveling up raises max HP and attack.\n• Dying ends the run — plan food, health, and positioning.`,
   },
 ] as const
 
@@ -64,6 +68,7 @@ function HelpModal({
   onNext: () => void
 }) {
   const p = HELP_PAGES[page]
+  const body = isTouchFirstDevice() && 'touchBody' in p ? p.touchBody : p.body
   return (
     <div className="rogue0-help-overlay" onClick={onClose}>
       <div className="rogue0-help-modal" onClick={(e) => e.stopPropagation()}>
@@ -73,7 +78,7 @@ function HelpModal({
             ✕
           </button>
         </div>
-        <div className="rogue0-help-body">{p.body}</div>
+        <div className="rogue0-help-body">{body}</div>
         <div className="rogue0-help-nav">
           <button className="rogue0-help-btn" onClick={onPrev} disabled={page === 0}>
             ← Prev

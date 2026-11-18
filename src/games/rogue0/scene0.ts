@@ -11,6 +11,7 @@ import sandstoneTilesUrl from './assets/sandstone-tiles.png';
 import crystalTilesUrl from './assets/crystal-tiles.png';
 import volcanicTilesUrl from './assets/volcanic-tiles.png';
 import { doorStyleName, doorTextureKeys, dungeonThemeName, WALL_TILE } from './dungeonTheme';
+import { stairsHint } from './uiLabels';
 
 // One sheet per theme holds both the floor tile and the wall face. Loading it
 // as a spritesheet keeps the frame index equal to the tilemap tile index, so
@@ -1359,9 +1360,7 @@ export class Scene0 extends Phaser.Scene {
           this.context,
           bossSealsFloor(this.context)
             ? "You stand on sealed stairs. The guardian of this floor still lives."
-            : isExit
-              ? "You stand on the exit. Press > (or .) to escape the dungeon."
-              : "You stand on the stairs. Press > (or .) to descend."
+            : stairsHint(isExit)
         );
       }
     }
