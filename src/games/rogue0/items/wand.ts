@@ -140,6 +140,21 @@ export default abstract class Wand extends Entity {
     this.rechargeProgress = 0;
   }
 
+  // A cursed wand betrays its curse the moment it is used, but never its magic:
+  // the wand stays unidentified while the known curse shows up like any other
+  // scanned cursed item (red inventory cell, "(cursed)" label). Uncursed wands
+  // still reveal their type and upgrade level through repeated zaps.
+  learnEquipmentFromUse(): void {
+    if (!this.identified && this.cursed) {
+      if (!this.curseScanned) {
+        this.curseScanned = true;
+        dungeon.log(this.context, `${this.displayName} is cursed!`);
+      }
+      return;
+    }
+    super.learnEquipmentFromUse();
+  }
+
   damage() {
     // Wands reveal their type and upgrade level after extended use, like other
     // unknown equipment; a Scroll of Identify is faster.

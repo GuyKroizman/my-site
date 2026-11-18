@@ -14,7 +14,7 @@ const entityExports = load('src/games/rogue0/entity.ts', {
   actionCost: () => 1,
   sfx: { death() {} },
 });
-const { Entity, removeEntity } = entityExports;
+const { Entity, removeEntity, EQUIPMENT_IDENTIFY_USES } = entityExports;
 Entity.prototype.init = function (context, x, y) { this.context = context; this.x = x; this.y = y; };
 
 const item = (slot, extra = {}) => Object.assign(new Entity(), {
@@ -357,6 +357,47 @@ const originalRandom = Math.random;
   const cleanWand = { cursed: false, curseId: '', wandEffect: () => ({ id: 'burning' }) };
   Math.random = () => 0;
   assert.equal(dungeon.procWandCurse(procContext(hero), hero, cleanWand), false, 'clean wands never backfire');
+}
+
+// --- Using a cursed wand reveals the curse but keeps the wand unidentified.
+{
+  const wandMessages = [];
+  const Wand = load('src/games/rogue0/items/wand.ts', {
+    Entity,
+    dungeon: { log: (_context, message) => wandMessages.push(message) },
+    Phaser: { Math: { Between: (min, max) => max } },
+  }).default;
+  class TestWand extends Wand {
+    get damageBounds() { return [1, 2]; }
+  }
+  const makeWand = (cursed) => {
+    const wand = new TestWand({ messages: wandMessages }, {
+      name: 'Wand of Firebolt', description: '', attackTile: 0,
+      damageType: 'fire', charges: 40,
+    });
+    wand.cursed = cursed;
+    wand.curseId = cursed ? 'backfiring' : '';
+    return wand;
+  };
+
+  const cursed = makeWand(true);
+  assert.equal(cursed.identified, false);
+  assert.equal(cursed.curseScanned, false);
+  cursed.damage();
+  assert.equal(cursed.curseScanned, true, 'the first zap reveals the curse');
+  assert.equal(cursed.identified, false, 'the wand stays unidentified');
+  assert.equal(cursed.cursed, true, 'using it does not lift the curse');
+  assert.equal(cursed.curseId, 'backfiring');
+  assert.equal(wandMessages.filter(m => m.endsWith('is cursed!')).length, 1, 'the reveal is logged once');
+  for (let i = 0; i < EQUIPMENT_IDENTIFY_USES; i++) cursed.damage();
+  assert.equal(cursed.identified, false, 'no amount of zapping identifies a cursed wand');
+  assert.equal(wandMessages.filter(m => m.endsWith('is cursed!')).length, 1, 'later zaps do not repeat the reveal');
+
+  wandMessages.length = 0;
+  const clean = makeWand(false);
+  for (let i = 0; i < EQUIPMENT_IDENTIFY_USES / 2; i++) clean.damage();
+  assert.equal(clean.identified, true, 'uncursed wands still identify through use');
+  assert.equal(clean.curseScanned, false, 'identifying an uncursed wand never marks a curse');
 }
 
 Math.random = originalRandom;

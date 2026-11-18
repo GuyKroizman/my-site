@@ -277,8 +277,9 @@ export abstract class Entity {
   noItemTargetsMessage = "You have no cursed items to cleanse.";
   // Using this item opens throw targeting instead of consuming it in place.
   throwToUse = false;
-  // A Stone of Detect Curse has looked at this item's curse without
-  // identifying it. The result is permanent knowledge for this item.
+  // The hero knows this item's curse without identifying it: a Stone of Detect
+  // Curse read it, or a cursed wand revealed it when first zapped. Permanent
+  // knowledge for this item.
   curseScanned = false;
   curseEffectId?: string;
   canTargetItem(_target: Entity): boolean { return false; }

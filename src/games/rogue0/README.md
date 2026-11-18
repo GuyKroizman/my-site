@@ -375,9 +375,13 @@ reconciles already-upgraded rings automatically without consuming another scroll
 Wand identity is shared across the whole run, like potion and scroll knowledge.
 Every copy of a wand type has the same stable gibberish label, independent of
 charges, upgrades and floor location; the four wand types have distinct labels.
-Identifying or thirty successful zaps of one copy reveals all existing and future
+Identifying or fifteen successful zaps of one copy reveals all existing and future
 copies of that type; an unidentified wand shows `?` for its upgrade level. Other
 types remain unknown, and a new run starts with no discoveries.
+A cursed wand breaks the usual rule: its first zap reveals the curse (like a
+glyph-stone scan — red inventory cell and a "(cursed)" label) but never its
+magic. Cursed wands stay unidentified no matter how often they are zapped; only
+a Scroll of Identify can name one, and identifying it does not lift the curse.
 Browser saves retain shared knowledge. Older saves also recover knowledge from
 identified wands in the backpack or on any visited floor without adding log spam.
 
