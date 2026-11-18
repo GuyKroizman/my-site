@@ -3,7 +3,7 @@ recordTestRun('talent-tree');
 import assert from 'node:assert/strict';
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 import { TALENT_TREE, talentNodeById, isTalentUnlocked } from '../src/games/rogue0/talents/talentTree.ts';
-import { talentTreeLayout, talentNodeAt } from '../src/games/rogue0/talents/talentTreeLayout.ts';
+import { talentTreeLayout, talentNodeAt, maxTreeScroll } from '../src/games/rogue0/talents/talentTreeLayout.ts';
 
 const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
 const { Entity } = load('entity');
@@ -75,10 +75,15 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [800, 400], [390, 844]
     rect.x + rect.width <= width + 1e-6 && rect.y + rect.height <= height + 1e-6;
   assert.ok(inside(layout.panel) && inside(layout.detail) && inside(layout.rankUp) && inside(layout.close),
     `${width}x${height} keeps panel and buttons on screen`);
+  assert.ok(inside(layout.viewport), `${width}x${height} keeps the tree pane on screen`);
   for (const box of layout.nodes) {
     assert.ok(inside(box.rect), `${width}x${height} keeps ${box.id} on screen`);
-    assert.equal(talentNodeAt(layout, box.rect.x + box.rect.width / 2, box.rect.y + box.rect.height / 2), box.id);
+    const scroll = Math.max(0, box.rect.y + box.rect.height / 2 -
+      (layout.viewport.y + layout.viewport.height));
+    assert.equal(talentNodeAt(layout, box.rect.x + box.rect.width / 2,
+      box.rect.y - scroll + box.rect.height / 2, scroll), box.id);
   }
+  if (width < height) assert.ok(maxTreeScroll(layout) > 0, 'phone tree pane scrolls');
 }
 assert.throws(() => talentTreeLayout(0, 100, []), RangeError);
 console.log('Talent tree integrity, points, prerequisites, migration and layout passed');

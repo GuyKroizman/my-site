@@ -1305,7 +1305,9 @@ not re-litigate them.
       (level 5, requires ≥1 rank in its tier-1 parent) and tier 3 (level 9,
       requires ≥1 rank in its tier-2 parent). Ranks 2/2/2 per branch → 18 ranks
       per class. Partial ranks unlock the next tier so points can spread; no
-      prerequisite ever needs a maxed parent.
+      prerequisite ever needs a maxed parent. Branches are independent: a node
+      only requires its own parent, so the player can acquire just part of the
+      tree, and the pane draws a line from each parent to the children it opens.
 - [x] v1 bonuses stick to hooks that already exist: `maxHealthPoints`,
       `protection()`, `effectiveEvasion`, `refresh()` regeneration, the
       Warrior/Wizard low-HP and typed-damage additions in `attack()`,
@@ -1365,19 +1367,20 @@ not re-litigate them.
       node rects, connector endpoints and hit testing so layout is testable in
       node without Phaser.
 - [x] **Desktop / landscape (wide):** centred panel at most
-      `min(w - 32, 960) × min(h - 32, 720)`. Three columns (tiers) × three rows
-      (branches) of ~200×90 px cards; prerequisite links drawn with
-      `Graphics.lineBetween`. A detail pane on the right (≥240 px) shows the
-      selected node's full description, next-rank preview, lock reason and
-      **Rank up (1 point)** button. Hover selects; arrow keys move selection;
-      Enter/Space ranks up; Escape closes. Keep a 12 px safe margin and clamp
-      font sizes with the layout scale.
-- [x] **Phone portrait (narrow):** single tier-per-row column, cards ≥44 px
-      tall, drag/wheel scrolling of the tree region, detail pane pinned to the
-      bottom (≤35% of viewport height) with large **Rank up** and **Close**
-      buttons. No horizontal scrolling and no clipped labels. Phaser 4's WebGL
-      `setMask` is a no-op here, so scroll/clip with `setCrop` (as the store's
-      item detail and the message strip already do).
+      `min(w - 32, 960) × min(h - 32, 720)`. A large scrollable tree pane fills
+      most of it, with three tier columns × three branch rows of ~196×132 px
+      cards. Lines connect each node to the children it unlocks and brighten
+      once the parent has a rank. A narrow detail strip on the right shows the
+      selected node's icon, full description, rank, lock reason and **Rank up
+      (1 point)** button. Hover selects; arrows move; Enter/Space ranks up;
+      Escape closes.
+- [x] **Phone portrait (narrow):** the tree pane takes the upper ~2/3 of the
+      screen and its taller content scrolls by drag or wheel; three branch
+      columns stack three tier rows of ~104 px cards. The detail pane is pinned
+      to the bottom with large **Rank up** and **Close** buttons. Overflow is
+      hidden by opaque cover rectangles drawn over the pane, not by WebGL
+      masks (Phaser 4's `setMask` is a no-op), and off-pane nodes are not
+      tappable. The pane is the primary UI; nothing important is off-screen.
 - [x] **Phone landscape / small laptop:** aspect ≥1.2 still uses wide mode, but
       cap scale by height as the store does; if the detail pane cannot fit
       beside the tree, move it below without covering nodes.
@@ -1386,9 +1389,10 @@ not re-litigate them.
       Assert every node and both buttons stay inside the viewport, narrow-mode
       touch targets meet the minimum, and inverse hit testing maps each node's
       centre back to its id.
-- [x] No new art dependency: panels, connector lines and rank pips are drawn
-      shapes plus the already-loaded VT323/Press Start 2P fonts; node icons can
-      reuse existing generated status/item textures. A dedicated art pass is
+- [x] Every node has its own icon drawn as shapes keyed by its bonus type
+      (heart = HP, shield = armor, chevrons = evasion/haste, cross = regen,
+      blade = low-HP damage, bolt = typed damage), on the card and again in the
+      detail strip. No new art assets are needed; a dedicated pixel-art pass is
       optional and separate.
 
 #### 5. Feedback, saves and docs
@@ -1579,6 +1583,11 @@ is class-specific hero art and a palette pass, neither of which affects depth.
   suite plus the existing game suites; no per-node balance tests, no scene
   source audits, no new browser test framework. Gameplay/visual behaviour is
   verified manually with the dev scenario harness.
+- **The talent pane is scrollable and shows the tree, not a list.** One large
+  pane holds every node as a card with its own icon; connector lines point from
+  an acquired node to the nodes it unlocks. Branches stay independent so a
+  player can specialise in only part of the tree — no "spend everything"
+  requirement and no cross-branch prerequisites.
 - **Out of scope by decision:** goblin archers do **not** kite/retreat, wraiths
   do **not** phase through walls, and monsters do **not** call allies. Do not
   re-propose these or implement them as extras.

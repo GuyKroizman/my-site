@@ -1,5 +1,5 @@
-// Pure, renderer-free layout for the fullscreen talent tree. Same role as
-// storeLayout: one function, contain-never-cover scaling, testable hit boxes.
+// Pure, renderer-free layout for the fullscreen talent tree. The tree lives in
+// a large scrollable viewport; the detail panel stays pinned beside/below it.
 
 export type Rect = { x: number; y: number; width: number; height: number };
 export type TalentLayoutMode = "wide" | "narrow";
@@ -8,7 +8,8 @@ export type TalentLayout = {
   mode: TalentLayoutMode;
   scale: number;
   panel: Rect;
-  tree: Rect;
+  viewport: Rect;
+  contentHeight: number;
   detail: Rect;
   nodes: TalentNodeBox[];
   rankUp: Rect;
@@ -19,6 +20,7 @@ const BRANCHES = 3;
 const TIERS = 3;
 const WIDE = { width: 1000, height: 620 };
 const NARROW = { width: 360, height: 620 };
+const GAP = 20;
 
 function toScreen(rect: Rect, scale: number, ox: number, oy: number): Rect {
   return {
@@ -43,15 +45,16 @@ export function talentTreeLayout(
   const ox = (viewW - design.width * scale) / 2;
   const oy = (viewH - design.height * scale) / 2;
 
-  const tree: Rect = mode === "wide"
-    ? { x: 16, y: 66, width: 650, height: 538 }
-    : { x: 8, y: 52, width: 344, height: 320 };
+  // Tree gets almost the whole screen; detail is a slim pinned strip.
+  const viewport: Rect = mode === "wide"
+    ? { x: 12, y: 62, width: 690, height: 542 }
+    : { x: 8, y: 48, width: 344, height: 352 };
   const detail: Rect = mode === "wide"
-    ? { x: 682, y: 66, width: 302, height: 538 }
-    : { x: 8, y: 380, width: 344, height: 228 };
+    ? { x: 712, y: 62, width: 276, height: 542 }
+    : { x: 8, y: 408, width: 344, height: 200 };
   const close: Rect = mode === "wide"
-    ? { x: design.width - 116, y: 16, width: 100, height: 38 }
-    : { x: design.width - 84, y: 8, width: 76, height: 36 };
+    ? { x: design.width - 116, y: 14, width: 100, height: 38 }
+    : { x: design.width - 84, y: 6, width: 76, height: 34 };
   const rankUp: Rect = {
     x: detail.x + 12,
     y: detail.y + detail.height - 58,
@@ -59,46 +62,60 @@ export function talentTreeLayout(
     height: 46,
   };
 
-  // Branch-major data (three nodes per branch). Wide shows tiers left→right
-  // and branches top→bottom; narrow stacks tiers vertically in each column.
-  const cellW = tree.width / BRANCHES;
-  const cellH = tree.height / TIERS;
-  const nodeW = mode === "wide" ? Math.min(196, cellW - 8) : cellW - 10;
-  const nodeH = mode === "wide" ? Math.min(96, cellH - 10) : Math.min(64, cellH - 10);
+  // Content is wider/taller than the viewport on phones so it scrolls; node
+  // rects are in content space (y = 0 at the top of the scrollable area).
+  const cellW = viewport.width / BRANCHES;
+  const nodeW = mode === "wide" ? Math.min(196, cellW - 14) : cellW - 10;
+  const nodeH = 132;
+  const rowH = nodeH + GAP;
+  const contentHeight = TIERS * rowH + GAP;
   const boxes: TalentNodeBox[] = nodes.slice(0, BRANCHES * TIERS).map((entry, index) => {
     const branch = Math.floor(index / TIERS);
     const tier = index % TIERS;
-    const col = mode === "wide" ? tier : branch;
-    const row = mode === "wide" ? branch : tier;
     return {
       id: entry.id,
       branch,
       tier,
-      rect: toScreen({
-        x: tree.x + col * cellW + (cellW - nodeW) / 2,
-        y: tree.y + row * cellH + (cellH - nodeH) / 2,
+      rect: {
+        x: viewport.x + tier * cellW + (cellW - nodeW) / 2,
+        y: viewport.y + GAP + branch * rowH,
         width: nodeW,
         height: nodeH,
-      }, scale, ox, oy),
+      },
     };
   });
+
+  // Wide shows tiers left→right and branches top→bottom; narrow stacks tiers
+  // vertically with the three branches side by side.
+  if (mode === "narrow") {
+    const narrowCellW = viewport.width / BRANCHES;
+    boxes.forEach(box => {
+      box.rect.x = viewport.x + box.branch * narrowCellW + (narrowCellW - nodeW) / 2;
+      box.rect.y = viewport.y + GAP + box.tier * rowH;
+    });
+  }
 
   return {
     mode,
     scale,
     panel: toScreen({ x: 0, y: 0, ...design }, scale, ox, oy),
-    tree: toScreen(tree, scale, ox, oy),
+    viewport: toScreen(viewport, scale, ox, oy),
+    contentHeight: contentHeight * scale,
     detail: toScreen(detail, scale, ox, oy),
-    nodes: boxes,
+    nodes: boxes.map(box => ({ ...box, rect: toScreen(box.rect, scale, ox, oy) })),
     rankUp: toScreen(rankUp, scale, ox, oy),
     close: toScreen(close, scale, ox, oy),
   };
 }
 
-export function talentNodeAt(layout: TalentLayout, x: number, y: number): string | undefined {
+export function maxTreeScroll(layout: TalentLayout): number {
+  return Math.max(0, layout.contentHeight - layout.viewport.height);
+}
+
+export function talentNodeAt(layout: TalentLayout, x: number, y: number, scrollY: number): string | undefined {
   return layout.nodes.find(box =>
     x >= box.rect.x && x < box.rect.x + box.rect.width &&
-    y >= box.rect.y && y < box.rect.y + box.rect.height)?.id;
+    y + scrollY >= box.rect.y && y + scrollY < box.rect.y + box.rect.height)?.id;
 }
 
 export function rectContains(rect: Rect, x: number, y: number): boolean {
