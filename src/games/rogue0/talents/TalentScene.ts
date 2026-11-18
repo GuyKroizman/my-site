@@ -216,18 +216,19 @@ export class TalentScene extends Phaser.Scene {
     views.forEach(({ entry, center, radius }) => {
       if (center.y + radius < v.y || center.y - radius > v.y + v.height ||
           center.x + radius < v.x || center.x - radius > v.x + v.width) return;
-      const iconSize = radius * 0.5;
+      const iconSize = radius * 0.45;
       this.drawIcon(nodeIcons, entry.bonus?.kind,
-        center.x - iconSize / 2, center.y - radius * 0.78, iconSize);
+        center.x - iconSize / 2, center.y - radius * 0.8, iconSize);
     });
     views.forEach(({ entry, center, radius }) => {
       const unlocked = isTalentUnlocked(entry, ranks, player.level);
       const rank = player.talentRank(entry.id);
-      const nameSize = Math.max(9, Math.min(15, radius * 0.17));
-      this.text(center.x, center.y - radius * 0.14, entry.name, nameSize, radius * 1.66)
+      const nameSize = Math.max(13, Math.min(24, radius * 0.26));
+      this.text(center.x, center.y - radius * 0.18, entry.name, nameSize, radius * 1.7)
         .setOrigin(0.5, 0).setColor(unlocked ? GOLD : DIM);
-      this.text(center.x, center.y + radius * 0.42, `${rank}/${entry.maxRank}${unlocked ? '' : ' · locked'}`,
-        Math.max(9, Math.min(13, radius * 0.15))).setOrigin(0.5).setColor(unlocked ? '#e8e1d5' : DIM);
+      const rankY = layout.mode === "narrow" ? 0.55 : 0.44;
+      this.text(center.x, center.y + radius * rankY, `${rank}/${entry.maxRank}${unlocked ? '' : ' · locked'}`,
+        Math.max(11, Math.min(19, radius * 0.21))).setOrigin(0.5).setColor(unlocked ? '#e8e1d5' : DIM);
     });
 
     // Opaque frame over the scrolled content, then the fixed chrome on top.
