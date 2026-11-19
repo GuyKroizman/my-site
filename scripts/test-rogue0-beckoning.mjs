@@ -127,15 +127,17 @@ for (const turn of [ai.enemyTurn, ai.swarmTurn]) {
     const blocker = new Monster(context, config, 3, 2);
     context.entities.push(blocker);
     monster.turn();
-    assert.deepEqual([monster.x, monster.y], [2, 2], 'does not overlap a blocking monster');
+    assert.notDeepEqual([monster.x, monster.y], [3, 2], 'does not overlap a blocking monster');
+    assert.notDeepEqual([monster.x, monster.y], [2, 2], 'routes around the blocker instead of freezing');
     assert.ok(monster.beckoningTarget, 'temporary crowding retains the call');
     blocker.x = 1; blocker.y = 10;
-    monster.turn(); monster.turn();
-    assert.deepEqual([monster.x, monster.y], [4, 2], 'crosses the closed doorway');
+    monster.turn();
+    assert.ok(monster.x >= 4, 'crosses the closed doorway once the blocker leaves');
     assert.equal(tiles.getDoorState(4, 2), 'open');
     monster.effects = [{ id: 'rooted' }];
+    const rooted = [monster.x, monster.y];
     monster.turn();
-    assert.deepEqual([monster.x, monster.y], [4, 2], 'rooting still prevents movement');
+    assert.deepEqual([monster.x, monster.y], rooted, 'rooting still prevents movement');
     assert.ok(monster.beckoningTarget, 'rooting does not forget destination');
   }
 }

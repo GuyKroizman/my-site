@@ -260,13 +260,31 @@ const dungeon = {
     if (!grid.isInside(sx, sy) || !grid.isInside(tx, ty)) return [];
     const fp = actorFootprint(actor);
     const multi = fp.width > 1 || fp.height > 1;
+    // Monsters must plan around other creatures, not just terrain. The path
+    // grid otherwise ignores living bodies, so a pursuer whose straight route
+    // crosses a sleeping monster or a dormant mimic picks a step that movement
+    // later refuses and freezes in place forever. Reserve the mover's own body
+    // and the explicit destination (the target stands there); every other
+    // living footprint becomes a detour. Items stay passable, matching the
+    // movement rules that let creatures walk over loot.
+    if (actor?.type === 'enemy') {
+      const own = new Set([...footprintTiles(fp, sx, sy)].map(([x, y]) => `${x},${y}`));
+      for (const other of this.context?.entities ?? []) {
+        if (other === actor || other.type === 'item' || (other.healthPoints ?? 0) <= 0 ||
+            other.x === undefined || other.y === undefined) continue;
+        for (const [x, y] of footprintTiles(actorFootprint(other), other.x, other.y)) {
+          if ((x === tx && y === ty) || own.has(`${x},${y}`)) continue;
+          if (grid.isInside(x, y)) grid.setWalkableAt(x, y, false);
+        }
+      }
+    }
     let base: boolean[][] | undefined;
     if (multi) {
       const startWalkable = grid.isWalkableAt(sx, sy);
-      // Snapshot walkability after door/trap/flying adjustments. Clearance must
-      // be measured against terrain only: mutating the grid to encode "can this
-      // anchor hold the body" would make neighbouring anchors inherit false
-      // negatives from cells of the body that are not anchors themselves.
+      // Snapshot walkability after door/trap/flying/actor adjustments. Clearance
+      // must be measured against the loaded grid, not against a grid mutated to
+      // encode "can this anchor hold the body": that would make neighbouring
+      // anchors inherit false negatives from non-anchor cells of the body.
       base = [];
       for (let y = 0; y < grid.height; y++) {
         base[y] = [];

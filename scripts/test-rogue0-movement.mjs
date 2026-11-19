@@ -821,7 +821,9 @@ assert.deepEqual(diagonalAI.nextStepToward({ x: 1, y: 1 }, 3, 3), { x: 2, y: 2 }
 
 // A dormant mimic is disguised as a chest, so hero routes bend around its tile
 // instead of walking into it and provoking it. The explicit destination stays
-// reachable (click to attack), and monster AI is unaffected.
+// reachable (click to attack). Monsters route around living creatures too: a
+// pursuer whose path crossed a body used to pick a step that movement refused,
+// freezing it forever instead of chasing.
 {
   const mimic = Object.assign(new Entity(), {
     type: 'enemy', name: 'Mimic', healthPoints: 10, x: 3, y: 1, sprite: {},
@@ -837,12 +839,36 @@ assert.deepEqual(diagonalAI.nextStepToward({ x: 1, y: 1 }, 3, 3), { x: 2, y: 2 }
   assert.ok(!detour.some(([x, y]) => x === 3 && y === 1), 'hero path bends around a dormant mimic');
   assert.deepEqual(realDungeon.findPath(1, 1, 3, 1, true, true, heroActor),
     [[1, 1], [2, 1], [3, 1]], 'the mimic tile stays reachable as the explicit destination');
-  assert.ok(realDungeon.findPath(1, 1, 5, 1, true, true, monsterActor)
-    .some(([x, y]) => x === 3 && y === 1), 'monster AI still plans through the dungeon');
+  const monsterRoute = realDungeon.findPath(1, 1, 5, 1, true, true, monsterActor);
+  assert.ok(monsterRoute.length > 1, 'a monster route around the body exists');
+  assert.ok(!monsterRoute.some(([x, y]) => x === 3 && y === 1),
+    'monster AI bends around a creature body instead of planning through it');
 
   mimic.isDormantMimic = false;
   assert.ok(realDungeon.findPath(1, 1, 5, 1, true, true, heroActor)
     .some(([x, y]) => x === 3 && y === 1), 'a provoked mimic no longer bends the hero route');
+  realDungeon.context = previousContext;
+}
+
+// Regression: a frog whose route crosses a dormant mimic (identical chest art)
+// must still chase the player. Previously the path went straight through the
+// body, every step was refused by occupancy checks, and the frog froze.
+{
+  const mimic = Object.assign(new Entity(), {
+    type: 'enemy', name: 'Mimic', healthPoints: 10, x: 3, y: 1, sprite: {},
+  });
+  const frog = Object.assign(new Entity(), { type: 'enemy', healthPoints: 10, x: 1, y: 1 });
+  const player = Object.assign(new Entity(), { type: 'player', healthPoints: 10, x: 5, y: 1 });
+  const previousContext = realDungeon.context;
+  realDungeon.context = { entities: [mimic, frog, player] };
+  const route = realDungeon.findPath(1, 1, 5, 1, true, true, frog);
+  assert.ok(route.length > 0, 'a route around the mimic exists');
+  assert.ok(!route.some(([x, y]) => x === 3 && y === 1), 'the frog never plans through the mimic');
+  assert.deepEqual(route.at(-1), [5, 1], 'the player tile stays reachable as the destination');
+  const step = diagonalAI.nextStepToward(frog, 5, 1);
+  assert.ok(step && !(step.x === 3 && step.y === 1), 'the first chase step is not the blocked body');
+  assert.equal(realDungeon.canFootprintOccupy(realDungeon.context, frog, step.x, step.y, { swept: true }), true,
+    'the detour step passes the same occupancy check that used to refuse it');
   realDungeon.context = previousContext;
 }
 
