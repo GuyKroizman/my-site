@@ -116,6 +116,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   const Brute = load('src/games/rogue0/monsters/brute.ts', { Monster: Entity }).default;
   const Quloptsh = load('src/games/rogue0/monsters/quloptsh.ts', { Monster: Entity }).default;
   const Skeleton = load('src/games/rogue0/monsters/skelaton.ts', { Monster: Entity }).default;
+  const Boss = load('src/games/rogue0/monsters/boss.ts', { Monster: Entity }).default;
   // Real single-tier gear prototypes: art moved from atlas frames to generated
   // silhouettes, so legacy saves must be re-pointed.
   const Shield = load('src/games/rogue0/items/shield.ts', { Entity }).default;
@@ -129,6 +130,14 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     type: 'enemy', tile: [320, 322, 324, 323][i], healthPoints: 7, sleepTurnsRemaining: 11,
     x: 0, y: 0, effects: [], loot: [false], nextActionTime: 4.5,
   }));
+  // Saved before the guardian was renamed and made airborne: both must be
+  // repaired at load, without rerunning the constructor.
+  const legacyBoss = Object.assign(Object.create(Boss.prototype), {
+    type: 'enemy', name: 'Bone Lord', flying: false, tile: 999,
+    healthPoints: 120, sleepTurnsRemaining: 0, x: 0, y: 0,
+    effects: [], loot: [false], nextActionTime: 4.5,
+  });
+  oldMonsters.push(legacyBoss);
   const legacyIce = new IceElemental();
   Object.assign(legacyIce, { x: 0, y: 0, healthPoints: 16 });
   // Saved while Remove Curse cleansed the whole pack: no target fields.
@@ -138,7 +147,8 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     noItemTargetsMessage: 'You have no cursed items to cleanse.',
     description: 'Lifts every curse on your equipment.', locallyIdentified: false });
   const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, removeScroll: ScrollOfRemoveCurse,
-    IceElemental, TieredWeapon, Ghoul, Brute, Quloptsh, CursedGem, Skeleton, Shield, Sword, Axe };
+    IceElemental, TieredWeapon, Ghoul, Brute, Quloptsh, CursedGem, Skeleton, Boss,
+    Shield, Sword, Axe };
   const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
   const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
     bossesSlain: new Set([5, 10]),
@@ -184,6 +194,9 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.equal(savedCursedGem.spriteFrame, 0);
   assert.equal(savedCursedGem.spriteFrame, 0, 'a stale saved tile no longer selects atlas art');
   assert.equal(savedCursedGem.count, 3, 'art migration preserves the stack');
+  const restoredBoss = run.floors.get(1).entities.find(entity => entity.name === 'The Unblinking Coil');
+  assert.ok(restoredBoss, 'legacy boss is renamed when the save is loaded');
+  assert.equal(restoredBoss.flying, true, 'restored guardian floats over traps');
   assert.equal(run.player.quickslots[0], savedCursedGem, 'quickslot retains migrated item identity');
   const restored = run.player.backpack[0];
   assert.deepEqual(run.player.inputBuffer, []);

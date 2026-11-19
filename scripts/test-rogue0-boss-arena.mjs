@@ -463,6 +463,8 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   assert.equal(boss.sleepTurnsRemaining, BOSS_ARENA_DORMANCY,
     'dormancy outlasts a walk across the arena');
   assert.ok(BOSS_ARENA_DORMANCY >= 100, 'the hero can cross the hall before the blob stirs');
+  assert.equal(boss.flying, true, 'the guardian floats instead of walking into traps');
+  assert.equal(boss.isFlying, true, 'pathfinding sees it as airborne');
   assert.ok(boss.spriteScale > 1, 'the blob is scaled up beyond the 16px monsters');
   assert.deepEqual(boss.footprint, { width: 3, height: 3, originX: 1, originY: 1 },
     'the scaled guardian owns a centre-anchored 3x3 footprint');

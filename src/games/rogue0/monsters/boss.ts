@@ -30,7 +30,7 @@ export default class Boss extends Monster {
     if (context.scene) generateBossTexture(context.scene);
     super(context, {
       name: "The Unblinking Coil",
-      description: "A shrunken, dark mass of flesh with a single yellow eye whose vertical slit pupil darts between directions, a mouth full of fangs, and sixteen writhing black tentacles. The guardian of the dungeon depths. Immune to terror. Extremely dangerous.",
+      description: "A shrunken, dark mass of flesh that floats above the dungeon's traps, with a single yellow eye whose vertical slit pupil darts between directions, a mouth full of fangs, and sixteen writhing black tentacles. The guardian of the dungeon depths. Immune to terror. Extremely dangerous.",
       textureKey: BOSS_TEXTURE,
       ...monsterStats('boss', context.floor),
       movementSpeed: 1,
@@ -43,6 +43,12 @@ export default class Boss extends Monster {
       scale: 2,
       loot: [false, PotionOfHealing]
     }, x, y);
+
+    // The guardian hovers, so ground hazards never touch it: traps (including
+    // pressure plates and arrow traps), ice, water, grass and chasms are all
+    // ignored by movement and by pathfinding. Walls and other bodies still
+    // block its 3x3 footprint.
+    this.flying = true;
 
     // The arena hall is vast, so the guardian naps until intruded on: it wakes
     // on any wound or noise, when the hero is close enough to be seen, or after
