@@ -3,7 +3,7 @@ import { monsterStats, MONSTER_XP } from '../monsterBalance';
 import type { GameContext } from "../context";
 import PotionOfHealing from "../items/PotionOfHealing";
 import { createCrippledEffect, createWeakenedEffect } from "../effects";
-import { BOSS_TEXTURE, generateBossTexture } from "./bossTexture";
+import { BOSS_TEXTURE, BOSS_WIGGLE_ANIM, generateBossTexture } from "./bossTexture";
 import { resolveFootprint } from "../footprint.ts";
 import type { Footprint } from "../footprint.ts";
 
@@ -30,7 +30,7 @@ export default class Boss extends Monster {
     if (context.scene) generateBossTexture(context.scene);
     super(context, {
       name: "Bone Lord",
-      description: "A mountain of gelatinous flesh with one great eye and a mouth full of fangs. The guardian of the dungeon depths. Immune to terror. Extremely dangerous.",
+      description: "A shrunken, dark mass of flesh with a single yellow eye whose vertical slit pupil darts between directions, a mouth full of fangs, and sixteen writhing black tentacles. The guardian of the dungeon depths. Immune to terror. Extremely dangerous.",
       textureKey: BOSS_TEXTURE,
       ...monsterStats('boss', context.floor),
       movementSpeed: 1,
@@ -60,6 +60,10 @@ export default class Boss extends Monster {
     const fp = this.footprint;
     this.sprite.setDisplaySize(fp.width * 16, fp.height * 16);
     this.sprite.setOrigin(fp.originX / fp.width, fp.originY / fp.height);
+    // The generated frames are a looping animation, so the sixteen tentacles
+    // keep undulating while the body follows the usual movement tweens. Node
+    // test fixtures use sprites without `play`; real Phaser sprites have it.
+    if (typeof this.sprite.play === 'function') this.sprite.play(BOSS_WIGGLE_ANIM);
   }
 
   onHitEffects() {

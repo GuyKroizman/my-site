@@ -6,7 +6,9 @@ import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { generateMap, floorIsBossArena, bossArenaRoom, bossArenaWallTiles, findFarthestWalkable } from '../src/games/rogue0/mapgen.ts';
 import { BOSS_ARENA_LAYOUTS, bossArenaLayout } from '../src/games/rogue0/bossArenas.ts';
 import {
-  BOSS_TEXTURE, BOSS_PIXELS, BOSS_PALETTE, BOSS_TEXTURE_SIZE, generateBossTexture
+  BOSS_TEXTURE, BOSS_PIXELS, BOSS_BODY_PIXELS, BOSS_PALETTE, BOSS_TEXTURE_SIZE,
+  BOSS_WIGGLE_ANIM, BOSS_WIGGLE_FRAMES, BOSS_GAZES, BOSS_GAZE_COUNT,
+  BOSS_GAZE_CYCLES, buildBossFrame, bossFrameKey, generateBossTexture
 } from '../src/games/rogue0/monsters/bossTexture.ts';
 import { actorOrigin, worldDepth } from '../src/games/rogue0/rendering.ts';
 import { actorBodyAtTile, bodyAtTile, bodyDistance, bodyOverlapsAt } from '../src/games/rogue0/actorBodies.ts';
@@ -275,44 +277,117 @@ const bodyEntities = [
 assert.equal(actorBodyAtTile(bodyEntities, 11, 11), bodyEntities[0]);
 assert.equal(actorBodyAtTile(bodyEntities, 19, 19), undefined, 'items never own extra cells');
 
-// --- Boss artwork: a big, toothy, one-eyed blob -----------------------------
+// --- Boss artwork: a reduced body ringed by 16 black wiggling tentacles -----
 assert.equal(BOSS_TEXTURE_SIZE, 24);
 assert.equal(BOSS_PIXELS.length, 24, 'the boss art is 24 rows tall');
 assert.ok(BOSS_PIXELS.every(row => row.length === 24), 'the boss art is 24 columns wide');
 const drawn = BOSS_PIXELS.join('').replace(/\./g, '');
-assert.ok(drawn.length >= 380, `the blob fills most of its frame (${drawn.length}/576 pixels)`);
+assert.ok(drawn.length >= 200, `the tentacles still fill the frame (${drawn.length}/576 pixels)`);
 for (const pixel of new Set(drawn)) {
   assert.equal(typeof BOSS_PALETTE[pixel], 'number', `palette covers '${pixel}'`);
 }
-// Each occupied tile is visibly filled, including the four corner tiles.
-for (let ty = 0; ty < 3; ty++) {
-  for (let tx = 0; tx < 3; tx++) {
-    const pixels = BOSS_PIXELS.slice(ty * 8, ty * 8 + 8)
-      .map(row => row.slice(tx * 8, tx * 8 + 8)).join('');
-    assert.ok(pixels.replace(/\./g, '').length >= 56,
-      `body tile ${tx},${ty} is at least 7/8 visibly filled`);
+assert.equal(BOSS_PALETTE.k, 0x000000, 'the tentacles are pure black');
+
+// The body is a 12x12 face stamped into the middle of the 24x24 frame. The
+// tentacles take the five pixels on each side the full-size body used to fill,
+// so the overall silhouette keeps the same 3x3-tile size.
+assert.equal(BOSS_BODY_PIXELS.length, 12, 'the body is half as tall as the frame');
+assert.ok(BOSS_BODY_PIXELS.every(row => row.length === 12), 'the body is half as wide as the frame');
+const bodyPixels = BOSS_BODY_PIXELS.join('').replace(/\./g, '');
+assert.ok(bodyPixels.includes('w') && bodyPixels.includes('p'), 'the reduced body keeps its eye');
+assert.ok(bodyPixels.includes('t'), 'the reduced body keeps its fangs');
+// The body is dark, the eye is yellow, and the pupil is a tall vertical slit.
+const luma = color => 0.2126 * ((color >> 16) & 0xff) +
+  0.7152 * ((color >> 8) & 0xff) + 0.0722 * (color & 0xff);
+assert.ok(luma(BOSS_PALETTE.g) < 100, `the body is a dark green (${luma(BOSS_PALETTE.g).toFixed(0)})`);
+const eyeColor = BOSS_PALETTE.w;
+assert.ok(((eyeColor >> 16) & 0xff) > 180 && ((eyeColor >> 8) & 0xff) > 150 &&
+  (eyeColor & 0xff) < 100, 'the eye is yellow');
+const pupilRows = BOSS_BODY_PIXELS.filter(row => row.includes('p')).length;
+let pupilColumns = 0;
+for (let x = 0; x < BOSS_BODY_PIXELS[0].length; x++) {
+  if (BOSS_BODY_PIXELS.some(row => row[x] === 'p')) pupilColumns++;
+}
+assert.ok(pupilRows >= 3 && pupilRows > pupilColumns,
+  'the pupil is a vertical slit, not a round dot');
+assert.ok(BOSS_PALETTE.p !== BOSS_PALETTE.w, 'the pupil reads against the yellow eye');
+const bodyCells = [];
+BOSS_BODY_PIXELS.forEach((row, by) => [...row].forEach((pixel, bx) => {
+  if (pixel === '.') return;
+  bodyCells.push([bx + 6, by + 6, pixel]);
+  assert.equal(BOSS_PIXELS[by + 6][bx + 6], pixel,
+    'the reduced body is stamped over the tentacle roots');
+}));
+
+// Four separate black tentacles grow out of each of the four sides.
+function blackRuns(chars) {
+  let runs = 0;
+  let previous = '.';
+  for (const char of chars) {
+    if (char === 'k' && previous !== 'k') runs++;
+    previous = char;
+  }
+  return runs;
+}
+const edges = [
+  BOSS_PIXELS[0], BOSS_PIXELS.at(-1),
+  BOSS_PIXELS.map(row => row[0]).join(''),
+  BOSS_PIXELS.map(row => row.at(-1)).join('')
+];
+for (const [index, edge] of edges.entries()) {
+  assert.equal(blackRuns(edge), 4, `side ${index} has four distinct tentacle tips`);
+}
+const blackCount = BOSS_PIXELS.join('').split('k').length - 1;
+assert.ok(blackCount >= 100, `sixteen long tentacles are drawn (${blackCount} black pixels)`);
+
+// Every phase shifts the travelling wave along the tentacles: a snake-like
+// wiggle rather than a static silhouette. The body stays put across phases.
+assert.equal(BOSS_WIGGLE_FRAMES, 8);
+const frameTexts = Array.from({ length: BOSS_WIGGLE_FRAMES },
+  (_, phase) => buildBossFrame(phase, 0).join(''));
+assert.equal(new Set(frameTexts).size, BOSS_WIGGLE_FRAMES, 'every wiggle phase is a distinct frame');
+for (const frame of frameTexts) {
+  for (const [x, y, pixel] of bodyCells) {
+    if (pixel === 'p') continue; // the pupil deliberately darts around
+    assert.equal(frame[y * 24 + x], pixel, 'the body does not change between wiggle phases');
   }
 }
-for (const edge of [BOSS_PIXELS[0], BOSS_PIXELS.at(-1),
-  BOSS_PIXELS.map(row => row[0]).join(''), BOSS_PIXELS.map(row => row.at(-1)).join('')]) {
-  assert.ok(edge.replace(/\./g, '').length >= 18,
-    'the silhouette reaches every footprint edge without transparent padding');
+
+// The pupil keeps its slit shape but slides to a new direction for each gaze.
+function pupilCenter(frame) {
+  let sx = 0, sy = 0, count = 0;
+  for (let y = 6; y < 18; y++) {
+    for (let x = 6; x < 18; x++) {
+      if (frame[y * 24 + x] !== 'p') continue;
+      sx += x; sy += y; count++;
+    }
+  }
+  assert.ok(count > 0, 'the pupil is visible in every gaze');
+  return { x: sx / count, y: sy / count, count };
 }
-// One eye, one pupil, a row of teeth: the three features the art is named for.
-assert.ok(drawn.includes('w') && drawn.includes('p'), 'the blob has a visible eye');
-const eyeRows = BOSS_PIXELS.filter(row => row.includes('w'));
-assert.ok(eyeRows.length >= 8, 'the single eye is huge');
-assert.equal(BOSS_PIXELS.join('').split('p').length - 1 >= 10, true, 'one large pupil, not two eyes');
-const toothRows = BOSS_PIXELS.filter(row => row.includes('t'));
-assert.ok(toothRows.length >= 5, 'the maw is lined with teeth above and below');
-assert.ok(BOSS_PALETTE.t !== BOSS_PALETTE.m && BOSS_PALETTE.w !== BOSS_PALETTE.p,
-  'teeth read against the maw and the pupil against the sclera');
+assert.deepEqual([...BOSS_GAZES], ['center', 'left', 'right', 'up', 'down']);
+const gazeFrames = Array.from({ length: BOSS_GAZE_COUNT },
+  (_, gaze) => buildBossFrame(0, gaze).join(''));
+assert.equal(new Set(gazeFrames).size, BOSS_GAZE_COUNT, 'each gaze has its own artwork');
+const gazeCenters = gazeFrames.map(pupilCenter);
+assert.ok(gazeCenters.every(center => center.count === pupilRows),
+  'the pupil stays the same size as it looks around');
+assert.ok(gazeCenters[1].x < gazeCenters[0].x && gazeCenters[2].x > gazeCenters[0].x,
+  'the slit pupil looks left and right');
+assert.ok(gazeCenters[3].y < gazeCenters[0].y && gazeCenters[4].y > gazeCenters[0].y,
+  'the slit pupil looks up and down');
 
 // --- One-time texture generation --------------------------------------------
 {
   const generated = [];
   const writes = [];
   const textures = new Set();
+  const animations = [];
+  const animationKeys = new Set();
+  const anims = {
+    exists: key => animationKeys.has(key),
+    create(config) { animations.push(config); animationKeys.add(config.key); }
+  };
   const graphics = {
     fillStyle() {},
     fillRect(...args) { writes.push(args); },
@@ -322,12 +397,28 @@ assert.ok(BOSS_PALETTE.t !== BOSS_PALETTE.m && BOSS_PALETTE.w !== BOSS_PALETTE.p
       textures.add(key);
     }
   };
-  const scene = { textures: { exists: key => textures.has(key) }, make: { graphics: () => graphics } };
+  const scene = {
+    textures: { exists: key => textures.has(key) },
+    make: { graphics: () => graphics },
+    anims
+  };
   generateBossTexture(scene);
   generateBossTexture(scene);
-  assert.deepEqual(generated, [{ key: BOSS_TEXTURE, width: 24, height: 24 }],
-    'the boss texture is generated once at full size');
+  assert.deepEqual(generated, BOSS_GAZES.flatMap((_, gaze) =>
+    Array.from({ length: BOSS_WIGGLE_FRAMES }, (_, phase) => ({
+      key: bossFrameKey(phase, gaze), width: 24, height: 24
+    }))), 'every wiggle frame for every gaze is generated exactly once');
   assert.ok(writes.every(([x, y, w, h]) => x >= 0 && x < 24 && y >= 0 && y < 24 && w === 1 && h === 1));
+  assert.equal(animations.length, 1, 'the looping wiggle animation is registered once');
+  assert.equal(animations[0].key, BOSS_WIGGLE_ANIM);
+  assert.equal(animations[0].repeat, -1, 'the tentacles keep wiggling');
+  const framesPerGaze = BOSS_WIGGLE_FRAMES * BOSS_GAZE_CYCLES;
+  assert.equal(animations[0].frames.length, BOSS_GAZE_COUNT * framesPerGaze,
+    'each gaze lasts several tentacle waves');
+  assert.deepEqual(animations[0].frames.map(frame => frame.key),
+    BOSS_GAZES.flatMap((_, gaze) => Array.from({ length: framesPerGaze }, (_, step) =>
+      bossFrameKey(step % BOSS_WIGGLE_FRAMES, gaze))),
+    'the pupil changes direction every few seconds while the tentacles keep wiggling');
 }
 
 // --- The guardian itself ----------------------------------------------------
@@ -359,7 +450,7 @@ const Boss = load('src/games/rogue0/monsters/boss.ts', {
   Monster, dungeon: dungeonStub, PotionOfHealing: class {},
   createCrippledEffect: () => ({ id: 'crippled' }),
   createWeakenedEffect: () => ({ id: 'weakened' }),
-  BOSS_TEXTURE, generateBossTexture
+  BOSS_TEXTURE, BOSS_WIGGLE_ANIM, generateBossTexture
 });
 const { BOSS_ARENA_DORMANCY } = Boss;
 {
@@ -431,6 +522,7 @@ const { BOSS_ARENA_DORMANCY } = Boss;
         setScale(scale) { this.displayWidth = this.width * scale; this.displayHeight = this.height * scale; },
         setDisplaySize(w, h) { this.displayWidth = w; this.displayHeight = h; },
         setOrigin(x, y) { this.originX = x; this.originY = y; },
+        play(key) { this.animation = key; },
         getBounds() {
           return { x: this.x - this.originX * this.displayWidth,
             y: this.y - this.originY * this.displayHeight,
@@ -442,6 +534,8 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   const boss = new Boss.default(context, 10, 10);
   const expected = { x: 9 * 16, y: 9 * 16, width: 48, height: 48 };
   assert.deepEqual(boss.sprite.getBounds(), expected, 'fresh boss art exactly matches its 3x3 body');
+  assert.equal(boss.sprite.animation, BOSS_WIGGLE_ANIM,
+    'the guardian starts the looping tentacle wiggle');
   assert.equal(boss.range(), 0, 'the guardian still has no ranged attack');
   for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
     assert.equal(bodyDistance(boss, { x: 10 + dx * 2, y: 10 + dy * 2 }), 1,
@@ -495,4 +589,4 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   }
 }
 
-console.log('Rogue0 boss arena: five distinct per-floor halls (pillared rotunda, long colonnade, octagonal sanctum, cruciform vault, throne hall), sleeping guardian, entrance/exit placement, hidden room, anchoring and blob art passed');
+console.log('Rogue0 boss arena: five distinct per-floor halls (pillared rotunda, long colonnade, octagonal sanctum, cruciform vault, throne hall), sleeping guardian, entrance/exit placement, hidden room, anchoring and sixteen black wiggling tentacles passed');
