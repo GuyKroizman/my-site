@@ -111,6 +111,8 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     if (entity instanceof TieredWeapon) {
       entity.textureKey = WEAPON_TEXTURES[entity.tier - 1];
     }
+    // Boss rename migration (old saves still carry the guardian's former name).
+    if ((entity as any)?.name === 'Bone Lord') entity.name = 'The Unblinking Coil';
     // Boot rename migration (keeps old saves readable).
     if (entity instanceof Shoe) entity.textureKey = 'junk-boot';
     if ((entity as any)?.name === 'Blessed Shoe' || (entity as any)?.textureKey === 'blessed-shoe') {

@@ -456,7 +456,7 @@ const { BOSS_ARENA_DORMANCY } = Boss;
 {
   const context = { entities: [], messages: [], visibleTiles: new Set(), player: { x: 40, y: 46 } };
   const boss = new Boss.default(context, 40, 30);
-  assert.equal(boss.name, 'Bone Lord');
+  assert.equal(boss.name, 'The Unblinking Coil');
   assert.equal(boss.textureKey, BOSS_TEXTURE, 'the guardian uses the generated blob texture, not the atlas');
   assert.equal(boss.spriteFrame, 0, 'the generated blob is a single frame');
   assert.equal(boss.sleeping, true, 'the guardian starts asleep');
@@ -499,7 +499,7 @@ const { BOSS_ARENA_DORMANCY } = Boss;
     const scroll = new ScrollOfTerror(context);
     scroll.equip();
     assert.equal(hasEffect(guardian, 'terrified'), false, 'scroll cannot terrify a boss');
-    assert.equal(messages.at(-1), 'Bone Lord is immune to terror!');
+    assert.equal(messages.at(-1), 'The Unblinking Coil is immune to terror!');
     assert.deepEqual(removed.slice(-2), [scroll, scroll], 'immune targets still consume the scroll');
   }
   const enemy = new Entity();

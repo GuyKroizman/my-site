@@ -56,7 +56,7 @@ export function reinforcementCount(floor: number, random: () => number = Math.ra
 }
 
 // Weighted pool by depth, using the same unlocks/retirement as generation.
-// Never reinforce with Mimics or the Bone Lord.
+// Never reinforce with Mimics or the Unblinking Coil.
 export function pickReinforcementKind(
   floor: number,
   random: () => number = Math.random

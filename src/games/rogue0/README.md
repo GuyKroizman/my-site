@@ -228,7 +228,7 @@ and an XP-based difficulty forecast. New normal-run encounters arrive gradually:
 | 1 | Skeletons and Deadly Frogs (frogs retire after floor 4) |
 | 2 | Swarms of Flies and Mimics |
 | 3 | Goblins |
-| 5 | Bone Lord; one guardian on every fifth floor |
+| 5 | Unblinking Coil; one guardian on every fifth floor |
 | 6 | Quloptsh |
 | 8 | Ghouls |
 | 11 | Brutes |
@@ -264,7 +264,7 @@ Ordinary enemies target roughly 3–4 projected hits to kill, Brutes 6 and bosse
 crits are not included in those hit targets. Physical attacks include an
 allowance for expected armor, while magic/elemental attacks do not. Ranged
 sidearms halve the projected damage after armor rather than becoming harmless
-against late armor. The Bone Lords on floors 5/10/15/20/25 have respectively
+against late armor. The Unblinking Coils on floors 5/10/15/20/25 have respectively
 **120/160/250/360/470 HP** and **15/24/33/46/60 base damage**.
 
 This is a fixed depth curve, not live scaling against the player: extra XP or
@@ -679,7 +679,7 @@ A floor is never allowed to become empty of hostile monsters. When a death
 removes the last living monster (items, corpses and friendly mirror images do
 not count), the scene immediately draws a small wave — two to four monsters,
 weighted from the regular roster for the current depth but never Mimics or the
-Bone Lord. Unlocks match initial generation, including frogs only on floors 1–4
+Unblinking Coil. Unlocks match initial generation, including frogs only on floors 1–4
 and depth-gated elemental variants.
 The one exception is a **boss floor** (5, 10, 15, 20, 25): it is the guardian's
 arena, so it is never repopulated — killing the guardian leaves the floor empty
@@ -733,7 +733,7 @@ RNG, and clears on expiry, death, floor change and scene shutdown
 ## Run length and equipment progression
 
 A run has **25 floors**. Floors **5, 10, 15, 20 and 25** are boss floors, each
-guarded by the Bone Lord. Their stairs are sealed until that floor's guardian
+guarded by the Unblinking Coil. Their stairs are sealed until that floor's guardian
 dies, and slaying the floor-25 guardian ends the run in victory.
 
 A boss floor is not a room network: map generation carves a single **arena

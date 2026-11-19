@@ -48,7 +48,7 @@ assert.equal(monsterDeathStyle('Unknown'), undefined);
 assert.equal(monsterDeathStyle('toString'), undefined, 'only registered identities match');
 assert.equal(new Set(Object.values(MONSTER_DEATH_STYLES)).size, 14, 'each supported identity has its own style');
 for (const [name, style] of Object.entries(MONSTER_DEATH_STYLES)) {
-  const width = name === 'Bone Lord' ? 24 : 16;
+  const width = ['The Unblinking Coil', 'Bone Lord'].includes(name) ? 24 : 16;
   const height = ['Ghoul', 'Brute', 'Quloptsh'].includes(name) ? 22 : name === 'Cultist' ? 24 : width;
   const parts = monsterDeathParts(style, width, height);
   assert.ok(parts.length > 0 && parts.length <= 16);
@@ -155,9 +155,11 @@ for (const hidden of [{ visible: false }, { alpha: 0 }]) {
 {
   const f = fixture({ width: 24, height: 24, scale: 2 });
   f.context.visibleTiles = new Set(['1,3']);
-  playMonsterDeath(f.context, f.sprite, 'Bone Lord', 2, 3,
+  playMonsterDeath(f.context, f.sprite, 'The Unblinking Coil', 2, 3,
     resolveFootprint({ width: 3, height: 3, anchor: 'center' }));
   assert.equal(f.images[0].visible, true, 'a visible boss edge is sufficient even when its centre is unseen');
+  assert.equal(monsterDeathStyle('Bone Lord'), 'deflate',
+    'old saves keep the guardian death animation after the rename');
 }
 // Real Entity removal and inherited Monster hook: rewards are immediate and
 // restore-created instances need no constructor-only animation state.
@@ -168,7 +170,7 @@ for (const hidden of [{ visible: false }, { alpha: 0 }]) {
   const roster = [
     ['goblin', 'Goblin'], ['ghoul', 'Ghoul'], ['brute', 'Brute'], ['cultist', 'Cultist'],
     ['quloptsh', 'Quloptsh'], ['deadlyFrog', 'Deadly Frog'], ['mimic', 'Mimic'],
-    ['wraith', 'Wraith'], ['swarmOfFlies', 'Swarm of Flies'], ['boss', 'Bone Lord'],
+    ['wraith', 'Wraith'], ['swarmOfFlies', 'Swarm of Flies'], ['boss', 'The Unblinking Coil'],
     ['elemental', 'Fire Elemental', 'FireElemental'], ['elemental', 'Ice Elemental', 'IceElemental'],
     ['elemental', 'Lightning Elemental', 'ShockElemental'],
   ];

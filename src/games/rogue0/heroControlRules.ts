@@ -17,7 +17,7 @@ export function hostileBodyAtTile(context: GameContext, x: number, y: number): E
   return actor && isHostile(actor) && !!actor.sprite ? actor : undefined;
 }
 
-/** Large sprites (the scaled Bone Lord) extend beyond their anchor tile. A
+/** Large sprites (the scaled Unblinking Coil) extend beyond their anchor tile. A
  * click anywhere inside that art should pick the actor, not the empty floor it
  * happens to overlap. Tile/footprint hits are checked first by the caller, so
  * ordinary entities keep their exact-cell behaviour. Temporary compatibility

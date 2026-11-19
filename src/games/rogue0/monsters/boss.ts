@@ -29,7 +29,7 @@ export default class Boss extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
     if (context.scene) generateBossTexture(context.scene);
     super(context, {
-      name: "Bone Lord",
+      name: "The Unblinking Coil",
       description: "A shrunken, dark mass of flesh with a single yellow eye whose vertical slit pupil darts between directions, a mouth full of fangs, and sixteen writhing black tentacles. The guardian of the dungeon depths. Immune to terror. Extremely dangerous.",
       textureKey: BOSS_TEXTURE,
       ...monsterStats('boss', context.floor),
