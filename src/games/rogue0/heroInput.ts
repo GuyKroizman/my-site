@@ -133,7 +133,9 @@ export function createHeroInput(services: HeroControlServices) {
         const ranged = weapon && weapon.range() > 0 ? weapon.attackTile : false;
         // Range and sight are measured to the creature's body, not its anchor:
         // a wide monster is in reach when any occupied cell is in reach.
-        const distance = weapon ? bodyDistance(hero, entity) + 1 : 0;
+        // bodyDistance is already in tiles to the nearest body cell (1 for an
+        // adjacent body, 2 with one empty cell between), so no +1 is needed.
+        const distance = weapon ? bodyDistance(hero, entity) : 0;
         const level = dungeon.getCurrentLevel();
         const fp = actorFootprint(entity);
         let los = false;

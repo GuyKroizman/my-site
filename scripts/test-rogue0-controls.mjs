@@ -254,6 +254,31 @@ for (const method of ['manual', 'auto']) {
   assert.equal(f.state.moves.length, 0);
 }
 
+// A Reach weapon strikes an enemy two tiles away from the tile the hero stands
+// on. Only a plain melee weapon (or blocked sight) closes the distance first.
+{
+  const f = fixture();
+  f.hero.weapon.range = () => 2;
+  f.hero.weapon.attackTile = 1;
+  const target = enemy(f, 3, 1); // hero at (1,1), empty tile at (2,1)
+  f.hero.processTouchInput(f.context, { worldX: 3, worldY: 1 });
+  assert.deepEqual(f.state.attacks, [[f.hero, target]], 'a Reach weapon attacks in place');
+  assert.deepEqual(f.state.paths, [], 'no route is planned when the target is already in reach');
+  assert.deepEqual(f.hero.walkPath, [], 'the hero does not close the distance');
+
+  ready(f); f.state.blockedLOS.add('3,1');
+  f.hero.processTouchInput(f.context, { worldX: 3, worldY: 1 });
+  assert.equal(f.state.attacks.length, 1, 'blocked sight cannot be shot through');
+  assert.deepEqual(f.state.paths.at(-1), [3, 1], 'an unseen target is approached instead');
+
+  const plain = fixture();
+  const plainTarget = enemy(plain, 3, 1);
+  plain.hero.processTouchInput(plain.context, { worldX: 3, worldY: 1 });
+  assert.deepEqual(plain.state.attacks, [], 'a plain melee weapon still closes the distance');
+  assert.deepEqual(plain.state.paths.at(-1), [3, 1]);
+  assert.deepEqual([plain.hero.walkTargetEntity], [plainTarget]);
+}
+
 // New visible threats cancel a route even between actions; previously
 // acknowledged or grass-concealed threats do not interrupt it.
 {
