@@ -3,7 +3,7 @@ recordTestRun('rings');
 import assert from 'node:assert/strict';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 const { Entity, identify, upgrade, removeEntity, saveConsumableKnowledge, restoreConsumableKnowledge,
-  RING_APPEARANCES } = load('src/games/rogue0/entity.ts');
+  resetConsumableAppearances, rememberIdentifiedTypes, RING_APPEARANCES } = load('src/games/rogue0/entity.ts');
 Entity.prototype.init = function(context) { this.context = context; };
 const Ring = load('src/games/rogue0/items/ring.ts', { Entity, identify }).default;
 const classes = Object.fromEntries(['Accuracy', 'Evasion', 'Elements', 'Haste', 'Might'].map(name =>
@@ -63,6 +63,46 @@ function check(name, p, level) {
     assert.equal(new Type(resumed).spriteTextureKey, appearances[name],
       `${name} keeps its gem colour after resume`);
   }
+}
+// Identification is shared per ring type, like potions and wands: learning one
+// copy teaches every copy of that kind, but not other kinds or future runs.
+{
+  const context = { messages: [] };
+  const first = new classes.Elements(context);
+  const copy = new classes.Elements(context);
+  const other = new classes.Haste(context);
+  assert.equal(first.identified, false);
+  assert.equal(copy.identified, false);
+  identify(first);
+  assert.ok(context.messages.includes('Identified: Ring of Elements'));
+  for (const ring of [first, copy]) {
+    assert.equal(ring.identified, true);
+    assert.equal(ring.displayName, 'Ring of Elements');
+  }
+  assert.equal(other.identified, false, 'other ring kinds stay unknown');
+  assert.match(other.displayName, /^Ring “.+” \?$/);
+
+  const knowledge = saveConsumableKnowledge(context);
+  const resumed = { messages: [] };
+  restoreConsumableKnowledge(resumed, knowledge);
+  assert.equal(new classes.Elements(resumed).identified, true, 'ring knowledge survives save/load');
+  assert.equal(new classes.Haste(resumed).identified, false);
+
+  resetConsumableAppearances(context);
+  assert.equal(new classes.Elements(context).identified, false, 'a new run forgets ring discoveries');
+}
+// Old saves stored ring identification on the instance only; loading promotes it.
+{
+  const legacy = { messages: [] };
+  const known = new classes.Elements(legacy);
+  known.identified = true;
+  const unknown = new classes.Elements(legacy);
+  restoreConsumableKnowledge(legacy, { appearances: [], known: [] });
+  assert.equal(unknown.identified, false);
+  rememberIdentifiedTypes(legacy, [unknown, known]);
+  assert.equal(unknown.identified, true, 'old saves promote identified rings to shared knowledge');
+  assert.equal(new classes.Elements(legacy).identified, true);
+  assert.deepEqual(legacy.messages, [], 'migration stays silent');
 }
 // The generated textures and the appearance keys must describe the same set.
 {

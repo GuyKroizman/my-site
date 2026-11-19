@@ -418,9 +418,9 @@ function instantiateScenarioItem(
     item.onUpgrade?.();
   }
   if (spec.identified !== false) {
-    // identify() registers potion/scroll/wand knowledge; plain gear only needs
-    // the flag (it would auto-identify on equip anyway).
-    if (item.consumable || /^wand-/.test(item.textureKey ?? '')) identify(item);
+    // identify() registers shared knowledge for consumables, wands and rings;
+    // plain gear only needs the flag (it would auto-identify on equip anyway).
+    if (item.consumable || /^wand-/.test(item.textureKey ?? '') || item.equipSlot === 'ring') identify(item);
     else item.identified = true;
   }
   return item;

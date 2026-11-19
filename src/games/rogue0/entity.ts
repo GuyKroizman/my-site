@@ -40,11 +40,16 @@ export type EquipSlot =
 
 // One shuffled, one-to-one appearance assignment per run, shared by all copies.
 const consumableAppearances = new WeakMap<GameContext, Map<string, string>>();
+// Kinds the hero has identified this run. Potions, scrolls, wands and rings all
+// share their identity across copies, so learning one teaches every copy.
 const knownConsumables = new WeakMap<GameContext, Set<string>>();
 function consumableKind(item: Entity): string | undefined {
   const category = item.textureKey?.startsWith('potion-') ? 'potion'
     : item.textureKey?.startsWith('scroll-') ? 'scroll'
-    : item.textureKey?.startsWith('wand-') ? 'wand' : undefined;
+    : item.textureKey?.startsWith('wand-') ? 'wand'
+    // Rings carry the generic gold-ring marker; their gem colour is assigned
+    // per run, so key their knowledge by their true name instead.
+    : item.equipSlot === 'ring' ? 'ring' : undefined;
   return category ? `${category}:${item.name}` : undefined;
 }
 export function resetConsumableAppearances(context: GameContext): void {
@@ -60,16 +65,18 @@ export function restoreConsumableKnowledge(context: GameContext, data: ReturnTyp
   knownConsumables.set(context, new Set(data.known));
 }
 
-// Preserve knowledge from older saves that identified wands instance-by-instance.
-// Keep the saved knowledge format (and export names) compatible with old runs.
-export function rememberIdentifiedWandTypes(context: GameContext, items: Iterable<Entity>): void {
+// Preserve knowledge from older saves that identified wands and rings
+// instance-by-instance. Keep the saved knowledge format (and the old export
+// name) compatible with those runs.
+export function rememberIdentifiedTypes(context: GameContext, items: Iterable<Entity>): void {
   let known = knownConsumables.get(context);
   if (!known) knownConsumables.set(context, known = new Set());
   for (const item of items) {
     const kind = consumableKind(item);
-    if (kind?.startsWith('wand:') && item.identified) known.add(kind);
+    if ((kind?.startsWith('wand:') || kind?.startsWith('ring:')) && item.identified) known.add(kind);
   }
 }
+export const rememberIdentifiedWandTypes = rememberIdentifiedTypes;
 const scrollAppearances = ['fireball', 'lightning', 'identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror', 'recharging', 'beckoning'];
 
 // Rings use the same shuffled-appearance rule as potions: the gem colour says

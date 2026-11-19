@@ -3,7 +3,8 @@ recordTestRun('consumable-appearances');
 import assert from 'node:assert/strict';
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 import * as rendering from '../src/games/rogue0/rendering.ts';
-const { Entity, identify, resetConsumableAppearances } = loadLogic('src/games/rogue0/entity.ts', rendering);
+const { Entity, identify, resetConsumableAppearances, saveConsumableKnowledge,
+  restoreConsumableKnowledge } = loadLogic('src/games/rogue0/entity.ts', rendering);
 const context = {
   messages: [],
   map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 },
@@ -12,7 +13,12 @@ const context = {
     tweens: { add() {} } },
 };
 const make = (name, category, floor = false) => {
-  const item = Object.assign(new Entity(), { name, type: 'item', textureKey: `${category}-red`, identified: false });
+  const item = Object.assign(new Entity(), {
+    name, type: 'item',
+    textureKey: category === 'ring' ? 'unknown-ring' : `${category}-red`,
+    equipSlot: category === 'ring' ? 'ring' : undefined,
+    identified: false,
+  });
   item.init(context, floor ? 1 : undefined, floor ? 2 : undefined);
   return item;
 };
@@ -50,7 +56,7 @@ try {
   Math.random = random;
 }
 // Shared type knowledge reaches carried, floor, and future copies, but not other runs.
-for (const category of ['potion', 'scroll', 'wand']) {
+for (const category of ['potion', 'scroll', 'wand', 'ring']) {
   resetConsumableAppearances(context);
   const first = make(`${category} test`, category);
   const carried = make(first.name, category);
@@ -66,16 +72,28 @@ for (const category of ['potion', 'scroll', 'wand']) {
   }
   assert.equal(other.identified, false);
   const separateRun = Object.assign(new Entity(), {
-    context: { messages: [] }, name: first.name, textureKey: `${category}-red`, identified: false,
+    context: { messages: [] }, name: first.name,
+    textureKey: category === 'ring' ? 'unknown-ring' : `${category}-red`,
+    equipSlot: category === 'ring' ? 'ring' : undefined,
+    identified: false,
   });
   assert.equal(separateRun.identified, false);
+  if (category === 'ring') {
+    const resumedContext = { messages: [] };
+    restoreConsumableKnowledge(resumedContext, saveConsumableKnowledge(context));
+    const resumed = Object.assign(new Entity(), {
+      context: resumedContext, name: first.name, type: 'item',
+      textureKey: 'unknown-ring', equipSlot: 'ring', identified: false,
+    });
+    assert.equal(resumed.identified, true, 'ring knowledge survives save and load');
+  }
   resetConsumableAppearances(context);
   assert.equal(make(first.name, category).identified, false, 'new game forgets discoveries');
 }
-const gear = Object.assign(new Entity(), { context, name: 'Ring', identified: false });
-const otherGear = Object.assign(new Entity(), { context, name: 'Ring', identified: false });
-identify(gear);
-assert.equal(otherGear.identified, false, 'equipment knowledge remains per instance');
+const armor = Object.assign(new Entity(), { context, name: 'Mail Armor', equipSlot: 'armor', identified: false });
+const otherArmor = Object.assign(new Entity(), { context, name: 'Mail Armor', equipSlot: 'armor', identified: false });
+identify(armor);
+assert.equal(otherArmor.identified, false, 'physical gear knowledge remains per instance');
 // Identification logs name only; descriptions remain available on the item.
 for (const name of ['Scroll of Identify', 'Cloth Armor']) {
   const item = Object.assign(new Entity(), {
@@ -86,4 +104,4 @@ for (const name of ['Scroll of Identify', 'Cloth Armor']) {
   assert.equal(context.messages[0], `Identified: ${name}`);
   assert.equal(item.description, 'Detailed item information.');
 }
-console.log('Rogue0 unique per-run consumable appearances, identification stability, concise identification logs and floor-only potion scale passed');
+console.log('Rogue0 unique per-run consumable and ring appearances, shared type identification, concise logs and floor-only potion scale passed');

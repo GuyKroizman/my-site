@@ -1015,6 +1015,9 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
       demon halls), each with its own palette, enemy set, trap set and region boss.
       Partial: five visual palettes (stone/crypt/sandstone/crystal/volcanic) are
       already wired by floor; enemy/trap/boss regional scaling remains open.
+      Floor 5 now gives the first crypt band a trap-heavy identity (two hidden
+      traps plus five fire, five teleport and thirty arrow traps in the arena),
+      as a first step toward per-region trap sets.
 - [ ] Difficulty/HP/ATK scale per region; introduce new enemies per region.
 - [ ] Region-unique environmental hazards (e.g. gas vents in caves, lava in
       halls).

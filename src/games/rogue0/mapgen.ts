@@ -19,6 +19,30 @@ export function floorIsBossArena(floor: number): boolean {
   return Number.isInteger(floor) && floor > 0 && floor % 5 === 0;
 }
 
+// Floor 5 is the run's trap gauntlet: its pillar hall keeps the usual hidden
+// pair and adds a fixed field of visible plates — five fire, five teleport and
+// thirty arrow traps. The extra arrow plates are handled separately below. Summon
+// stays out of every boss floor's hidden pool, so no plate adds a monster to
+// the guardian fight.
+export const TRAP_HEAVY_FLOOR = 5;
+
+export type VisibleTrapQuota = { kind: TrapKind; count: number };
+
+// Visible traps placed on floors other than the usual hidden pair/arrow plate.
+// Empty everywhere except the floor-5 gauntlet.
+export function floorVisibleTrapQuota(floor: number): VisibleTrapQuota[] {
+  if (floor !== TRAP_HEAVY_FLOOR) return [];
+  return [
+    { kind: 'fire', count: 5 },
+    { kind: 'teleport', count: 5 },
+    { kind: 'arrow', count: 30 }
+  ];
+}
+
+export function floorArrowPlateCount(floor: number): number {
+  return floor === TRAP_HEAVY_FLOOR ? 2 : 1;
+}
+
 // --- Chasm room pacing ------------------------------------------------------
 //
 // A chasm room is a small chamber whose interior is a walkable band around a
@@ -1275,6 +1299,25 @@ export function generateMap(
     used.add(`${tile.x},${tile.y}`);
   }
 
+  // The gauntlet's visible plates. These are ordinary traps with a known kind
+  // instead of a hidden surprise: stepping on one still fires its effect, and
+  // reuse follows the same per-kind policy as hidden traps.
+  for (const { kind, count } of floorVisibleTrapQuota(floor)) {
+    for (let i = 0; i < count; i++) {
+      const tile = shuffle(roomTiles.filter((t) => !used.has(`${t.x},${t.y}`)))[0];
+      if (!tile) break;
+      features.push({
+        x: tile.x,
+        y: tile.y,
+        feature: "trap",
+        trap: "visible",
+        trapKind: kind,
+        trapReusable: kind === "frost" || kind === "teleport" || kind === "alarm"
+      });
+      used.add(`${tile.x},${tile.y}`);
+    }
+  }
+
   // Chasms come in varied multi-tile patches. Each candidate is grown inside
   // rooms and only committed when the floor, with that patch blocking ground
   // travel, stays fully connected — so a chasm can never cut the player off
@@ -1341,16 +1384,19 @@ export function generateMap(
     }
   }
 
-  // One visible pressure plate: unlike hidden status traps it can be used
-  // deliberately by throwing an object onto it.
-  const arrowTile = shuffle(roomTiles.filter(t => !used.has(`${t.x},${t.y}`)))[0];
-  if (arrowTile) {
+  // Visible pressure plates: one normally, two on the floor-5 gauntlet. Unlike
+  // hidden status traps they can be used deliberately by throwing an object
+  // onto them.
+  const arrowPlateCount = floorArrowPlateCount(floor);
+  for (let i = 0; i < arrowPlateCount; i++) {
+    const arrowTile = shuffle(roomTiles.filter(t => !used.has(`${t.x},${t.y}`)))[0];
+    if (!arrowTile) break;
     features.push({ ...arrowTile, feature: "trap", trap: "visible", trapKind: "arrow" });
     used.add(`${arrowTile.x},${arrowTile.y}`);
   }
 
   // --- Grass and water ---
-  // Planted last so traps, the visible plate and chasms keep their tiles. Big
+  // Planted last so traps, the visible plates and chasms keep their tiles. Big
   // patches are the point: a themed floor is a biome, not decoration.
   const terrainTheme = floorTerrainTheme(floor);
   if (terrainTheme === "neutral") {

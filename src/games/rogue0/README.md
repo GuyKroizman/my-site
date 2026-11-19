@@ -348,6 +348,12 @@ upgrade level secret. Equipping reveals only whether the ring is cursed. Thirty
 world-time ticks worn, or a Scroll of Identify, reveals the ring type and its
 upgrade level. Artifacts follow the same rule.
 
+Ring knowledge is shared across the whole run, like potion, scroll and wand
+knowledge: identifying one ring teaches every copy of that type, including ones
+found later, while each copy still shows its own upgrade level. Other ring types
+stay unknown, a new run forgets every discovery, and old saves promote previously
+identified rings into the shared knowledge when loaded.
+
 Each ring kind draws a different coloured gem, and the ring-to-gem-colour
 mapping is shuffled for every run exactly like potion colours. The gem stays
 visible before and after identification, all copies of a kind share it, and the
@@ -745,7 +751,14 @@ cultists, elementals, wraiths, frogs), no random floor loot, no cursed gem, no
 chasm, no bone pile and no summon trap. What it does carry is the guardian, two
 treasure chests, one ration and the hidden room's gold above the north wall;
 grass, water and the
-other hidden traps still dress the hall. The guardian naps until disturbed — a
+other hidden traps still dress the hall. Floor 5 is the exception to the trap
+budget: its rotunda is a trap gauntlet with the usual two hidden traps plus five
+visible fire traps, five visible teleport traps and thirty arrow traps,
+alongside the two arrow plates. The arrows fire at the nearest living character
+when stepped on — guardian included if it is closer — and visible plates are
+avoided by auto-walk, so the hall becomes a hazard course. Summon is still
+excluded, so none of them adds another monster to the guardian fight. The
+guardian naps until disturbed — a
 wound, a noise, the hero stepping within two tiles in its line of sight, or a
 long dormancy running out — so a careful approach earns the first strike. The
 scaled guardian art is anchored to its tile and its 3×3 body stops the hero
