@@ -2,7 +2,7 @@ import { recordTestRun } from './rogue0-test-history.mjs';
 recordTestRun('talent-tree');
 import assert from 'node:assert/strict';
 import { loadLogic } from './lib/rogue0-logic-loader.mjs';
-import { TALENT_TREE, talentNodeById, isTalentUnlocked } from '../src/games/rogue0/talents/talentTree.ts';
+import { TALENT_TREE, talentNodeById, isTalentUnlocked, unmetTalentRequirements } from '../src/games/rogue0/talents/talentTree.ts';
 import { talentTreeLayout, talentNodeAt, treeScrollBounds } from '../src/games/rogue0/talents/talentTreeLayout.ts';
 
 const load = (name, bindings) => loadLogic(`src/games/rogue0/${name}.ts`, bindings);
@@ -56,6 +56,16 @@ assert.equal(isTalentUnlocked(talentNodeById('sustainedRage'), h.talentRanks, 5)
 assert.equal(h.talentPoints, 2);
 assert.equal(h.context.simulationTime, 12.5);
 assert.equal(h.spent, undefined);
+
+// Locked talents must explain every gate. Ranking Quickstep twice is not enough
+// on its own: Relentless is tier 2 and needs level 5 as well.
+const relentless = talentNodeById('relentless');
+assert.equal(isTalentUnlocked(relentless, { quickstep: 2 }, 3), false);
+assert.deepEqual(unmetTalentRequirements(relentless, { quickstep: 2 }, 3), ['level 5 (you are 3)']);
+assert.deepEqual(unmetTalentRequirements(relentless, {}, 5), ['Quickstep 1']);
+assert.deepEqual(unmetTalentRequirements(relentless, {}, 3), ['level 5 (you are 3)', 'Quickstep 1']);
+assert.equal(isTalentUnlocked(relentless, { quickstep: 2 }, 5), true);
+assert.deepEqual(unmetTalentRequirements(relentless, { quickstep: 2 }, 5), []);
 
 // Old saves: keep earned ranks, drop foreign ids, grant the new entitlement.
 const old = hero();

@@ -6,7 +6,7 @@ import {
   type TalentLayout,
   type Rect,
 } from './talentTreeLayout';
-import { isTalentUnlocked, type TalentBonusKind, type TalentNode } from './talentTree';
+import { isTalentUnlocked, unmetTalentRequirements, type TalentBonusKind, type TalentNode } from './talentTree';
 import { buttonLabel } from '../uiLabels';
 
 const FONT = 'VT323, monospace';
@@ -276,8 +276,10 @@ export class TalentScene extends Phaser.Scene {
       const description = this.text(m.x + 16, y, entry.description, bodySize, m.width - 32);
       y += description.height + 10;
       if (!unlocked) {
-        this.text(m.x + 16, y, `Unlocked by: ${entry.requires.map(id =>
-          nodes.find(node => node.id === id)?.name ?? id).join(', ') || `level ${entry.minLevel}`}`,
+        // Show every unmet gate. A ranked Quickstep with a bright connector
+        // line otherwise looks like the only requirement, hiding the level gate.
+        const missing = unmetTalentRequirements(entry, ranks, player.level);
+        this.text(m.x + 16, y, `Unlocked by: ${missing.join(', ') || `level ${entry.minLevel}`}`,
           bodySize, m.width - 32).setColor('#e69898');
       }
       const canLearn = unlocked && rank < entry.maxRank && player.talentPoints > 0 && player.healthPoints > 0;

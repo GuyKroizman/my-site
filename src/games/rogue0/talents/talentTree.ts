@@ -119,6 +119,24 @@ export function isTalentUnlocked(entry: TalentNode, ranks: Record<string, number
   return level >= entry.minLevel && entry.requires.every(id => talentRankOf(ranks, id) >= 1);
 }
 
+// Every gate still holding a talent back. Naming only the talent prerequisites
+// is misleading when they are already ranked and the level gate is the real
+// blocker (e.g. Quickstep 2 at level 3 still cannot reach Relentless).
+export function unmetTalentRequirements(
+  entry: TalentNode,
+  ranks: Record<string, number>,
+  level: number
+): string[] {
+  const missing: string[] = [];
+  if (level < entry.minLevel) missing.push(`level ${entry.minLevel} (you are ${level})`);
+  entry.requires.forEach(id => {
+    if (talentRankOf(ranks, id) < 1) {
+      missing.push(`${talentNodeById(id)?.name ?? id} 1`);
+    }
+  });
+  return missing;
+}
+
 export function talentBonus(
   kind: TalentBonusKind,
   ranks: Record<string, number>,
