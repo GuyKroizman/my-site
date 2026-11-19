@@ -228,8 +228,9 @@ export type Room = {
 };
 
 // A chasm room: the room, its moat and the unreachable treasure island.
-// scene0 turns `reward` and `approach` into the floor's chest and guaranteed
-// Potion of Levitation, and reserves the whole room from random content.
+// scene0 turns `reward` into the floor's authored treasure chest and reserves
+// the whole room from random content. The guaranteed Potion of Levitation is
+// no longer tied to `approach`: it spawns at a random walkable floor tile.
 export type ChasmRoom = {
   room: Room;
   // Moat tiles; also emitted as `chasm` feature placements.
@@ -238,7 +239,8 @@ export type ChasmRoom = {
   island: Array<{ x: number; y: number }>;
   // Island centre, where the treasure chest waits.
   reward: { x: number; y: number };
-  // Walkable band tile beside the moat where the levitation potion lies.
+  // Walkable band tile beside the moat nearest the island. Kept as a map
+  // landmark; the levitation potion itself now spawns on a random floor tile.
   approach: { x: number; y: number };
 };
 
@@ -1218,9 +1220,9 @@ export function generateMap(
     used.add(key);
   }
 
-  // The chasm room's reward and its key: the chest sits on the island centre
-  // and the guaranteed levitation potion lies on the band beside the moat, as
-  // close to the island as a walkable tile allows.
+  // The chasm room's reward and its landmark: the authored chest sits on the
+  // island centre, and `approach` names the nearest walkable band tile. The
+  // guaranteed levitation key is placed elsewhere by scene0.
   let chasmRoom: ChasmRoom | undefined;
   if (chasmRoomRect) {
     const islandKeys = new Set(chasmRoomIsland.map((t) => `${t.x},${t.y}`));

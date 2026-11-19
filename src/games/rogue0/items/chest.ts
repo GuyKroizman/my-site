@@ -22,26 +22,31 @@ export default class Chest extends Entity {
   private opened = false;
   contents: Entity[];
 
-  constructor(context: GameContext, x?: number, y?: number) {
+  constructor(context: GameContext, x?: number, y?: number, forcedContents?: Entity[]) {
     super();
-    const tier = Math.max(1, Math.min(5, Math.ceil((context.floor ?? 1) / 5)));
-    // Keep all 18 slots: retired Gem outcomes now pay gold. Healing and gear
-    // retain their original odds; no Upgrade Scrolls are added.
-    const roll = Math.floor(Math.random() * 18);
-    const weapon = new TieredWeapon(context, undefined, undefined, tier);
-    const armor = new TieredArmor(context, undefined, undefined, tier);
-    rollFoundUpgrade(weapon);
-    rollFoundUpgrade(armor);
-    maybeCurse(weapon);
-    maybeCurse(armor);
-    rollEquipmentGlyph(weapon);
-    rollEquipmentGlyph(armor);
-    this.contents = [roll < 5 ? new Gold(context, undefined, undefined, 10 + tier * 5)
-      : roll < 9 ? new Ration(context)
-      : roll < 13 ? new Gold(context, undefined, undefined, 10 + tier * 5)
-      : roll === 13 ? new PotionOfHealing(context)
-      : roll < 16 ? weapon
-      : armor];
+    if (forcedContents) {
+      // An authored reward (e.g. the chasm-locked chest) sets its own loot.
+      this.contents = forcedContents;
+    } else {
+      const tier = Math.max(1, Math.min(5, Math.ceil((context.floor ?? 1) / 5)));
+      // Keep all 18 slots: retired Gem outcomes now pay gold. Healing and gear
+      // retain their original odds; no Upgrade Scrolls are added.
+      const roll = Math.floor(Math.random() * 18);
+      const weapon = new TieredWeapon(context, undefined, undefined, tier);
+      const armor = new TieredArmor(context, undefined, undefined, tier);
+      rollFoundUpgrade(weapon);
+      rollFoundUpgrade(armor);
+      maybeCurse(weapon);
+      maybeCurse(armor);
+      rollEquipmentGlyph(weapon);
+      rollEquipmentGlyph(armor);
+      this.contents = [roll < 5 ? new Gold(context, undefined, undefined, 10 + tier * 5)
+        : roll < 9 ? new Ration(context)
+        : roll < 13 ? new Gold(context, undefined, undefined, 10 + tier * 5)
+        : roll === 13 ? new PotionOfHealing(context)
+        : roll < 16 ? weapon
+        : armor];
+    }
     this.init(context, x, y);
   }
 

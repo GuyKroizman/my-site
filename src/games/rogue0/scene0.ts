@@ -18,6 +18,11 @@ import { stairsHint } from './uiLabels';
 // the raised wall sprites reuse the same art instead of a second PNG.
 const THEME_SHEET = { frameWidth: 16, frameHeight: 16, spacing: 1 };
 
+// A normal chest holds 10 + tier * 5 gold. The chasm-locked chest is the room's
+// whole reason to cross, so it pays out a much larger purse alongside the Stone
+// of Infusion.
+export const CHASM_CHEST_GOLD = 150;
+
 import heroArtUrl from './assets/hero-color.png';
 import cultistArtUrl from './assets/monsters/cultist.png';
 import goblinArtUrl from './assets/monsters/goblin.png';
@@ -74,6 +79,7 @@ import PotionOfToxicGas from "./items/PotionOfToxicGas";
 import PotionOfLiquidFlame from "./items/PotionOfLiquidFlame";
 import PotionOfFrost from "./items/PotionOfFrost";
 import PotionOfLevitation from "./items/PotionOfLevitation";
+import StoneOfInfusion from "./items/stoneOfInfusion";
 import PotionOfExperience from "./items/PotionOfExperience";
 import ScrollOfTeleport from "./items/ScrollOfTeleport";
 import ScrollOfRage from "./items/ScrollOfRage";
@@ -219,8 +225,9 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
 
 // The floor's random loot table. Levitation is deliberately absent while the
 // dungeon still teaches the chasm rule through a chasm room: floors 1-7 only
-// ever hand it out as that floor's guaranteed room reward. Once the teaching
-// floors are behind the hero it joins ordinary loot, room or no room.
+// ever hand it out as that floor's guaranteed reward, now placed at a random
+// floor position. Once the teaching floors are behind the hero it joins
+// ordinary loot, room or no room.
 function floorLootTable(floor: number): Array<[LootClass, number]> {
   return floorRollsLevitationLoot(floor)
     ? [...LOOT_TABLE, [PotionOfLevitation, 2] as [LootClass, number]]
@@ -2005,17 +2012,20 @@ export class Scene0 extends Phaser.Scene {
       `${this.context.stairsX},${this.context.stairsY}`
     ]);
 
-    // A chasm room's island holds a chest that only levitation can reach, and
-    // the walkable band carries the guaranteed Potion of Levitation that pays
-    // for the crossing. The whole chamber is reserved so random loot, monsters
-    // and terrain never crowd the approach or spill onto the island.
+    // A chasm room's island holds a chest that only levitation can reach. Its
+    // reward is a Stone of Infusion and a generous purse, worth the crossing.
+    // The guaranteed Potion of Levitation is no longer parked on the band: it
+    // spawns on a random floor tile below, so the hero has to explore to find
+    // the key. The whole chamber is reserved so random loot, monsters and
+    // terrain never spill onto the island or into the moat.
     if (this.chasmRoom) {
       const room = this.chasmRoom;
       this.reserveChasmRoomTiles(exclude);
-      exclude.add(`${room.approach.x},${room.approach.y}`);
       exclude.add(`${room.reward.x},${room.reward.y}`);
-      context.entities.push(new PotionOfLevitation(context, room.approach.x, room.approach.y));
-      context.entities.push(new Chest(context, room.reward.x, room.reward.y));
+      context.entities.push(new Chest(context, room.reward.x, room.reward.y, [
+        new StoneOfInfusion(context),
+        new Gold(context, undefined, undefined, CHASM_CHEST_GOLD)
+      ]));
     }
 
     // The hidden room holds gold, not extra upgrades. Reserve the whole room
@@ -2070,13 +2080,17 @@ export class Scene0 extends Phaser.Scene {
       reserveFootprint(exclude, bossFootprint, bossHome.x, bossHome.y);
     }
 
+    // The chasm room trades its band-side potion for a random floor position:
+    // one guaranteed levitation still shares the ordinary spawn pool.
+    const chasmLevitationCount = this.chasmRoom ? 1 : 0;
     const terrain = terrainFor(this.context);
     const tiles = randomWalkableTiles(
       levelArray,
       skeletonCount + goblinCount + ghoulCount + bruteCount + quloptshCount +
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
         frogCount +
-        cursedGemCount + foodCount + itemCount + progressionCount + chestCount + remainsCount + equipmentCount,
+        cursedGemCount + foodCount + itemCount + progressionCount + chestCount + remainsCount + equipmentCount +
+        chasmLevitationCount,
       exclude,
       MAX_VISIBLE_X,
       terrain
@@ -2130,6 +2144,9 @@ export class Scene0 extends Phaser.Scene {
 
     // Reserve progression, food and the final boss before optional enemies.
     // This only runs on first generation; revisits restore the saved entities.
+    // The chasm floor's levitation pays for the island crossing but now lies on
+    // a random walkable tile, not on the band beside the moat.
+    if (chasmLevitationCount) spawnOne((x, y) => new PotionOfLevitation(context, x, y));
     spawnGroup(PotionOfStrength, progression.strengthPotions);
     const beforeScrolls = context.entities.length;
     spawnGroup(ScrollOfUpgrade, progression.upgradeScrolls);

@@ -695,9 +695,11 @@ refilled on arrival.
 Some floors hide a **chasm room**: an 11-15 tile chamber whose interior is a
 two-tile walkable band around a two-tile moat, with a treasure island in the
 middle. The island has no land route to the band — only levitation (or flight)
-crosses the moat — and it holds a treasure chest. The band carries the floor's
-guaranteed **Potion of Levitation**, unidentified like any other potion, lying
-beside the moat.
+crosses the moat — and it holds a treasure chest stocked with a **Stone of
+Infusion** and a large purse. The floor's guaranteed **Potion of Levitation**
+(no different from any other potion) now lies at a **random walkable position
+somewhere on the floor**, not beside the moat, so finding the key to the crossing
+takes exploring.
 
 The early dungeon teaches the rule: a run gives its chasm room to **one** of
 floors 1, 2, 3, 4, 6, 7, rolled at random when the run starts and stored in the

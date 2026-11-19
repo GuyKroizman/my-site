@@ -624,8 +624,9 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       range, investigation and persistence. Visual playtesting remains deferred.
 - [x] Chasm room: an 11-15 tile chamber ringed by a walkable band around a
       two-tile moat, with a treasure island that only levitation can reach (a
-      chest on the island, the floor's guaranteed Potion of Levitation on the
-      band beside the moat, unidentified like any other potion). Each run gives
+      chest on the island holding a Stone of Infusion and a large purse; the
+      floor's guaranteed Potion of Levitation now lies at a random walkable
+      floor position, unidentified like any other potion). Each run gives
       the room to one randomly rolled floor out of 1, 2, 3, 4, 6, 7; the floors
       above it never have one, floors below it roll 5%, and only floors 8+ may
       also find levitation as ordinary loot. The choice rides in the run save.

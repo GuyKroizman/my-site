@@ -59,6 +59,16 @@ try {
     if (roll >= 14) assert.equal(content.value, 3, 'equipment matches floor tier');
     if (roll < 5) assert.equal(content.value, 25);
   }
+  // The chasm island's authored chest bypasses the random table and keeps the
+  // exact loot it was given (a Stone of Infusion and a generous purse).
+  {
+    const { context } = setup();
+    const stone = Object.assign(Object.create(Entity.prototype), { name: 'Stone of Infusion' });
+    const purse = new rewards.Gold(context, undefined, undefined, 150);
+    const authored = new Chest(context, 4, 4, [stone, purse]);
+    assert.deepEqual(authored.contents, [stone, purse], 'authored contents replace the random roll');
+    assert.equal(purse.value, 150, 'the chasm purse is far larger than a normal chest payout');
+  }
   for (const category of new Set(chestRewards)) {
     Math.random = () => (chestRewards.indexOf(category) + 0.1) / 18;
     const { context, player, chest, turns, ready } = setup();

@@ -203,15 +203,25 @@ for (let run = 0; run < 5; run++) {
     assert.ok(count('Ration') >= 1);
     assert.equal(count('Chest'), chasmRoom ? 3 : 2,
       'two real treasure chests accompany the encounter roster, plus the chasm room treasure');
-    // A chasm room always carries exactly one Potion of Levitation on its
-    // walkable band, and its extra chest waits on the otherwise unreachable
-    // island. Floors 1-7 never roll levitation as ordinary loot.
+    // A chasm room always carries exactly one Potion of Levitation, now placed
+    // at a random walkable tile on the open floor rather than on the band, and
+    // its extra chest waits on the otherwise unreachable island. Floors 1-7
+    // never roll levitation as ordinary loot.
     const levitations = items.filter(item => item.kind === 'PotionOfLevitation');
     if (chasmRoom) {
-      const roomPotions = levitations.filter(item =>
-        item.x === chasmRoom.approach.x && item.y === chasmRoom.approach.y);
-      assert.equal(roomPotions.length, 1,
-        `floor ${floor} chasm room carries the guaranteed levitation potion on its band`);
+      const potion = levitations[0];
+      assert.ok(potion, `floor ${floor} chasm room still guarantees a levitation potion`);
+      // The key is no longer parked on the band beside the moat. It must lie on
+      // an ordinary walkable tile outside the whole chasm chamber.
+      assert.notDeepEqual({ x: potion.x, y: potion.y },
+        { x: chasmRoom.approach.x, y: chasmRoom.approach.y },
+        `floor ${floor} levitation potion no longer sits on the chasm band`);
+      const chamber = chasmRoom.room;
+      const insideChamber = potion.x >= chamber.x && potion.x < chamber.x + chamber.w &&
+        potion.y >= chamber.y && potion.y < chamber.y + chamber.h;
+      assert.equal(insideChamber, false,
+        'the guaranteed levitation potion lies on the open floor, not in the chasm room');
+      assert.equal(map[potion.y][potion.x], 0, 'levitation potion rests on a walkable floor tile');
       // Only the run's own chasm floor is certain; deeper floors get there 5%
       // of the time.
       if (floor === chasmRoomFloor) {
@@ -219,7 +229,7 @@ for (let run = 0; run < 5; run++) {
       }
       // The item classes are fakes here, so only assert that generation never
       // forces identification on the instance.
-      assert.ok(!roomPotions[0].identified,
+      assert.ok(!potion.identified,
         'the chasm room potion stays unidentified like every other potion');
       if (floor < 8) {
         assert.equal(levitations.length, 1,
@@ -307,6 +317,9 @@ assert.ok(lootTableSource.length > 0, 'found the random loot table');
 assert.ok(!lootTableSource.includes('ScrollOfUpgrade'), 'upgrade scrolls never roll as random floor loot');
 const chestSource = fs.readFileSync('src/games/rogue0/items/chest.ts', 'utf8');
 assert.ok(!chestSource.includes('ScrollOfUpgrade'), 'treasure chests never add upgrade scrolls');
+assert.ok(chestSource.includes('forcedContents'), 'chests accept authored reward contents');
+assert.ok(sceneSource.includes('new StoneOfInfusion'), 'the chasm island chest is stocked with a Stone of Infusion');
+assert.ok(sceneSource.includes('CHASM_CHEST_GOLD'), 'the chasm island chest carries a larger purse');
 
 // Adversarial map budget: even with no shuffled tiles available at all, the
 // deterministic fallback still places every guaranteed scroll and never puts
