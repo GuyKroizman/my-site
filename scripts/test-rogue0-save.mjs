@@ -133,7 +133,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   // Saved before the guardian was renamed and made airborne: both must be
   // repaired at load, without rerunning the constructor.
   const legacyBoss = Object.assign(Object.create(Boss.prototype), {
-    type: 'enemy', name: 'Bone Lord', flying: false, tile: 999,
+    type: 'enemy', name: 'Bone Lord', flying: false, movementSpeed: 1, tile: 999,
     healthPoints: 120, sleepTurnsRemaining: 0, x: 0, y: 0,
     effects: [], loot: [false], nextActionTime: 4.5,
   });
@@ -197,6 +197,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   const restoredBoss = run.floors.get(1).entities.find(entity => entity.name === 'The Unblinking Coil');
   assert.ok(restoredBoss, 'legacy boss is renamed when the save is loaded');
   assert.equal(restoredBoss.flying, true, 'restored guardian floats over traps');
+  assert.equal(restoredBoss.movementSpeed, 0.8, 'restored guardian keeps the slower hover');
   assert.equal(run.player.quickslots[0], savedCursedGem, 'quickslot retains migrated item identity');
   const restored = run.player.backpack[0];
   assert.deepEqual(run.player.inputBuffer, []);

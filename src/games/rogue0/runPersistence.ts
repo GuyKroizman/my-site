@@ -113,9 +113,13 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     }
     // Boss rename migration (old saves still carry the guardian's former name).
     if ((entity as any)?.name === 'Bone Lord') entity.name = 'The Unblinking Coil';
-    // The guardian floats: restore that on old saves, whose serialized `flying`
-    // was false because it used to walk into traps like any other monster.
-    if ((entity as any)?.name === 'The Unblinking Coil') entity.flying = true;
+    // The guardian floats and hovers slowly: restore both on old saves, whose
+    // serialized fields predate the change. Only the old speed is replaced so
+    // later balance tweaks are not overwritten on load.
+    if ((entity as any)?.name === 'The Unblinking Coil') {
+      entity.flying = true;
+      if (entity.movementSpeed === 1) entity.movementSpeed = 0.8;
+    }
     // Boot rename migration (keeps old saves readable).
     if (entity instanceof Shoe) entity.textureKey = 'junk-boot';
     if ((entity as any)?.name === 'Blessed Shoe' || (entity as any)?.textureKey === 'blessed-shoe') {
