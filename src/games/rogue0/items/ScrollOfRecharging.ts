@@ -14,7 +14,7 @@ export default class ScrollOfRecharging extends Entity {
   constructor(context: GameContext, x?: number, y?: number) {
     super();
     this.name = "Scroll of Recharging";
-    this.description = "Refills the charges of your equipped wand.";
+    this.description = "Refills the charges of every wand you carry.";
     this.consumable = true;
 
     this.init(context, x, y);
@@ -24,11 +24,17 @@ export default class ScrollOfRecharging extends Entity {
     const player = this.context.player;
     if (!player) return;
 
-    if (player.weapon instanceof Wand) {
-      player.weapon.refill();
-      dungeon.log(this.context, "Your wand is fully recharged.");
+    // Wands live in the backpack (or a quickslot), never in the weapon slot,
+    // and passive recharge already ticks every carried wand independently.
+    // Do the same here: refill all of them, including cursed and fused wands.
+    const wands = player.getAllItems().filter((item): item is Wand => item instanceof Wand);
+    if (wands.length > 0) {
+      for (const wand of wands) wand.refill();
+      dungeon.log(this.context, wands.length === 1
+        ? "Your wand is fully recharged."
+        : "Your wands are fully recharged.");
     } else {
-      dungeon.log(this.context, "You have no wand equipped.");
+      dungeon.log(this.context, "You have no wand to recharge.");
     }
 
     player.removeItem(this);
