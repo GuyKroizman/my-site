@@ -35,7 +35,8 @@ export default class CursedGem extends Entity {
 
   useOnItem(target: Entity): boolean {
     const player = this.context.player;
-    if (!player?.canAct() || !player.getAllItems().includes(this) || !this.canTargetItem(target)) {
+    if (!player?.canAct() || (!this.targetPickerSpent && !player.getAllItems().includes(this)) ||
+        !this.canTargetItem(target)) {
       return false;
     }
 
@@ -44,13 +45,15 @@ export default class CursedGem extends Entity {
       return false;
     }
 
-    identify(this);
+    if (!this.identified) identify(this);
     identify(target);
     target.curseId = nextCurse;
 
-    const lastGem = this.count === 1;
-    player.removeItem(this);
-    if (lastGem) removeEntity(this.context, this);
+    if (this.settleTargetPickerSpend()) {
+      const lastGem = this.count === 1;
+      player.removeItem(this);
+      if (lastGem) removeEntity(this.context, this);
+    }
     player.spendTurn("use");
 
     const curseName = CURSE_NAMES[nextCurse];

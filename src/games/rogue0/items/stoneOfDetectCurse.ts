@@ -31,16 +31,18 @@ export default class StoneOfDetectCurse extends GlyphStone {
 
   useOnItem(target: Entity): boolean {
     const player = this.context.player;
-    if (!player?.canAct() || !player.getAllItems().includes(this) ||
+    if (!player?.canAct() || (!this.targetPickerSpent && !player.getAllItems().includes(this)) ||
         !this.canTargetItem(target)) return false;
 
     // Record the answer, not the identity. Every later inspection of the item
     // keeps the same glyph-stone verdict until the item is identified.
     target.curseScanned = true;
 
-    const lastStone = this.count === 1;
-    player.removeItem(this);
-    if (lastStone) removeEntity(this.context, this);
+    if (this.settleTargetPickerSpend()) {
+      const lastStone = this.count === 1;
+      player.removeItem(this);
+      if (lastStone) removeEntity(this.context, this);
+    }
     player.spendTurn("use");
 
     dungeon.log(this.context,

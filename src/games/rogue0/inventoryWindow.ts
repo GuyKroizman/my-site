@@ -82,6 +82,10 @@ export class InventoryWindow {
     this.scene = scene;
     this.context = context;
     context.onChooseItemTarget = (item) => {
+      // Using a targeted consumable spends it the moment its picker opens.
+      // Closing the picker without picking a target cannot be used to learn the
+      // scroll's identity while keeping the scroll.
+      if (item?.consumable && item.requiresItemTarget) item.spendForTargetPicker();
       this.openWindow();
       this.targetedItem = item;
       this.render();

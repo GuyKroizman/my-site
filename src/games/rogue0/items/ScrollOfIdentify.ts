@@ -32,13 +32,16 @@ export default class ScrollOfIdentify extends Entity {
 
   useOnItem(target: Entity): boolean {
     const player = this.context.player;
-    if (!player?.canAct() || !player.getAllItems().includes(this) || !this.canTargetItem(target)) return false;
+    if (!player?.canAct() || (!this.targetPickerSpent && !player.getAllItems().includes(this)) ||
+        !this.canTargetItem(target)) return false;
 
     if (!this.identified) identify(this);
     identify(target);
-    const lastScroll = this.count === 1;
-    player.removeItem(this);
-    if (lastScroll) removeEntity(this.context, this);
+    if (this.settleTargetPickerSpend()) {
+      const lastScroll = this.count === 1;
+      player.removeItem(this);
+      if (lastScroll) removeEntity(this.context, this);
+    }
     player.spendTurn("use");
     return true;
   }

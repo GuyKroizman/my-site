@@ -212,8 +212,9 @@ const Ring = itemClass('ring');
   assert.equal(new Lightning(legacyContext).identified, true);
   assert.deepEqual(legacyContext.messages, []);
 }
-// Scrolls always request a target, even with one eligible item. Cancelling is
-// free; confirmation upgrades only that item and consumes one stacked scroll.
+// Scrolls always request a target, even with one eligible item. Opening the
+// picker spends one stacked scroll and reveals it; cancelling does not refund
+// it. Confirmation upgrades only the chosen item and spends a turn.
 {
   const TargetHero = load('src/games/rogue0/classes/basicHero.ts', { Entity, dungeon, Wand }).default;
   const { InventoryWindow } = load('src/games/rogue0/inventoryWindow.ts', { Wand });
@@ -221,7 +222,7 @@ const Ring = itemClass('ring');
   let ready = true, spent = 0;
   const sword = new (itemClass('sword'))(ctx);
   const scroll = new ScrollOfUpgrade(ctx);
-  scroll.count = 2;
+  scroll.count = 3;
   const owned = [sword, scroll];
   ctx.entities = [...owned];
   const player = Object.assign(Object.create(TargetHero.prototype), {
@@ -240,9 +241,11 @@ const Ring = itemClass('ring');
   assert.equal(picker.targetedItem, scroll, 'single eligible item still opens selection');
   assert.equal(picker.isOpen(), true);
   assert.equal(sword.level, 0);
+  assert.equal(scroll.count, 2, 'opening the picker spends a copy immediately');
+  assert.equal(scroll.identified, true, 'using the scroll reveals its type even if the picker is cancelled');
+  assert.equal(spent, 0, 'opening the picker does not spend a turn');
   picker.dismiss();
-  assert.equal(scroll.count, 2);
-  assert.equal(scroll.identified, false, 'cancel does not identify or consume');
+  assert.equal(scroll.count, 2, 'cancelling does not spend another copy');
   assert.equal(spent, 0);
   const backpackSword = new (itemClass('longSword'))(ctx);
   owned.push(backpackSword);

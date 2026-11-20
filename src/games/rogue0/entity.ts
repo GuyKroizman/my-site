@@ -372,6 +372,35 @@ export abstract class Entity {
     return this.locallyIdentified || !!(kind && this.context && knownConsumables.get(this.context)?.has(kind));
   }
   set identified(value: boolean) { this.locallyIdentified = value; }
+
+  // A target picker spends its consumable as soon as it opens, so cancelling
+  // cannot reveal the item's type for free. The spend is settled once a target
+  // is chosen; direct useOnItem calls (no picker) still spend it themselves.
+  targetPickerSpent = false;
+
+  // Spend one copy when the target picker opens. Returns false when the item is
+  // not actually carried, so callers can refuse to open the picker as before.
+  spendForTargetPicker(): boolean {
+    const player = this.context?.player;
+    if (!player?.getAllItems().includes(this)) return false;
+    // A stale spend belongs to a cancelled picker; every opening spends afresh.
+    this.targetPickerSpent = false;
+    if (!this.identified) identify(this);
+    const last = this.count === 1;
+    player.removeItem(this);
+    if (last) removeEntity(this.context, this);
+    this.targetPickerSpent = true;
+    return true;
+  }
+
+  // Call after a chosen target was successfully acted on. Returns true when the
+  // caller still owes a spend itself (useOnItem reached without a picker).
+  settleTargetPickerSpend(): boolean {
+    if (!this.targetPickerSpent) return true;
+    this.targetPickerSpent = false;
+    return false;
+  }
+
   cursed: boolean = false;
   // Named SPD-style curse rolled at generation (see curseData.ts). Empty
   // means either uncursed or a legacy bespoke curse (e.g. the Cursed Gem).

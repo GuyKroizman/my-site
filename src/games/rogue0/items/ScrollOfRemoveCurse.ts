@@ -36,16 +36,19 @@ export default class ScrollOfRemoveCurse extends Entity {
 
   useOnItem(target: Entity): boolean {
     const player = this.context.player;
-    if (!player?.canAct() || !player.getAllItems().includes(this) || !this.canTargetItem(target)) return false;
+    if (!player?.canAct() || (!this.targetPickerSpent && !player.getAllItems().includes(this)) ||
+        !this.canTargetItem(target)) return false;
 
     // Reading the scroll reveals the scroll and settles the chosen item's curse
     // status (removeCurse records it), but never its type, level or other hidden
-    // properties. Either way the scroll is spent.
+    // properties. Either way the scroll is spent when its picker opens.
     if (!this.identified) identify(this);
     player.removeCurse(target);
-    const lastScroll = this.count === 1;
-    player.removeItem(this);
-    if (lastScroll) removeEntity(this.context, this);
+    if (this.settleTargetPickerSpend()) {
+      const lastScroll = this.count === 1;
+      player.removeItem(this);
+      if (lastScroll) removeEntity(this.context, this);
+    }
     player.spendTurn("use");
     return true;
   }

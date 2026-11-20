@@ -4,7 +4,7 @@ export type Registry = Record<string, { prototype: object }>;
 type Node = { kind: string; type?: string; data: any };
 export type SavedGraph = { root: any; nodes: Node[] };
 const transient = new Set(['context', 'sprite', 'inputBuffer', 'walkPath',
-  'acknowledgedWalkEnemies', 'moving', 'tweens', 'zapping']);
+  'acknowledgedWalkEnemies', 'moving', 'tweens', 'zapping', 'targetPickerSpent']);
 
 export function encodeGraph(root: unknown, registry: Registry): SavedGraph {
   const nodes: Node[] = [];
