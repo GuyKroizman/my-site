@@ -154,6 +154,8 @@ for (const slot of ['weapon', 'armor', 'ring', 'artifact']) {
       const before = equipSounds.length;
       inventory.equipItem(owner, item);
       assert.deepEqual(equipSounds.slice(before), [cursed], `${slot}: exactly one matching equip sound`);
+      assert.equal(!!item.curseScanned, !identified,
+        `${slot}: equipping records the curse verdict for unknown gear only`);
     }
   }
 }
@@ -276,11 +278,14 @@ for (const slot of ['weapon', 'armor', 'ring', 'artifact']) {
   owner.ring1 = first; owner.artifact = second; owner.effects = [{ id: 'cursed' }];
   inventory.removeCurse(owner, first);
   assert.deepEqual([first.cursed, first.curseId], [false, '']);
+  assert.equal(first.curseScanned, true, 'a targeted cleanse records the curse verdict');
+  assert.ok(!second.curseScanned, 'untouched items keep their curse secret');
   assert.equal(second.cursed, true);
   assert.equal(owner.effects.length, 1);
   const external = gear('weapon', { cursed: true });
   inventory.removeCurse(owner, external);
   assert.equal(external.cursed, true);
+  assert.ok(!external.curseScanned, 'items outside the inventory are untouched');
   inventory.removeCurse(owner);
   assert.equal(second.cursed, false);
   assert.deepEqual(owner.effects, []);

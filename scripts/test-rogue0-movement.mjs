@@ -1076,10 +1076,12 @@ for (const equipSlot of ['weapon', 'armor']) {
     assert.equal(gear.identified, false, 'equipping alone never identifies gear');
     assert.ok(tester.context.messages.some(message => message.includes(cursed ? 'is cursed and cannot' : 'is not cursed')),
       'equipping reveals curse status');
+    assert.equal(gear.curseScanned, true, 'the equip verdict is remembered');
     assert.equal(tester[equipSlot], gear);
     tester.unequipItem(gear);
     assert.equal(tester[equipSlot], cursed ? gear : undefined,
       'only cursed equipment is locked after equipping');
+    assert.equal(gear.curseScanned, true, 'the verdict survives unequipping');
   }
 }
 

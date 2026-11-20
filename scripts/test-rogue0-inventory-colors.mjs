@@ -39,6 +39,10 @@ assert.equal(render({ ...item, cursed: true }).children[0].color, unknown.childr
 assert.equal(render({ ...item, cursed: true }).tweens.length, 0);
 assert.equal(render({ ...item, identified: true }).children[0].color, 0x102846);
 assert.equal(render(item, true).children[0].color, 0x102846);
+// Learning the curse outcome without identifying the item (Stone of Detect
+// Curse, a zap reveal, or a Remove Curse scroll) also turns an unknown cell blue.
+assert.equal(render({ ...item, curseScanned: true }).children[0].color, 0x102846);
+assert.equal(render({ ...item, cursed: true, curseScanned: true }).children[0].color, 0x49151c);
 for (const selected of [false, true]) {
   const cursed = render({ ...item, identified: true, cursed: true }, false, selected);
   assert.equal(cursed.children[0].color, 0x49151c);

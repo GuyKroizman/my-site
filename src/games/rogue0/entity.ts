@@ -285,8 +285,8 @@ export abstract class Entity {
   // Using this item opens throw targeting instead of consuming it in place.
   throwToUse = false;
   // The hero knows this item's curse without identifying it: a Stone of Detect
-  // Curse read it, or a cursed wand revealed it when first zapped. Permanent
-  // knowledge for this item.
+  // Curse read it, a cursed wand revealed it when first zapped, equipping revealed
+  // it, or a Scroll of Remove Curse reported the outcome. Permanent knowledge.
   curseScanned = false;
   curseEffectId?: string;
   canTargetItem(_target: Entity): boolean { return false; }

@@ -226,11 +226,13 @@ assert.equal(context.scene.input.enabled, true);
   hero.useItem(removeScroll);
   picker.openMenu(removeScroll);
   assert.equal(picker.isOpen(), true, 'invalid target does not consume or close');
-  // A wrong guess spends the scroll: no curse is lifted, the item stays secret.
+  // A wrong guess spends the scroll: no curse is lifted, but the verdict is
+  // learned, so the item's other properties stay secret while its cell turns blue.
   picker.openMenu(clean);
   assert.equal(picker.isOpen(), false);
   assert.equal(clean.cursed, false);
-  assert.equal(clean.identified, false, 'a wasted scroll reveals nothing about the item');
+  assert.equal(clean.identified, false, 'a wasted scroll never identifies the item');
+  assert.equal(clean.curseScanned, true, 'even a wasted scroll settles the curse question');
   assert.match(ctx.messages[0], /is not cursed\./);
   assert.equal(removeScroll.identified, true, 'reading the scroll identifies the scroll');
   assert.equal(removeScroll.count, 1); assert.ok(ctx.entities.includes(removeScroll));
@@ -238,6 +240,8 @@ assert.equal(context.scene.input.enabled, true);
   hero.useItem(removeScroll); picker.openMenu(first);
   assert.equal(uses, 2);
   assert.equal(first.cursed, false); assert.equal(second.cursed, true);
+  assert.equal(first.curseScanned, true, 'the lifted curse is recorded as known');
+  assert.equal(second.curseScanned, false, 'the other item stays secret');
   assert.equal(first.curseId, '');
   assert.equal(first.curseDescription, '',
     'cleansing leaves no "no longer cursed" history in the description');

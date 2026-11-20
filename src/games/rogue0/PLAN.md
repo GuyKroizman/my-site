@@ -565,11 +565,14 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
       Scroll of Identify or extended use: thirty landed attacks (weapon), thirty
       blows taken (armor), thirty world-time ticks worn (ring/artifact), or
       thirty charged zaps (wand). The Scroll of Remove Curse lifts one chosen curse
-      (clearing `curseId`) and re-enable removal, without identifying the item.
+      (clearing `curseId`) and re-enable removal, without identifying the item; its
+      result message settles the target's curse status, so the inventory shows a
+      known-clean/known-cursed cell while the rest of the item stays hidden.
 - [x] **Detection.** Once identified (or scanned by a glyph stone), reuse the
       existing red glow / "(cursed)" inventory label and named curse description.
-      Equipping an unknown item reveals only cursed/uncursed; the specific curse
-      name and upgrade level stay hidden until identification.
+      Equipping an unknown item reveals only cursed/uncursed, and that verdict
+      stays known after unequipping; the specific curse name and upgrade level
+      stay hidden until identification.
 - [x] **Regression.** New `scripts/test-rogue0-cursed-items.mjs` (added to
       `npm run test:rogue0`): curse chance and guaranteed supplies stay clean;
       each named curse's proc/penalty applies while equipped and clears on

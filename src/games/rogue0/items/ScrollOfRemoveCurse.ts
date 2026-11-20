@@ -38,8 +38,9 @@ export default class ScrollOfRemoveCurse extends Entity {
     const player = this.context.player;
     if (!player?.canAct() || !player.getAllItems().includes(this) || !this.canTargetItem(target)) return false;
 
-    // Reading the scroll reveals the scroll, nothing else: the item keeps its
-    // unidentified properties and either loses its curse or wastes the scroll.
+    // Reading the scroll reveals the scroll and settles the chosen item's curse
+    // status (removeCurse records it), but never its type, level or other hidden
+    // properties. Either way the scroll is spent.
     if (!this.identified) identify(this);
     player.removeCurse(target);
     const lastScroll = this.count === 1;

@@ -90,6 +90,9 @@ export function createInventoryActions(services: InventoryServices) {
     // the true type of a ring. Those need a Scroll of Identify or
     // extended use.
     if (!wasIdentified && (item.isPhysicalEquipment || item.equipSlot === 'ring' || item.equipSlot === 'artifact')) {
+      // The equip verdict stays known after the item leaves the slot, so the
+      // inventory keeps showing a known-clean/known-cursed cell.
+      item.curseScanned = true;
       services.log(owner.context, item.cursed
         ? `${item.displayName} is cursed and cannot be removed until its curse is lifted.`
         : `${item.displayName} is not cursed.`);
@@ -284,7 +287,12 @@ export function createInventoryActions(services: InventoryServices) {
     removeCurse(owner: InventoryOwner, target?: Entity): void {
       let lifted = false;
       const carried = allItems(owner);
-      for (const item of target ? carried.filter(item => item === target) : carried) {
+      const targets = target ? carried.filter(item => item === target) : carried;
+      // A targeted cleanse answers the curse question either way: the log names
+      // the outcome, so the hero knows the item is clean even when it stays
+      // unidentified. Remember that so the inventory can show a known-clean cell.
+      if (target && targets.length) target.curseScanned = true;
+      for (const item of targets) {
         if (item.cursed) {
           item.cursed = false;
           item.curseId = '';
