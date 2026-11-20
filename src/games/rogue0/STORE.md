@@ -61,7 +61,7 @@ Verified so far:
   exactly. The hero can walk behind the door and sees the back panel.
 - Buy and sell update gold/backpack/stock; selling does not identify; cursed
   items pay half.
-- Arrow keys, mouse clicks, Buy/Sell modals and the Store's own toolbar work;
+- Arrow keys, mouse clicks, Buy/Sell modals and the Store's own controls work;
   the level HUD is absent.
 - Reload while on floor 6 restores the sold stock, backpack, gold and the open
   door state.
@@ -312,15 +312,13 @@ hero or monsters.
 
 ```
   46                         552
+                   [123 gold] [Sell] [X]  top-right controls
   ┌──[1]──[2]──[3]──[4]──[5]──┐  y 13..66
   ╞═══════════════════════════╡  66..80
   ┌──[6]──[7]──[8]──[9]──[10]─┐  81..130
   ╞═══════════════════════════╡  130..143
   ┌──[11]─[12]─[13]─[14]─[15]─┐ 144..195
   ╞═══════════════════════════╡  195..208
-  ├────────────────────[X]──────┤  close (top-right)
-  │      STORE · 123g          │  counter
-  │          [Sell]           │
   └───────────────────────────┘
 ```
 
@@ -329,9 +327,10 @@ hero or monsters.
 Keep all math in a pure `storeLayout.ts` so it is testable without Phaser.
 
 - Landscape (view aspect ≥ 1.2): scale to fill the viewport height, capped at
-  ~3.2×; centre the art; toolbar overlays the red counter.
+  ~3.2×; centre the art; the compact controls overlay the top-right corner.
 - Portrait / square (view aspect < 1.2): scale to fit the width (cap ~1.4×);
-  place the art in the top portion and put the toolbar in the letterbox below.
+  place the art in the top portion with the controls in the same top-right
+  corner. The keyboard-only arrows sit below the art.
 - Recompute on `scale.on('resize')`; keep selection and the open modal.
 - Modals are built in **screen space** (like `InventoryWindow`) so their text
   does not shrink with the background.
@@ -389,10 +388,9 @@ Modals:
 
 ### 4.5 HUD / flavour
 
-- Bottom counter: a compact panel padded 16 px above the screen edge and filled
-  at 0.8 alpha (20% transparent), holding only the gold readout (`123 gold`)
-  and a `Sell` button. No title or message strip. A top-right `X` button closes
-  the store.
+- Top-right controls: the gold readout (`123 gold`), a small `Sell` button
+  (64 × 28) and a small `X` button (30 × 28) in one row, drawn above the shelf
+  hit areas so they stay clickable. No bottom panel, title or message strip.
 - Buy/sell results are mirrored into `context.messages` (via `dungeon.log`) so
   they appear in the dungeon log after leaving.
 - The hero's HP/hunger/status bars are not shown, because none of them can
@@ -639,7 +637,7 @@ type GameContext = {
 | `store/shopItems.ts` | `ensureShopState`: constructs/fills the persisted stock from the registry (browser-only) |
 | `store/portal.ts` | random free-standing room-door placement, existing-portal lookup and old wall-door migration (pure) |
 | `store/shopModel.ts` | `ShopState` helpers and buy/sell transaction results (no Phaser) |
-| `store/StoreScene.ts` | Phaser scene: background, shelves, selection, toolbar, modals, input, layout |
+| `store/StoreScene.ts` | Phaser scene: background, shelves, selection, top-right controls, modals, input, layout |
 | `portalVisuals.ts` | closed/open door art (front + side), 4-frame portal vortex, glow, and `portalPassage` orientation helper |
 | `STORE.md` | this document |
 
@@ -786,7 +784,7 @@ Still open:
    `scene0.tryStoreDoor`, render/animations/inspect/hint, entry/exit + pause,
    migration. Test with the scenario harness on floor 6.
 3. Store scene read-only: background, shelves, stock, selection, keyboard /
-   mouse / touch, gold toolbar and top-right X, resize.
+   mouse / touch, top-right gold / Sell / X controls, resize.
 4. Buy modal + transactions, then sell modal + transactions; wire
    `saveNow` after each.
 5. Save integration: `context.shop`, autosave root, `RunState`, reload test.

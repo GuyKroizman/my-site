@@ -39,10 +39,11 @@ export class StoreScene extends Phaser.Scene {
       wordWrap: width ? { width, useAdvancedWrap: true } : undefined });
   }
 
-  private button(x: number, y: number, width: number, label: string, action: () => void, enabled = true): void {
-    const bg = this.add.rectangle(x, y, width, 44, 0x302432).setOrigin(0)
+  private button(x: number, y: number, width: number, label: string, action: () => void,
+    enabled = true, height = 44, fontSize = 20): void {
+    const bg = this.add.rectangle(x, y, width, height, 0x302432).setOrigin(0)
       .setStrokeStyle(1, enabled ? 0xb29061 : 0x514752);
-    this.text(x + width / 2, y + 22, label, 20).setOrigin(0.5).setColor(enabled ? GOLD : '#817783');
+    this.text(x + width / 2, y + height / 2, label, fontSize).setOrigin(0.5).setColor(enabled ? GOLD : '#817783');
     if (enabled) bg.setInteractive({ useHandCursor: true }).on('pointerup', () => {
       if (this.context.storeOpen) action();
     });
@@ -65,9 +66,6 @@ export class StoreScene extends Phaser.Scene {
     const { width: w, height: h } = this.scale;
     const layout = storeLayout(w, h);
     this.add.image(layout.offsetX, layout.offsetY, 'shop-background').setOrigin(0).setScale(layout.scale);
-    // Top-right close button replaces the old bottom-toolbar Leave button.
-    const closeSize = 40;
-    this.button(w - closeSize - 12, 10, closeSize, buttonLabel('X'), () => this.leave());
     const shop = this.context.shop!;
     shelfSlots().forEach((slotRect, index) => {
       const rect = artToScreen(slotRect, layout);
@@ -84,20 +82,25 @@ export class StoreScene extends Phaser.Scene {
       border.on('pointerup', () => { if (this.mode === 'shelves') { this.select(index); this.openBuy(); } });
     });
     this.select(this.selected);
-    const panelW = Math.min(w - 24, 240), panelH = 90;
-    const panelY = h - 16 - panelH, left = (w - panelW) / 2;
-    this.add.rectangle(left, panelY, panelW, panelH, 0x1b1420, 0.8).setOrigin(0);
-    this.text(w / 2, panelY + 8, `${this.context.player!.gold} gold`, 20).setOrigin(0.5, 0).setColor(GOLD);
-    this.button(left + 8, panelY + 38, panelW - 16, panelW < 120 ? 'Sell' : buttonLabel('Sell [S]'), () => this.openSell());
+    // Compact top-right controls. Drawn after the shelf hit areas so they stay
+    // clickable where the row overlaps the top of the artwork.
+    const topY = 10, btnH = 28, gap = 8, closeW = 30, sellW = 64;
+    const closeX = w - 12 - closeW;
+    const sellX = closeX - gap - sellW;
+    this.text(sellX - gap, topY + 4, `${this.context.player!.gold} gold`, 18)
+      .setOrigin(1, 0).setColor(GOLD);
+    this.button(sellX, topY, sellW, buttonLabel('Sell [S]'), () => this.openSell(), true, btnH, 14);
+    this.button(closeX, topY, closeW, buttonLabel('X'), () => this.leave(), true, btnH, 18);
     // On a narrow keyboard layout, large arrow buttons make shelf selection
     // possible when the downscaled bands are shorter than a comfortable target.
     // On a phone the shelves are tapped directly (a tap selects and opens the
     // item), so these arrows would only clutter the screen.
     if (layout.mode === 'stacked' && !isTouchFirstDevice()) {
-      const y = Math.min(panelY - 52, layout.offsetY + 338 * layout.scale + 16);
+      const stripW = Math.min(w - 24, 240), left = (w - stripW) / 2;
+      const y = Math.min(h - 16 - 44, layout.offsetY + 338 * layout.scale + 16);
       const labels = ['←', '↑', '↓', '→'];
       const dirs = [[-1, 0], [0, -1], [0, 1], [1, 0]];
-      labels.forEach((label, i) => this.button(left + i * (panelW / 4), y, panelW / 4 - 4, label,
+      labels.forEach((label, i) => this.button(left + i * (stripW / 4), y, stripW / 4 - 4, label,
         () => this.select(moveSelection(this.selected, dirs[i][0], dirs[i][1]))));
     }
     if (this.mode !== 'shelves') this.renderModal(w, h);
