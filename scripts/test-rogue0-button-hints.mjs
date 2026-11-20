@@ -6,8 +6,7 @@ import { buttonLabel, isTouchFirstDevice } from '../src/games/rogue0/uiLabels.ts
 
 const STORE_LABELS = [
   ['Sell [S]', 'Sell'],
-  ['View [Enter]', 'View'],
-  ['Leave [Q]', 'Leave'],
+  ['X', 'X'],
   ['Back [Esc]', 'Back'],
   ['Buy [Enter]', 'Buy'],
   ['Sell 1 [Enter]', 'Sell 1'],
@@ -68,8 +67,8 @@ try {
 // helper and leak keyboard hints to phone players again.
 const store = fs.readFileSync(new URL('../src/games/rogue0/store/StoreScene.ts', import.meta.url), 'utf8');
 assert.match(store, /buttonLabel\('Sell \[S\]'\)/);
-assert.match(store, /buttonLabel\('View \[Enter\]'\)/);
-assert.match(store, /buttonLabel\('Leave \[Q\]'\)/);
+assert.match(store, /buttonLabel\('X'\)/,
+  'top-right store close button drops its keyboard hint on phones');
 assert.match(store, /buttonLabel\('Back \[Esc\]'\)/);
 assert.match(store, /buttonLabel\(buying \? 'Buy \[Enter\]' : 'Sell 1 \[Enter\]'\)/);
 assert.match(store, /buttonLabel\('Sell all \[A\]'\)/);

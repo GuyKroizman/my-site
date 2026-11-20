@@ -16,14 +16,12 @@ export class StoreScene extends Phaser.Scene {
   private sellSelected = 0;
   private mode: 'shelves' | 'buy' | 'sell' | 'sell-detail' = 'shelves';
   private detail?: Entity;
-  private message = '';
   private slotBorders: Phaser.GameObjects.Rectangle[] = [];
 
   constructor(context: GameContext) { super({ key: 'store-scene', active: false }); this.context = context; }
 
   create(): void {
     this.selected = 0; this.sellSelected = 0; this.mode = 'shelves'; this.detail = undefined;
-    this.message = 'Time is paused. Browse, buy or sell.';
     this.cameras.main.setBackgroundColor('#171117');
     this.input.keyboard?.on('keydown', this.key, this);
     this.scale.on('resize', this.renderStore, this);
@@ -67,6 +65,9 @@ export class StoreScene extends Phaser.Scene {
     const { width: w, height: h } = this.scale;
     const layout = storeLayout(w, h);
     this.add.image(layout.offsetX, layout.offsetY, 'shop-background').setOrigin(0).setScale(layout.scale);
+    // Top-right close button replaces the old bottom-toolbar Leave button.
+    const closeSize = 40;
+    this.button(w - closeSize - 12, 10, closeSize, buttonLabel('X'), () => this.leave());
     const shop = this.context.shop!;
     shelfSlots().forEach((slotRect, index) => {
       const rect = artToScreen(slotRect, layout);
@@ -83,22 +84,17 @@ export class StoreScene extends Phaser.Scene {
       border.on('pointerup', () => { if (this.mode === 'shelves') { this.select(index); this.openBuy(); } });
     });
     this.select(this.selected);
-    const toolbarY = Math.min(h - 106, layout.offsetY + 245 * layout.scale);
-    const panelW = Math.min(w - 16, 460), left = (w - panelW) / 2;
-    this.add.rectangle(left - 4, toolbarY - 30, panelW + 8, 136, 0x1b1420, 0.94).setOrigin(0);
-    this.text(w / 2, toolbarY - 25, `STORE  ·  ${this.context.player!.gold} gold`, 23).setOrigin(0.5, 0).setColor(GOLD);
-    const bw = (panelW - 16) / 3;
-    const short = bw < 120;
-    this.button(left, toolbarY, bw, short ? 'Sell' : buttonLabel('Sell [S]'), () => this.openSell());
-    this.button(left + bw + 8, toolbarY, bw, short ? 'View' : buttonLabel('View [Enter]'), () => this.openBuy());
-    this.button(left + 2 * (bw + 8), toolbarY, bw, short ? 'Leave' : buttonLabel('Leave [Q]'), () => this.leave());
-    this.text(left, toolbarY + 50, this.message, 18, panelW);
+    const panelW = Math.min(w - 24, 240), panelH = 90;
+    const panelY = h - 16 - panelH, left = (w - panelW) / 2;
+    this.add.rectangle(left, panelY, panelW, panelH, 0x1b1420, 0.8).setOrigin(0);
+    this.text(w / 2, panelY + 8, `${this.context.player!.gold} gold`, 20).setOrigin(0.5, 0).setColor(GOLD);
+    this.button(left + 8, panelY + 38, panelW - 16, panelW < 120 ? 'Sell' : buttonLabel('Sell [S]'), () => this.openSell());
     // On a narrow keyboard layout, large arrow buttons make shelf selection
     // possible when the downscaled bands are shorter than a comfortable target.
     // On a phone the shelves are tapped directly (a tap selects and opens the
     // item), so these arrows would only clutter the screen.
     if (layout.mode === 'stacked' && !isTouchFirstDevice()) {
-      const y = Math.max(toolbarY + 110, layout.offsetY + 338 * layout.scale + 16);
+      const y = Math.min(panelY - 52, layout.offsetY + 338 * layout.scale + 16);
       const labels = ['←', '↑', '↓', '→'];
       const dirs = [[-1, 0], [0, -1], [0, 1], [1, 0]];
       labels.forEach((label, i) => this.button(left + i * (panelW / 4), y, panelW / 4 - 4, label,
@@ -110,7 +106,7 @@ export class StoreScene extends Phaser.Scene {
   private openBuy(): void {
     if (this.mode !== 'shelves') return;
     this.detail = this.context.shop!.stock[this.selected].item;
-    if (!this.detail) { this.message = 'That shelf slot is sold out.'; this.renderStore(); return; }
+    if (!this.detail) return;
     this.mode = 'buy'; this.renderStore();
   }
   private openSell(): void {
@@ -205,11 +201,10 @@ export class StoreScene extends Phaser.Scene {
     else if (this.mode === 'sell-detail') result = sellShopItem(this.context.player!, this.detail, quantity);
     else return;
     if (result.ok) {
-      this.message = result.message;
       this.context.messages.unshift(result.message); this.context.messages = this.context.messages.slice(0, 20);
       this.mode = this.mode === 'buy' ? 'shelves' : 'sell'; this.detail = undefined;
       this.context.saveNow?.();
-    } else this.message = result.reason.replace(/-/g, ' ');
+    }
     this.renderStore();
   }
   private back(): void {

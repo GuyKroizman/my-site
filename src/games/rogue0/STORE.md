@@ -57,7 +57,7 @@ Verified so far:
 - Floor 6 always places one free-standing portal door in an open room; floors
   5/7 do not.
 - Closed front/back portal (frames 0/9) → first bump opens it (frames 1–8 or
-  10–17) and costs one open-door action → second bump enters; `q`/Leave resumes
+  10–17) and costs one open-door action → second bump enters; `q`/X resumes
   exactly. The hero can walk behind the door and sees the back panel.
 - Buy and sell update gold/backpack/stock; selling does not identify; cursed
   items pay half.
@@ -126,7 +126,7 @@ economy playtest, and the final production-site visual pass.
    the exact reason when disabled: sold out / not enough gold / backpack full).
 7. **Sell** opens the backpack list (non-equipped only); select an item, then
    sell one or the whole stack.
-8. **Leave** (button, `Esc`, or `q`) returns to the dungeon in front of the
+8. **Leave** (top-right X button, `Esc`, or `q`) returns to the dungeon in front of the
    still-open portal. Moving into it again re-enters the store; stock does not
    refresh.
 
@@ -307,8 +307,8 @@ hero or monsters.
   bottom-aligned 3 px above the board. Cap at 3× so pixel art stays crisp.
 - Selection: 2 px gold inset frame; hover selects the slot. Sold-out slot:
   empty peg + small “SOLD”.
-- Price is shown in the item modal and in the toolbar message; the shelves
-  stay free of permanent price clutter. The modal is the source of truth.
+- Price is shown in the item modal; the shelves stay free of permanent price
+  clutter. The modal is the source of truth.
 
 ```
   46                         552
@@ -318,7 +318,9 @@ hero or monsters.
   ╞═══════════════════════════╡  130..143
   ┌──[11]─[12]─[13]─[14]─[15]─┐ 144..195
   ╞═══════════════════════════╡  195..208
-  │       [Sell] [123g] [Leave]│  counter
+  ├────────────────────[X]──────┤  close (top-right)
+  │      STORE · 123g          │  counter
+  │          [Sell]           │
   └───────────────────────────┘
 ```
 
@@ -374,7 +376,7 @@ are active; there is no use/equip action here.
 | mouse hover | highlight slot |
 | click / tap slot | open item modal |
 | click / tap Sell | sell modal |
-| click / tap Leave | leave |
+| click / tap top-right X | leave |
 
 Modals:
 
@@ -387,12 +389,14 @@ Modals:
 
 ### 4.5 HUD / flavour
 
-- Bottom counter: `Sell` button, gold readout (`◈ 123g`), `Leave` button.
-- A one-line message strip for “Bought …”, “Sold … for 12g”, “Backpack full”.
-  Also mirror the message into `context.messages` (via `dungeon.log`) so it
-  appears in the dungeon log after leaving.
-- Small “Safe: time is paused” note. The hero's HP/hunger/status bars are not
-  shown, because none of them can change here.
+- Bottom counter: a compact panel padded 16 px above the screen edge and filled
+  at 0.8 alpha (20% transparent), holding only the gold readout (`123 gold`)
+  and a `Sell` button. No title or message strip. A top-right `X` button closes
+  the store.
+- Buy/sell results are mirrored into `context.messages` (via `dungeon.log`) so
+  they appear in the dungeon log after leaving.
+- The hero's HP/hunger/status bars are not shown, because none of them can
+  change here.
 
 ---
 
@@ -782,7 +786,7 @@ Still open:
    `scene0.tryStoreDoor`, render/animations/inspect/hint, entry/exit + pause,
    migration. Test with the scenario harness on floor 6.
 3. Store scene read-only: background, shelves, stock, selection, keyboard /
-   mouse / touch, gold/Leave toolbar, resize.
+   mouse / touch, gold toolbar and top-right X, resize.
 4. Buy modal + transactions, then sell modal + transactions; wire
    `saveNow` after each.
 5. Save integration: `context.shop`, autosave root, `RunState`, reload test.
