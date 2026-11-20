@@ -82,22 +82,24 @@ export class StoreScene extends Phaser.Scene {
       border.on('pointerup', () => { if (this.mode === 'shelves') { this.select(index); this.openBuy(); } });
     });
     this.select(this.selected);
-    // Compact top-right controls. Drawn after the shelf hit areas so they stay
-    // clickable where the row overlaps the top of the artwork.
-    const topY = 10, btnH = 28, gap = 8, closeW = 30, sellW = 64;
-    const closeX = w - 12 - closeW;
-    const sellX = closeX - gap - sellW;
-    this.text(sellX - gap, topY + 4, `${this.context.player!.gold} gold`, 18)
-      .setOrigin(1, 0).setColor(GOLD);
-    this.button(sellX, topY, sellW, buttonLabel('Sell [S]'), () => this.openSell(), true, btnH, 14);
-    this.button(closeX, topY, closeW, buttonLabel('X'), () => this.leave(), true, btnH, 18);
+    // Close stays in the corner; wallet + Sell sit in a translucent panel lower
+    // down. Drawn after the shelf hit areas so the buttons stay clickable.
+    const closeW = 30;
+    this.button(w - 12 - closeW, 10, closeW, buttonLabel('X'), () => this.leave(), true, 28, 18);
+    const panelW = Math.min(w - 32, 180), panelH = 48;
+    const panelX = w - 16 - panelW, panelY = h - 16 - panelH;
+    this.add.rectangle(panelX, panelY, panelW, panelH, 0x1b1420, 0.8).setOrigin(0);
+    const sellW = 64;
+    const sellX = panelX + panelW - 12 - sellW;
+    this.text(panelX + 10, panelY + 15, `${this.context.player!.gold} gold`, 18).setColor(GOLD);
+    this.button(sellX, panelY + 10, sellW, buttonLabel('Sell [S]'), () => this.openSell(), true, 28, 14);
     // On a narrow keyboard layout, large arrow buttons make shelf selection
     // possible when the downscaled bands are shorter than a comfortable target.
     // On a phone the shelves are tapped directly (a tap selects and opens the
     // item), so these arrows would only clutter the screen.
     if (layout.mode === 'stacked' && !isTouchFirstDevice()) {
       const stripW = Math.min(w - 24, 240), left = (w - stripW) / 2;
-      const y = Math.min(h - 16 - 44, layout.offsetY + 338 * layout.scale + 16);
+      const y = Math.min(h - 16 - panelH - 8 - 44, layout.offsetY + 338 * layout.scale + 16);
       const labels = ['←', '↑', '↓', '→'];
       const dirs = [[-1, 0], [0, -1], [0, 1], [1, 0]];
       labels.forEach((label, i) => this.button(left + i * (stripW / 4), y, stripW / 4 - 4, label,

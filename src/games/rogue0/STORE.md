@@ -312,7 +312,7 @@ hero or monsters.
 
 ```
   46                         552
-                   [123 gold] [Sell] [X]  top-right controls
+                   [X]  close (top right)
   ┌──[1]──[2]──[3]──[4]──[5]──┐  y 13..66
   ╞═══════════════════════════╡  66..80
   ┌──[6]──[7]──[8]──[9]──[10]─┐  81..130
@@ -320,6 +320,9 @@ hero or monsters.
   ┌──[11]─[12]─[13]─[14]─[15]─┐ 144..195
   ╞═══════════════════════════╡  195..208
   └───────────────────────────┘
+                ┌───────────────────┐
+                │ 123 gold  [Sell]  │  translucent, lower right
+                └───────────────────┘
 ```
 
 ### 4.3 Responsive layout
@@ -327,10 +330,11 @@ hero or monsters.
 Keep all math in a pure `storeLayout.ts` so it is testable without Phaser.
 
 - Landscape (view aspect ≥ 1.2): scale to fill the viewport height, capped at
-  ~3.2×; centre the art; the compact controls overlay the top-right corner.
+  ~3.2×; centre the art; X stays top-right, the wallet/Sell panel sits in the
+  lower-right corner.
 - Portrait / square (view aspect < 1.2): scale to fit the width (cap ~1.4×);
-  place the art in the top portion with the controls in the same top-right
-  corner. The keyboard-only arrows sit below the art.
+  place the art in the top portion with both controls in the same corners.
+  The keyboard-only arrows sit below the art, above the wallet panel.
 - Recompute on `scale.on('resize')`; keep selection and the open modal.
 - Modals are built in **screen space** (like `InventoryWindow`) so their text
   does not shrink with the background.
@@ -388,9 +392,11 @@ Modals:
 
 ### 4.5 HUD / flavour
 
-- Top-right controls: the gold readout (`123 gold`), a small `Sell` button
-  (64 × 28) and a small `X` button (30 × 28) in one row, drawn above the shelf
-  hit areas so they stay clickable. No bottom panel, title or message strip.
+- Controls: a small `X` button (30 × 28) in the top-right corner; the gold
+  readout (`123 gold`) and a small `Sell` button (64 × 28) sit together in a
+  180 × 48 panel at the lower right, padded 16 px from the edges and filled at
+  0.8 alpha (20% transparent). Drawn above the shelf hit areas so the buttons
+  stay clickable. No title or message strip.
 - Buy/sell results are mirrored into `context.messages` (via `dungeon.log`) so
   they appear in the dungeon log after leaving.
 - The hero's HP/hunger/status bars are not shown, because none of them can
@@ -784,7 +790,7 @@ Still open:
    `scene0.tryStoreDoor`, render/animations/inspect/hint, entry/exit + pause,
    migration. Test with the scenario harness on floor 6.
 3. Store scene read-only: background, shelves, stock, selection, keyboard /
-   mouse / touch, top-right gold / Sell / X controls, resize.
+   mouse / touch, lower-right gold / Sell panel and top-right X, resize.
 4. Buy modal + transactions, then sell modal + transactions; wire
    `saveNow` after each.
 5. Save integration: `context.shop`, autosave root, `RunState`, reload test.
