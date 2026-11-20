@@ -169,4 +169,12 @@ export const sfx = {
   levelUp(): void {
     [440, 554, 659, 880].forEach((f, i) => tone(f, 0.12, 'square', 0.09, i * 0.09));
   },
+  // Spending a talent point is a small, bright sparkle climbing a scale,
+  // deliberately lighter than the level-up fanfare it is often heard beside.
+  talent(): void {
+    tone(523, 0.08, 'square', 0.05, 0, 784);
+    tone(784, 0.1, 'triangle', 0.08, 0.06);
+    tone(1175, 0.16, 'sine', 0.07, 0.12);
+    tone(1568, 0.2, 'sine', 0.045, 0.18);
+  },
 };

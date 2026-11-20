@@ -8,6 +8,7 @@ import {
 } from './talentTreeLayout';
 import { isTalentUnlocked, unmetTalentRequirements, type TalentBonusKind, type TalentNode } from './talentTree';
 import { buttonLabel } from '../uiLabels';
+import { sfx } from '../audio';
 
 const FONT = 'VT323, monospace';
 const GOLD = '#f0c477';
@@ -295,6 +296,7 @@ export class TalentScene extends Phaser.Scene {
     const entry = this.nodes()[this.selected];
     if (!player || !entry || !this.context.talentTreeOpen) return;
     if (!player.learnTalent(entry.id)) return;
+    sfx.talent();
     this.message = `Learned ${entry.name} (${player.talentRank(entry.id)}/${entry.maxRank}).`;
     this.context.saveNow?.();
     this.renderTree();
