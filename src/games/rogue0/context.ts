@@ -31,7 +31,7 @@ export type PoisonCloud = {
 // itself, so an item can never hide a trap (or vice versa).
 export type InspectChoice =
   | { kind: "entity"; entity: Entity }
-  | { kind: "terrain"; label: string; description: string };
+  | { kind: "terrain"; label: string; description: string; illustration?: string };
 
 export type GameContext = {
   map: Phaser.Tilemaps.Tilemap | undefined;
@@ -127,6 +127,9 @@ export type GameContext = {
   inspectedEntity?: Entity;
   // Terrain/tile description currently under the inspect cursor.
   inspectedTerrain?: string;
+  // Optional texture key for a larger illustration paired with that description
+  // (the floor-7 boot-blessing mural).
+  inspectedTerrainIllustration?: string;
   visibleTiles: Set<string>;
   terrainActionMode?: boolean;
   inspectMode: boolean;
@@ -187,9 +190,11 @@ export function applyInspectChoice(context: GameContext, choice: InspectChoice):
   if (choice.kind === "terrain") {
     context.inspectedEntity = undefined;
     context.inspectedTerrain = choice.description;
+    context.inspectedTerrainIllustration = choice.illustration;
     return;
   }
   context.inspectedTerrain = undefined;
+  context.inspectedTerrainIllustration = undefined;
   context.inspectedEntity = choice.entity;
 }
 

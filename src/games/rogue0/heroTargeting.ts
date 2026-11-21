@@ -38,6 +38,7 @@ export function createHeroTargeting(services: HeroControlServices) {
       context.inspectChoices = undefined;
       context.inspectedEntity = undefined;
       context.inspectedTerrain = undefined;
+      context.inspectedTerrainIllustration = undefined;
       if (context.inspectMode) {
         context.cursorX = hero.x;
         context.cursorY = hero.y;
@@ -57,6 +58,7 @@ export function createHeroTargeting(services: HeroControlServices) {
         context.inspectChoices = undefined;
         context.inspectedEntity = undefined;
         context.inspectedTerrain = undefined;
+        context.inspectedTerrainIllustration = undefined;
         context.onInspectModeChange?.(false);
       }
     },
@@ -86,6 +88,7 @@ export function createHeroTargeting(services: HeroControlServices) {
       context.inspectChoices = undefined;
       context.inspectedEntity = undefined;
       context.inspectedTerrain = undefined;
+      context.inspectedTerrainIllustration = undefined;
       const tileVisible = context.visibleTiles.has(`${x},${y}`);
       const entities = (context.entities ?? []).filter(entity => {
         if (!entity.sprite || entity.type === 'player' ||
@@ -115,12 +118,13 @@ export function createHeroTargeting(services: HeroControlServices) {
       // item on a trap never hides the trap (and vice versa).
       const choices: InspectChoice[] = entities.map(entity => ({ kind: 'entity', entity }));
       if (info?.label) {
-        choices.push({ kind: 'terrain', label: info.label, description: info.description });
+        choices.push({ kind: 'terrain', label: info.label, description: info.description, illustration: info.illustration });
       }
       if (choices.length > 1) context.inspectChoices = choices;
       else if (choices.length === 1) applyInspectChoice(context, choices[0]);
       else if (tileVisible) {
         context.inspectedTerrain = info?.description ?? dungeon.inspectTile(x, y);
+        context.inspectedTerrainIllustration = info?.illustration;
       }
     },
 

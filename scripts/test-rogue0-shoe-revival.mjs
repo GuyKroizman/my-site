@@ -5,6 +5,10 @@ import fs from 'node:fs';
 
 // --- Source/plan invariants ---
 const scene0 = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
+const uiSrc = fs.readFileSync('src/games/rogue0/ui.ts', 'utf8');
+const contextSrc = fs.readFileSync('src/games/rogue0/context.ts', 'utf8');
+const dungeonSrc = fs.readFileSync('src/games/rogue0/dungeon.ts', 'utf8');
+const heroTargetingSrc = fs.readFileSync('src/games/rogue0/heroTargeting.ts', 'utf8');
 const plan = fs.readFileSync('src/games/rogue0/PLAN.md', 'utf8');
 const quloptsh = fs.readFileSync('src/games/rogue0/monsters/quloptsh.ts', 'utf8');
 const shoeRevivalSrc = fs.readFileSync('src/games/rogue0/shoeRevival.ts', 'utf8');
@@ -14,10 +18,16 @@ const entitySrc = fs.readFileSync('src/games/rogue0/entity.ts', 'utf8');
 const combatSrc = fs.readFileSync('src/games/rogue0/combatApplication.ts', 'utf8');
 const heroSrc = fs.readFileSync('src/games/rogue0/classes/basicHero.ts', 'utf8');
 const itemPresentationSrc = fs.readFileSync('src/games/rogue0/itemPresentation.ts', 'utf8');
+import { applyInspectChoice } from '../src/games/rogue0/context.ts';
+import { BOOT_RITUAL_ILLUSTRATION_TEXTURE } from '../src/games/rogue0/bootRitualIllustration.ts';
 
 assert.ok(!/loot: \[false, Shoe\]/.test(quloptsh), 'Quloptsh must not drop revival boot');
 assert.ok(!/\[Shoe, 1\]/.test(scene0), 'Boot must not be in LOOT_TABLE');
 assert.ok(/BOOT_RITUAL_MURAL_FRAME|SHOE_RITUAL_MURAL_FRAME/.test(scene0), 'floor 7 ritual mural is wired in scene');
+assert.ok(/BOOT_RITUAL_ILLUSTRATION_TEXTURE/.test(dungeonSrc), 'mural description carries the ceremony illustration key');
+assert.ok(/illustration: info\.illustration/.test(heroTargetingSrc), 'inspect choice forwards the illustration key');
+assert.ok(/inspectedTerrainIllustration/.test(contextSrc), 'illustration key travels through the inspect context');
+assert.ok(/inspectIllustration/.test(uiSrc) && /generateBootRitualIllustration/.test(uiSrc), 'inspect modal draws the ceremony illustration');
 assert.ok(/floor-7 mural/i.test(plan), 'plan documents the floor-7 ritual mural');
 assert.ok(/find\(item => item instanceof BlessedShoe\)/.test(shoeRevivalSrc), 'blessed priority');
 assert.ok(/onForgetFloorMemory/.test(shoeRevivalSrc), 'normal revive forgets floor memory');
@@ -62,6 +72,21 @@ assert.ok(/playerDeath/.test(scene0) || /gameover/.test(scene0), 'death presenta
   const regSrc = fs.readFileSync('src/games/rogue0/saveRegistry.ts', 'utf8');
   assert.ok(/item:blessed-shoe/.test(regSrc), 'BlessedShoe registered for saves');
   assert.ok(/item:dropped-backpack/.test(regSrc), 'DroppedBackpack registered for saves');
+}
+
+// --- Mural inspection carries the illustration, and other inspections clear it ---
+{
+  const context = {
+    visibleTiles: new Set(), entities: [], messages: [],
+    inspectMode: false, throwMode: false, pinching: false, panning: false, mapGesture: false
+  };
+  applyInspectChoice(context, {
+    kind: 'terrain', label: 'Ritual mural', description: 'A mural depicting a ritual.',
+    illustration: BOOT_RITUAL_ILLUSTRATION_TEXTURE
+  });
+  assert.equal(context.inspectedTerrainIllustration, BOOT_RITUAL_ILLUSTRATION_TEXTURE);
+  applyInspectChoice(context, { kind: 'entity', entity: { displayName: 'Rat' } });
+  assert.equal(context.inspectedTerrainIllustration, undefined, 'entity inspection drops the illustration');
 }
 
 console.log('Boot revival tests passed.');

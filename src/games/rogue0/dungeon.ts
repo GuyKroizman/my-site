@@ -13,6 +13,7 @@ import { applyAttackResult } from './combatApplication';
 import { spawnEntityFloatingText } from "./floatingText";
 import { describeTile, describeTileLabel } from './tiles';
 import { terrainFor } from './terrain';
+import { BOOT_RITUAL_ILLUSTRATION_TEXTURE } from './bootRitualIllustration';
 import {
   applyEffect,
   createBurningEffect,
@@ -381,7 +382,7 @@ const dungeon = {
   // not reveal hidden traps (those stay invisible until stepped on).
   // `label` is a short name for the shared-tile choice list; it is undefined
   // when the terrain is ordinary, so item-only tiles need no extra step.
-  inspectTileInfo: function (x: number, y: number): { label?: string; description: string } {
+  inspectTileInfo: function (x: number, y: number): { label?: string; description: string; illustration?: string } {
     const tiles = terrainFor(this.context!);
     const state = tiles.getTileState(x, y);
     const map = this.currentLevel;
@@ -390,15 +391,17 @@ const dungeon = {
       c.expiresAt > (this.context?.simulationTime ?? 0) + 1e-9);
     let description = describeTile(state, isWall);
     let label = describeTileLabel(state, isWall);
+    let illustration: string | undefined;
     const mural = this.context?.bootRitualMural;
     if (mural && mural.x === x && mural.y === y) {
       label = 'Ritual mural';
       description = 'A mural depicting a ritual: a boot at the center, with Berserk potions to its left and right, and Healing potions above and below it.';
+      illustration = BOOT_RITUAL_ILLUSTRATION_TEXTURE;
     }
     description += (gas ? " Poison gas: poisons on entry and while you remain here, even when levitating." : "");
     if (label && gas) label = `${label} (poison gas)`;
     else if (!label && gas) label = 'Poison gas';
-    return { label, description };
+    return { label, description, illustration };
   },
 
   inspectTile: function (x: number, y: number): string {

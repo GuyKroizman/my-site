@@ -18,6 +18,11 @@ import {
 import { LOG_STRIP_GAP, LOG_STRIP_HEIGHT, statusIconLayout } from './statusHudLayout';
 import { MonsterInspectStatuses } from './monsterInspectStatuses';
 import { buttonLabel, throwTargetHint } from './uiLabels';
+import {
+  BOOT_RITUAL_ILLUSTRATION_SIZE,
+  BOOT_RITUAL_ILLUSTRATION_TEXTURE,
+  generateBootRitualIllustration
+} from './bootRitualIllustration';
 
 // Slots are cheap and effects are capped in practice, but leave headroom so a
 // heavily buffed hero still shows every status.
@@ -77,6 +82,8 @@ export class UI extends Phaser.Scene {
   private inspectModal: Phaser.GameObjects.Container | undefined;
   private inspectModalBg: Phaser.GameObjects.Rectangle | undefined;
   private inspectModalText: Phaser.GameObjects.Text | undefined;
+  // Larger drawing of the ceremony, shown only with the mural's description.
+  private inspectIllustration: Phaser.GameObjects.Image | undefined;
   private inspectCloseBtn: Phaser.GameObjects.Text | undefined;
   private inspectBackdrop: Phaser.GameObjects.Rectangle | undefined;
   private inspectChoiceRows: Phaser.GameObjects.Text[] = [];
@@ -178,6 +185,7 @@ export class UI extends Phaser.Scene {
         this.context.inspectChoices = undefined;
         this.context.inspectedEntity = undefined;
         this.context.inspectedTerrain = undefined;
+        this.context.inspectedTerrainIllustration = undefined;
       }
     });
 
@@ -190,6 +198,7 @@ export class UI extends Phaser.Scene {
 
   buildHUD() {
     generateStatusIconTextures(this);
+    generateBootRitualIllustration(this);
     this.buildToolbar();
     this.buildStatusIcons();
     this.healthTrack = this.add.rectangle(0, 0, 140, 16, C.panel)
@@ -493,6 +502,10 @@ export class UI extends Phaser.Scene {
         fontFamily: `"${FONT_PIXEL}", monospace`, fontSize: 8, color: COL.gold
       })
     );
+    this.inspectIllustration = this.add.image(10, 26, BOOT_RITUAL_ILLUSTRATION_TEXTURE)
+      .setOrigin(0)
+      .setVisible(false);
+    root.add(this.inspectIllustration);
     this.inspectModalText = this.add.text(10, 26, "", {
       fontFamily: `${FONT_MONO}, monospace`,
       fontSize: 17,
@@ -522,6 +535,7 @@ export class UI extends Phaser.Scene {
     this.context.inspectChoices = undefined;
     this.context.inspectedEntity = undefined;
     this.context.inspectedTerrain = undefined;
+    this.context.inspectedTerrainIllustration = undefined;
   }
 
   private layout() {
@@ -599,7 +613,17 @@ export class UI extends Phaser.Scene {
     const h = this.scale.height;
     const inspW = Math.min(340, w - 16);
     this.inspectModalText.setWordWrapWidth(inspW - 20);
-    let contentBottom = 60;
+    const showIllustration = !!this.inspectIllustration?.visible;
+    if (this.inspectIllustration && showIllustration) {
+      const scale = Math.min(1, (inspW - 20) / BOOT_RITUAL_ILLUSTRATION_SIZE);
+      this.inspectIllustration.setPosition(10, 26).setScale(scale);
+      this.inspectModalText.setPosition(10, 26 + BOOT_RITUAL_ILLUSTRATION_SIZE * scale + 10);
+    } else {
+      this.inspectModalText.setPosition(10, 26);
+    }
+    let contentBottom = showIllustration
+      ? this.inspectModalText.y + this.inspectModalText.height
+      : 60;
     if (this.context.inspectChoices?.length) {
       contentBottom = this.inspectChoiceRows.reduce(
         (max, row) => Math.max(max, row.y + row.height), contentBottom);
@@ -758,6 +782,7 @@ export class UI extends Phaser.Scene {
     }
     this.inspectModalText.setVisible(!choices?.length);
     if (choices?.length) {
+      this.inspectIllustration?.setVisible(false);
       this.inspectModal.setVisible(true);
       this.inspectCloseBtn?.setVisible(true);
       this.inspectBackdrop?.setVisible(true);
@@ -766,6 +791,13 @@ export class UI extends Phaser.Scene {
 
     const e = this.context.inspectedEntity;
     const terrain = this.context.inspectedTerrain;
+    const illustrationKey = this.context.inspectedTerrainIllustration;
+    const showIllustration = !e && !!terrain && !!illustrationKey && this.textures.exists(illustrationKey);
+    this.inspectIllustration?.setVisible(showIllustration);
+    if (showIllustration && this.inspectIllustration && illustrationKey &&
+        this.inspectIllustration.texture.key !== illustrationKey) {
+      this.inspectIllustration.setTexture(illustrationKey);
+    }
 
     if (e) {
       this.inspectModal.setVisible(true);
