@@ -332,10 +332,19 @@ Keep all math in a pure `storeLayout.ts` so it is testable without Phaser.
 - Landscape (view aspect ≥ 1.2): scale to fill the viewport height, capped at
   ~3.2×; centre the art; X stays top-right, the wallet/Sell panel sits in the
   lower-right corner.
-- Portrait / square (view aspect < 1.2): scale to fit the width (cap ~1.4×);
-  place the art in the top portion with both controls in the same corners.
-  The keyboard-only arrows sit below the art, above the wallet panel.
-- Recompute on `scale.on('resize')`; keep selection and the open modal.
+- Portrait / square (view aspect < 1.2) on keyboard devices: scale to fit the
+  width (cap ~1.4×); place the art in the top portion with both controls in the
+  same corners. The keyboard-only arrows sit below the art, above the wallet
+  panel.
+- Portrait on touch devices: **panorama**. Scale to fill the viewport height
+  (no width cap), so the art is wider than the screen and the large shelf slots
+  become comfortable tap targets. The art starts centred and can be dragged
+  left/right, clamped so it always covers the viewport. Slot hit areas are not
+  interactive in this mode: a pointer-down/move/up gesture decides tap vs drag,
+  and a tap is resolved with `panSlotAt()` against the current pan. A drag never
+  selects or opens a modal. X and wallet/Sell stay in their screen-space corners.
+- Recompute on `scale.on('resize')`; re-clamp the pan to the new bounds, cancel
+  any in-progress drag, and keep selection and the open modal.
 - Modals are built in **screen space** (like `InventoryWindow`) so their text
   does not shrink with the background.
 - Minimum target size is 44 CSS px; `360 × 640` portrait is the smallest
@@ -349,15 +358,28 @@ shelfSlots(): Rect[15];                 // art coordinates
 storeLayout(viewW, viewH): {
   scale, offsetX, offsetY, mode: 'overlay' | 'stacked'
 };
+isPanoramaView(viewW, viewH, touch): boolean;
+storePanLayout(viewW, viewH): {
+  scale, offsetX, offsetY, artWidth, artHeight, minPanX, maxPanX,
+  mode: 'panorama'
+};
+clampPan(layout, panX): number;
+panSlotAt(layout, panX, screenX, screenY): number | undefined;
 artToScreen(rect, layout): Rect;
 screenToArt(x, y, layout): { x, y };
 slotAt(artX, artY): number | undefined;
 moveSelection(index, dx, dy): number;   // clamps at 5 × 3 edges
 ```
 
+`storePanGesture.ts` keeps the pure tap/drag state machine (down, move, up,
+cancel) out of the scene: a horizontal move past the threshold pans, a mostly
+vertical move is ignored, a second pointer is ignored, and only a release with
+no drag produces a tap.
+
 Use one scaled container for the background, slots and shelf highlights;
-Phaser transforms child hit areas automatically. Toolbar and modals are
-screen-space siblings above it.
+Phaser transforms child positions automatically. Toolbar and modals are
+screen-space siblings above it. In panorama the slot rectangles stay
+non-interactive so dragging across a shelf cannot trigger a tap on release.
 
 The store is a self-contained UI. The level HUD scene is asleep, so **sleep,
 inspect/search, the hero modal, the log window, quickslots and the inventory
@@ -378,6 +400,8 @@ are active; there is no use/equip action here.
 | `q` | leave the store |
 | mouse hover | highlight slot |
 | click / tap slot | open item modal |
+| tap shelf (touch portrait) | open item modal at the current pan |
+| drag left / right (touch portrait) | browse the store horizontally |
 | click / tap Sell | sell modal |
 | click / tap top-right X | leave |
 

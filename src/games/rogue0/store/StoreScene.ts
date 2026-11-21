@@ -3,7 +3,10 @@ import type { GameContext } from '../context';
 import type { Entity } from '../entity';
 import { buyShopItem, purchaseFailure, sellableItems, sellShopItem, type ShopResult } from './shopModel';
 import { sellPrice } from './shopPricing';
-import { artToScreen, moveSelection, shelfSlots, storeLayout } from './storeLayout';
+import { artToScreen, clampPan, isPanoramaView, moveSelection, panSlotAt, shelfSlots,
+  storeLayout, storePanLayout, type Rect, type StorePanLayout } from './storeLayout';
+import { NO_PAN_GESTURE, PAN_DRAG_THRESHOLD, panGestureCancel, panGestureDown, panGestureMove,
+  panGestureUp, type PanGesture } from './storePanGesture';
 import { buttonLabel, isTouchFirstDevice } from '../uiLabels';
 
 const FONT = 'VT323, monospace';
@@ -17,17 +20,30 @@ export class StoreScene extends Phaser.Scene {
   private mode: 'shelves' | 'buy' | 'sell' | 'sell-detail' = 'shelves';
   private detail?: Entity;
   private slotBorders: Phaser.GameObjects.Rectangle[] = [];
+  private panLayout?: StorePanLayout;
+  private panX = 0;
+  private gesture: PanGesture = NO_PAN_GESTURE;
+  private artLayer?: Phaser.GameObjects.Container;
 
   constructor(context: GameContext) { super({ key: 'store-scene', active: false }); this.context = context; }
 
   create(): void {
     this.selected = 0; this.sellSelected = 0; this.mode = 'shelves'; this.detail = undefined;
+    this.panLayout = undefined; this.panX = 0; this.gesture = NO_PAN_GESTURE; this.artLayer = undefined;
     this.cameras.main.setBackgroundColor('#171117');
     this.input.keyboard?.on('keydown', this.key, this);
     this.scale.on('resize', this.renderStore, this);
+    this.input.on('pointerdown', this.onPointerDown, this);
+    this.input.on('pointermove', this.onPointerMove, this);
+    this.input.on('pointerup', this.onPointerUp, this);
+    this.input.on('gameout', this.onPointerCancel, this);
     this.events.once('shutdown', () => {
       this.input.keyboard?.off('keydown', this.key, this);
       this.scale.off('resize', this.renderStore, this);
+      this.input.off('pointerdown', this.onPointerDown, this);
+      this.input.off('pointermove', this.onPointerMove, this);
+      this.input.off('pointerup', this.onPointerUp, this);
+      this.input.off('gameout', this.onPointerCancel, this);
       this.context.storeOpen = false;
       this.context.onStoreOpenChange?.(false);
     });
@@ -49,10 +65,27 @@ export class StoreScene extends Phaser.Scene {
     });
   }
 
-  private icon(item: Entity, x: number, y: number, size: number): void {
+  private icon(item: Entity, x: number, y: number, size: number, maxScale = 3): Phaser.GameObjects.Sprite {
     const sprite = this.add.sprite(x, y, item.spriteTextureKey, item.spriteFrame);
-    sprite.setScale(Math.min(size / sprite.width, size / sprite.height, 3));
+    sprite.setScale(Math.min(size / sprite.width, size / sprite.height, maxScale));
     if (item.tint) sprite.setTint(item.tint);
+    return sprite;
+  }
+
+  // Screen-space controls are shared by both layouts; the panorama gesture
+  // must ignore taps on them so a button's own handler is the only one that acts.
+  private uiRects(): Rect[] {
+    const w = this.scale.width, h = this.scale.height;
+    const closeW = 30, panelW = Math.min(w - 32, 180), panelH = 48;
+    return [
+      { x: w - 12 - closeW, y: 10, width: closeW, height: 28 },
+      { x: w - 16 - panelW, y: h - 16 - panelH, width: panelW, height: panelH },
+    ];
+  }
+
+  private isUiHit(x: number, y: number): boolean {
+    return this.uiRects().some(rect => x >= rect.x && x <= rect.x + rect.width &&
+      y >= rect.y && y <= rect.y + rect.height);
   }
 
   private select(index: number): void {
@@ -64,48 +97,102 @@ export class StoreScene extends Phaser.Scene {
     this.children.removeAll(true);
     this.slotBorders = [];
     const { width: w, height: h } = this.scale;
-    const layout = storeLayout(w, h);
-    this.add.image(layout.offsetX, layout.offsetY, 'shop-background').setOrigin(0).setScale(layout.scale);
+    const panLayout = isPanoramaView(w, h, isTouchFirstDevice()) ? storePanLayout(w, h) : undefined;
+    const layout = panLayout ?? storeLayout(w, h);
+    const panorama = panLayout !== undefined;
+    this.panLayout = panLayout;
+    this.panX = panLayout ? clampPan(panLayout, this.panX) : 0;
+    this.gesture = NO_PAN_GESTURE;
+    // In panorama the artwork lives in one container we can slide horizontally
+    // without rebuilding it on every pointer move. UI stays in screen space.
+    this.artLayer = panorama ? this.add.container(0, 0).setX(this.panX) : undefined;
+    const put = <T extends Phaser.GameObjects.GameObject>(object: T): T => {
+      this.artLayer?.add(object);
+      return object;
+    };
+    put(this.add.image(layout.offsetX, layout.offsetY, 'shop-background').setOrigin(0).setScale(layout.scale));
     const shop = this.context.shop!;
     shelfSlots().forEach((slotRect, index) => {
       const rect = artToScreen(slotRect, layout);
       const slot = shop.stock[index];
-      const border = this.add.rectangle(rect.x + 2, rect.y + 2, rect.width - 4, rect.height - 4, 0x000000, 0)
-        .setOrigin(0).setInteractive({ useHandCursor: true });
+      const border = put(this.add.rectangle(rect.x + 2, rect.y + 2, rect.width - 4, rect.height - 4, 0x000000, 0).setOrigin(0));
       this.slotBorders.push(border);
       if (slot.item) {
         const iconSize = Math.min(rect.height - 6, 42 * layout.scale);
-        this.icon(slot.item, rect.x + rect.width / 2, rect.y + rect.height - 3 - iconSize / 2, iconSize);
-        if (slot.item.count > 1) this.text(rect.x + rect.width - 6, rect.y + rect.height - 6, `×${slot.item.count}`, 16).setOrigin(1);
-      } else this.text(rect.x + rect.width / 2, rect.y + rect.height / 2, 'SOLD', Math.max(10, 13 * layout.scale)).setOrigin(0.5).setColor('#9b8584');
-      border.on('pointerover', () => { if (this.mode === 'shelves') this.select(index); });
-      border.on('pointerup', () => { if (this.mode === 'shelves') { this.select(index); this.openBuy(); } });
+        put(this.icon(slot.item, rect.x + rect.width / 2, rect.y + rect.height - 3 - iconSize / 2,
+          iconSize, panorama ? 5 : 3));
+        if (slot.item.count > 1) {
+          const countSize = panorama ? Math.max(16, Math.round(12 * layout.scale)) : 16;
+          put(this.text(rect.x + rect.width - 6, rect.y + rect.height - 6, `×${slot.item.count}`, countSize).setOrigin(1));
+        }
+      } else put(this.text(rect.x + rect.width / 2, rect.y + rect.height / 2, 'SOLD',
+        Math.max(10, 13 * layout.scale)).setOrigin(0.5).setColor('#9b8584'));
+      if (!panorama) {
+        // Non-panorama slots keep their own hover/tap handling. In panorama a
+        // tap is hit-tested after the gesture resolves, so dragging over a slot
+        // cannot select it or open a modal on release.
+        border.setInteractive({ useHandCursor: true });
+        border.on('pointerover', () => { if (this.mode === 'shelves') this.select(index); });
+        border.on('pointerup', () => { if (this.mode === 'shelves') { this.select(index); this.openBuy(); } });
+      }
     });
     this.select(this.selected);
     // Close stays in the corner; wallet + Sell sit in a translucent panel lower
     // down. Drawn after the shelf hit areas so the buttons stay clickable.
-    const closeW = 30;
-    this.button(w - 12 - closeW, 10, closeW, buttonLabel('X'), () => this.leave(), true, 28, 18);
-    const panelW = Math.min(w - 32, 180), panelH = 48;
-    const panelX = w - 16 - panelW, panelY = h - 16 - panelH;
-    this.add.rectangle(panelX, panelY, panelW, panelH, 0x1b1420, 0.8).setOrigin(0);
+    const [closeRect, panelRect] = this.uiRects();
+    this.button(closeRect.x, closeRect.y, closeRect.width, buttonLabel('X'), () => this.leave(),
+      true, closeRect.height, 18);
+    this.add.rectangle(panelRect.x, panelRect.y, panelRect.width, panelRect.height, 0x1b1420, 0.8).setOrigin(0);
     const sellW = 64;
-    const sellX = panelX + panelW - 12 - sellW;
-    this.text(panelX + 10, panelY + 15, `${this.context.player!.gold} gold`, 18).setColor(GOLD);
-    this.button(sellX, panelY + 10, sellW, buttonLabel('Sell [S]'), () => this.openSell(), true, 28, 14);
+    const sellX = panelRect.x + panelRect.width - 12 - sellW;
+    this.text(panelRect.x + 10, panelRect.y + 15, `${this.context.player!.gold} gold`, 18).setColor(GOLD);
+    this.button(sellX, panelRect.y + 10, sellW, buttonLabel('Sell [S]'), () => this.openSell(), true, 28, 14);
     // On a narrow keyboard layout, large arrow buttons make shelf selection
     // possible when the downscaled bands are shorter than a comfortable target.
-    // On a phone the shelves are tapped directly (a tap selects and opens the
-    // item), so these arrows would only clutter the screen.
+    // On a phone the shelves are tapped directly, and in panorama browsed by
+    // dragging, so these arrows would only clutter the screen.
     if (layout.mode === 'stacked' && !isTouchFirstDevice()) {
       const stripW = Math.min(w - 24, 240), left = (w - stripW) / 2;
-      const y = Math.min(h - 16 - panelH - 8 - 44, layout.offsetY + 338 * layout.scale + 16);
+      const y = Math.min(h - 16 - panelRect.height - 8 - 44, layout.offsetY + 338 * layout.scale + 16);
       const labels = ['←', '↑', '↓', '→'];
       const dirs = [[-1, 0], [0, -1], [0, 1], [1, 0]];
       labels.forEach((label, i) => this.button(left + i * (stripW / 4), y, stripW / 4 - 4, label,
         () => this.select(moveSelection(this.selected, dirs[i][0], dirs[i][1]))));
     }
     if (this.mode !== 'shelves') this.renderModal(w, h);
+  }
+
+  private onPointerDown(pointer: Phaser.Input.Pointer): void {
+    if (!this.context.storeOpen || !this.panLayout || this.mode !== 'shelves') return;
+    if (this.isUiHit(pointer.x, pointer.y)) return;
+    this.gesture = panGestureDown(this.gesture, pointer.id, pointer.x, pointer.y, this.panX);
+  }
+
+  private onPointerMove(pointer: Phaser.Input.Pointer): void {
+    if (!this.panLayout || this.mode !== 'shelves') return;
+    const { gesture, action } = panGestureMove(this.gesture, pointer.id, pointer.x, pointer.y,
+      this.panLayout, PAN_DRAG_THRESHOLD);
+    this.gesture = gesture;
+    if (action.kind === 'pan' && action.panX !== this.panX) {
+      this.panX = action.panX;
+      if (this.artLayer) this.artLayer.x = this.panX;
+    }
+  }
+
+  private onPointerUp(pointer: Phaser.Input.Pointer): void {
+    if (!this.panLayout) return;
+    const { gesture, action } = panGestureUp(this.gesture, pointer.id, pointer.x, pointer.y);
+    this.gesture = gesture;
+    if (action.kind !== 'tap' || this.mode !== 'shelves' || !this.context.storeOpen) return;
+    if (this.isUiHit(action.x, action.y)) return;
+    const index = panSlotAt(this.panLayout, this.panX, action.x, action.y);
+    if (index === undefined) return;
+    this.select(index);
+    this.openBuy();
+  }
+
+  private onPointerCancel(): void {
+    this.gesture = panGestureCancel(this.gesture);
   }
 
   private openBuy(): void {

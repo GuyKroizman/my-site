@@ -7,6 +7,7 @@
     "test:rogue0": "node scripts/run-rogue0-tests.mjs",
     "test:rogue0:store": "node scripts/run-rogue0-tests.mjs @store",
     "test:rogue0:store-layout": "node scripts/test-rogue0-store-layout.mjs",
+    "test:rogue0:store-pan": "node scripts/test-rogue0-store-pan.mjs",
     "test:rogue0:shop-pricing": "node scripts/test-rogue0-shop-pricing.mjs",
     "test:rogue0:shop-stock": "node scripts/test-rogue0-shop-stock.mjs",
     "test:rogue0:shop-transactions": "node scripts/test-rogue0-shop-transactions.mjs",
