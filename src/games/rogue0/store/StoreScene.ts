@@ -241,7 +241,9 @@ export class StoreScene extends Phaser.Scene {
     const item = this.detail!;
     const buying = this.mode === 'buy';
     this.icon(item, x + 40, y + 40, 42);
-    this.text(x + 72, y + 14, item.displayName, 23, mw - 86).setColor(GOLD);
+    // Buy and sell-detail share this header. State the stack size here too,
+    // since the per-unit price ("gold each") and "Sell all" hide it otherwise.
+    this.text(x + 72, y + 14, `${item.displayName} ×${item.count}`, 23, mw - 86).setColor(GOLD);
     let ay = y + 44;
     const cursedVisible = item.cursed && (item.identified || (item as any).curseScanned);
     if (cursedVisible) {

@@ -527,8 +527,9 @@ drops or chest gold — do not make the shop cheaper by default.
 ## 7. Buy flow
 
 1. Open the modal for the selected slot (closed if `sold` or no item).
-2. Modal shows icon, name, tier/level/charges, description, curse warning
-   (shop stock is uncursed, so normally absent), price, and gold after purchase.
+2. Modal shows icon, name with the stack count (`×N`, including `×1`),
+   tier/level/charges, description, curse warning (shop stock is uncursed, so
+   normally absent), per-unit price, and gold after purchase.
 3. Buy checks, in order:
    - slot still has stock;
    - `not enough gold`;
@@ -551,7 +552,8 @@ drops or chest gold — do not make the shop cheaper by default.
 1. Sell button (or `s`) opens a modal listing **every non-equipped item in the
    backpack** (normally the whole backpack). Equipped items are never listed.
 2. Each cell: icon, stack count, name, unit sell price. Selecting shows the
-   detail panel with “Sell 1” and “Sell all” buttons.
+   detail panel with the same stack count in its header, plus “Sell 1” and
+   “Sell all” buttons.
 3. Sell checks: item still in the backpack, not equipped (`slotOf === undefined`),
    not a container, not a gold pile.
 4. On success:

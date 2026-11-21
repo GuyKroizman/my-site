@@ -5,8 +5,8 @@ import { spawnSync } from 'node:child_process';
 import { appendJsonl, gitState, newRunId, redact } from './lib/rogue0-test-reporting.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const groups = { '@store': ['store-layout', 'store-pan', 'shop-pricing', 'shop-stock', 'shop-transactions',
-  'store-glyph', 'portal'] };
+const groups = { '@store': ['store-layout', 'store-pan', 'store-detail', 'shop-pricing', 'shop-stock',
+  'shop-transactions', 'store-glyph', 'portal'] };
 
 export function discoverSuites(projectRoot) {
   return fs.readdirSync(path.join(projectRoot, 'scripts'))
