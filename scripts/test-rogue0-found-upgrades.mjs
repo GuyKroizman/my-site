@@ -71,8 +71,9 @@ assert.ok((sceneSource.match(/rollFoundUpgrade\(/g) ?? []).length >= 2,
 const Phaser = { Math: { Between: (min) => min } };
 const { TieredWeapon, TieredArmor } = load('src/games/rogue0/items/tieredEquipment.ts', { Entity, Phaser });
 const rewards = { Gold: class extends Entity {}, Ration: class extends Entity {}, PotionOfHealing: class extends Entity {} };
+const { thinTier1Armor } = load('src/games/rogue0/progression.ts');
 const Chest = load('src/games/rogue0/items/chest.ts', {
-  Entity, dungeon: { log() {} }, maybeCurse: () => false, rollFoundUpgrade,
+  Entity, dungeon: { log() {} }, maybeCurse: () => false, rollFoundUpgrade, thinTier1Armor,
   TieredWeapon, TieredArmor, CHEST_TEXTURE: 'chest-closed', ...rewards,
 }).default;
 const originalRandom = Math.random;
@@ -82,7 +83,11 @@ try {
     [14.5 / 18, 0.999, 3, TieredWeapon], [14.5 / 18, 0, 0, TieredWeapon],
     [16.5 / 18, 0.999, 3, TieredArmor], [16.5 / 18, 0, 0, TieredArmor]
   ]) {
-    const scripted = [contentRoll, upgradeRoll, upgradeRoll];
+    // Armor also rolls a keep chance for its tier-1 thinning; keep it cloth so
+    // these cases stay focused on found-upgrade levels.
+    const scripted = Type === TieredArmor
+      ? [contentRoll, 0, upgradeRoll, upgradeRoll]
+      : [contentRoll, upgradeRoll, upgradeRoll];
     Math.random = () => scripted.shift() ?? 0;
     const chest = new Chest({ floor: 1, messages: [] }, 1, 1);
     const content = chest.contents[0];

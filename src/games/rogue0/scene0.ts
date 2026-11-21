@@ -62,7 +62,7 @@ import { isModalOpen, type GameContext } from "./context";
 import { TurnManager } from "./turnManager";
 import Skeleton from "./monsters/skelaton";
 import { TieredWeapon, TieredArmor } from "./items/tieredEquipment";
-import { bossSealsFloor, floorProgression, isBossFloor, lootTier } from "./progression";
+import { armorLootTier, bossSealsFloor, floorProgression, isBossFloor, lootTier } from "./progression";
 import { createEquipmentFind, rollFloorEquipment, NON_REMAINS_EQUIPMENT_SCALE } from './equipmentFinds';
 import { generateRemainsTexture } from './remainsTexture';
 import { generateChestTextures } from './chestTextures';
@@ -2203,9 +2203,11 @@ export class Scene0 extends Phaser.Scene {
     for (let l = 0; l < itemCount; l++) {
       const Loot = weightedPick(lootTable);
       spawnOne((x, y) => {
-        const item = Loot === TieredWeapon || Loot === TieredArmor
-          ? new Loot(context, x, y, lootTier(floor))
-          : new Loot(context, x, y);
+        const item = Loot === TieredArmor
+          ? new Loot(context, x, y, armorLootTier(floor))
+          : Loot === TieredWeapon
+            ? new Loot(context, x, y, lootTier(floor))
+            : new Loot(context, x, y);
         rollFoundUpgrade(item);
         maybeCurse(item);
         rollEquipmentGlyph(item);

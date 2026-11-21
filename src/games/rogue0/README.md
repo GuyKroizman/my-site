@@ -804,7 +804,11 @@ map falls back to fixed placement instead of dropping the quota. That is
 as extra random floor loot, and no other source upgrades gear. The hidden room
 that appears once per band (floors 5, 10, 15, 20 and 25) holds gold. Random equipment normally matches its band but
 can be one tier earlier
-or later. Floor snapshots preserve remaining loot, so revisits do not refill it.
+or later. Tier-1 Cloth Armor is deliberately uncommon: only 35% of tier-1 armor
+rolls stay cloth, the rest become tier-2 Leather Armor. This applies to bone
+piles, bonus finds, random floor loot and chests; weapons and the guaranteed
+floor-3 starter armor keep their original tier. Floor snapshots preserve
+remaining loot, so revisits do not refill it.
 These are initial progression curves, not a claim of full-run balance.
 
 Run all headless regressions with `npm run test:rogue0`; run the focused

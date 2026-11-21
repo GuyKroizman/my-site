@@ -51,3 +51,21 @@ export function lootTier(floor: number, roll = Math.random()): number {
   const tier = floorProgression(floor).tier;
   return Math.max(1, Math.min(5, tier + (roll < 0.2 ? -1 : roll >= 0.8 ? 1 : 0)));
 }
+
+// The first band used to hand out almost nothing but tier-1 "Cloth Armor":
+// every loot tier roll there lands on 1 unless it happens to go up a tier.
+// Keep only a minority of those finds as cloth and roll the rest as tier-2
+// Leather Armor, so early floors offer a mix instead of a pile of the same
+// suit. Weapons keep the original curve, and the single guaranteed band armor
+// (floor 3) stays tier 1 as the starter suit.
+export const TIER1_ARMOR_KEEP_CHANCE = 0.35;
+
+export function thinTier1Armor(tier: number, keepRoll?: number): number {
+  if (tier !== 1) return tier;
+  return (keepRoll ?? Math.random()) < TIER1_ARMOR_KEEP_CHANCE ? 1 : 2;
+}
+
+export function armorLootTier(floor: number, roll = Math.random(), keepRoll?: number): number {
+  const tier = lootTier(floor, roll);
+  return tier === 1 ? thinTier1Armor(tier, keepRoll ?? Math.random()) : tier;
+}

@@ -1,5 +1,5 @@
 import type { GameContext } from './context';
-import { isBossFloor, lootTier } from './progression';
+import { armorLootTier, isBossFloor, lootTier } from './progression';
 import { TieredWeapon, TieredArmor } from './items/tieredEquipment';
 import { rollFoundUpgrade } from './foundUpgrades';
 import { maybeCurse } from './curses';
@@ -18,7 +18,8 @@ export function rollFloorEquipment(floor: number, random: () => number = Math.ra
 
 export function createEquipmentFind(context: GameContext, x?: number, y?: number) {
   const Gear = Math.random() < 0.5 ? TieredWeapon : TieredArmor;
-  const item = new Gear(context, x, y, lootTier(context.floor));
+  const tier = Gear === TieredArmor ? armorLootTier(context.floor) : lootTier(context.floor);
+  const item = new Gear(context, x, y, tier);
   rollFoundUpgrade(item);
   maybeCurse(item);
   rollEquipmentGlyph(item);

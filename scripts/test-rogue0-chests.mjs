@@ -17,9 +17,10 @@ const dungeon = { canStepBetween: () => passable,
   isWalkableTile: () => false, canEnterChasm: () => false, openDoor() { openedDoors++; },
   getCurrentLevel: () => Array.from({ length: 5 }, () => Array(5).fill(0)),
 };
+const { thinTier1Armor } = load('src/games/rogue0/progression.ts');
 const Chest = load('src/games/rogue0/items/chest.ts', { Entity, dungeon, maybeCurse: () => false,
   rollFoundUpgrade: load('src/games/rogue0/foundUpgrades.ts', { Entity }).rollFoundUpgrade,
-  CHEST_TEXTURE: 'chest-closed',
+  CHEST_TEXTURE: 'chest-closed', thinTier1Armor,
   ...rewards }).default;
 const Hero = load('src/games/rogue0/classes/basicHero.ts', {
   Entity, dungeon, hasEffect: () => false, isModalOpen: () => false,
@@ -58,6 +59,21 @@ try {
     assert.equal(content.x, undefined, 'contents are not floor loot before opening');
     if (roll >= 14) assert.equal(content.value, 3, 'equipment matches floor tier');
     if (roll < 5) assert.equal(content.value, 25);
+  }
+  // First-band cloth armor is thinned out in chests too, while weapons and a
+  // kept cloth roll stay tier 1.
+  {
+    const context = { floor: 1, messages: [], entities: [], visibleTiles: new Set() };
+    Math.random = () => 16.5 / 18; // armor slot, late keep roll
+    const leather = new Chest(context, 1, 1);
+    assert.equal(leather.contents[0].value, 2, 'tier-1 chest armor rolls as tier 2');
+    const scripted = [16.5 / 18, 0]; // armor slot, early keep roll
+    Math.random = () => scripted.shift() ?? 0;
+    const cloth = new Chest(context, 1, 1);
+    assert.equal(cloth.contents[0].value, 1, 'a kept cloth chest armor stays tier 1');
+    Math.random = () => 14.5 / 18; // weapon slot
+    const dagger = new Chest(context, 1, 1);
+    assert.equal(dagger.contents[0].value, 1, 'tier-1 weapons are unchanged');
   }
   // The chasm island's authored chest bypasses the random table and keeps the
   // exact loot it was given (a Stone of Infusion and a generous purse).

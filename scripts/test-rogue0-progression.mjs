@@ -92,6 +92,25 @@ for (let floor = 1; floor <= 25; floor++) {
   assert.equal(progression.lootTier(floor, 0), Math.max(1, tier - 1));
   assert.equal(progression.lootTier(floor, 0.99), Math.min(5, tier + 1));
 }
+// Tier-1 Cloth Armor is thinned out, but weapons keep the original tier curve.
+assert.equal(progression.TIER1_ARMOR_KEEP_CHANCE, 0.35);
+for (const keepRoll of [0, 0.34, 0.35, 0.99]) {
+  assert.equal(progression.thinTier1Armor(1, keepRoll), keepRoll < 0.35 ? 1 : 2);
+  assert.equal(progression.thinTier1Armor(3, keepRoll), 3, 'higher armor tiers are never bumped');
+}
+assert.equal(progression.armorLootTier(1, 0.5, 0.1), 1, 'a kept tier-1 roll stays cloth');
+assert.equal(progression.armorLootTier(1, 0.5, 0.9), 2, 'most tier-1 armor rolls become leather');
+assert.equal(progression.armorLootTier(6, 0, 0.9), 2, 'a floor-6 tier-1 roll is bumped too');
+assert.equal(progression.armorLootTier(16, 0.99, 0.9), 5, 'deep armor tiers are unaffected');
+{
+  const samples = 1000;
+  let cloth = 0;
+  for (let i = 0; i < samples; i++) {
+    if (progression.armorLootTier(3, i / samples, ((i * 7919) % samples) / samples) === 1) cloth++;
+  }
+  assert.ok(cloth / samples < 0.35,
+    'tier-1 armor is a minority of first-band armor finds');
+}
 // Each band's four ordinary floors carry exactly two Strength potions. The
 // fifth floor of every band is the secret-room floor and carries none.
 for (const [start, end] of [[1, 4], [6, 9], [11, 14], [16, 19], [21, 24]]) {
