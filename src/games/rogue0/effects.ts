@@ -44,6 +44,8 @@ export type StatusEffect = {
   healPerTick?: number;
   // Strong frog toxin persists through save/load; omitted in legacy poison.
   poisonDamage?: number;
+  // Per-turn damage of a fall wound, scaled to the floor it was earned on.
+  woundDamage?: number;
   apply?(entity: Entity, context: GameContext): void;
   tick?(entity: Entity, context: GameContext): void;
   remove?(entity: Entity, context: GameContext): void;
@@ -81,6 +83,9 @@ export function applyEffect(entity: Entity, effect: StatusEffect, affectTerrain 
     existing.duration = Math.max(existing.duration, effect.duration);
     if (effect.id === "poisoned") {
       existing.poisonDamage = Math.max(existing.poisonDamage ?? 1, effect.poisonDamage ?? 1);
+    }
+    if (effect.id === "wounded") {
+      existing.woundDamage = Math.max(existing.woundDamage ?? 1, effect.woundDamage ?? 1);
     }
     existing.nextTick = (entity.context.simulationTime ?? 0) + 1;
     // Refresh silently; the active status remains visible.
@@ -143,6 +148,24 @@ export function createBleedingEffect(duration = 3): StatusEffect {
       entity.takeDamage(amount);
       if (showFloatingDamage(entity)) spawnEntityFloatingText(entity, `-${amount}`);
       logDamage(entity, `${entity.type === "player" ? "You bleed" : `${entity.name} bleeds`} for ${amount} physical damage.`);
+    }
+  };
+}
+
+// Lingering damage from a chasm fall. Kept distinct from `bleeding` so a fall
+// is visible as its own status, and deliberately not curable by a Potion of
+// Healing: the hero has to reach the next floor and live with the wounds.
+export function createWoundedEffect(duration = 7, woundDamage = 1): StatusEffect {
+  return {
+    id: "wounded",
+    name: "Wounded",
+    duration,
+    woundDamage,
+    tick(entity) {
+      const amount = this.woundDamage ?? 1;
+      entity.takeDamage(amount);
+      if (showFloatingDamage(entity)) spawnEntityFloatingText(entity, `-${amount}`);
+      logDamage(entity, `${entity.type === "player" ? "Your wounds bleed" : `${entity.name}'s wounds bleed`} for ${amount} damage.`);
     }
   };
 }
@@ -401,6 +424,7 @@ const EFFECT_DESCRIPTIONS: Record<string, string> = {
   burning: "Takes 1 fire damage per turn.",
   poisoned: "Takes 1 poison damage per turn.",
   bleeding: "Takes 1 physical damage per turn.",
+  wounded: "Takes damage per turn from a fall.",
   regeneration: "Restores 1 health per turn.",
   "potion-healing": "Recovers health over time from a Potion of Healing.",
   frozen: "Loses one scheduled action.",
@@ -428,6 +452,9 @@ const EFFECT_DESCRIPTIONS: Record<string, string> = {
 export function describeEffect(effect: StatusEffect): string {
   if (effect.id === "poisoned" && !effect.description) {
     return `Takes ${effect.poisonDamage ?? 1} poison damage per turn.`;
+  }
+  if (effect.id === "wounded" && !effect.description) {
+    return `Takes ${effect.woundDamage ?? 1} damage per turn from a fall.`;
   }
   return effect.description ?? EFFECT_DESCRIPTIONS[effect.id] ?? "";
 }

@@ -140,6 +140,10 @@ bindings.CHASM_ROOM_FLOORS = mapgen.CHASM_ROOM_FLOORS;
 let currentMap;
 bindings.dungeon = { getCurrentLevel: () => currentMap, log() {} };
 bindings.sfx = { stairs() {} };
+// resolveFall applies the lingering wound through the shared effect helpers;
+// this suite only exercises floor generation, not falls.
+bindings.applyEffect = () => {};
+bindings.createWoundedEffect = duration => ({ id: 'wounded', name: 'Wounded', duration });
 bindings.tiles = createTerrain();
 bindings.maybeCurse = () => false; // progression suite asserts supply placement, not curse rolls
 bindings.rollFoundUpgrade = rollFoundUpgrade;

@@ -62,7 +62,7 @@ import { isModalOpen, type GameContext } from "./context";
 import { TurnManager } from "./turnManager";
 import Skeleton from "./monsters/skelaton";
 import { TieredWeapon, TieredArmor } from "./items/tieredEquipment";
-import { armorLootTier, bossSealsFloor, floorProgression, isBossFloor, lootTier } from "./progression";
+import { armorLootTier, bossSealsFloor, floorProgression, isBossFloor, lootTier, woundDamageForFloor } from "./progression";
 import { createEquipmentFind, rollFloorEquipment, NON_REMAINS_EQUIPMENT_SCALE } from './equipmentFinds';
 import { generateRemainsTexture } from './remainsTexture';
 import { generateChestTextures } from './chestTextures';
@@ -134,7 +134,7 @@ import {
 } from "./mapgen";
 import type { ChasmRoom } from "./mapgen";
 import { computeFOV, resolveVision } from "./fov";
-import { hasEffect, removeEffect } from "./effects";
+import { applyEffect, createWoundedEffect, hasEffect, removeEffect } from "./effects";
 import { sfx } from "./audio";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import { generateRingTextures } from "./ringTextures";
@@ -182,6 +182,11 @@ const MAX_VISIBLE_X = 80;
 // level edge (bringing the map clear of the bottom HUD) instead of stopping
 // hard at the boundary.
 const PAN_MARGIN = 16 * 16;
+
+// A chasm fall costs 70% of the hero's maximum health on arrival and leaves
+// wounds that keep bleeding on the floor below, harder on deeper floors.
+const FALL_DAMAGE_FRACTION = 0.7;
+const FALL_WOUND_DURATION = 7;
 
 // Weighted SPD-style loot table: [item class, weight].
 type LootClass = any;
@@ -1100,11 +1105,20 @@ export class Scene0 extends Phaser.Scene {
         `The Stone of Blink carries you unharmed to floor ${this.context.floor}.`);
       return;
     }
-    const damage = Math.max(1, Math.ceil(player.maxHealthPoints / 3));
+    const damage = Math.max(1, Math.ceil(player.maxHealthPoints * FALL_DAMAGE_FRACTION));
     this.descend();
-    dungeon.log(this.context, `You fall to floor ${this.context.floor} and take ${damage} damage!`);
+    dungeon.log(this.context,
+      `You fall to floor ${this.context.floor} and take ${damage} damage! Your wounds will keep bleeding.`);
     player.takeDamage(damage);
-    if (player.healthPoints <= 0) removeEntity(this.context, player);
+    if (player.healthPoints <= 0) {
+      removeEntity(this.context, player);
+      return;
+    }
+    // The effect ticks on the new floor: `pendingFall` holds the scheduler
+    // until descend() has finished building/restoring it. Deeper floors leave
+    // wounds that bite harder.
+    applyEffect(player, createWoundedEffect(
+      FALL_WOUND_DURATION, woundDamageForFloor(this.context.floor)));
   }
 
   private descend() {

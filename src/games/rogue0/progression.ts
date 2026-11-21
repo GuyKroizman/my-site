@@ -15,6 +15,16 @@ export const UPGRADE_SCROLLS_PER_REGION = 3;
 export const UPGRADE_SCROLL_FLOOR_POSITIONS = [1, 3, 4] as const;
 export const TOTAL_UPGRADE_SCROLLS = REGIONS_PER_RUN * UPGRADE_SCROLLS_PER_REGION;
 
+// Chasm wounds get nastier as the run descends: 1 damage per turn through
+// floor 6, 2 by floor 7, 3 by floor 13 and 4 from floor 19 to the bottom.
+export const WOUND_DAMAGE_FLOOR_STEP = 6;
+export const WOUND_DAMAGE_MAX_PER_TURN = 4;
+
+export function woundDamageForFloor(floor: number): number {
+  if (!Number.isInteger(floor) || floor <= 0) return 1;
+  return Math.min(WOUND_DAMAGE_MAX_PER_TURN, Math.ceil(floor / WOUND_DAMAGE_FLOOR_STEP));
+}
+
 export function isBossFloor(floor: number): boolean {
   return Number.isInteger(floor) && floor > 0 && floor % REGION_SIZE === 0;
 }

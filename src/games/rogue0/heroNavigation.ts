@@ -151,7 +151,7 @@ export function createHeroNavigation(services: HeroControlServices) {
       hero.inputBuffer = [];
       if (!hero.canAct() || isModalOpen(hero.context)) return true;
       const warning = hero.context.floor === 25 ? 'You will fall to your death.'
-        : 'You will fall to the level below and take damage (1/3 of your maximum HP).';
+        : 'You will fall to the level below, take 70% of your maximum HP in damage and bleed for 7 turns (worse on deeper floors).';
       const floor = hero.context.floor, originX = hero.x, originY = hero.y;
       hero.context.onConfirmChasm?.(warning, () => {
         if (hero.context.floor !== floor || hero.x !== originX || hero.y !== originY ||

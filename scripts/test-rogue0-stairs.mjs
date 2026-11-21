@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { createHeroNavigation } from '../src/games/rogue0/heroNavigation.ts';
+import { woundDamageForFloor } from '../src/games/rogue0/progression.ts';
+import { loadLogic } from './lib/rogue0-logic-loader.mjs';
 const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8').replace(/^import[\s\S]*?;\s*/gm, '')
   .replace(/const LOOT_TABLE:[\s\S]*?\n\];/, 'const LOOT_TABLE = [];');
 const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS });
@@ -50,10 +52,18 @@ class TrapSkeleton {
 const isBossFloor = floor => Number.isInteger(floor) && floor > 0 && floor % 5 === 0;
 const bossSealsFloor = context => isBossFloor(context.floor) &&
   !(context.bossesSlain?.has(context.floor) ?? false);
+const appliedEffects = [];
+const createWoundedEffect = (duration, woundDamage) =>
+  ({ id: 'wounded', name: 'Wounded', duration, woundDamage });
+const applyEffect = (entity, effect) => {
+  entity.effects.push(effect);
+  appliedEffects.push(effect);
+};
 new Function('exports', 'Phaser', 'terrainFor', 'dungeon', 'isModalOpen', 'sfx', 'removeEntity', 'Skeleton',
-  'isBossFloor', 'bossSealsFloor', js)(
+  'isBossFloor', 'bossSealsFloor', 'woundDamageForFloor', 'applyEffect', 'createWoundedEffect', js)(
   exports, { Scene: class {} }, () => tiles, dungeon, () => false, { stairs() {} },
-  () => { deaths++; }, TrapSkeleton, isBossFloor, bossSealsFloor);
+  () => { deaths++; }, TrapSkeleton, isBossFloor, bossSealsFloor, woundDamageForFloor,
+  applyEffect, createWoundedEffect);
 const scene = Object.create(exports.Scene0.prototype);
 const gear = { name: 'carried potion' };
 const player = { x: 0, y: 0, canAct: () => true, getAllItems: () => [gear] };
@@ -103,7 +113,7 @@ scene.descend();
 assert.equal(restored[0], 2);
 assert.deepEqual(restored[2], saved.up);
 // Falling uses the normal snapshot/restore path, never the exit/win path.
-Object.assign(player, { healthPoints: 30, maxHealthPoints: 30,
+Object.assign(player, { healthPoints: 30, maxHealthPoints: 30, effects: [],
   inputBuffer: ['ArrowRight'], walkPath: [{ x: 1, y: 1 }],
   cancelThrow() { this.throwCancelled = true; }, refreshUI() {},
   takeDamage(amount) { this.healthPoints -= amount; } });
@@ -116,14 +126,20 @@ scene.restoreFloor = (floor, snapshot, arrival) => {
 };
 scene.resolveFall();
 assert.equal(scene.context.floor, 2);
-assert.equal(player.healthPoints, 20);
+assert.equal(player.healthPoints, 9, 'a fall costs 70% of maximum HP (21 of 30)');
 assert.equal(scene.context.pendingFall, false);
 assert.deepEqual(player.inputBuffer, []);
 assert.deepEqual(player.walkPath, []);
 assert.equal(player.throwCancelled, true);
 assert.equal(deaths, 0);
+assert.deepEqual(appliedEffects.map(effect => effect.id), ['wounded'],
+  'the fall leaves a damage-over-time wound');
+assert.equal(appliedEffects[0].duration, 7, 'the wound lasts seven turns');
+assert.equal(appliedEffects[0].woundDamage, woundDamageForFloor(2));
+assert.equal(player.effects[0], appliedEffects[0]);
 scene.resolveFall();
-assert.equal(player.healthPoints, 20, 'fall is resolved exactly once');
+assert.equal(player.healthPoints, 9, 'fall is resolved exactly once');
+assert.equal(appliedEffects.length, 1, 'the wound is applied once too');
 // First visit also generates a floor through the normal descent pipeline.
 scene.context.floor = 2;
 scene.context.pendingFall = true;
@@ -132,11 +148,12 @@ scene.generateLevel = floor => { assert.equal(floor, 3); return {
 }; };
 dungeon.initialize = () => {};
 scene.setupFloor = floor => { scene.context.floor = floor; };
-player.healthPoints = 5;
+player.healthPoints = 21;
 scene.resolveFall();
 assert.equal(scene.context.floor, 3);
-assert.equal(player.healthPoints, -5, 'fall damage can kill on arrival');
+assert.equal(player.healthPoints, 0, 'fall damage can kill on arrival');
 assert.equal(deaths, 1);
+assert.equal(appliedEffects.length, 1, 'a hero killed on arrival does not get a wound');
 scene.context.floor = 5;
 // The floor-5 guardian is already dead, otherwise the seal (not the abyss)
 // would resolve this fall.
@@ -148,6 +165,43 @@ scene.resolveFall();
 assert.equal(scene.context.floor, 5);
 assert.equal(player.healthPoints, 0);
 assert.equal(deaths, 2);
+assert.equal(appliedEffects.length, 1, 'falling into the abyss applies no wound');
+// The wound scales with the floor you land on: deeper falls bite harder.
+{
+  scene.context.maxFloor = 25;
+  scene.context.floor = 19;
+  scene.context.pendingFall = true;
+  scene.generateLevel = () => ({ levelArray: [[0]], spawn: { x: 0, y: 0 }, stairs: { x: 0, y: 0 } });
+  player.healthPoints = 30;
+  scene.resolveFall();
+  assert.equal(scene.context.floor, 20);
+  assert.equal(player.healthPoints, 9, 'impact damage stays 70% of max HP at depth');
+  assert.equal(appliedEffects.at(-1).woundDamage, 4, 'a floor-20 fall leaves 4-damage-per-turn wounds');
+}
+// The wound uses the shared status pipeline: it ticks once per turn, scales with
+// the floor it was earned on and expires after seven ticks.
+{
+  const { applyEffect: applyStatusEffect, createWoundedEffect, describeEffect, tickEffects } =
+    loadLogic('src/games/rogue0/effects.ts', { spawnEntityFloatingText() {} });
+  const ctx = { messages: [], visibleTiles: new Set(), simulationTime: 10 };
+  const hero = { type: 'player', context: ctx, effects: [], healthPoints: 50,
+    takeDamage(amount) { this.healthPoints -= amount; } };
+  applyStatusEffect(hero, createWoundedEffect(7, 3));
+  assert.equal(hero.effects[0].nextTick, 11, 'the first tick is one time unit after arrival');
+  assert.match(describeEffect(hero.effects[0]), /3 damage per turn/, 'tooltip shows scaled damage');
+  for (let turn = 11; turn <= 17; turn++) {
+    ctx.simulationTime = turn;
+    tickEffects(hero, ctx);
+  }
+  assert.equal(hero.healthPoints, 29, 'seven ticks of three damage');
+  assert.equal(hero.effects.length, 0, 'the wound wears off after seven turns');
+  // A second, deeper fall refreshes the wound but keeps the strongest damage.
+  const before = hero.healthPoints;
+  applyStatusEffect(hero, createWoundedEffect(7, 2));
+  applyStatusEffect(hero, createWoundedEffect(7, 4));
+  assert.equal(hero.effects[0].woundDamage, 4, 'a deeper wound supersedes a weaker one');
+  assert.equal(hero.healthPoints, before, 'refreshing a status deals no damage by itself');
+}
 // Real scene-owned summon placement: bounded, cardinal, safe, current timeline.
 {
   const summoner = Object.create(exports.Scene0.prototype);

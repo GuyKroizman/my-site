@@ -36,6 +36,7 @@ export const STATUS_ICON_PALETTES: Record<string, StatusIconPalette> = {
   burning: { ink: 0xef5a2a, light: 0xffc46b, dark: 0x8f1f0a },
   poisoned: { ink: 0x63cc55, light: 0xc4ffb0, dark: 0x2c6f28 },
   bleeding: { ink: 0xd8353f, light: 0xff9aa0, dark: 0x7d1420 },
+  wounded: { ink: 0xa8323c, light: 0xf09098, dark: 0x521018 },
   regeneration: { ink: 0x57d977, light: 0xd6ffdf, dark: 0x1f7a3a },
   'potion-healing': { ink: 0x35c75f, light: 0xcaffd8, dark: 0x187a34 },
   frozen: { ink: 0x8fe3ff, light: 0xe8fbff, dark: 0x2f7f9c },
@@ -105,6 +106,21 @@ const GLYPHS: Record<string, readonly string[]> = {
     '.......#####',
     '........###.',
     '.........#..',
+    '............',
+    '............'
+  ],
+  // A closed gash: the lingering wound left by a fall.
+  wounded: [
+    '.....##.....',
+    '....####....',
+    '...##++##...',
+    '..###++###..',
+    '.####++####.',
+    '..###++###..',
+    '...##++##...',
+    '....####....',
+    '.....##.....',
+    '.....##.....',
     '............',
     '............'
   ],
