@@ -1,4 +1,14 @@
-// Procedural retro sound effects using the Web Audio API (no audio files).
+// Procedural retro sound effects using the Web Audio API (no audio files),
+// plus a music engine that plays real instrument samples sequenced in code.
+
+// The .ts extension is required by the node test loader; the repo already
+// uses it for imports from other audio-consuming modules.
+import { loadInstruments, playNote, stopAllInstruments } from './musicInstruments.ts';
+import { musicProvider, resetMusicComposer, setMusicState } from './musicComposer.ts';
+import type { MusicNoteEvent } from './musicComposer.ts';
+import type { MusicState } from './musicState.ts';
+
+export type { MusicNoteEvent } from './musicComposer.ts';
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -178,3 +188,147 @@ export const sfx = {
     tone(1568, 0.2, 'sine', 0.045, 0.18);
   },
 };
+
+// ---------------------------------------------------------------------------
+// Music engine
+// ---------------------------------------------------------------------------
+
+type MusicBus = {
+  input: GainNode;
+  master: GainNode;
+  reverb: ConvolverNode;
+  wet: GainNode;
+};
+
+const MUSIC_LOOKAHEAD = 0.12; // seconds
+const MUSIC_TICK_MS = 25;
+
+let musicBus: MusicBus | undefined;
+let musicVolume = 0.55;
+let musicMuted = false;
+let musicStart: Promise<void> | undefined;
+let schedulerTimer: number | undefined;
+let noteProvider: ((from: number, to: number) => MusicNoteEvent[]) | undefined;
+
+// A decaying noise impulse response gives the samples a concert-hall tail.
+// This is room reverb, not instrument synthesis.
+function makeImpulse(c: AudioContext): AudioBuffer {
+  const length = Math.floor(c.sampleRate * 1.6);
+  const buffer = c.createBuffer(2, length, c.sampleRate);
+  for (let channel = 0; channel < 2; channel++) {
+    const data = buffer.getChannelData(channel);
+    for (let i = 0; i < length; i++) {
+      const t = i / length;
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 3);
+    }
+  }
+  return buffer;
+}
+
+function createMusicBus(c: AudioContext): MusicBus {
+  const input = c.createGain();
+  const master = c.createGain();
+  const reverb = c.createConvolver();
+  const wet = c.createGain();
+  reverb.buffer = makeImpulse(c);
+  wet.gain.value = 0.22;
+  input.connect(master); // dry signal
+  input.connect(reverb);
+  reverb.connect(wet);
+  wet.connect(master);
+  master.connect(c.destination);
+  return { input, master, reverb, wet };
+}
+
+function applyMusicGain(): void {
+  if (!musicBus || !ctx) return;
+  const target = musicMuted ? 0 : musicVolume;
+  musicBus.master.gain.setTargetAtTime(target, ctx.currentTime, 0.02);
+}
+
+function schedulerTick(): void {
+  if (!ctx || !noteProvider) return;
+  const from = ctx.currentTime;
+  for (const event of noteProvider(from, from + MUSIC_LOOKAHEAD)) {
+    playNote(event.instrument, event.note, event.time, {
+      duration: event.duration,
+      gain: event.gain,
+    });
+  }
+}
+
+function startScheduler(): void {
+  if (schedulerTimer !== undefined) return;
+  schedulerTick();
+  schedulerTimer = window.setInterval(schedulerTick, MUSIC_TICK_MS);
+}
+
+function stopScheduler(): void {
+  if (schedulerTimer !== undefined) {
+    window.clearInterval(schedulerTimer);
+    schedulerTimer = undefined;
+  }
+}
+
+/** Override the note provider (used by dev spikes and tests). */
+export function setMusicNoteProvider(
+  provider: ((from: number, to: number) => MusicNoteEvent[]) | undefined
+): void {
+  noteProvider = provider;
+}
+
+/** Feed the current game state to the composer and keep the scheduler supplied. */
+export function updateMusic(state: MusicState): void {
+  setMusicState(state);
+  if (!noteProvider) noteProvider = musicProvider;
+}
+
+/** Lazy-start music. A load failure calls `onError` and resolves — never silent. */
+export function startMusic(onError?: (message: string) => void): Promise<void> {
+  if (musicStart) return musicStart;
+  const c = getCtx();
+  if (!c) {
+    onError?.('Audio is not available in this browser.');
+    return Promise.resolve();
+  }
+  musicStart = (async () => {
+    try {
+      musicBus = createMusicBus(c);
+      applyMusicGain();
+      await loadInstruments(c, musicBus.input);
+      startScheduler();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      stopMusic();
+      onError?.(`Music could not be loaded: ${message}`);
+    }
+  })();
+  return musicStart;
+}
+
+/** Stop every note and tear down the bus. Safe to call more than once. */
+export function stopMusic(): void {
+  stopScheduler();
+  noteProvider = undefined;
+  resetMusicComposer();
+  stopAllInstruments();
+  if (musicBus && ctx) {
+    musicBus.master.gain.cancelScheduledValues(ctx.currentTime);
+    musicBus.input.disconnect();
+    musicBus.reverb.disconnect();
+    musicBus.wet.disconnect();
+    musicBus.master.disconnect();
+  }
+  musicBus = undefined;
+  musicStart = undefined;
+}
+
+export function setMusicMuted(m: boolean): void {
+  musicMuted = m;
+  applyMusicGain();
+}
+
+export function setMusicVolume(volume: number): void {
+  musicVolume = Math.max(0, Math.min(1, volume));
+  applyMusicGain();
+}

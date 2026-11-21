@@ -565,6 +565,32 @@ body {
   color: var(--r0-muted);
 }
 
+.rogue0-music-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--r0-border-strong);
+  background: var(--r0-panel);
+}
+
+.rogue0-music-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.5rem;
+  color: var(--r0-muted);
+  line-height: 1.5;
+}
+
+.rogue0-music-volume input {
+  flex: 1 1 auto;
+  min-width: 60px;
+  accent-color: var(--r0-gold);
+  cursor: pointer;
+}
+
 /* --- Help button (picker) --- */
 .rogue0-link-btn {
   font-family: 'Press Start 2P', monospace;

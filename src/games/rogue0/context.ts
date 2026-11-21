@@ -176,6 +176,9 @@ export type GameContext = {
   saveNow?: () => void;
   onSaveStatus?: (message: string) => void;
   onLoadError?: () => void;
+  // Fired when the music samples fail to load. React shows the message and
+  // exits the run; there is no silent fallback to no music.
+  onMusicError?: (message: string) => void;
 };
 
 export function isModalOpen(context: GameContext): boolean {

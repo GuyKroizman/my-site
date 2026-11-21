@@ -13,6 +13,7 @@ import { stashChasmFallen } from "../chasmDrops";
 import { bodyDistance } from "../actorBodies.ts";
 import { TILE_FOOTPRINT, resolveFootprint } from "../footprint.ts";
 import type { Footprint, FootprintSpec } from "../footprint.ts";
+import type { MusicCue } from "../musicState.ts";
 
 export type MonsterConfig = {
   name: string;
@@ -42,6 +43,8 @@ export type MonsterConfig = {
   // Optional sidearm strength for ranged monsters; defaults to half the
   // primary attack (rounded up, minimum 1).
   meleeDamage?: number;
+  // Which instrument/motif represents this monster in the music.
+  musicCue?: MusicCue;
   // Physical rectangle, not artwork. Fixed-size creatures can instead override
   // the `footprint` getter on their class (restore-safe). A configured value is
   // carried on the instance so saved floors keep it.
@@ -71,6 +74,8 @@ export default class Monster extends Entity {
   // Declared (not initialized) so ordinary monsters pay nothing and the base
   // Entity getter remains the default. Own enumerable data is save-compatible.
   declare private footprintValue?: Footprint;
+  // Optional leitmotif identifier; older saves restore without it.
+  musicCue?: MusicCue;
 
   get footprint(): Footprint {
     return this.footprintValue ?? TILE_FOOTPRINT;
@@ -114,6 +119,7 @@ export default class Monster extends Entity {
     this.resistance = config.resistance ?? {};
     this.vulnerability = config.vulnerability ?? {};
     this.poisonImmune = config.poisonImmune ?? false;
+    this.musicCue = config.musicCue;
 
     this.init(context, x, y);
 

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Game } from 'phaser'
 import * as Phaser from 'phaser'
 import { createRogue0Config } from '../games/rogue0/config'
@@ -9,7 +9,14 @@ import {
   type EndResult,
   type GameContext,
 } from '../games/rogue0/context'
-import { toggleMuted, unlockAudio } from '../games/rogue0/audio'
+import {
+  setMusicMuted,
+  setMusicVolume,
+  startMusic,
+  stopMusic,
+  toggleMuted,
+  unlockAudio,
+} from '../games/rogue0/audio'
 import { readRunSave, clearRunSave, type RunSave } from '../games/rogue0/saveStorage'
 import { DEFAULT_HERO_CLASS } from '../games/rogue0/classes'
 import { isLocalViteDev } from '../utils/runtime'
@@ -20,6 +27,33 @@ import { readScenarioDraft, writeScenarioDraft, type Scenario } from '../games/r
 // Module scope on purpose: the dev-only scenario panel is gated on this, and a
 // per-render value would make every effect that reads it a fresh dependency.
 const DEV_TOOLS = isLocalViteDev()
+
+const MUSIC_MUTED_KEY = 'rogue0_musicMuted'
+const MUSIC_VOLUME_KEY = 'rogue0_musicVolume'
+const DEFAULT_MUSIC_VOLUME = 0.55
+
+function readMusicPrefs(): { muted: boolean; volume: number } {
+  try {
+    const muted = localStorage.getItem(MUSIC_MUTED_KEY) === 'true'
+    const raw = localStorage.getItem(MUSIC_VOLUME_KEY)
+    const parsed = raw === null ? DEFAULT_MUSIC_VOLUME : Number(raw)
+    return {
+      muted,
+      volume: Number.isFinite(parsed) ? Math.max(0, Math.min(1, parsed)) : DEFAULT_MUSIC_VOLUME,
+    }
+  } catch {
+    return { muted: false, volume: DEFAULT_MUSIC_VOLUME }
+  }
+}
+
+function writeMusicPrefs(muted: boolean, volume: number): void {
+  try {
+    localStorage.setItem(MUSIC_MUTED_KEY, String(muted))
+    localStorage.setItem(MUSIC_VOLUME_KEY, String(volume))
+  } catch {
+    // Storage may be blocked; the settings still apply for this session.
+  }
+}
 
 const HELP_PAGES = [
   {
@@ -117,6 +151,9 @@ export default function Rogue0() {
     inspectModeRef.current = inspectMode
   }, [inspectMode])
   const [muted, setMuted] = useState(false)
+  const [musicMuted, setMusicMutedState] = useState(() => readMusicPrefs().muted)
+  const [musicVolume, setMusicVolumeState] = useState(() => readMusicPrefs().volume)
+  const [musicError, setMusicError] = useState<string | null>(null)
   const [helpOpen, setHelpOpen] = useState(false)
   const [helpPage, setHelpPage] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -125,6 +162,26 @@ export default function Rogue0() {
   const [talentTreeOpen, setTalentTreeOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
+
+  // A music load failure is fatal to the run: show the message on the start
+  // screen instead of quietly playing nothing.
+  const handleMusicError = useCallback((message: string) => {
+    stopMusic()
+    setMusicError(message)
+    setMenuOpen(false)
+    setHeroClass(null)
+  }, [])
+
+  const beginMusic = useCallback(() => {
+    setMusicError(null)
+    void startMusic(handleMusicError)
+  }, [handleMusicError])
+
+  useEffect(() => {
+    setMusicMuted(musicMuted)
+    setMusicVolume(musicVolume)
+    writeMusicPrefs(musicMuted, musicVolume)
+  }, [musicMuted, musicVolume])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -160,6 +217,7 @@ export default function Rogue0() {
     // Local dev only: the scenario panel is the sole writer of this field.
     context.scenario = DEV_TOOLS ? pendingScenario.current : undefined
     context.onSaveStatus = setSaveStatus
+    context.onMusicError = handleMusicError
     context.onLoadError = () => {
       pendingSave.current = undefined
       setSaveInfo({ error: 'This saved run could not be loaded. Start a new game to replace it.' })
@@ -167,6 +225,7 @@ export default function Rogue0() {
     }
     context.inspectMode = inspectModeRef.current
     context.onEnd = (r) => {
+      stopMusic()
       phaserRef.current?.destroy(true)
       phaserRef.current = null
       setHelpOpen(false)
@@ -205,14 +264,16 @@ export default function Rogue0() {
     return () => {
       cancelled = true
       context.saveNow?.()
+      stopMusic()
       phaserRef.current?.destroy(true)
       phaserRef.current = null
       contextRef.current = null
     }
-  }, [heroClass])
+  }, [heroClass, handleMusicError])
 
   const startGame = () => {
     unlockAudio()
+    beginMusic()
     pendingSave.current = undefined
     pendingScenario.current = undefined
     if (!clearRunSave()) setSaveStatus('Browser storage is blocked; this run may not be saved.')
@@ -228,6 +289,7 @@ export default function Rogue0() {
     setSaveInfo(current)
     if (!current.save) return
     unlockAudio()
+    beginMusic()
     pendingSave.current = current.save
     setInspectMode(false)
     setHeroClass(current.save.heroClass)
@@ -273,6 +335,7 @@ export default function Rogue0() {
 
   const startScenario = (scenario: Scenario) => {
     unlockAudio()
+    beginMusic()
     pendingSave.current = undefined
     pendingScenario.current = scenario
     writeScenarioDraft(scenario)
@@ -356,6 +419,7 @@ export default function Rogue0() {
           <h1 className="rogue0-title">Rogue0</h1>
           <p className="rogue0-subtitle">{saveInfo.save && !choosingNew ? 'Your adventure awaits' : 'New Game'}</p>
           {saveInfo.error && <p className="rogue0-foot" role="alert">{saveInfo.error}</p>}
+          {musicError && <p className="rogue0-foot" role="alert">{musicError}</p>}
           {saveInfo.save && !choosingNew && (
             <div className="rogue0-actions">
               <button className="rogue0-btn" onClick={continueGame}>
@@ -462,6 +526,31 @@ export default function Rogue0() {
               >
                 {muted ? 'Sound: OFF' : 'Sound: ON'}
               </button>
+              {/* Keep slider/button clicks from closing the menu they live in. */}
+              <div
+                className="rogue0-music-controls"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  className={`rogue0-game-btn ${musicMuted ? 'off' : ''}`}
+                  onClick={() => setMusicMutedState((m) => !m)}
+                  aria-pressed={musicMuted}
+                >
+                  {musicMuted ? 'Music: OFF' : 'Music: ON'}
+                </button>
+                <label className="rogue0-music-volume">
+                  <span>Vol</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={musicVolume}
+                    onChange={(event) => setMusicVolumeState(Number(event.target.value))}
+                    aria-label="Music volume"
+                  />
+                </label>
+              </div>
               <button className="rogue0-game-btn" onClick={backToGameMenu}>
                 ← back
               </button>

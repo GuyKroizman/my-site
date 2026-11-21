@@ -51,6 +51,8 @@
     "test:rogue0:equipment-finds": "node scripts/test-rogue0-equipment-finds.mjs",
     "test:rogue0:equipment-identification": "node scripts/test-rogue0-equipment-identification.mjs",
     "test:rogue0:monsters": "node scripts/test-rogue0-monster-behavior.mjs",
+    "test:rogue0:music": "node scripts/test-rogue0-music-state.mjs",
+    "test:rogue0:music-composer": "node scripts/test-rogue0-music-composer.mjs",
     "test:rogue0:gas-visuals": "node scripts/test-rogue0-gas-visuals.mjs",
     "test:rogue0:deadly-frog": "node scripts/test-rogue0-deadly-frog.mjs",
     "test:rogue0:reinforcements": "node scripts/test-rogue0-reinforcements.mjs",
@@ -76,6 +78,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.4",
+    "soundfont-player": "^0.12.0",
     "three": "^0.187.0"
   },
   "devDependencies": {

@@ -32,6 +32,7 @@ export default class Boss extends Monster {
       name: "The Unblinking Coil",
       description: "A shrunken, dark mass of flesh that floats above the dungeon's traps, with a single yellow eye whose vertical slit pupil darts between directions, a mouth full of fangs, and sixteen writhing black tentacles. The guardian of the dungeon depths. Immune to terror. Extremely dangerous.",
       textureKey: BOSS_TEXTURE,
+      musicCue: 'boss',
       ...monsterStats('boss', context.floor),
       // A slow, deliberate hover: each step costs 1/0.8 = 1.25 turns while
       // attacks still resolve on the normal clock.

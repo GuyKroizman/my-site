@@ -1,0 +1,29 @@
+Instrument samples in this directory
+=====================================
+
+Files:
+  clarinet-mp3.js
+  french_horn-mp3.js
+  string_ensemble_1-mp3.js
+  timpani-mp3.js
+
+Source:
+  https://github.com/gleitz/midi-js-soundfonts/tree/gh-pages/FluidR3_GM
+
+These are pre-rendered single-note samples in MIDI.js format, generated from
+the FluidR3_GM SoundFont created by Frank Wen. The MIDI.js Soundfonts project
+publishes the Fluid Soundfont under the Creative Commons Attribution 3.0
+license:
+
+  https://creativecommons.org/licenses/by/3.0/
+
+Attribution: "FluidR3_GM SoundFont by Frank Wen, via the MIDI.js Soundfonts
+project (CC BY 3.0)."
+
+The music sequenced with these instruments in Rogue0 is original to this
+project. It is not the melody, orchestration or any leitmotif from Sergei
+Prokofiev's "Peter and the Wolf"; only the idea of associating characters with
+instruments is borrowed.
+
+The browser loader (the npm package `soundfont-player`) is MIT licensed; its
+license text ships with the installed dependency.

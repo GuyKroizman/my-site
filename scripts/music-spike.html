@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+  Dev-only Phase 1 spike. Not shipped (only public/ is copied into dist/).
+  Run `npm run dev`, then open http://localhost:5173/scripts/music-spike.html
+  and press the button. It should play a single clarinet C4 after loading the
+  four instrument files, with no blocking load screen.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Rogue0 music loader spike</title>
+  </head>
+  <body>
+    <button id="play" type="button">Play clarinet C4</button>
+    <pre id="status">idle</pre>
+    <script type="module">
+      import {
+        loadInstruments,
+        loadedNoteCounts,
+        playNote,
+      } from '/src/games/rogue0/musicInstruments.ts'
+
+      const status = document.getElementById('status')
+      let ctx
+
+      document.getElementById('play').addEventListener('click', async () => {
+        try {
+          ctx ??= new AudioContext()
+          await ctx.resume()
+          const gain = ctx.createGain()
+          gain.gain.value = 0.3
+          gain.connect(ctx.destination)
+          status.textContent = 'loading instruments...'
+          await loadInstruments(ctx, gain)
+          playNote('clarinet', 60, ctx.currentTime + 0.05, { duration: 0.8 })
+          status.textContent = `loaded and played C4 (${JSON.stringify(loadedNoteCounts())})`
+        } catch (error) {
+          status.textContent = `ERROR: ${error?.message ?? error}`
+        }
+      })
+    </script>
+  </body>
+</html>

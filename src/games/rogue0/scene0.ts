@@ -135,7 +135,8 @@ import {
 import type { ChasmRoom } from "./mapgen";
 import { computeFOV, resolveVision } from "./fov";
 import { applyEffect, createWoundedEffect, hasEffect, removeEffect } from "./effects";
-import { sfx } from "./audio";
+import { sfx, updateMusic } from "./audio";
+import { selectMusicState, sameMusicState, type MusicState } from "./musicState.ts";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import { generateRingTextures } from "./ringTextures";
 import { generateGlyphStoneTextures } from './glyphStoneTextures';
@@ -255,6 +256,8 @@ export class Scene0 extends Phaser.Scene {
   private lastSaveCheck = 0;
   private lastSaveTime = -1;
   private lastSaveGraph = '';
+  private lastMusicUpdate = -Infinity;
+  private lastMusicState: MusicState | undefined;
   private stairsLabel?: Phaser.GameObjects.Graphics;
   private upstairsLabel?: Phaser.GameObjects.Graphics;
   private floors = new Map<number, SavedFloor>();
@@ -720,6 +723,16 @@ export class Scene0 extends Phaser.Scene {
     this.cameras.main.setZoom(this.zoom);
   }
 
+  private updateMusicState(): void {
+    const now = this.time.now;
+    if (now - this.lastMusicUpdate < 200) return;
+    this.lastMusicUpdate = now;
+    const state = selectMusicState(this.context);
+    if (this.lastMusicState && sameMusicState(this.lastMusicState, state)) return;
+    this.lastMusicState = state;
+    updateMusic(state);
+  }
+
   update() {
     if (this.ended) return;
     this.updateDeepParallax();
@@ -751,6 +764,8 @@ export class Scene0 extends Phaser.Scene {
     updateHeroBurning(this, this.context.player, this.time.now);
     updateHeroChilled(this, this.context.player, this.time.now);
     updateHeroLevitating(this, this.context.player, this.time.now);
+    // Music keeps playing (and reacting) while a modal is open.
+    this.updateMusicState();
     if (isModalOpen(this.context)) {
       updateMonsterStatusVisuals(this, this.context.entities, this.time.now);
       this.autosave();

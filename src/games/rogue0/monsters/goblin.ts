@@ -11,6 +11,7 @@ export default class Goblin extends Monster {
       name: "Goblin",
       description: "A spiteful, sharp-eared goblin. Fires barbed arrows from a distance that cause bleeding.",
       textureKey: "goblin",
+      musicCue: 'goblin',
       ...monsterStats('goblin', context.floor),
       movementSpeed: 1,
       attackDelay: 1,
