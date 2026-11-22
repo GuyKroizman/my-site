@@ -20,6 +20,8 @@ export default class Chest extends Entity {
   // uses the generated banded-chest texture instead.
   textureKey = CHEST_TEXTURE;
   isContainer = true;
+  // A drawn chest is tall enough to be seen over the grass beneath it.
+  get visibleAboveGrass(): boolean { return true; }
   private opened = false;
   contents: Entity[];
 

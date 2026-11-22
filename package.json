@@ -38,6 +38,7 @@
     "test:rogue0:unseen-combat": "node scripts/test-rogue0-unseen-combat.mjs",
     "test:rogue0:wand-fusion": "node scripts/test-rogue0-wand-fusion.mjs",
     "test:rogue0:chests": "node scripts/test-rogue0-chests.mjs",
+    "test:rogue0:tall-object-visibility": "node scripts/test-rogue0-tall-object-visibility.mjs",
     "test:rogue0:hero-burning": "node scripts/test-rogue0-hero-burning.mjs",
     "test:rogue0:hero-chilled": "node scripts/test-rogue0-hero-chilled.mjs",
     "test:rogue0:hero-levitating": "node scripts/test-rogue0-hero-levitating.mjs",

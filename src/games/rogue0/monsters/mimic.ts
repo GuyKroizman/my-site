@@ -12,6 +12,10 @@ export default class Mimic extends Monster {
     return this.provoked ? MIMIC_TEXTURE : CHEST_TEXTURE;
   }
 
+  // Chest-shaped while disguised and a large creature once roused: either way
+  // it stands above the grass it occupies and stays visible across a clearing.
+  get visibleAboveGrass(): boolean { return true; }
+
   // Disguised as a chest until provoked. Navigation treats that disguise as a
   // chest-shaped obstacle and walks around it rather than waking the mimic.
   get isDormantMimic(): boolean {

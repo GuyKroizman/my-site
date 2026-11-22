@@ -278,6 +278,10 @@ export abstract class Entity {
   textureKey?: string;
   consumable: boolean = false;
   isContainer = false;
+  // Chests and mimics rise above the grass they stand on, so that tile does
+  // not hide them. Grass elsewhere along the sight line still blocks the FOV.
+  // A prototype getter (not an instance field) also works for restored saves.
+  get visibleAboveGrass(): boolean { return false; }
   openContainer(): boolean { return false; }
   requiresItemTarget = false;
   itemTargetTitle = "CLEANSE: CHOOSE ITEM";

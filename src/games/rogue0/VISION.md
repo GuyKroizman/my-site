@@ -25,6 +25,13 @@ secret door, or a creature, whether or not the hero can see the obstruction.
   base-wall cell supports glass walls without making them walkable. This adds
   optical support, not new glass/crystal artwork or generated terrain variants.
 
+Tall objects are an exception to occupant concealment: a chest or mimic drawn
+on a grass tile is visible from anywhere that tile is in sight, because it
+stands above the grass beneath it. Other grass between the hero and the object
+still blocks the sight line and hides it. Ordinary items and creatures on grass
+keep the adjacent-only concealment, and targeting and ambush rules are unchanged
+— only which sprites are drawn is affected.
+
 ## Surprise attacks
 
 Monsters track awareness on their own action, before moving. Breaking their

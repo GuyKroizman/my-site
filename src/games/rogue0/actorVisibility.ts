@@ -52,3 +52,46 @@ export function actorIsVisible(
   }
   return false;
 }
+
+export type RenderedEntity = Positioned & {
+  type: string;
+  // Tall objects: chests and mimics. Getter on Entity, so restored saves keep it.
+  visibleAboveGrass?: boolean;
+};
+
+/** The grass directly under a tall object does not hide its occupant: a chest
+ * or mimic shows over it. Grass elsewhere is still handled by the FOV, which
+ * keeps tiles past it out of `visibleTiles`. */
+export function entityIsGrassConcealed(
+  entity: RenderedEntity, x: number | undefined, y: number | undefined,
+  isConcealed: ConcealmentTest
+): boolean {
+  if (entity.visibleAboveGrass || x === undefined || y === undefined) return false;
+  return isConcealed(x, y);
+}
+
+/** Scene0's reveal rule as a pure helper so it can be tested without Phaser.
+ * `visible` drives mind markers; `rendered` also needs an in-view cell (or an
+ * already-known tile for remembered items) and an unblocked foreground slot. */
+export function resolveEntityVisibility(
+  entity: RenderedEntity,
+  options: {
+    visibleTiles: ReadonlySet<string>;
+    isSeen: (x: number, y: number) => boolean;
+    isGrassConcealed: ConcealmentTest;
+    foreground: ReadonlySet<object>;
+  }
+): { visible: boolean; rendered: boolean } {
+  if (entity.x === undefined || entity.y === undefined) {
+    return { visible: false, rendered: false };
+  }
+  const concealed: ConcealmentTest = (x, y) =>
+    entityIsGrassConcealed(entity, x, y, options.isGrassConcealed);
+  const visible = entity.type === 'enemy'
+    ? actorIsVisible(entity, options.visibleTiles, concealed)
+    : options.visibleTiles.has(`${entity.x},${entity.y}`) && !concealed(entity.x, entity.y);
+  const revealed = entity.type === 'enemy'
+    ? visible
+    : options.isSeen(entity.x, entity.y) && !concealed(entity.x, entity.y);
+  return { visible, rendered: options.foreground.has(entity) && revealed };
+}
