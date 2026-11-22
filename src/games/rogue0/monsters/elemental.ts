@@ -15,6 +15,7 @@ export class FireElemental extends Monster {
     if (context.scene) generateFireElementalTexture(context.scene);
     super(context, {
       name: "Fire Elemental",
+      musicCue: 'fireElemental',
       description: "A living flame that burns whatever it touches.",
       textureKey: FIRE_ELEMENTAL_TEXTURE,
       ...monsterStats('elemental', context.floor),
@@ -41,6 +42,7 @@ export class IceElemental extends Monster {
     if (context.scene) generateIceElementalTexture(context.scene);
     super(context, {
       name: "Ice Elemental",
+      musicCue: 'iceElemental',
       description: "A frozen horror whose touch locks victims in place.",
       textureKey: ICE_ELEMENTAL_TEXTURE,
       ...monsterStats('elemental', context.floor),
@@ -67,6 +69,7 @@ export class ShockElemental extends Monster {
     if (context.scene) generateLightningElementalTexture(context.scene);
     super(context, {
       name: "Lightning Elemental",
+      musicCue: 'lightningElemental',
       description: "A living bolt of electricity whose crackling touch leaves victims weakened.",
       textureKey: LIGHTNING_ELEMENTAL_TEXTURE,
       ...monsterStats('elemental', context.floor),

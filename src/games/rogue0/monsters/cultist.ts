@@ -12,6 +12,7 @@ export default class Cultist extends Monster {
     if (context.scene) generateCultistBoltTexture(context.scene);
     super(context, {
       name: "Cultist",
+      musicCue: 'cultist',
       description: "A robed cultist who hurls necromantic bolts and raises skeletons to fight for it.",
       textureKey: "cultist", // Original violet-robed summoner with a bone staff.
       ...monsterStats('cultist', context.floor),

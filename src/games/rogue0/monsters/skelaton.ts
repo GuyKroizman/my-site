@@ -14,6 +14,7 @@ export default class Skeleton extends Monster {
       name: "Skeleton",
       description: "A brittle skeleton animated by dark magic.",
       textureKey: 'skeleton',
+      musicCue: 'skeleton',
       healthPoints: 8,
       movementSpeed: 1,
       attackDelay: 1,

@@ -206,6 +206,7 @@ const MUSIC_TICK_MS = 25;
 let musicBus: MusicBus | undefined;
 let musicVolume = 0.55;
 let musicMuted = false;
+let musicDucked = false;
 let musicStart: Promise<void> | undefined;
 let schedulerTimer: number | undefined;
 let noteProvider: ((from: number, to: number) => MusicNoteEvent[]) | undefined;
@@ -242,7 +243,7 @@ function createMusicBus(c: AudioContext): MusicBus {
 
 function applyMusicGain(): void {
   if (!musicBus || !ctx) return;
-  const target = musicMuted ? 0 : musicVolume;
+  const target = musicMuted ? 0 : musicVolume * (musicDucked ? 0.5 : 1);
   musicBus.master.gain.setTargetAtTime(target, ctx.currentTime, 0.02);
 }
 
@@ -321,6 +322,14 @@ export function stopMusic(): void {
   }
   musicBus = undefined;
   musicStart = undefined;
+  musicDucked = false;
+}
+
+/** Lower the music (not the SFX) while a modal is open. */
+export function setMusicDucked(ducked: boolean): void {
+  if (musicDucked === ducked) return;
+  musicDucked = ducked;
+  applyMusicGain();
 }
 
 export function setMusicMuted(m: boolean): void {

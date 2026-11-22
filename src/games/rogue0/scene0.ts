@@ -135,7 +135,7 @@ import {
 import type { ChasmRoom } from "./mapgen";
 import { computeFOV, resolveVision } from "./fov";
 import { applyEffect, createWoundedEffect, hasEffect, removeEffect } from "./effects";
-import { sfx, updateMusic } from "./audio";
+import { setMusicDucked, sfx, updateMusic } from "./audio";
 import { selectMusicState, sameMusicState, type MusicState } from "./musicState.ts";
 import { generatePotionTextures, generateDoorThresholdTexture, generateUnknownItemTextures } from "./potionTextures";
 import { generateRingTextures } from "./ringTextures";
@@ -764,7 +764,8 @@ export class Scene0 extends Phaser.Scene {
     updateHeroBurning(this, this.context.player, this.time.now);
     updateHeroChilled(this, this.context.player, this.time.now);
     updateHeroLevitating(this, this.context.player, this.time.now);
-    // Music keeps playing (and reacting) while a modal is open.
+    // Music keeps playing (and reacting) while a modal is open, just quieter.
+    setMusicDucked(isModalOpen(this.context));
     this.updateMusicState();
     if (isModalOpen(this.context)) {
       updateMonsterStatusVisuals(this, this.context.entities, this.time.now);

@@ -11,6 +11,7 @@ export default class DeadlyFrog extends Monster {
     if (context.scene) generateDeadlyFrogTexture(context.scene);
     super(context, {
       name: "Deadly Frog",
+      musicCue: 'deadlyFrog',
       description: "A bloated frog with poison warts. Each wound it survives vents slow-spreading gas that deals 3 poison damage per turn, and its death releases a final cloud. Retreat quickly to avoid the gas. Poison cannot harm it.",
       textureKey: DEADLY_FROG_TEXTURE,
       ...monsterStats('frog', context.floor),

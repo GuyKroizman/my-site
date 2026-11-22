@@ -10,6 +10,7 @@ export default class Brute extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
     super(context, {
       name: "Brute",
+      musicCue: 'brute',
       description: "A hulking brute. Slow, but hits very hard.",
       textureKey: 'brute',
       ...monsterStats('brute', context.floor),

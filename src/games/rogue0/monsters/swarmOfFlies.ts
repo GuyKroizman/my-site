@@ -22,6 +22,7 @@ export default class SwarmOfFlies extends Monster {
     const health = offspring ? (splitHealth ?? SWARM_HEALTH / 2) : SWARM_HEALTH;
     super(context, {
       name: "Swarm of Flies",
+      musicCue: 'swarmOfFlies',
       description: "A buzzing cloud that splits apart when struck with a physical blow.",
       textureKey: FLY_SWARM_TEXTURE,
       initiallyAwake: offspring,

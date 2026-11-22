@@ -20,6 +20,7 @@ function collect(state, from, to, steps = 8) {
 
 const calm = { intensity: 'calm', cues: [] };
 const goblin = { intensity: 'combat', cues: [{ cue: 'goblin', level: 1, visible: true }] };
+const skeleton = { intensity: 'combat', cues: [{ cue: 'skeleton', level: 1, visible: true }] };
 const boss = { intensity: 'boss', cues: [{ cue: 'boss', level: 1, visible: true }] };
 
 const calmNotes = collect(calm, 0, 8);
@@ -32,11 +33,29 @@ const goblinNotes = collect(goblin, 0, 8);
 assert.ok(goblinNotes.some((e) => e.instrument === 'clarinet'), 'goblin motif uses clarinet');
 assert.ok(goblinNotes.some((e) => e.instrument === 'timpani'), 'combat adds a percussion pulse');
 
+const skeletonNotes = collect(skeleton, 0, 8);
+assert.ok(skeletonNotes.some((e) => e.instrument === 'pizzicato_strings'),
+  'skeleton motif uses pizzicato strings');
+assert.ok(skeletonNotes.every((e) => e.note >= 48 && e.note <= 84));
+
+// Each expanded monster gets its own instrument.
+const cueInstruments = {
+  ghoul: 'oboe', brute: 'trombone', cultist: 'bassoon', wraith: 'flute',
+  quloptsh: 'piccolo', mimic: 'tuba', deadlyFrog: 'marimba',
+  swarmOfFlies: 'tremolo_strings', fireElemental: 'trumpet',
+  iceElemental: 'glockenspiel', lightningElemental: 'xylophone',
+};
+for (const [cue, instrument] of Object.entries(cueInstruments)) {
+  const notes = collect({ intensity: 'combat', cues: [{ cue, level: 1, visible: true }] }, 0, 8);
+  assert.ok(notes.some((event) => event.instrument === instrument), `${cue} uses ${instrument}`);
+  assert.ok(notes.every((event) => event.note >= 48 && event.note <= 84));
+}
+
 const bossNotes = collect(boss, 0, 8);
 assert.ok(bossNotes.some((e) => e.instrument === 'french_horn'), 'boss motif uses French horn');
 assert.ok(bossNotes.some((e) => e.instrument === 'timpani'), 'boss motif uses timpani');
 assert.ok(bossNotes.every((e) => e.instrument === 'french_horn' || e.instrument === 'timpani'),
-  'boss suppresses the other layers');
+  'boss suppresses the other layers, including pizzicato');
 
 // A long jump must not replay the intervening minutes of music.
 resetMusicComposer();

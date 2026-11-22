@@ -2,10 +2,22 @@ Instrument samples in this directory
 =====================================
 
 Files:
+  bassoon-mp3.js
   clarinet-mp3.js
+  flute-mp3.js
   french_horn-mp3.js
+  glockenspiel-mp3.js
+  marimba-mp3.js
+  oboe-mp3.js
+  piccolo-mp3.js
+  pizzicato_strings-mp3.js
   string_ensemble_1-mp3.js
   timpani-mp3.js
+  tremolo_strings-mp3.js
+  trombone-mp3.js
+  trumpet-mp3.js
+  tuba-mp3.js
+  xylophone-mp3.js
 
 Source:
   https://github.com/gleitz/midi-js-soundfonts/tree/gh-pages/FluidR3_GM

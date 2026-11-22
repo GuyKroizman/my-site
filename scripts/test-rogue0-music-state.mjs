@@ -61,10 +61,36 @@ const wokenMimic = selectMusicState(context([enemy({
 })], [[12, 10]]));
 assert.equal(wokenMimic.intensity, 'combat');
 
+// A skeleton has its own motif and behaves like any other cued monster.
+const skeleton = selectMusicState(context([enemy({
+  name: 'Skeleton', musicCue: 'skeleton', x: 13, y: 10,
+})], [[13, 10]]));
+assert.equal(skeleton.cues[0].cue, 'skeleton');
+assert.equal(skeleton.intensity, 'combat');
+
+// Every expanded monster has a cue, and name fallbacks cover saved floors.
+const names = {
+  Goblin: 'goblin', Skeleton: 'skeleton', 'The Unblinking Coil': 'boss',
+  Ghoul: 'ghoul', Brute: 'brute', Cultist: 'cultist', Wraith: 'wraith',
+  Quloptsh: 'quloptsh', Mimic: 'mimic', 'Deadly Frog': 'deadlyFrog',
+  'Swarm of Flies': 'swarmOfFlies', 'Fire Elemental': 'fireElemental',
+  'Ice Elemental': 'iceElemental', 'Lightning Elemental': 'lightningElemental',
+};
+for (const [name, cue] of Object.entries(names)) {
+  const state = selectMusicState(context([enemy({ name, x: 13, y: 10 })]));
+  assert.equal(state.cues[0]?.cue, cue, `${name} maps to ${cue}`);
+}
+
+// Mirror images are decoys and must not add a motif.
+assert.equal(selectMusicState(context([
+  enemy({ name: 'Wraith', x: 12, y: 10, isDecoy: true }),
+])).intensity, 'calm');
+
 // The boss overrides everything, even from across the floor and asleep.
 const boss = selectMusicState(context([
   enemy({ name: 'The Unblinking Coil', x: 24, y: 24, sleeping: true }),
   enemy({ x: 11, y: 10 }),
+  enemy({ name: 'Skeleton', musicCue: 'skeleton', x: 12, y: 10 }),
 ]));
 assert.equal(boss.intensity, 'boss');
 assert.deepEqual(boss.cues, [{ cue: 'boss', level: 1, visible: false }]);

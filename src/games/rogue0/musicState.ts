@@ -5,7 +5,21 @@
 import type { GameContext } from './context.ts';
 import type { Entity } from './entity.ts';
 
-export type MusicCue = 'goblin' | 'boss';
+export type MusicCue =
+  | 'goblin'
+  | 'skeleton'
+  | 'boss'
+  | 'ghoul'
+  | 'brute'
+  | 'cultist'
+  | 'wraith'
+  | 'quloptsh'
+  | 'mimic'
+  | 'deadlyFrog'
+  | 'swarmOfFlies'
+  | 'fireElemental'
+  | 'iceElemental'
+  | 'lightningElemental';
 export type MusicIntensity = 'calm' | 'uneasy' | 'combat' | 'boss';
 export type ActiveCue = { cue: MusicCue; level: number; visible: boolean };
 export type MusicState = { intensity: MusicIntensity; cues: ActiveCue[] };
@@ -17,15 +31,31 @@ const COMBAT_RADIUS = 3;
 type MusicEntity = Entity & {
   musicCue?: MusicCue;
   sleeping?: boolean;
+  isDecoy?: boolean;
+};
+
+const NAME_CUES: Record<string, MusicCue> = {
+  Goblin: 'goblin',
+  Skeleton: 'skeleton',
+  'The Unblinking Coil': 'boss',
+  Ghoul: 'ghoul',
+  Brute: 'brute',
+  Cultist: 'cultist',
+  Wraith: 'wraith',
+  Quloptsh: 'quloptsh',
+  Mimic: 'mimic',
+  'Deadly Frog': 'deadlyFrog',
+  'Swarm of Flies': 'swarmOfFlies',
+  'Fire Elemental': 'fireElemental',
+  'Ice Elemental': 'iceElemental',
+  'Lightning Elemental': 'lightningElemental',
 };
 
 function cueFor(entity: Entity): MusicCue | undefined {
   const e = entity as MusicEntity;
-  if (e.musicCue === 'goblin' || e.musicCue === 'boss') return e.musicCue;
+  if (e.musicCue) return e.musicCue;
   // Fallbacks keep older saves (which have no `musicCue`) working.
-  if (e.name === 'Goblin') return 'goblin';
-  if (e.name === 'The Unblinking Coil') return 'boss';
-  return undefined;
+  return NAME_CUES[e.name];
 }
 
 function distance(player: Entity, entity: Entity): number {
@@ -48,6 +78,7 @@ export function selectMusicState(context: GameContext): MusicState {
 
   for (const entity of context.entities) {
     if (entity === player || entity.type !== 'enemy' || entity.healthPoints <= 0) continue;
+    if ((entity as MusicEntity).isDecoy) continue; // mirror images are not characters
     const cue = cueFor(entity);
     if (!cue) continue;
 

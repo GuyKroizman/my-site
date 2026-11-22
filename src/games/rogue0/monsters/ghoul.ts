@@ -7,6 +7,7 @@ export default class Ghoul extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
     super(context, {
       name: "Ghoul",
+      musicCue: 'ghoul',
       description: "A fast, ravenous ghoul.",
       textureKey: 'ghoul',
       ...monsterStats('ghoul', context.floor),

@@ -7,6 +7,7 @@ export default class Quloptsh extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
     super(context, {
       name: "Quloptsh",
+      musicCue: 'quloptsh',
       description: "A calm, stealthy assassin that weakens its prey.",
       textureKey: 'quloptsh',
       ...monsterStats('quloptsh', context.floor),

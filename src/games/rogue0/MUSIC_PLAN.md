@@ -18,10 +18,15 @@ identify the characters — but with a different tune.
   progressions; it does not invent a fresh random melody each run.
 - **Hint rule:** distance-based, audible through walls and closed doors.
   Mimics stay silent until triggered; sleeping monsters play faintly.
-  Non-visible cues are quieter and low-pass filtered, so a monster behind a
-  door is hinted at but sounds muffled.
-- **Vertical slice:** strings (calm bed), clarinet (Goblin), French horn +
-  timpani (The Unblinking Coil/boss). Other monsters get no motif yet.
+  Non-visible cues are quieter, so a monster behind a door is hinted at but
+  less insistent. (Per-cue low-pass filtering was considered but not built;
+  distance is conveyed by level only.)
+- **Cast:** strings (calm bed), plus a distinct instrument and motif for every
+  monster — clarinet (Goblin), pizzicato strings (Skeleton), oboe (Ghoul),
+  trombone (Brute), bassoon (Cultist), flute (Wraith), piccolo (Quloptsh),
+  tuba (Mimic), marimba (Deadly Frog), tremolo strings (Swarm of Flies),
+  trumpet (Fire Elemental), glockenspiel (Ice Elemental), xylophone (Lightning
+  Elemental), French horn + timpani (boss). Only cued monsters affect tension.
 - **Controls:** separate music toggle and volume slider in the HUD, persisted
   in localStorage. The existing SFX mute button keeps working independently.
 
@@ -97,7 +102,7 @@ so it can be unit-tested with the existing fixture style.
 
 ### 3. `audio.ts` (extended) — music engine
 
-- Load the four instrument files lazily, after `unlockAudio()`, from a local
+- Load the instrument files lazily, after `unlockAudio()`, from a local
   directory `public/rogue0/audio/` using `soundfont-player`. Never fetch from a
   remote CDN. Use a dynamic `import()` so the loader and samples are a separate
   chunk: the game starts immediately and music fades in when the files are
@@ -107,8 +112,8 @@ so it can be unit-tested with the existing fixture style.
   continue with music missing.
 - Files are SoundFont-derived (FluidR3_GM → MIDI.js soundfonts, CC BY 3.0);
   attribution goes in `public/rogue0/audio/LICENSE`. Avoid MusyngKite-derived
-  files, which are CC BY-SA 3.0. Each instrument file is ~0.5–2 MB, so the
-  slice totals roughly 4–6 MB.
+  files, which are CC BY-SA 3.0. Each instrument file is ~2–3 MB, so the
+  five-file slice totals roughly 12 MB.
 - Route all instruments through a **music master gain** (volume) and a light
   `ConvolverNode` reverb with a generated impulse response — "room" without
   synthesising instruments.
@@ -140,8 +145,9 @@ so it can be unit-tested with the existing fixture style.
 
 ## Phases
 
-1. **Licence gate + loader spike.** Vendor the four FluidR3_GM-derived
-   instrument files (strings, clarinet, French horn, timpani) from the
+1. **Licence gate + loader spike.** Vendor the FluidR3_GM-derived
+   instrument files (strings, clarinet, pizzicato strings, French horn,
+   timpani) from the
    CC BY 3.0 MIDI.js soundfont set; record the attribution in
    `public/rogue0/audio/LICENSE`. Add `soundfont-player`, confirm one clarinet
    note plays in the browser, and confirm the lazy load does not block the
@@ -158,9 +164,10 @@ so it can be unit-tested with the existing fixture style.
 
 ## Phase 1 status (done)
 
-- Vendored the four FluidR3_GM-derived MIDI.js files in `public/rogue0/audio/`
-  (clarinet, string_ensemble_1, french_horn, timpani, MP3 format), ~10 MB
-  total, with `LICENSE` recording the CC BY 3.0 attribution.
+- Vendored the five FluidR3_GM-derived MIDI.js files in `public/rogue0/audio/`
+  (clarinet, pizzicato_strings, string_ensemble_1, french_horn, timpani, MP3
+  format), ~12 MB total, with `LICENSE` recording the CC BY 3.0 attribution.
+  The pizzicato sample was added later for the skeleton motif.
 - Added the MIT-licensed `soundfont-player` dependency.
 - Added `musicInstruments.ts`: a side-effect-free, browser-only lazy loader
   (dynamic `import()`, parallel file loads, output routed through a supplied
@@ -216,13 +223,18 @@ so it can be unit-tested with the existing fixture style.
 ## Phase 4 status (done)
 
 - Added `musicComposer.ts`: original D-minor motifs for strings (calm bed),
-  clarinet (Goblin) and French horn + timpani (boss), developed in code by
+  clarinet (Goblin), pizzicato strings (Skeleton) and French horn + timpani
+  (boss), developed in code by
   chord transposition (i–VI–III–VII), inversion and rhythmic thinning. Layers
   crossfade over ~0.5 s; tempo rises with intensity; no randomness.
 - `audio.ts` gained `updateMusic(state)`, feeding the composer to the scheduler;
   `stopMusic()` resets the composer so a new run starts cleanly.
-- `MonsterConfig`/`Monster` gained an optional `musicCue`, set on Goblin and
-  Boss (with name fallbacks for old saves).
+- `MonsterConfig`/`Monster` gained an optional `musicCue`, set on Goblin,
+  Skeleton and Boss (with name fallbacks for old saves).
+- Follow-up after the in-game check: skeletons originally had no motif and no
+  effect on tension; per user decision, only cued monsters affect tension, so
+  skeletons now get a pizzicato-strings motif instead of a global threat rule.
+  The fifth sample was vendored and the state/composer suites extended.
 - `scene0.update()` evaluates `selectMusicState()` every ~200 ms, outside the
   modal early-return, and only calls `updateMusic()` on real changes.
 - Added `scripts/test-rogue0-music-composer.mjs` and the
@@ -232,8 +244,37 @@ so it can be unit-tested with the existing fixture style.
   expected); fixed by adjusting the test windows, no game-code change.
 - Verified: `npx tsc --noEmit`, `npm run lint`, and `npm run test:rogue0`
   (98 passed, 0 failed) clean.
-- Still outstanding: manual in-game listening check (calm → goblin → boss) in
-  a browser.
+- Still outstanding: manual in-game listening check (calm → goblin → skeleton
+  → boss) in a browser.
+
+## Phase 6 status (done)
+
+- Added modal ducking: `setMusicDucked()` halves the music gain (not SFX)
+  while a modal is open, and `scene0.update()` drives it from `isModalOpen`.
+- Added `MUSIC.md` documenting the leitmotifs, state rules, generator,
+  controls, failure behaviour and the steps for adding a new motif.
+- Did not implement per-cue low-pass filtering: the shared instrument players
+  cannot be filtered per note without loading every sample twice. Distance is
+  conveyed by level only, and the plan now says so explicitly.
+- One development failure: `monster-status` asserts the exact source text of
+  the modal early-return, which broke when the condition was renamed to a
+  local variable. Restored the original condition line and kept ducking as a
+  separate call; classified as `test-bug` (two runs) with original results
+  retained.
+- Verified: `npx tsc --noEmit`, `npm run lint`, `npm run build` and
+  `npm run test:rogue0` (98 passed, 0 failed) clean.
+
+## Expanded cast (done)
+
+- Added 11 more CC BY 3.0 samples (oboe, trombone, bassoon, flute, piccolo,
+  tuba, marimba, tremolo strings, trumpet, glockenspiel, xylophone) and a motif
+  for every remaining monster. `MusicCue`, `musicState.ts`, `musicComposer.ts`
+  and all monster configs were extended; mirror images are explicitly ignored.
+- To avoid downloading ~38 MB at run start, only the original five instruments
+  are preloaded; others are fetched on their first note. A missing or empty
+  decode still reports an error through `onMusicError`.
+- Verified: `npx tsc --noEmit`, `npm run lint`, both focused music suites,
+  `npm run build` and `npm run test:rogue0` (98 passed, 0 failed) clean.
 
 ## Tests
 
@@ -254,9 +295,9 @@ so it can be unit-tested with the existing fixture style.
   CC BY 3.0, so the licence notice must ship with them. Do not use
   MusyngKite-derived files (CC BY-SA 3.0) without agreeing the share-alike
   implications.
-- **Asset size:** only the four per-instrument files are shipped (~4–6 MB),
-  not a full SF2. They are lazy-loaded and never block the first frame; a slow
-  connection simply delays the music, which fades in when ready.
+- **Asset size:** 16 per-instrument files (~38 MB in `dist/`), not a full SF2.
+  Only the five core files load at run start; the rest are fetched on first
+  use, so a slow connection does not block the first frame.
 - **Loader API:** note scheduling time and output routing must be verified
   against the actual package version; plan for a thin adapter.
 - **Autoplay/teardown:** the audio singleton outlives Phaser, so

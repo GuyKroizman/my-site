@@ -9,6 +9,7 @@ export default class Wraith extends Monster {
     if (context.scene) generateWraithTexture(context.scene);
     super(context, {
       name: "Wraith",
+      musicCue: 'wraith',
       description: "A spectral horror that weakens those it touches.",
       textureKey: WRAITH_TEXTURE,
       ...monsterStats('wraith', context.floor),
