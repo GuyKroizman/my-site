@@ -10,7 +10,7 @@ export type ActionKind = "move" | "attack" | "use" | "equip" | "drop" | "throw" 
 export interface TimedActor {
   movementSpeed: number;
   attackDelay: number;
-  effects: Array<{ id: string }>;
+  effects: Array<{ id: string; speedMultiplier?: number }>;
   movementCostMultiplier?(): number;
   attackCostMultiplier?(): number;
 }
@@ -19,7 +19,9 @@ export function actionCost(actor: TimedActor, action: ActionKind, weaponDelay = 
   let cost = 1;
   if (action === "move") {
     let speed = actor.movementSpeed;
-    if (actor.effects.some(e => e.id === "haste")) speed *= 2;
+    for (const effect of actor.effects) {
+      if (effect.id === "haste") speed *= effect.speedMultiplier ?? 2;
+    }
     if (actor.effects.some(e => e.id === "crippled")) speed *= 0.5;
     cost = (actor.movementCostMultiplier?.() ?? 1) / speed;
   } else if (action === "attack") {

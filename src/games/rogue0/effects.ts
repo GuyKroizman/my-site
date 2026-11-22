@@ -29,6 +29,8 @@ export type StatusEffect = {
   duration: number;
   // Short, human-readable explanation shown in the character modal/tooltip.
   description?: string;
+  // Haste buffs can carry their own movement multiplier (the usual buff is 2x).
+  speedMultiplier?: number;
   // Each buff has its own tick phase, so a buff applied at t=0.5 lasts
   // its full duration rather than expiring at the next integer boundary.
   nextTick?: number;
@@ -81,6 +83,12 @@ export function applyEffect(entity: Entity, effect: StatusEffect, affectTerrain 
   const existing = entity.effects.find((e) => e.id === effect.id);
   if (existing) {
     existing.duration = Math.max(existing.duration, effect.duration);
+    // A stronger haste replaces a weaker one; refreshing with a weaker buff
+    // must not cancel the 4x speed from a Potion of Haste.
+    if (effect.id === "haste" && (effect.speedMultiplier ?? 2) > (existing.speedMultiplier ?? 2)) {
+      existing.speedMultiplier = effect.speedMultiplier;
+      existing.description = effect.description;
+    }
     if (effect.id === "poisoned") {
       existing.poisonDamage = Math.max(existing.poisonDamage ?? 1, effect.poisonDamage ?? 1);
     }
@@ -327,12 +335,18 @@ export function createInvisibleEffect(duration = 10): StatusEffect {
   };
 }
 
-// Doubles movement speed (not attack speed) while active.
-export function createHasteEffect(duration = 8): StatusEffect {
+// Speeds up movement (never attacks) by the given multiplier while active.
+// The default 2x keeps the ordinary Haste buff behavior; the Potion of Haste
+// uses 4x with a longer duration.
+export function createHasteEffect(duration = 8, speedMultiplier = 2): StatusEffect {
   return {
     id: "haste",
     name: "Haste",
-    duration
+    duration,
+    speedMultiplier,
+    description: speedMultiplier === 2
+      ? "Doubles movement speed."
+      : `Moves at ${speedMultiplier}× speed.`
   };
 }
 

@@ -30,6 +30,7 @@
     "build": "tsc && vite build",
     "test:rogue0:lightning-arc": "node scripts/test-rogue0-lightning-arc.mjs",
     "test:rogue0:frost-potion": "node scripts/test-rogue0-frost-potion.mjs",
+    "test:rogue0:haste-potion": "node scripts/test-rogue0-haste-potion.mjs",
     "test:rogue0:potion-of-healing": "node scripts/test-rogue0-potion-of-healing.mjs",
     "test:rogue0:frost-effects": "node scripts/test-rogue0-frost-effects.mjs",
     "test:rogue0:rings": "node scripts/test-rogue0-rings.mjs",

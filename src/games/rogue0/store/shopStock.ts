@@ -8,7 +8,7 @@ export const isShopFloor = (floor: number): boolean => SHOP_FLOORS.some(value =>
 // Explicit content pools, not constructor names inferred at runtime. The
 // renderer/item factory will resolve these ids; plans themselves need no DOM.
 const POTIONS = ['healing', 'strength', 'experience', 'invisibility', 'toxic-gas',
-  'liquid-flame', 'frost', 'levitation', 'holy', 'berserk'].map(kind => `potion-${kind}`);
+  'liquid-flame', 'frost', 'haste', 'levitation', 'holy', 'berserk'].map(kind => `potion-${kind}`);
 const SCROLLS = ['identify', 'upgrade', 'remove-curse', 'teleport', 'rage', 'terror',
   'recharging', 'beckoning'].map(kind => `scroll-${kind}`);
 const WANDS = ['firebolt', 'frost', 'lightning', 'blast'].map(kind => `wand-${kind}`);

@@ -213,6 +213,15 @@ chests — so a level almost never hands one out on its own. The two legacy
 Minor Heal Potion and Full Heal Potion classes were folded into it; old saves
 still load those items as the one Potion of Healing.
 
+## Potion of Haste
+
+Drinking a **Potion of Haste** quadruples the hero's walking speed for **40
+turns** of world time (roughly 160 moves). It never speeds up attacks, and it
+multiplies with the movement bonus from a Ring of Haste. Like the other buffs it
+appears as a "Haste" status with a turn countdown; a weaker Haste buff cannot
+downgrade it, and a second flask refreshes the 40-turn timer instead of stacking
+a duplicate. Flasks can be found as floor loot or bought from shops.
+
 Mimics stay dormant until attacked or damaged. Their stats now scale across the
 five dungeon regions: 32–64 HP, 14–30 damage, 1–3 protection, and 6-tile vision.
 Legacy 4-HP mimics in browser saves are upgraded once while preserving existing

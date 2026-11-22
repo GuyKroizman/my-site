@@ -78,6 +78,7 @@ import PotionOfInvisibility from "./items/PotionOfInvisibility";
 import PotionOfToxicGas from "./items/PotionOfToxicGas";
 import PotionOfLiquidFlame from "./items/PotionOfLiquidFlame";
 import PotionOfFrost from "./items/PotionOfFrost";
+import PotionOfHaste from "./items/PotionOfHaste";
 import PotionOfLevitation from "./items/PotionOfLevitation";
 import StoneOfInfusion from "./items/stoneOfInfusion";
 import PotionOfExperience from "./items/PotionOfExperience";
@@ -207,6 +208,7 @@ const LOOT_TABLE: Array<[LootClass, number]> = [
   // Potion used to contribute to the table.
   [ScrollOfRemoveCurse, 5],
   [PotionOfFrost, 3],
+  [PotionOfHaste, 2],
   [PotionOfLiquidFlame, 3],
   [PotionOfToxicGas, 2],
   [PotionOfInvisibility, 2],

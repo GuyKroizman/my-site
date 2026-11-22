@@ -17,6 +17,7 @@ import Hammer from './items/hammer';
 import LongSword from './items/longSword';
 import PotionOfExperience from './items/PotionOfExperience';
 import PotionOfFrost from './items/PotionOfFrost';
+import PotionOfHaste from './items/PotionOfHaste';
 import PotionOfHealing from './items/PotionOfHealing';
 import PotionOfInvisibility from './items/PotionOfInvisibility';
 import PotionOfLevitation from './items/PotionOfLevitation';
@@ -97,6 +98,7 @@ export const saveRegistry: Registry = {
   './items/minorHealPotion.ts:default': PotionOfHealing,
   './items/PotionOfExperience.ts:default': PotionOfExperience,
   './items/PotionOfFrost.ts:default': PotionOfFrost,
+  'item:potion-of-haste': PotionOfHaste,
   './items/PotionOfHealing.ts:default': PotionOfHealing,
   './items/PotionOfInvisibility.ts:default': PotionOfInvisibility,
   './items/PotionOfLevitation.ts:default': PotionOfLevitation,

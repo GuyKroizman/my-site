@@ -99,6 +99,7 @@ export const CONSUMABLE_NAMES: Record<ConsumableCategory, readonly string[]> = {
     'Berserk Potion',
     'Potion of Experience',
     'Potion of Frost',
+    'Potion of Haste',
     'Potion of Healing',
     'Potion of Invisibility',
     'Potion of Levitation',
