@@ -95,6 +95,15 @@ export function describeTileLabel(
   return undefined;
 }
 
+// Terrain that is only scenery for an occupant standing on it. Water and tall
+// grass do not change what a chest/mimic is, so when an entity shares the tile
+// the inspect picker should offer the occupant alone instead of adding a
+// pointless ground entry. Other features (traps, doors, portals, chasms, ice)
+// stay meaningful and keep their own choice.
+export function isBackgroundTerrain(state: TileState | undefined): boolean {
+  return state?.feature === 'grass' || state?.feature === 'water';
+}
+
 // Human-readable description of a tile for the Inspect command.
 export function describeTile(
   state: TileState | undefined,

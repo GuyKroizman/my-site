@@ -48,6 +48,9 @@ function cloudAt(ctx, x, y) {
 
   assert.equal(ctx.onCreatePoisonGas(2, 2), 1);
   assert.equal(tiles.getFeature(2, 2), 'water'); assert.equal(tiles.getFeature(3, 2), 'grass');
+  assert.equal(dungeon.inspectTileInfo(3, 2).background, true, 'grass is only scenery for an occupant');
+  assert.equal(dungeon.inspectTileInfo(1, 2).background, false, 'doors stay notable');
+  assert.equal(dungeon.inspectTileInfo(2, 2).background, false, 'poison gas makes water worth inspecting');
   assert.equal(effects.hasEffect(target, 'poisoned'), true);
   assert.equal(effects.hasEffect(flyer, 'poisoned'), false, 'only the impact tile is covered at first');
   assert.equal(effects.hasEffect(item, 'poisoned'), false); assert.equal(corpse.effects.length, 0);

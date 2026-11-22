@@ -514,6 +514,38 @@ for (const stale of ['floor', 'position', 'death', 'readiness', 'modal', 'none']
   assert.equal(f.context.inspectChoices.length, 1, 'unrelated entities leave the list alone');
 }
 
+// Grass and water are scenery, not interesting inspect targets when a chest or
+// mimic stands on them: the occupant is inspected directly with no picker.
+{
+  const f = fixture();
+  const chest = { type: 'item', x: 3, y: 3, sprite: {}, displayName: 'Treasure Chest' };
+  const mimic = { type: 'enemy', name: 'Mimic', x: 4, y: 3, sprite: {}, displayName: 'Mimic' };
+  f.context.entities.push(chest, mimic);
+  for (const [label, description] of [
+    ['Tall grass', 'Tall grass. Blocks sight in both directions.'],
+    ['Water', 'Water. Douses fire.']
+  ]) {
+    f.dungeon.inspectTileInfo = () => ({ label, description, background: true });
+    for (const [x, entity] of [[3, chest], [4, mimic]]) {
+      f.hero.inspectTile(x, 3);
+      assert.equal(f.context.inspectChoices, undefined,
+        `${label} must not open a picker for ${entity.displayName}`);
+      assert.equal(f.context.inspectedEntity, entity);
+      assert.equal(f.context.inspectedTerrain, undefined);
+    }
+  }
+  // A notable terrain feature still gets its own row beside the occupant.
+  f.dungeon.inspectTileInfo = () => ({ label: 'Dart trap', description: 'A dart trap.', background: false });
+  f.hero.inspectTile(3, 3);
+  assert.deepEqual(f.context.inspectChoices.map(choice => choice.kind), ['entity', 'terrain']);
+  // Scenery still describes itself when nothing else is on the tile.
+  f.context.entities = [f.hero];
+  f.dungeon.inspectTileInfo = () => ({ label: 'Tall grass', description: 'Tall grass.', background: true });
+  f.hero.inspectTile(3, 3);
+  assert.equal(f.context.inspectChoices, undefined);
+  assert.equal(f.context.inspectedTerrain, 'Tall grass.');
+}
+
 // Pinch/pan/modal taps never become walk commands; stairs dispatch only while
 // standing on the tile, without spending a turn in the input layer itself.
 {

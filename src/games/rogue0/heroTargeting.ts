@@ -115,9 +115,12 @@ export function createHeroTargeting(services: HeroControlServices) {
       // visible through a different cell.
       const info = tileVisible ? dungeon.inspectTileInfo?.(x, y) : undefined;
       // Terrain is its own entry whenever it says more than plain floor, so an
-      // item on a trap never hides the trap (and vice versa).
+      // item on a trap never hides the trap (and vice versa). Grass and water
+      // are only scenery: when an occupant shares the tile they are ignored so
+      // the picker offers just the non-terrain things worth inspecting.
       const choices: InspectChoice[] = entities.map(entity => ({ kind: 'entity', entity }));
-      if (info?.label) {
+      const terrainIsScenery = entities.length > 0 && info?.background === true;
+      if (info?.label && !terrainIsScenery) {
         choices.push({ kind: 'terrain', label: info.label, description: info.description, illustration: info.illustration });
       }
       if (choices.length > 1) context.inspectChoices = choices;
