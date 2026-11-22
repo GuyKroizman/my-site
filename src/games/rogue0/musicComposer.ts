@@ -133,8 +133,8 @@ export function setMusicState(state: MusicState): void {
   intensity = state.intensity;
   const boss = state.intensity === 'boss';
   target.strings = boss ? 0
-    : state.intensity === 'calm' ? 0.16
-    : state.intensity === 'uneasy' ? 0.18 : 0.2;
+    : state.intensity === 'calm' ? 0.22
+    : state.intensity === 'uneasy' ? 0.245 : 0.27;
 
   for (const layer of LAYERS) {
     if (layer === 'strings' || layer === 'horn' || layer === 'timpani') continue;
@@ -142,11 +142,11 @@ export function setMusicState(state: MusicState): void {
   }
   for (const cue of state.cues) {
     const layer = CUE_LAYER[cue.cue];
-    if (layer) target[layer] = Math.max(target[layer], 0.22 * cue.level);
+    if (layer) target[layer] = Math.max(target[layer], 0.3 * cue.level);
   }
-  target.horn = boss ? 0.3 : 0;
+  target.horn = boss ? 0.4 : 0;
   const loudest = Math.max(0, ...state.cues.map((cue) => cue.level));
-  target.timpani = boss ? 0.28 : state.intensity === 'combat' ? 0.18 * loudest : 0;
+  target.timpani = boss ? 0.38 : state.intensity === 'combat' ? 0.245 * loudest : 0;
 }
 
 export function resetMusicComposer(): void {

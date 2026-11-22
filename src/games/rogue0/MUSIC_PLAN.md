@@ -181,7 +181,10 @@ so it can be unit-tested with the existing fixture style.
   The samples are copied into `dist/rogue0/audio/` but are not fetched at
   startup. The loader module is currently tree-shaken out of the build because
   nothing imports it yet; Phase 2 will wire it in.
-- Still outstanding for Phase 1: the manual browser check via the spike page.
+- Manual check: the first spike run reported "loaded and played C4" but was
+  silent because `notes` used MIDI numbers; audio-loader's `only` filter matches
+  raw note names, so zero samples decoded. Fixed by requesting flat note names;
+  the user then confirmed a clarinet C4 was audible.
 
 ## Phase 2 status (done)
 
@@ -244,8 +247,9 @@ so it can be unit-tested with the existing fixture style.
   expected); fixed by adjusting the test windows, no game-code change.
 - Verified: `npx tsc --noEmit`, `npm run lint`, and `npm run test:rogue0`
   (98 passed, 0 failed) clean.
-- Still outstanding: manual in-game listening check (calm → goblin → skeleton
-  → boss) in a browser.
+- Manual check: the user confirmed the original three-motif soundtrack was
+  audible in-game. The expanded cast was verified by the automated suites and
+  build, but not by ear.
 
 ## Phase 6 status (done)
 
@@ -307,3 +311,23 @@ so it can be unit-tested with the existing fixture style.
   reveals monsters through walls. Mimic and sleeping exceptions protect the
   two mechanics that would otherwise be spoiled; revisit if playtesting
   shows stealth is too easy.
+- **Muffled cues (deliberately omitted):** unseen monsters are quieter but not
+  low-pass filtered. The shared players have no per-note destination, so
+  filtering only those notes would need a second full sample set. Distance is
+  conveyed by level only.
+
+## Final status
+
+The planned work is complete: engine, controls, state rules, composer, all 14
+monster motifs, licences, docs and tests. The dev server used for the listening
+check has been stopped. Known limitations are the three listed above (38 MB
+asset footprint with on-demand loading of non-core instruments, no per-cue
+low-pass filter, and no by-ear verification of the expanded cast).
+
+After the user found the mix a little quiet even with the slider at maximum,
+the internal layer faders were raised ~35% (strings 0.16→0.22 calm / 0.2→0.27
+combat, motifs 0.22→0.30, boss horn 0.3→0.4, timpani 0.28→0.38). The master
+slider still maps 0–1; no compression or gain above unity was introduced.
+
+Last verification: `npx tsc --noEmit`, `npm run lint`, both focused music
+suites, `npm run build`, and `npm run test:rogue0` (98 passed, 0 failed).
