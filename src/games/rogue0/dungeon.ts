@@ -718,8 +718,27 @@ const dungeon = {
     } else if (entity.type === "enemy") {
       // Killed by the fall: loot drops into the chasm, not onto the void tile.
       entity.fellIntoChasm = true;
-      entity.takeDamage(entity.healthPoints);
-      removeEntity(context, entity);
+      const sprite = entity.sprite;
+      if (sprite && context.scene) {
+        // Like a thrown item falling out of sight, the monster shrinks and
+        // fades as it drops into the dark; death lands when it is gone.
+        context.scene.tweens.add({
+          targets: sprite,
+          alpha: 0,
+          scaleX: 0.2,
+          scaleY: 0.2,
+          duration: 160,
+          ease: "Sine.easeIn",
+          onComplete: () => {
+            if (!context.entities.includes(entity)) return;
+            entity.takeDamage(entity.healthPoints);
+            removeEntity(context, entity);
+          },
+        });
+      } else {
+        entity.takeDamage(entity.healthPoints);
+        removeEntity(context, entity);
+      }
     }
   },
 
