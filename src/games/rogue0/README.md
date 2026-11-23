@@ -237,7 +237,7 @@ and an XP-based difficulty forecast. New normal-run encounters arrive gradually:
 | 1 | Skeletons and Deadly Frogs (frogs retire after floor 4) |
 | 2 | Swarms of Flies and Mimics |
 | 3 | Goblins |
-| 5 | Unblinking Coil; one guardian on every fifth floor |
+| 5 | Unblinking Coil, on every fifth floor |
 | 6 | Quloptsh |
 | 8 | Ghouls |
 | 11 | Brutes |
@@ -251,7 +251,7 @@ Normal floors keep the original Skeleton quota (`2 + min(floor, 5)`) and one
 Mimic from floor 2. Goblins ramp from one on floor 3 to four on floor 6;
 Quloptsh ramp from one on floor 6 to three on floor 8. Other unlocked types get
 one spawn, with one shared elemental slot chosen uniformly from unlocked
-variants. Boss floors still contain only their guardian. Scenarios can
+variants. Boss floors still contain only the Unblinking Coil. Scenarios can
 explicitly place out-of-band monsters.
 
 Skeleton and Mimic stats are unchanged. Swarms now have **28 HP and 6 damage**;
@@ -548,7 +548,7 @@ An “Are you sure?” confirmation warns about the fall before committing.
 Accepting drops you into the next floor, costs movement time, and deals
 `ceil(max HP / 3)` damage on arrival, ignoring armor; final-floor falls are
 fatal. Cancelling is free. Rooted heroes cannot step into chasms; levitating
-heroes cross safely. While a boss floor's guardian still lives, the seal also
+heroes cross safely. While a boss floor's Unblinking Coil still lives, the seal also
 prevents entering its chasms, so the boss cannot be bypassed by falling.
 Auto-walk routes still avoid chasms. There is no Jump button or `v` shortcut.
 
@@ -690,8 +690,8 @@ not count), the scene immediately draws a small wave — two to four monsters,
 weighted from the regular roster for the current depth but never Mimics or the
 Unblinking Coil. Unlocks match initial generation, including frogs only on floors 1–4
 and depth-gated elemental variants.
-The one exception is a **boss floor** (5, 10, 15, 20, 25): it is the guardian's
-arena, so it is never repopulated — killing the guardian leaves the floor empty
+The one exception is a **boss floor** (5, 10, 15, 20, 25): it is the Unblinking Coil's
+arena, so it is never repopulated — killing the Unblinking Coil leaves the floor empty
 and the way down open. The wave joins the current action timeline and is always
 placed outside the
 hero's field of view, on free walkable tiles at least 8 tiles away when such
@@ -742,37 +742,37 @@ RNG, and clears on expiry, death, floor change and scene shutdown
 ## Run length and equipment progression
 
 A run has **25 floors**. Floors **5, 10, 15, 20 and 25** are boss floors, each
-guarded by the Unblinking Coil. Their stairs are sealed until that floor's guardian
-dies, and slaying the floor-25 guardian ends the run in victory.
+guarded by the Unblinking Coil. Their stairs are sealed until the Unblinking Coil
+on that floor dies, and slaying it on floor 25 ends the run in victory.
 
 A boss floor is not a room network: map generation carves a single **arena
-hall** behind a border of solid rock, with the guardian asleep at its exact
-centre. Each boss floor builds its **own hall** (`bossArenas.ts`), so the five
-guardians are fought in five different rooms: a 16x16 **pillared rotunda** on
+hall** behind a border of solid rock, with the Unblinking Coil asleep at its exact
+centre. Each boss floor builds its **own hall** (`bossArenas.ts`), so the
+Unblinking Coil is fought in five different rooms: a 16x16 **pillared rotunda** on
 floor 5 (four 2x2 pillars exactly 10 tiles apart), a 24x14 **long colonnade**
 on floor 10, an 18x18 **octagonal sanctum** on floor 15, a 20x20 **cruciform
 vault** on floor 20 and a 20x20 **throne hall** ringed by eight piers on floor
 25. The hero always arrives at the south edge, across the hall from the
-guardian, and the sealed stairs wait in the farthest eastern corner. Every
-hall keeps its middle, its entrance and its exit clear. The arena is the guardian's alone: no
+Unblinking Coil, and the sealed stairs wait in the farthest eastern corner. Every
+hall keeps its middle, its entrance and its exit clear. The arena is the Unblinking Coil's alone: no
 wandering roster (skeletons, goblins, ghouls, brutes, Quloptsh, swarms, mimics,
 cultists, elementals, wraiths, frogs), no random floor loot, no cursed gem, no
-chasm, no bone pile and no summon trap. What it does carry is the guardian, two
+chasm, no bone pile and no summon trap. What it does carry is the Unblinking Coil, two
 treasure chests, one ration and the hidden room's gold above the north wall;
 grass, water and the
 other hidden traps still dress the hall. Floor 5 is the exception to the trap
 budget: its rotunda is a trap gauntlet with the usual two hidden traps plus five
 visible fire traps, five visible teleport traps and thirty arrow traps,
 alongside the two arrow plates. The arrows fire at the nearest living character
-when stepped on — guardian included if it is closer — and visible plates are
+when stepped on — the Unblinking Coil included if it is closer — and visible plates are
 avoided by auto-walk, so the hall becomes a hazard course. Summon is still
-excluded, so none of them adds another monster to the guardian fight. The
-guardian naps until disturbed — a
+excluded, so none of them adds another monster to the Unblinking Coil fight. The
+Unblinking Coil naps until disturbed — a
 wound, a noise, the hero stepping within two tiles in its line of sight, or a
 long dormancy running out — so a careful approach earns the first strike. The
-scaled guardian art is anchored to its tile and its 3×3 body stops the hero
+scaled Unblinking Coil art is anchored to its tile and its 3×3 body stops the hero
 outside the artwork, so nobody can stand underneath it; taps anywhere on that
-art target the guardian. The floor is never repopulated after the guardian
+art target the Unblinking Coil. The floor is never repopulated after the Unblinking Coil
 falls. The old five-floor limit
 was for testing.
 Themed regions remain future work. Encounter variety and enemy strength now

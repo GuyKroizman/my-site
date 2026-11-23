@@ -69,15 +69,15 @@ has been playtested. Checked boxes mean the described implementation exists.
 - A floor-population guard (`monsterReinforcements.ts`) tops up a floor when its
   last living monster dies: a small wave spawns at least 8 tiles away and
   outside the hero's field of view, scaling with floor depth. Boss floors
-  (every fifth) are exempt: they are guardian-only arenas and stay empty once
-  the guardian falls (`floorAllowsReinforcements`).
+  (every fifth) are exempt: they are Unblinking Coil-only arenas and stay empty
+  once the Unblinking Coil falls (`floorAllowsReinforcements`).
 - Boss floors are one arena hall (`bossArenaRoom`), not a room network, and
   every boss floor has its own plan (`bossArenas.ts`: rotunda, long colonnade,
   octagonal sanctum, cruciform vault, throne hall), centred in the old
-  footprint: the hero enters at the south edge, the guardian sleeps at the
+  footprint: the hero enters at the south edge, the Unblinking Coil sleeps at the
   exact centre, and the stairs sit at the farthest open eastern tile. Floor 5's
   16x16 rotunda keeps four 2x2 pillars 10 walkable tiles apart; the other halls
-  stand their own rocks, all clear of the middle and both approaches. The guardian is the only monster,
+  stand their own rocks, all clear of the middle and both approaches. The Unblinking Coil is the only monster,
   and no random floor loot, cursed gem, chasm, summon trap or Skeletal Remains
   pile appears. They keep their two treasure chests, one ration and the hidden
   room's gold.

@@ -164,7 +164,7 @@ for (const floor of [5, 10, 15, 20, 25]) {
   assert.equal(floorAllowsReinforcements(floor), false, `floor ${floor} is a boss floor`);
   const bossArena = { entities: [player], player: { x: 7, y: 7 }, visibleTiles: new Set() };
   assert.equal(reinforceFloor(bossArena, field, () => assert.fail(`floor ${floor} was repopulated`),
-    { floor }), 0, `floor ${floor} stays a guardian-only arena`);
+    { floor }), 0, `floor ${floor} stays an Unblinking Coil-only arena`);
 }
 
 // --- removeEntity invokes the population hook only for real monsters --------

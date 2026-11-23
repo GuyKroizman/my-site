@@ -159,7 +159,7 @@ for (const hidden of [{ visible: false }, { alpha: 0 }]) {
     resolveFootprint({ width: 3, height: 3, anchor: 'center' }));
   assert.equal(f.images[0].visible, true, 'a visible boss edge is sufficient even when its centre is unseen');
   assert.equal(monsterDeathStyle('Bone Lord'), 'deflate',
-    'old saves keep the guardian death animation after the rename');
+    'old saves keep the Unblinking Coil death animation after the rename');
 }
 // Real Entity removal and inherited Monster hook: rewards are immediate and
 // restore-created instances need no constructor-only animation state.

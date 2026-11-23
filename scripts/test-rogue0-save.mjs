@@ -130,7 +130,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     type: 'enemy', tile: [320, 322, 324, 323][i], healthPoints: 7, sleepTurnsRemaining: 11,
     x: 0, y: 0, effects: [], loot: [false], nextActionTime: 4.5,
   }));
-  // Saved before the guardian was renamed and made airborne: both must be
+  // Saved before the Unblinking Coil was renamed and made airborne: both must be
   // repaired at load, without rerunning the constructor.
   const legacyBoss = Object.assign(Object.create(Boss.prototype), {
     type: 'enemy', name: 'Bone Lord', flying: false, movementSpeed: 1, tile: 999,
@@ -196,8 +196,8 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.equal(savedCursedGem.count, 3, 'art migration preserves the stack');
   const restoredBoss = run.floors.get(1).entities.find(entity => entity.name === 'The Unblinking Coil');
   assert.ok(restoredBoss, 'legacy boss is renamed when the save is loaded');
-  assert.equal(restoredBoss.flying, true, 'restored guardian floats over traps');
-  assert.equal(restoredBoss.movementSpeed, 0.8, 'restored guardian keeps the slower hover');
+  assert.equal(restoredBoss.flying, true, 'restored Unblinking Coil floats over traps');
+  assert.equal(restoredBoss.movementSpeed, 0.8, 'restored Unblinking Coil keeps the slower hover');
   assert.equal(run.player.quickslots[0], savedCursedGem, 'quickslot retains migrated item identity');
   const restored = run.player.backpack[0];
   assert.deepEqual(run.player.inputBuffer, []);

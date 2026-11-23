@@ -9,7 +9,7 @@ export const BOSS_GAZE_COUNT = BOSS_GAZES.length;
 // At 10fps and 8 wiggle phases that is 2.4 seconds per gaze.
 export const BOSS_GAZE_CYCLES = 3;
 
-// The dungeon's guardian is a compact one-eyed, fanged blob ringed by sixteen
+// The dungeon's Unblinking Coil is a compact one-eyed, fanged blob ringed by sixteen
 // jet-black tentacles: four growing out of each side. The tentacles fill the
 // space the old full-frame body used to occupy, so the creature's overall size
 // is unchanged while the body itself is less than half as wide.

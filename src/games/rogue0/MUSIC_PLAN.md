@@ -218,7 +218,7 @@ so it can be unit-tested with the existing fixture style.
 - Two failures occurred while writing the new suite, both fixed: the first was
   an incorrect test expectation (mimics have no motif in the slice, so the
   test now supplies an explicit test cue); the second was a real selector bug
-  — the boss check sat after the hearing-radius filter, so a distant guardian
+  — the boss check sat after the hearing-radius filter, so a distant Unblinking Coil
   did not override — fixed by moving the boss branch first.
 - Verified: `npx tsc --noEmit`, `npm run lint`, and `npm run test:rogue0`
   (97 passed, 0 failed) clean.

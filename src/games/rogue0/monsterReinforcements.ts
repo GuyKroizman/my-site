@@ -41,7 +41,7 @@ export function floorIsEmptyOfMonsters(entities: Entity[]): boolean {
   return !entities.some(isLivingMonster);
 }
 
-// Boss floors are the guardian's arena: they are generated with the guardian
+// Boss floors are the Unblinking Coil's arena: they are generated with the boss
 // alone, so nothing is drawn onto them after it dies either. Kept dependency
 // free (like dungeon.bossSealsFloor) so this module can be imported and tested
 // without the renderer, and mirrors progression.isBossFloor.

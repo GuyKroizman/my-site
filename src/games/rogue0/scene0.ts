@@ -302,7 +302,7 @@ export class Scene0 extends Phaser.Scene {
   private wallDecals = new Map<string, { sprite: Phaser.GameObjects.Sprite; raised: boolean }>();
   private secretRoom?: Room;
   private chasmRoom?: ChasmRoom;
-  // Middle of a boss floor's arena. The guardian is placed here, asleep, so the
+  // Middle of a boss floor's arena. The Unblinking Coil is placed here, asleep, so the
   // hall stays a single open fight instead of a loot scatter.
   private bossArena?: { x: number; y: number };
   private cursor!: Phaser.GameObjects.Graphics;
@@ -1022,7 +1022,7 @@ export class Scene0 extends Phaser.Scene {
       dungeon.log(this.context, `${item.displayName} lies on the floor, fallen from the chasm above.`);
     }
 
-    // A boss floor with no guardian (a legacy save or an authored scenario)
+    // A boss floor with no Unblinking Coil (a legacy save or an authored scenario)
     // was cleared before this rule existed. Never seal its stairs behind an
     // absent boss.
     if (isBossFloor(floor) && !this.context.entities.some(entity => entity instanceof Boss)) {
@@ -1096,8 +1096,8 @@ export class Scene0 extends Phaser.Scene {
     if (bossSealsFloor(this.context)) {
       player.actionReady = true;
       dungeon.log(this.context, blinkFall
-        ? "The guardian's seal repels the Stone of Blink."
-        : "The guardian's seal holds you above the abyss.");
+        ? "The Unblinking Coil's seal repels the Stone of Blink."
+        : "The Unblinking Coil's seal holds you above the abyss.");
       return;
     }
     if (this.context.floor >= this.context.maxFloor) {
@@ -1144,8 +1144,8 @@ export class Scene0 extends Phaser.Scene {
 
     if (bossSealsFloor(this.context)) {
       dungeon.log(this.context, this.context.floor >= this.context.maxFloor
-        ? "The final guardian still lives. The dungeon will not release you."
-        : "The way down is sealed. Slay this floor's guardian first.");
+        ? "The Unblinking Coil still lives. The dungeon will not release you."
+        : "The way down is sealed. Slay the Unblinking Coil first.");
       return;
     }
 
@@ -1230,11 +1230,11 @@ export class Scene0 extends Phaser.Scene {
     if (!context.bossesSlain) context.bossesSlain = new Set();
     context.bossesSlain.add(floor);
     if (floor >= context.maxFloor) {
-      dungeon.log(context, "The final guardian falls. You have conquered the dungeon!");
+      dungeon.log(context, "The Unblinking Coil falls. You have conquered the dungeon!");
       this.events.emit("player-won");
       return;
     }
-    dungeon.log(context, "The guardian falls. The way down is no longer sealed.");
+    dungeon.log(context, "The Unblinking Coil falls. The way down is no longer sealed.");
     if (context.stairsX !== undefined && context.stairsY !== undefined) {
       this.renderStairs(context.stairsX, context.stairsY);
     }
@@ -1245,7 +1245,7 @@ export class Scene0 extends Phaser.Scene {
   private reinforceEmptyFloor(): void {
     const context = this.context;
     if (this.ended || !context.player) return;
-    // A boss floor stays empty once its guardian falls: the arena is never
+    // A boss floor stays empty once the Unblinking Coil falls: the arena is never
     // repopulated behind the hero's back, matching its generated population.
     if (isBossFloor(context.floor)) return;
     const level = dungeon.getCurrentLevel();
@@ -1403,7 +1403,7 @@ export class Scene0 extends Phaser.Scene {
         dungeon.log(
           this.context,
           bossSealsFloor(this.context)
-            ? "You stand on sealed stairs. The guardian of this floor still lives."
+            ? "You stand on sealed stairs. The Unblinking Coil still lives."
             : stairsHint(isExit)
         );
       }
@@ -2072,10 +2072,11 @@ export class Scene0 extends Phaser.Scene {
     const progression = floorProgression(floor);
     const progressionCount = progression.strengthPotions + progression.upgradeScrolls
       + Number(progression.weapon) + Number(progression.armor);
-    // A boss floor is the guardian's arena: no other monster shares it, and no
-    // scattered loot (random items, cursed gems or a bone pile) clutters it. The
-    // guardian, the treasure chests, one ration and the hidden room's gold are
-    // the floor's whole population, so the fight stays the floor's only event.
+    // A boss floor is the Unblinking Coil's arena: no other monster shares it,
+    // and no scattered loot (random items, cursed gems or a bone pile) clutters
+    // it. The Unblinking Coil, the treasure chests, one ration and the hidden
+    // room's gold are the floor's whole population, so the fight stays the
+    // floor's only event.
     const bossFloor = isBossFloor(floor);
     const roster = floorMonsterRoster(floor);
     const skeletonCount = roster.skeleton;
@@ -2096,14 +2097,14 @@ export class Scene0 extends Phaser.Scene {
     const cursedGemCount = bossFloor ? 0 : (Math.random() < 0.2 ? 1 : 0);
     const foodCount = 1;
 
-    // The guardian's own tile is reserved before anything else rolls: it waits
+    // The Unblinking Coil's own tile is reserved before anything else rolls: it waits
     // in the middle of the arena, and nothing else may stand there.
     const bossHome = bossFloor ? this.bossArena : undefined;
     // Legacy fixtures can load scene0 with a placeholder Boss class; fall back
     // to one tile when it carries no static footprint.
     const bossFootprint: Footprint = Boss.footprint ?? TILE_FOOTPRINT;
     if (bossHome) {
-      // Reserve the guardian's full footprint so chests and the ration cannot
+      // Reserve the Unblinking Coil's full footprint so chests and the ration cannot
       // spawn inside the space the hero is not allowed to enter either. The
       // same helper reserves any future large creature's rectangle.
       reserveFootprint(exclude, bossFootprint, bossHome.x, bossHome.y);
@@ -2191,7 +2192,7 @@ export class Scene0 extends Phaser.Scene {
       });
     }
     spawnGroup(Ration, foodCount);
-    // The guardian stands in the middle of its arena rather than on a random
+    // The Unblinking Coil stands in the middle of its arena rather than on a random
     // floor tile, and the Boss class keeps it asleep until it is disturbed.
     if (bossFloor) {
       const centerFree = bossHome !== undefined &&

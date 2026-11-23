@@ -41,7 +41,7 @@ export const Sprites = {
 
 const tileSize = 16;
 
-// Boss floors are sealed until their guardian dies. This deliberately mirrors
+// Boss floors are sealed until the Unblinking Coil dies. This deliberately mirrors
 // context.bossSealsFloor without a runtime import, so isolated dungeon suites
 // can keep their minimal bindings.
 function bossSealsFloor(context: GameContext): boolean {
@@ -710,7 +710,7 @@ const dungeon = {
           .some(([x, y]) => tiles.getFeature(x, y) === "chasm")) return;
     if (entity.type === "player") {
       if (bossSealsFloor(context)) {
-        this.log(context, "The guardian's seal holds you above the abyss.");
+        this.log(context, "The Unblinking Coil's seal holds you above the abyss.");
         return;
       }
       context.pendingFall = true;

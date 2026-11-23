@@ -83,7 +83,7 @@ export function selectMusicState(context: GameContext): MusicState {
     const cue = cueFor(entity);
     if (!cue) continue;
 
-    // The guardian owns the soundtrack on its floor, at any distance.
+    // The Unblinking Coil owns the soundtrack on its floor, at any distance.
     if (cue === 'boss') {
       return {
         intensity: 'boss',

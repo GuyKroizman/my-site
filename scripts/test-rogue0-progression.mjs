@@ -19,9 +19,9 @@ const { bossSealsFloor } = progression;
 assert.equal(createGameContext().maxFloor, 25);
 {
   const locked = { ...createGameContext(), floor: 5 };
-  assert.equal(bossSealsFloor(locked), true, 'floor 5 is sealed while its guardian lives');
+  assert.equal(bossSealsFloor(locked), true, 'floor 5 is sealed while the Unblinking Coil lives');
   locked.bossesSlain.add(5);
-  assert.equal(bossSealsFloor(locked), false, 'killing the guardian unseals the floor');
+  assert.equal(bossSealsFloor(locked), false, 'killing the Unblinking Coil unseals the floor');
   locked.floor = 6;
   assert.equal(bossSealsFloor(locked), false, 'ordinary floors are never sealed');
 }
@@ -280,20 +280,20 @@ for (let run = 0; run < 5; run++) {
     assert.equal(count('Mimic'), !progression.isBossFloor(floor) && floor >= 2 ? 1 : 0,
       'no mimic disguises itself on a boss floor');
     if (progression.isBossFloor(floor)) {
-      // The boss floor is the guardian's arena: it carries the guardian, two
-      // treasure chests, one ration and the hidden room's gold, nothing else.
+      // The boss floor is the Unblinking Coil's arena: it carries the boss,
+      // two treasure chests, one ration and the hidden room's gold, nothing else.
       const nameOf = item => item.kind ?? item.constructor?.name;
       const allowed = new Set(['Boss', 'Chest', 'Ration', 'Gold']);
       const strays = items.filter(item => !allowed.has(nameOf(item)));
       assert.deepEqual(strays.map(nameOf), [],
         `boss floor ${floor} holds no other monsters, loot or bone piles`);
       assert.equal(items.filter(item => nameOf(item) === 'Boss').length, 1,
-        `boss floor ${floor} holds exactly one guardian`);
-      const guardian = items.find(item => nameOf(item) === 'Boss');
-      assert.deepEqual({ x: guardian.x, y: guardian.y }, generated.bossArena,
-        `boss floor ${floor} places its guardian in the middle of the arena`);
-      assert.notDeepEqual({ x: guardian.x, y: guardian.y }, spawn,
-        'the hero does not arrive on top of the guardian');
+        `boss floor ${floor} holds exactly one Unblinking Coil`);
+      const unblinkingCoil = items.find(item => nameOf(item) === 'Boss');
+      assert.deepEqual({ x: unblinkingCoil.x, y: unblinkingCoil.y }, generated.bossArena,
+        `boss floor ${floor} places its Unblinking Coil in the middle of the arena`);
+      assert.notDeepEqual({ x: unblinkingCoil.x, y: unblinkingCoil.y }, spawn,
+        'the hero does not arrive on top of the Unblinking Coil');
     }
     const occupied = new Set(items.map(item => `${item.x},${item.y}`));
     assert.equal(occupied.size, items.length, 'spawns never overlap');
@@ -373,8 +373,8 @@ for (const [floor, expected] of [[1, 1], [2, 0], [3, 1], [4, 1], [5, 0], [6, 1],
 }
 walkableTiles = mapgen.randomWalkableTiles;
 
-// Boss floors cannot be descended until the guardian dies, and the final
-// guardian's death wins the run immediately.
+// Boss floors cannot be descended until the Unblinking Coil dies, and its
+// death on the final floor wins the run immediately.
 {
   const scene = Object.create(Scene0.prototype);
   scene.context = { ...createGameContext(), floor: 5, entities: [], stairsX: 1, stairsY: 1 };
@@ -384,10 +384,10 @@ walkableTiles = mapgen.randomWalkableTiles;
   scene.saveFloor = () => {};
   scene.restoreFloor = () => { restored = true; };
   scene.descend();
-  assert.equal(restored, false, 'a live guardian seals the way down');
+  assert.equal(restored, false, 'a live Unblinking Coil seals the way down');
   scene.context.bossesSlain.add(5);
   scene.descend();
-  assert.equal(restored, true, 'slaying the guardian permits descent');
+  assert.equal(restored, true, 'slaying the Unblinking Coil permits descent');
 }
 {
   const emitted = [];

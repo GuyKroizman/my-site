@@ -88,7 +88,7 @@ function isAdjacentTo(entity: Entity, target: Entity): boolean {
   ) {
     return false;
   }
-  // Bodies, not centres: a wide guardian can reach a hero two cells from its
+  // Bodies, not centres: the wide Unblinking Coil can reach a hero two cells from its
   // centre because its body already fills the cell between them.
   return bodyDistance(entity, target) <= 1;
 }

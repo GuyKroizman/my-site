@@ -57,7 +57,7 @@ export type RunState = {
   floors: Map<number, SavedFloor>;
   floor: number;
   kills: number;
-  // Boss floors whose guardian died. Optional so v1 saves written before boss
+  // Boss floors where the Unblinking Coil died. Optional so v1 saves written before boss
   // floors were sealed still load.
   bossesSlain?: Set<number>;
   // The floor this run gave its chasm room to. Optional so saves written while
@@ -111,9 +111,9 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
     if (entity instanceof TieredWeapon) {
       entity.textureKey = WEAPON_TEXTURES[entity.tier - 1];
     }
-    // Boss rename migration (old saves still carry the guardian's former name).
+    // Boss rename migration (old saves still carry the Unblinking Coil's former name).
     if ((entity as any)?.name === 'Bone Lord') entity.name = 'The Unblinking Coil';
-    // The guardian floats and hovers slowly: restore both on old saves, whose
+    // The Unblinking Coil floats and hovers slowly: restore both on old saves, whose
     // serialized fields predate the change. Only the old speed is replaced so
     // later balance tweaks are not overwritten on load.
     if ((entity as any)?.name === 'The Unblinking Coil') {

@@ -33,7 +33,7 @@ function traps(generated) {
 }
 
 // Sample many generated halls: the counts must be exact, the plates distinct and
-// the visible field must not turn the guardian arena into a monster factory.
+// the visible field must not turn the Unblinking Coil's arena into a monster factory.
 for (let i = 0; i < 80; i++) {
   const generated = generateMap(5);
   const all = traps(generated);
@@ -53,7 +53,7 @@ for (let i = 0; i < 80; i++) {
   for (const f of all) {
     assert.equal(generated.map[f.y][f.x], 0, `trap at ${f.x},${f.y} sits on a walkable hall tile`);
     assert.ok(HIDDEN.includes(f.trapKind) || f.trapKind === 'arrow', `known trap kind: ${f.trapKind}`);
-    assert.notEqual(f.trapKind, 'summon', 'the guardian arena never summons extra monsters');
+    assert.notEqual(f.trapKind, 'summon', 'the Unblinking Coil arena never summons extra monsters');
     assert.equal(!!f.trapReusable, REUSABLE.includes(f.trapKind), 'reuse policy still follows the trap kind');
   }
 }
