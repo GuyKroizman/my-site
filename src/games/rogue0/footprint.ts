@@ -8,7 +8,7 @@
 // `entity.x/y` is the ANCHOR cell. `originX/originY` say which cell of the
 // rectangle the anchor refers to. The default is the top-left corner, so a 3x3
 // creature at (5,5) covers (5,5)..(7,7). Creatures that want another anchor
-// (the Unblinking Coil in the arena is centre-anchored at the old bodyRadius
+// (the Writhing Maw in the arena is centre-anchored at the old bodyRadius
 // semantics) say so explicitly. The footprint is derived configuration, never
 // saved state.
 

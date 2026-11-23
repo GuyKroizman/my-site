@@ -155,7 +155,7 @@ assert.equal(player.healthPoints, 0, 'fall damage can kill on arrival');
 assert.equal(deaths, 1);
 assert.equal(appliedEffects.length, 1, 'a hero killed on arrival does not get a wound');
 scene.context.floor = 5;
-// The floor-5 Unblinking Coil is already dead, otherwise the seal (not the abyss)
+// The floor-5 Writhing Maw is already dead, otherwise the seal (not the abyss)
 // would resolve this fall.
 scene.context.bossesSlain = new Set([5]);
 scene.context.pendingFall = true;

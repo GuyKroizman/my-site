@@ -23,7 +23,7 @@ export function floorIsBossArena(floor: number): boolean {
 // pair and adds a fixed field of visible plates — five fire, five teleport and
 // thirty arrow traps. The extra arrow plates are handled separately below. Summon
 // stays out of every boss floor's hidden pool, so no plate adds a monster to
-// the Unblinking Coil fight.
+// the Writhing Maw fight.
 export const TRAP_HEAVY_FLOOR = 5;
 
 export type VisibleTrapQuota = { kind: TrapKind; count: number };
@@ -107,7 +107,7 @@ export function floorRollsLevitationLoot(floor: number): boolean {
 
 // The hall comes from the floor's own layout, clamped to the space inside the
 // rock border and centred there. On the standard map every layout fits whole,
-// so the Unblinking Coil keeps the map centre and the hidden branch keeps its room
+// so the Writhing Maw keeps the map centre and the hidden branch keeps its room
 // above the north wall.
 export function bossArenaRoom(width: number, height: number, floor = 5): Room {
   const layout = bossArenaLayout(floor);
@@ -148,7 +148,7 @@ export function bossArenaWallTiles(
   return walls;
 }
 
-// The Unblinking Coil's body may stand nowhere else, so the entrance and the exit
+// The Writhing Maw's body may stand nowhere else, so the entrance and the exit
 // both stay out of its 3x3 square.
 function arenaGuarded(room: Room, x: number, y: number): boolean {
   return Math.abs(x - room.cx) <= 1 && Math.abs(y - room.cy) <= 1;
@@ -183,7 +183,7 @@ export function bossArenaSpawn(
 // The sealed stairs sit at the open hall tile farthest from the entrance,
 // preferring the eastern half by Manhattan distance. That keeps the exit clear
 // of the concealed branch, which always hangs above the hall's north-west
-// corner tile, and of the Unblinking Coil's square.
+// corner tile, and of the Writhing Maw's square.
 export function bossArenaStairs(
   map: number[][],
   room: Room,
@@ -278,7 +278,7 @@ export type GeneratedMap = {
   // edge, on the axis where that tile is open). Ordinary floors derive the
   // arrival tile from rooms[0].
   spawn?: { x: number; y: number };
-  // Middle of the boss arena, where the Unblinking Coil waits asleep.
+  // Middle of the boss arena, where the Writhing Maw waits asleep.
   bossArena?: { x: number; y: number };
   // The arena's farthest open tile from the entrance, in its eastern half.
   // Ordinary floors derive the exit from the arrival tile instead; the arena
@@ -1092,7 +1092,7 @@ export function generateMap(
   if (arena) {
     carve(map, arena);
     // The floor's own layout supplies the interior rock: pillars, chamfers and
-    // corner masses. The Unblinking Coil's 3x3 body, the entrance and the stairs are
+    // corner masses. The Writhing Maw's 3x3 body, the entrance and the stairs are
     // all kept off those tiles.
     for (const wall of bossArenaWallTiles(arena, floor)) {
       map[wall.y][wall.x] = 1;
@@ -1277,7 +1277,7 @@ export function generateMap(
     };
   }
 
-  // A couple of hidden traps. A boss floor is an Unblinking Coil arena, so the summon
+  // A couple of hidden traps. A boss floor is a Writhing Maw arena, so the summon
   // trap is left out of its pool: nothing may add another monster there.
   const trapKinds: TrapKind[] = ["dart", "fire", "frost", "teleport", "summon", "alarm", "geyser", "confusion"];
   const allowedTrapKinds = floorHasSecretRoom(floor)

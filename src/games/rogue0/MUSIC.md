@@ -24,7 +24,7 @@ giving characters their own instruments is borrowed from Prokofiev's
 | Fire Elemental | Trumpet | Bright, insistent blare |
 | Ice Elemental | Glockenspiel | Glassy, sustained bells |
 | Lightning Elemental | Xylophone | Sharp, brittle cracks |
-| The Unblinking Coil (boss) | French horn + timpani | Low, slow horn statement with heavy downbeats |
+| The Writhing Maw (boss) | French horn + timpani | Low, slow horn statement with heavy downbeats |
 
 Only these monsters have motifs. Other monsters do not change the music.
 
@@ -39,7 +39,7 @@ Only these monsters have motifs. Other monsters do not change the music.
 - An awake, cued monster within 3 tiles (or already aware of the player) makes
   the music **combat** intensity. Nearby cues with no threat make it **uneasy**;
   no cues means **calm**.
-- A living Unblinking Coil forces **boss** intensity anywhere on the floor and
+- A living Writhing Maw forces **boss** intensity anywhere on the floor and
   suppresses every other layer.
 
 Only cued monsters affect tension; uncued monsters are deliberately musically

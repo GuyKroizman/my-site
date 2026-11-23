@@ -130,14 +130,19 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     type: 'enemy', tile: [320, 322, 324, 323][i], healthPoints: 7, sleepTurnsRemaining: 11,
     x: 0, y: 0, effects: [], loot: [false], nextActionTime: 4.5,
   }));
-  // Saved before the Unblinking Coil was renamed and made airborne: both must be
+  // Saved before the boss was renamed and made airborne: both old names must be
   // repaired at load, without rerunning the constructor.
   const legacyBoss = Object.assign(Object.create(Boss.prototype), {
     type: 'enemy', name: 'Bone Lord', flying: false, movementSpeed: 1, tile: 999,
     healthPoints: 120, sleepTurnsRemaining: 0, x: 0, y: 0,
     effects: [], loot: [false], nextActionTime: 4.5,
   });
-  oldMonsters.push(legacyBoss);
+  const intermediateBoss = Object.assign(Object.create(Boss.prototype), {
+    type: 'enemy', name: 'The Unblinking Coil', flying: false, movementSpeed: 1, tile: 999,
+    healthPoints: 120, sleepTurnsRemaining: 0, x: 0, y: 0,
+    effects: [], loot: [false], nextActionTime: 4.5,
+  });
+  oldMonsters.push(legacyBoss, intermediateBoss);
   const legacyIce = new IceElemental();
   Object.assign(legacyIce, { x: 0, y: 0, healthPoints: 16 });
   // Saved while Remove Curse cleansed the whole pack: no target fields.
@@ -194,10 +199,12 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   assert.equal(savedCursedGem.spriteFrame, 0);
   assert.equal(savedCursedGem.spriteFrame, 0, 'a stale saved tile no longer selects atlas art');
   assert.equal(savedCursedGem.count, 3, 'art migration preserves the stack');
-  const restoredBoss = run.floors.get(1).entities.find(entity => entity.name === 'The Unblinking Coil');
-  assert.ok(restoredBoss, 'legacy boss is renamed when the save is loaded');
-  assert.equal(restoredBoss.flying, true, 'restored Unblinking Coil floats over traps');
-  assert.equal(restoredBoss.movementSpeed, 0.8, 'restored Unblinking Coil keeps the slower hover');
+  const restoredBosses = run.floors.get(1).entities.filter(entity => entity.name === 'The Writhing Maw');
+  assert.equal(restoredBosses.length, 2, 'both legacy boss names are renamed when the save is loaded');
+  for (const restoredBoss of restoredBosses) {
+    assert.equal(restoredBoss.flying, true, 'restored Writhing Maw floats over traps');
+    assert.equal(restoredBoss.movementSpeed, 0.8, 'restored Writhing Maw keeps the slower hover');
+  }
   assert.equal(run.player.quickslots[0], savedCursedGem, 'quickslot retains migrated item identity');
   const restored = run.player.backpack[0];
   assert.deepEqual(run.player.inputBuffer, []);

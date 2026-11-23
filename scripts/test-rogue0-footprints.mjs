@@ -85,29 +85,29 @@ const dungeon = load('src/games/rogue0/dungeon.ts', { PF, bresenhamLine, tiles: 
 dungeon.currentLevel = Array.from({ length: 12 }, () => Array(12).fill(0));
 dungeon.diagonalFinder = new PF.AStarFinder({ diagonalMovement: PF.DiagonalMovement.Always });
 const context = { entities: [], visibleTiles: new Set(), map: {}, scene: {} };
-const unblinkingCoil = {
-  type: 'enemy', name: 'The Unblinking Coil', x: 5, y: 5, healthPoints: 20, sprite: {},
+const writhingMaw = {
+  type: 'enemy', name: 'The Writhing Maw', x: 5, y: 5, healthPoints: 20, sprite: {},
   footprint: resolveFootprint({ width: 3, height: 3, anchor: 'center' })
 };
 const loot = { type: 'item', name: 'Loot', x: 4, y: 4, healthPoints: 1, sprite: {} };
-context.entities = [loot, unblinkingCoil];
+context.entities = [loot, writhingMaw];
 
-assert.equal(dungeon.entityAtTile(context, 4, 4), unblinkingCoil,
+assert.equal(dungeon.entityAtTile(context, 4, 4), writhingMaw,
   'a body cell resolves the creature, not the item sharing it');
-assert.equal(dungeon.entityAtTile(context, 6, 6), unblinkingCoil, 'every occupied cell resolves the creature');
+assert.equal(dungeon.entityAtTile(context, 6, 6), writhingMaw, 'every occupied cell resolves the creature');
 assert.equal(dungeon.entityAtTile(context, 8, 8), undefined, 'empty floor resolves nothing');
 loot.x = 2; loot.y = 2;
 assert.equal(dungeon.entityAtTile(context, 2, 2), loot, 'an item outside the body keeps its own cell');
-context.entities = [loot, unblinkingCoil];
-assert.equal(dungeon.entityAtTile(context, 4, 4), unblinkingCoil);
+context.entities = [loot, writhingMaw];
+assert.equal(dungeon.entityAtTile(context, 4, 4), writhingMaw);
 
 // A projectile on any body cell intercepts the creature; corpses and loot do not.
 const shooter = { type: 'player', x: 0, y: 5, healthPoints: 20, sprite: {} };
-context.entities = [shooter, unblinkingCoil];
-assert.equal(dungeon.firstActorInPath(context, shooter, 9, 5), unblinkingCoil,
+context.entities = [shooter, writhingMaw];
+assert.equal(dungeon.firstActorInPath(context, shooter, 9, 5), writhingMaw,
   'a bolt entering the body edge stops at the creature');
-unblinkingCoil.x = 9; unblinkingCoil.y = 9;
-unblinkingCoil.healthPoints = 0;
+writhingMaw.x = 9; writhingMaw.y = 9;
+writhingMaw.healthPoints = 0;
 context.entities = [shooter, { type: 'item', x: 4, y: 5, healthPoints: 1, sprite: {} },
   { type: 'enemy', x: 6, y: 5, healthPoints: 0, sprite: {} }];
 assert.equal(dungeon.firstActorInPath(context, shooter, 9, 5), undefined,
@@ -186,7 +186,7 @@ const inspection = createGameContext();
 inspection.visibleTiles = new Set(Array.from({ length: 12 }, (_, y) =>
   Array.from({ length: 12 }, (_, x) => `${x},${y}`)).flat());
 const inspectedBoss = {
-  type: 'enemy', name: 'The Unblinking Coil', x: 5, y: 5, healthPoints: 20, sprite: {},
+  type: 'enemy', name: 'The Writhing Maw', x: 5, y: 5, healthPoints: 20, sprite: {},
   footprint: resolveFootprint({ width: 3, height: 3, anchor: 'center' })
 };
 inspection.entities = [inspectedBoss];
@@ -223,7 +223,7 @@ wandContext.map = { worldToTileX: x => x, worldToTileY: y => y };
 wandContext.throwMode = true;
 wandContext.throwItem = { name: 'Wand' };
 const wandBoss = {
-  type: 'enemy', name: 'The Unblinking Coil', x: 5, y: 5, healthPoints: 20, sprite: {},
+  type: 'enemy', name: 'The Writhing Maw', x: 5, y: 5, healthPoints: 20, sprite: {},
   footprint: resolveFootprint({ width: 3, height: 3, anchor: 'center' })
 };
 const wandHero = { context: wandContext, x: 2, y: 5, zapping: true, canAct: () => true };
@@ -274,7 +274,7 @@ assert.equal(wandContext.throwMode, true, 'input routing does not resolve the za
 {
   const vision = createGameContext();
   const meleeBoss = {
-    type: 'enemy', name: 'The Unblinking Coil', x: 5, y: 5, healthPoints: 20,
+    type: 'enemy', name: 'The Writhing Maw', x: 5, y: 5, healthPoints: 20,
     footprint: resolveFootprint({ width: 3, height: 3, anchor: 'center' })
   };
   const meleeHero = { type: 'player', name: 'Hero', x: 4, y: 3, healthPoints: 10 };
@@ -291,9 +291,9 @@ assert.equal(wandContext.throwMode, true, 'input routing does not resolve the za
   assert.equal(actorIsConcealed(meleeBoss, concealed), false,
     'a body is only concealed when every occupied cell is grass-concealed');
   assert.equal(actorIsVisible(meleeBoss, vision.visibleTiles, concealed), true,
-    'the Unblinking Coil stays visible while its edge is in melee range');
+    'the Writhing Maw stays visible while its edge is in melee range');
   assert.equal(isEnemyVisible(vision, meleeBoss), true,
-    'combat feedback names the adjacent Unblinking Coil rather than hiding it');
+    'combat feedback names the adjacent Writhing Maw rather than hiding it');
 
   // Anchor-only visibility would fail both cases: the centre is concealed.
   vision.visibleTiles = new Set(['5,5']);
@@ -303,7 +303,7 @@ assert.equal(wandContext.throwMode, true, 'input routing does not resolve the za
 
   terrainFor(vision).clearFeature(5, 5);
   assert.equal(isEnemyVisible(vision, meleeBoss), true,
-    'without grass the visible centre reveals the Unblinking Coil');
+    'without grass the visible centre reveals the Writhing Maw');
 }
 
 console.log('Rogue0 footprints: rectangle anchoring, body resolution, projectile interception, inspection, wand taps, movement clearance, pathfinding, sight and melee visibility passed');

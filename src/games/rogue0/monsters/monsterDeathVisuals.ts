@@ -10,7 +10,7 @@ export const MONSTER_DEATH_STYLES = {
   Quloptsh: 'melt', 'Deadly Frog': 'belly-flop', Mimic: 'splinter',
   Wraith: 'dissolve', 'Swarm of Flies': 'scatter',
   'Fire Elemental': 'embers', 'Ice Elemental': 'shatter',
-  'Lightning Elemental': 'discharge', 'The Unblinking Coil': 'deflate',
+  'Lightning Elemental': 'discharge', 'The Writhing Maw': 'deflate',
   'Bone Lord': 'deflate', // legacy name: old saves keep their death animation
   'Mirror Image': 'illusion',
 } as const;

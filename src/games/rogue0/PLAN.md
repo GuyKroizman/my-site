@@ -60,7 +60,7 @@ has been playtested. Checked boxes mean the described implementation exists.
   bleeding arrows at range
   5 and switches to a weaker melee sidearm when adjacent; wraiths deal magic
   damage with physical resistance. The Deadly Frog vents gas on every damage
-  event and on death, and is immune to poison. The Unblinking Coil fights in its own
+  event and on death, and is immune to poison. The Writhing Maw fights in its own
   arena hall but still lacks phases/telegraphs.
 - Monsters start **asleep** for 8–24 world-time units and wake on damage, noise,
   or a visible hero within 2 tiles; sleepers spend time waiting and show a
@@ -69,19 +69,19 @@ has been playtested. Checked boxes mean the described implementation exists.
 - A floor-population guard (`monsterReinforcements.ts`) tops up a floor when its
   last living monster dies: a small wave spawns at least 8 tiles away and
   outside the hero's field of view, scaling with floor depth. Boss floors
-  (every fifth) are exempt: they are Unblinking Coil-only arenas and stay empty
-  once the Unblinking Coil falls (`floorAllowsReinforcements`).
+  (every fifth) are exempt: they are Writhing Maw-only arenas and stay empty
+  once the Writhing Maw falls (`floorAllowsReinforcements`).
 - Boss floors are one arena hall (`bossArenaRoom`), not a room network, and
   every boss floor has its own plan (`bossArenas.ts`: rotunda, long colonnade,
   octagonal sanctum, cruciform vault, throne hall), centred in the old
-  footprint: the hero enters at the south edge, the Unblinking Coil sleeps at the
+  footprint: the hero enters at the south edge, the Writhing Maw sleeps at the
   exact centre, and the stairs sit at the farthest open eastern tile. Floor 5's
   16x16 rotunda keeps four 2x2 pillars 10 walkable tiles apart; the other halls
-  stand their own rocks, all clear of the middle and both approaches. The Unblinking Coil is the only monster,
+  stand their own rocks, all clear of the middle and both approaches. The Writhing Maw is the only monster,
   and no random floor loot, cursed gem, chasm, summon trap or Skeletal Remains
   pile appears. They keep their two treasure chests, one ration and the hidden
   room's gold.
-- The Unblinking Coil is rendered with generated 24x24 art (`bossTexture.ts`): a fat
+- The Writhing Maw is rendered with generated 24x24 art (`bossTexture.ts`): a fat
   green blob with one great eye and a maw of interlocking fangs, scaled up past
   the 16px monsters. Its body is a 3x3 footprint (`bodyRadius = 1`): movement,
   AI and melee reach all use the body, so the hero cannot stand underneath the
@@ -92,7 +92,7 @@ has been playtested. Checked boxes mean the described implementation exists.
   exist. Portal stores (buy/sell, persistent stock on floors 6/11/16/21) exist;
   revival items do not yet. Boots are planned as the revival item (see Phase 10).
 - `context.ts` defaults to **25 floors**. Five floors was a testing limit.
-  The Unblinking Coil guards floors 5/10/15/20/25; its stats are unchanged.
+  The Writhing Maw guards floors 5/10/15/20/25; its stats are unchanged.
   Five-floor equipment/supply bands exist. Themed regions are visual-only so
   far (crypt → sandstone → crystal → volcanic palettes); per-region enemy,
   trap and boss scaling is future work.
@@ -141,7 +141,7 @@ The following snapshot explains the original depth gap:
 - 5 hero classes (Warrior, Dwarf, Cleric, Elf, Wizard) via a React picker.
   Classes differ only by starting stats + starting gear (no skills, no build).
 - 6 monsters: Skeleton, Quloptsh, Archer (ranged), Ghoul (2 moves/turn),
-  Brute (tanky), Unblinking Coil (boss). Boss = big stats, no mechanics.
+  Brute (tanky), Writhing Maw (boss). Boss = big stats, no mechanics.
 - 15 items: swords/axe/bow/hammer/shield, gems, scrolls (fireball, lightning),
   potions (heal ×2, holy), berserk potion, boot. Items are **auto-identified**
   and there is no tier/upgrade/cursed/charged system.
@@ -397,7 +397,7 @@ equipment is usually current band, with 20% chances of one tier lower/higher
 (clamped to 1–5). Saved-floor revisits never regenerate supplies. Food remains
 guaranteed each floor.
 Ordinary encounter density stops increasing after floor 5; later regional
-monster scaling is still future work. The Unblinking Coil's stats are unchanged.
+monster scaling is still future work. The Writhing Maw's stats are unchanged.
 
 **Not yet complete:** later talent tiers/subclasses, same-tier weapon variety
 and full-run balancing. First-tier talents *are* implemented (Phase 9).
@@ -1012,7 +1012,7 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
 ### Phase 14 — Regions & run length
 *Depends on G7; the content-multiplication layer.*
 
-- [x] Restore the intended **25-floor** run; move the existing Unblinking Coil from
+- [x] Restore the intended **25-floor** run; move the existing Writhing Maw from
       floor 5 to floor 25 without rebalancing it.
 - [ ] Split into themed regions (sewers → prison → caves → dwarven halls →
       demon halls), each with its own palette, enemy set, trap set and region boss.
@@ -1488,7 +1488,7 @@ and memory retained. Concrete store price/rarity/row and the dropped-container
 entity/UX remain implementation details to finalize against the spec.
 3. **Finish Phase 8 signatures.** Remaining: monsters avoiding burning terrain,
    then Quloptsh concealment/backstab and ghoul lifesteal. Boss redesign
-   (multi-phase Unblinking Coil) stays deferred.
+   (multi-phase Writhing Maw) stays deferred.
 4. **Phase 9 build breadth after Phase 18:** the tree supplies later unlock
    bands; subclasses remain a separate, later step. First-tier talents already
    give a real level-up choice.
@@ -1532,7 +1532,7 @@ is class-specific hero art and a palette pass, neither of which affects depth.
 - **Unidentified items use generic category names and placeholder textures**
   and reveal their identity on use — the core SPD risk loop.
 - **The run is 25 floors.** Five floors was only an initial testing limit.
-  The Unblinking Coil is on floor 25; do not rebalance it as part of progression work.
+  The Writhing Maw is on floor 25; do not rebalance it as part of progression work.
   Region themes and additional bosses remain separate future work.
 - **Cursed items are locked on** until Remove Curse/well — do not allow
   unequipping via the normal toggle path.

@@ -14,14 +14,14 @@ export const BOSS_FOOTPRINT: Footprint = resolveFootprint({
   width: 3, height: 3, anchor: 'center'
 });
 
-// The arena's Unblinking Coil waits at the middle of its hall with a long dormancy: the
+// The arena's Writhing Maw waits at the middle of its hall with a long dormancy: the
 // hero can cross the room, but the blob wakes on its own if ignored, on any
 // wound or noise, and once the hero is close enough to be seen.
 export const BOSS_ARENA_DORMANCY = 200;
 
 export default class Boss extends Monster {
   // Available before construction so floor generation can reserve the arena
-  // rectangle without instantiating the Unblinking Coil.
+  // rectangle without instantiating the Writhing Maw.
   static readonly footprint: Footprint = BOSS_FOOTPRINT;
 
   get terrorImmune(): boolean { return true; }
@@ -29,8 +29,8 @@ export default class Boss extends Monster {
   constructor(context: GameContext, x?: number, y?: number) {
     if (context.scene) generateBossTexture(context.scene);
     super(context, {
-      name: "The Unblinking Coil",
-      description: "A shrunken, dark mass of flesh that floats above the dungeon's traps, with a single yellow eye whose vertical slit pupil darts between directions, a mouth full of fangs, and sixteen writhing black tentacles. The Unblinking Coil guards the dungeon depths. Immune to terror. Extremely dangerous.",
+      name: "The Writhing Maw",
+      description: "A shrunken, dark mass of flesh that floats above the dungeon's traps, with a single yellow eye whose vertical slit pupil darts between directions, a mouth full of fangs, and sixteen writhing black tentacles. The Writhing Maw guards the dungeon depths. Immune to terror. Extremely dangerous.",
       textureKey: BOSS_TEXTURE,
       musicCue: 'boss',
       ...monsterStats('boss', context.floor),
@@ -47,13 +47,13 @@ export default class Boss extends Monster {
       loot: [false, PotionOfHealing]
     }, x, y);
 
-    // The Unblinking Coil hovers, so ground hazards never touch it: traps (including
+    // The Writhing Maw hovers, so ground hazards never touch it: traps (including
     // pressure plates and arrow traps), ice, water, grass and chasms are all
     // ignored by movement and by pathfinding. Walls and other bodies still
     // block its 3x3 footprint.
     this.flying = true;
 
-    // The arena hall is vast, so the Unblinking Coil naps until intruded on: it wakes
+    // The arena hall is vast, so the Writhing Maw naps until intruded on: it wakes
     // on any wound or noise, when the hero is close enough to be seen, or after
     // this many elapsed time units if the hero simply waits it out.
     this.sleepTurnsRemaining = BOSS_ARENA_DORMANCY;
@@ -79,7 +79,7 @@ export default class Boss extends Monster {
     return [createWeakenedEffect(3), createCrippledEffect(3)];
   }
 
-  // Centre-anchored, so the saved Unblinking Coil position keeps the old meaning.
+  // Centre-anchored, so the saved Writhing Maw position keeps the old meaning.
   get footprint(): Footprint {
     return BOSS_FOOTPRINT;
   }

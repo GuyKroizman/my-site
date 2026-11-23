@@ -43,7 +43,7 @@ export type GameContext = {
   // Discrete-event clock, in normal-action units (not wall-clock seconds).
   simulationTime?: number;
   floor: number;
-  // Boss floors where the Unblinking Coil has already been defeated. The stairs (and every
+  // Boss floors where the Writhing Maw has already been defeated. The stairs (and every
   // other route below) stay sealed until the current floor is in this set.
   bossesSlain?: Set<number>;
   // The one floor this run gives its chasm room to, rolled at run start from

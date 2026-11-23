@@ -29,7 +29,7 @@ export function isBossFloor(floor: number): boolean {
   return Number.isInteger(floor) && floor > 0 && floor % REGION_SIZE === 0;
 }
 
-// A boss floor stays sealed until the Unblinking Coil is recorded as slain. The
+// A boss floor stays sealed until the Writhing Maw is recorded as slain. The
 // context shape is structural so progression does not depend on the scene.
 export function bossSealsFloor(
   context: { floor: number; bossesSlain?: ReadonlySet<number> }

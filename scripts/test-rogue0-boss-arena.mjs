@@ -155,16 +155,16 @@ for (const floor of bossFloors) {
       assert.equal(at(9, 0), 0);
     }
 
-    // The Unblinking Coil waits dead centre, where every plan leaves its middle clear.
-    assert.deepEqual(bossArena, { x: arena.cx, y: arena.cy }, 'the Unblinking Coil spawns dead centre');
+    // The Writhing Maw waits dead centre, where every plan leaves its middle clear.
+    assert.deepEqual(bossArena, { x: arena.cx, y: arena.cy }, 'the Writhing Maw spawns dead centre');
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         assert.equal(map[bossArena.y + dy][bossArena.x + dx], 0,
-          'the Unblinking Coil\'s 3x3 body stands on open floor');
+          'the Writhing Maw\'s 3x3 body stands on open floor');
       }
     }
 
-    // The hero arrives at the south edge, opposite the Unblinking Coil.
+    // The hero arrives at the south edge, opposite the Writhing Maw.
     assert.ok(spawn, 'the arena tells the scene where the hero enters');
     assert.equal(spawn.x, arena.cx, 'the hero enters on the arena axis');
     assert.equal(map[spawn.y][spawn.x], 0, 'the entrance is open floor');
@@ -196,7 +196,7 @@ for (const floor of bossFloors) {
     // across the hall, inside it, and clear of the hidden branch.
     assert.ok(Math.hypot(stairs.x - spawn.x, stairs.y - spawn.y) >= 12,
       'the sealed stairs sit across the hall');
-    assert.notDeepEqual(stairs, bossArena, 'the stairs never share the Unblinking Coil tile');
+    assert.notDeepEqual(stairs, bossArena, 'the stairs never share the Writhing Maw tile');
     assert.equal(map[stairs.y][stairs.x], 0, 'the exit is a floor tile');
     assert.ok(stairs.x >= arena.x && stairs.x < arena.x + arena.w &&
       stairs.y >= arena.y && stairs.y < arena.y + arena.h, 'the exit is inside the arena');
@@ -236,7 +236,7 @@ assert.deepEqual(
 assert.deepEqual(bossArenaRoom(80, 50, 5), { x: 32, y: 22, w: 16, h: 16, cx: 40, cy: 30 },
   'the first hall stays the halved 16x16 rotunda, centred on the map');
 assert.deepEqual(bossArenaRoom(80, 50, 15), { x: 31, y: 21, w: 18, h: 18, cx: 40, cy: 30 },
-  'every hall stays centred, keeping the Unblinking Coil on the map centre');
+  'every hall stays centred, keeping the Writhing Maw on the map centre');
 assert.equal(bossArenaRoom(24, 24, 10).h, 10,
   'a map with no room clamps the hall instead of overflowing');
 assert.equal(bossArenaRoom(24, 24, 10).w, 16);
@@ -421,7 +421,7 @@ assert.ok(gazeCenters[3].y < gazeCenters[0].y && gazeCenters[4].y > gazeCenters[
     'the pupil changes direction every few seconds while the tentacles keep wiggling');
 }
 
-// --- The Unblinking Coil itself ---------------------------------------------
+// --- The Writhing Maw itself ---------------------------------------------
 const { actionCost } = load('src/games/rogue0/timing.ts');
 const { Entity } = load('src/games/rogue0/entity.ts', {
   actionCost,
@@ -456,21 +456,21 @@ const { BOSS_ARENA_DORMANCY } = Boss;
 {
   const context = { entities: [], messages: [], visibleTiles: new Set(), player: { x: 40, y: 46 } };
   const boss = new Boss.default(context, 40, 30);
-  assert.equal(boss.name, 'The Unblinking Coil');
-  assert.equal(boss.textureKey, BOSS_TEXTURE, 'the Unblinking Coil uses the generated blob texture, not the atlas');
+  assert.equal(boss.name, 'The Writhing Maw');
+  assert.equal(boss.textureKey, BOSS_TEXTURE, 'the Writhing Maw uses the generated blob texture, not the atlas');
   assert.equal(boss.spriteFrame, 0, 'the generated blob is a single frame');
-  assert.equal(boss.sleeping, true, 'the Unblinking Coil starts asleep');
+  assert.equal(boss.sleeping, true, 'the Writhing Maw starts asleep');
   assert.equal(boss.sleepTurnsRemaining, BOSS_ARENA_DORMANCY,
     'dormancy outlasts a walk across the arena');
   assert.ok(BOSS_ARENA_DORMANCY >= 100, 'the hero can cross the hall before the blob stirs');
-  assert.equal(boss.flying, true, 'the Unblinking Coil floats instead of walking into traps');
+  assert.equal(boss.flying, true, 'the Writhing Maw floats instead of walking into traps');
   assert.equal(boss.isFlying, true, 'pathfinding sees it as airborne');
-  assert.equal(boss.movementSpeed, 0.8, 'the Unblinking Coil hovers slowly');
+  assert.equal(boss.movementSpeed, 0.8, 'the Writhing Maw hovers slowly');
   assert.equal(actionCost(boss, 'move'), 1.25, 'each step costs a quarter turn extra');
   assert.ok(boss.spriteScale > 1, 'the blob is scaled up beyond the 16px monsters');
   assert.deepEqual(boss.footprint, { width: 3, height: 3, originX: 1, originY: 1 },
-    'the scaled Unblinking Coil owns a centre-anchored 3x3 footprint');
-  assert.equal(boss.healthPoints, 120, 'the Unblinking Coil has the new minimum health even outside boss floors');
+    'the scaled Writhing Maw owns a centre-anchored 3x3 footprint');
+  assert.equal(boss.healthPoints, 120, 'the Writhing Maw has the new minimum health even outside boss floors');
   boss.takeDamage(1);
   assert.equal(boss.sleeping, false, 'any wound wakes it');
 }
@@ -493,17 +493,17 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   };
   const boss = new Boss.default(context, 10, 10);
   const restored = Object.assign(Object.create(Boss.default.prototype), boss, { effects: [] });
-  for (const unblinkingCoil of [boss, restored]) {
-    assert.equal(unblinkingCoil.terrorImmune, true);
-    applyEffect(unblinkingCoil, createTerrifiedEffect(4));
-    assert.equal(hasEffect(unblinkingCoil, 'terrified'), false, 'boss rejects terror at effect application');
-    applyEffect(unblinkingCoil, createWeakenedEffect(3));
-    assert.equal(hasEffect(unblinkingCoil, 'weakened'), true, 'immunity does not block other debuffs');
-    context.entities = [unblinkingCoil];
+  for (const writhingMaw of [boss, restored]) {
+    assert.equal(writhingMaw.terrorImmune, true);
+    applyEffect(writhingMaw, createTerrifiedEffect(4));
+    assert.equal(hasEffect(writhingMaw, 'terrified'), false, 'boss rejects terror at effect application');
+    applyEffect(writhingMaw, createWeakenedEffect(3));
+    assert.equal(hasEffect(writhingMaw, 'weakened'), true, 'immunity does not block other debuffs');
+    context.entities = [writhingMaw];
     const scroll = new ScrollOfTerror(context);
     scroll.equip();
-    assert.equal(hasEffect(unblinkingCoil, 'terrified'), false, 'scroll cannot terrify a boss');
-    assert.equal(messages.at(-1), 'The Unblinking Coil is immune to terror!');
+    assert.equal(hasEffect(writhingMaw, 'terrified'), false, 'scroll cannot terrify a boss');
+    assert.equal(messages.at(-1), 'The Writhing Maw is immune to terror!');
     assert.deepEqual(removed.slice(-2), [scroll, scroll], 'immune targets still consume the scroll');
   }
   const enemy = new Entity();
@@ -539,8 +539,8 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   const expected = { x: 9 * 16, y: 9 * 16, width: 48, height: 48 };
   assert.deepEqual(boss.sprite.getBounds(), expected, 'fresh boss art exactly matches its 3x3 body');
   assert.equal(boss.sprite.animation, BOSS_WIGGLE_ANIM,
-    'the Unblinking Coil starts the looping tentacle wiggle');
-  assert.equal(boss.range(), 0, 'the Unblinking Coil still has no ranged attack');
+    'the Writhing Maw starts the looping tentacle wiggle');
+  assert.equal(boss.range(), 0, 'the Writhing Maw still has no ranged attack');
   for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
     assert.equal(bodyDistance(boss, { x: 10 + dx * 2, y: 10 + dy * 2 }), 1,
       'melee adjacency still starts immediately outside the drawn body');
@@ -567,7 +567,7 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   assert.match(sceneSource, /const spawn = generated\.spawn \?\?/,
     'the arena decides where the hero enters');
   assert.match(sceneSource, /new Boss\(context, cell\.x, cell\.y\)/,
-    'the Unblinking Coil is placed by the floor spawner');
+    'the Writhing Maw is placed by the floor spawner');
   // Exercise the scene's actual actor-sorting block without booting Phaser.
   const sorting = sceneSource.split('// Use interpolated sprite positions')[1]
     .split('    updateHeroAnimation(')[0];
@@ -593,4 +593,4 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   }
 }
 
-console.log('Rogue0 boss arena: five distinct per-floor halls (pillared rotunda, long colonnade, octagonal sanctum, cruciform vault, throne hall), sleeping Unblinking Coil, entrance/exit placement, hidden room, anchoring and sixteen black wiggling tentacles passed');
+console.log('Rogue0 boss arena: five distinct per-floor halls (pillared rotunda, long colonnade, octagonal sanctum, cruciform vault, throne hall), sleeping Writhing Maw, entrance/exit placement, hidden room, anchoring and sixteen black wiggling tentacles passed');

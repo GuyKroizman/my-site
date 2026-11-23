@@ -1,7 +1,7 @@
 // Body-aware visibility and grass concealment.
 //
 // Rendering and combat feedback used to key off `entity.x/y` alone. The 3x3
-// Unblinking Coil's centre can be two tiles away (hidden by tall grass) while its
+// Writhing Maw's centre can be two tiles away (hidden by tall grass) while its
 // exposed edge is adjacent to the hero and in melee range. A creature is
 // visible when any occupied cell is visible, and is concealed only when every
 // occupied cell is grass-concealed.

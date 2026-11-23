@@ -269,7 +269,7 @@ for (let i = 0; i < 200; i++) {
   assert.ok(features.some(f => f.trapKind === 'arrow' && f.trap === 'visible'));
   for (const f of features.filter(f => f.feature === 'trap')) {
     assert.equal(!!f.trapReusable, ['frost', 'teleport', 'alarm'].includes(f.trapKind));
-    // A boss floor is an Unblinking Coil-only arena: its traps never summon a monster.
+    // A boss floor is a Writhing Maw-only arena: its traps never summon a monster.
     if (floorHasSecretRoom(floor)) {
       assert.notEqual(f.trapKind, 'summon', `floor ${floor} has no summon trap`);
     }

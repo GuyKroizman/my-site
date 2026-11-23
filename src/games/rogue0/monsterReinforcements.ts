@@ -41,7 +41,7 @@ export function floorIsEmptyOfMonsters(entities: Entity[]): boolean {
   return !entities.some(isLivingMonster);
 }
 
-// Boss floors are the Unblinking Coil's arena: they are generated with the boss
+// Boss floors are the Writhing Maw's arena: they are generated with the boss
 // alone, so nothing is drawn onto them after it dies either. Kept dependency
 // free (like dungeon.bossSealsFloor) so this module can be imported and tested
 // without the renderer, and mirrors progression.isBossFloor.
@@ -56,7 +56,7 @@ export function reinforcementCount(floor: number, random: () => number = Math.ra
 }
 
 // Weighted pool by depth, using the same unlocks/retirement as generation.
-// Never reinforce with Mimics or the Unblinking Coil.
+// Never reinforce with Mimics or the Writhing Maw.
 export function pickReinforcementKind(
   floor: number,
   random: () => number = Math.random

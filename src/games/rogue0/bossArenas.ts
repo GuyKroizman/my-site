@@ -1,11 +1,11 @@
 // Per-floor boss halls. Floors 5, 10, 15, 20 and 25 each get their own plan,
-// so the Unblinking Coil is fought in five recognisably different rooms
+// so the Writhing Maw is fought in five recognisably different rooms
 // instead of one repeated arena.
 //
 // Layouts are written in hall-local coordinates with the standard map in mind
 // (80x50, which leaves a 72x36 span inside the rock border). mapgen clamps the
 // footprint to whatever space is left and centres it, so the hall keeps the
-// Unblinking Coil on the map centre and its hidden north branch above the wall.
+// Writhing Maw on the map centre and its hidden north branch above the wall.
 
 export type BossArenaLayoutId =
   | 'colonnade'
@@ -45,7 +45,7 @@ const combined =
     tests.some((test) => test(lx, ly, w, h));
 
 // Floor 5 — the introductory arena. A square hall with four 2x2 pillars set
-// exactly 10 walkable tiles apart: the room the Unblinking Coil is built for.
+// exactly 10 walkable tiles apart: the room the Writhing Maw is built for.
 const COLONNADE: BossArenaLayout = {
   id: 'colonnade',
   name: 'Pillared Rotunda',
@@ -60,7 +60,7 @@ const COLONNADE: BossArenaLayout = {
 };
 
 // Floor 10 — a long hall split by two rows of three pillars. The centre aisle
-// runs from the hero's southern entrance straight to the Unblinking Coil, and the
+// runs from the hero's southern entrance straight to the Writhing Maw, and the
 // side bays let a ranged fight open up around the columns.
 const LONG_HALL: BossArenaLayout = {
   id: 'longHall',
@@ -101,7 +101,7 @@ const OCTAGON: BossArenaLayout = {
 };
 
 // Floor 20 — a cruciform vault: four square corner masses leave a plus-shaped
-// room, and a ring of pillars frames the Unblinking Coil at the crossing.
+// room, and a ring of pillars frames the Writhing Maw at the crossing.
 const CROSS: BossArenaLayout = {
   id: 'cross',
   name: 'Cruciform Vault',

@@ -38,7 +38,7 @@ type MusicEntity = Entity & {
 const NAME_CUES: Record<string, MusicCue> = {
   Goblin: 'goblin',
   Skeleton: 'skeleton',
-  'The Unblinking Coil': 'boss',
+  'The Writhing Maw': 'boss',
   Ghoul: 'ghoul',
   Brute: 'brute',
   Cultist: 'cultist',
@@ -83,7 +83,7 @@ export function selectMusicState(context: GameContext): MusicState {
     const cue = cueFor(entity);
     if (!cue) continue;
 
-    // The Unblinking Coil owns the soundtrack on its floor, at any distance.
+    // The Writhing Maw owns the soundtrack on its floor, at any distance.
     if (cue === 'boss') {
       return {
         intensity: 'boss',

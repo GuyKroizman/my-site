@@ -71,7 +71,7 @@ assert.equal(skeleton.intensity, 'combat');
 
 // Every expanded monster has a cue, and name fallbacks cover saved floors.
 const names = {
-  Goblin: 'goblin', Skeleton: 'skeleton', 'The Unblinking Coil': 'boss',
+  Goblin: 'goblin', Skeleton: 'skeleton', 'The Writhing Maw': 'boss',
   Ghoul: 'ghoul', Brute: 'brute', Cultist: 'cultist', Wraith: 'wraith',
   Quloptsh: 'quloptsh', Mimic: 'mimic', 'Deadly Frog': 'deadlyFrog',
   'Swarm of Flies': 'swarmOfFlies', 'Fire Elemental': 'fireElemental',
@@ -89,7 +89,7 @@ assert.equal(selectMusicState(context([
 
 // The boss overrides everything, even from across the floor and asleep.
 const boss = selectMusicState(context([
-  enemy({ name: 'The Unblinking Coil', x: 24, y: 24, sleeping: true }),
+  enemy({ name: 'The Writhing Maw', x: 24, y: 24, sleeping: true }),
   enemy({ x: 11, y: 10 }),
   enemy({ name: 'Skeleton', musicCue: 'skeleton', x: 12, y: 10 }),
 ]));
