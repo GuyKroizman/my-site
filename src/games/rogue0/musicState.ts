@@ -25,7 +25,8 @@ export type ActiveCue = { cue: MusicCue; level: number; visible: boolean };
 export type MusicState = { intensity: MusicIntensity; cues: ActiveCue[] };
 
 // Sound travels through walls and closed doors; this is a hint, not sight.
-export const HEARING_RADIUS = 8;
+// Music changes with distance up to this radius.
+export const HEARING_RADIUS = 10;
 const COMBAT_RADIUS = 3;
 
 type MusicEntity = Entity & {

@@ -34,7 +34,8 @@ assert.deepEqual(selectMusicState({ player: undefined, entities: [], visibleTile
 });
 
 // A monster behind a wall still contributes a cue, quietly and not visible.
-const behindDoor = selectMusicState(context([enemy({ x: 16, y: 10 })]));
+// 7 tiles out keeps it "quiet" under the extended hearing radius.
+const behindDoor = selectMusicState(context([enemy({ x: 17, y: 10 })]));
 assert.equal(behindDoor.intensity, 'uneasy');
 assert.equal(behindDoor.cues[0].cue, 'goblin');
 assert.equal(behindDoor.cues[0].visible, false);
