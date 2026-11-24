@@ -808,7 +808,9 @@ Flame. No new potion class exists, and no new status effect is registered.
 
 The windup advances only on the thrower's **own scheduled turns**: sleeping,
 sight and range gates apply, world-time effect ticks and animation frames never
-move it, and each step spends an attack action. Telegraph fields are ordinary
+move it, and each step spends an attack action. If the hero becomes adjacent
+(including diagonally), the thrower abandons the windup and switches to its
+weaker melee sidearm, like goblins and cultists. Telegraph fields are ordinary
 saved entity data, so a save/load mid-windup keeps the marked tiles. Unseen
 throwers get generic log text instead of being named. The red borders are
 drawn above fog but only on currently visible tiles.

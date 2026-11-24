@@ -18,6 +18,7 @@ const removeEffect = (entity, id) => {
 };
 const map = Array.from({ length: 20 }, () => Array(20).fill(0));
 const dungeon = { getCurrentLevel: () => map, log() {} };
+let meleeTurns = 0;
 const Monster = load('src/games/rogue0/monsters/monster.ts', {
   Entity,
   Phaser: { Math: { Between: () => 0 } },
@@ -26,7 +27,7 @@ const Monster = load('src/games/rogue0/monsters/monster.ts', {
   rollEquipmentGlyph() {}, stashChasmFallen: () => false,
   bodyDistance: () => 9, TILE_FOOTPRINT: { width: 1, height: 1 },
   resolveFootprint: () => ({ width: 1, height: 1 }),
-  enemyTurn() {}, enemyCanSeePlayer: () => true,
+  enemyTurn() { meleeTurns++; }, enemyCanSeePlayer: () => true,
   hasEffect, createBleedingEffect: () => ({ id: 'bleeding', duration: 2 })
 }).default;
 
@@ -128,6 +129,36 @@ function setup() {
   thrower.turn(); // stage 2
   thrower.turn(); // burst on the old tiles
   assert.equal(player.healthPoints, 30, 'stepping out of the marked tiles avoids the blast');
+}
+
+// --- Melee fallback when adjacent --------------------------------------------
+{
+  const { player, thrower } = setup();
+  player.x = 14; // cardinal adjacency, thrower at 13,10
+  const before = meleeTurns;
+  const attacks = attackOptions.length;
+  thrower.turn();
+  assert.equal(meleeTurns, before + 1, 'an adjacent hero triggers the melee AI turn');
+  assert.equal(thrower.telegraphStage, 0, 'no flask is readied at touching distance');
+  assert.equal(attackOptions.length, attacks, 'no fire burst is resolved');
+  player.y = 11; // diagonal adjacency counts too
+  thrower.turn();
+  assert.equal(meleeTurns, before + 2);
+  assert.equal(thrower.telegraphStage, 0);
+}
+{
+  const { player, thrower } = setup();
+  thrower.turn(); // stage 1 with the hero three tiles away
+  assert.equal(thrower.telegraphStage, 1);
+  player.x = 14; // close in during the windup
+  const before = meleeTurns;
+  const bursts = splash.length;
+  thrower.turn();
+  assert.equal(thrower.telegraphStage, 0, 'closing to melee cancels the windup');
+  assert.equal(thrower.targetX, -1);
+  assert.equal(meleeTurns, before + 1);
+  assert.equal(splash.length, bursts, 'the cancelled flasks never burst');
+  assert.equal(player.healthPoints, 30);
 }
 {
   const { thrower } = setup();

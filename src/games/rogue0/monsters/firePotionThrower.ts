@@ -56,6 +56,18 @@ export default class FirePotionThrower extends Monster {
     if (this.waitWhileSleeping()) return;
     if (this.abilityCooldown > 0) this.abilityCooldown--;
 
+    // Like goblins and cultists, a ranged attacker cannot bring a flask to
+    // bear at touching distance. Close-range turns use the melee sidearm
+    // instead, abandoning any half-finished telegraph.
+    if (this.adjacentToPlayer()) {
+      if (this.telegraphStage !== 0) {
+        this.log('A Fire Potion Thrower abandons its marked flasks and closes to melee.');
+        this.cancelTelegraph();
+      }
+      super.turn();
+      return;
+    }
+
     if (this.telegraphStage === 2) {
       this.burst();
       return;
@@ -76,6 +88,20 @@ export default class FirePotionThrower extends Monster {
       return;
     }
     super.turn();
+  }
+
+  private adjacentToPlayer(): boolean {
+    const player = this.context.player;
+    if (!player || player.healthPoints <= 0 ||
+        player.x === undefined || player.y === undefined ||
+        this.x === undefined || this.y === undefined) return false;
+    return Math.max(Math.abs(player.x - this.x), Math.abs(player.y - this.y)) <= 1;
+  }
+
+  private cancelTelegraph(): void {
+    this.telegraphStage = 0;
+    this.targetX = -1;
+    this.targetY = -1;
   }
 
   private canStartTelegraph(): boolean {
