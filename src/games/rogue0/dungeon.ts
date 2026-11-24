@@ -41,12 +41,18 @@ export const Sprites = {
 
 const tileSize = 16;
 
-// Boss floors are sealed until the Writhing Maw dies. This deliberately mirrors
+// Boss floors are sealed until their own win condition is met. This mirrors
 // context.bossSealsFloor without a runtime import, so isolated dungeon suites
 // can keep their minimal bindings.
 function bossSealsFloor(context: GameContext): boolean {
-  return context.floor > 0 && context.floor % 5 === 0 &&
-    !(context.bossesSlain?.has(context.floor) ?? false);
+  const floor = context.floor;
+  if (!Number.isInteger(floor) || floor <= 0 || floor % 5 !== 0) return false;
+  if (!(context.bossesSlain?.has(floor) ?? false)) return true;
+  if (floor !== 10) return false;
+  // The Wand Factory also needs every hostile gone, even if a save says cleared.
+  return (context.entities ?? []).some((entity) =>
+    entity.type === 'enemy' && (entity.healthPoints ?? 0) > 0 &&
+    !entity.isDecoy && !(entity as any).friendly);
 }
 
 // Short hops stay snappy, long shots stay readable. The simulation waits out

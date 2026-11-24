@@ -111,15 +111,17 @@ for (const floor of bossFloors) {
       for (let y = 3; y < 13; y++) if (at(1, y) === 0) gap++;
       assert.equal(gap, 10, 'the west pillars stand 10 tiles apart');
     }
-    if (layout.id === 'longHall') {
-      assert.equal(pillarCount(walls), 6, 'the long hall is lined with six pillars');
-      for (const [px, py] of [[3, 2], [10, 2], [17, 2], [3, 9], [10, 9], [17, 9]]) {
-        assert.equal(at(px, py), 1, `long hall pillar at ${px},${py}`);
+    if (layout.id === 'factory') {
+      assert.equal(pillarCount(walls), 4, 'the factory stands four pillars');
+      for (const [px, py] of [[1, 2], [13, 2], [1, 12], [13, 12]]) {
+        assert.equal(at(px, py), 1, `factory pillar at ${px},${py}`);
         assert.equal(at(px + 1, py + 1), 1, 'pillars are 2x2');
-        assert.equal(at(px + 2, py), 0, 'pillars are 2 tiles wide');
       }
+      let gap = 0;
+      for (let x = 3; x < 13; x++) if (at(x, 2) === 0) gap++;
+      assert.equal(gap, 10, 'the factory keeps floor 5’s ten-tile central span');
       for (let y = 0; y < arena.h; y++) {
-        assert.equal(at(12, y), 0, 'the centre aisle stays clear from gate to gate');
+        assert.equal(at(8, y), 0, 'the centre aisle stays clear for the conveyor');
       }
     }
     if (layout.id === 'octagon') {
@@ -223,14 +225,14 @@ for (const floor of bossFloors) {
   }
 }
 
-assert.deepEqual([...seenSpans].sort(), ['16x16', '18x18', '20x20', '24x14'],
-  'four footprint sizes; the two 20x20 halls share a size but not a plan');
+assert.deepEqual([...seenSpans].sort(), ['16x16', '18x18', '20x20'],
+  'three footprint sizes; halls sharing a size have different plans');
 assert.deepEqual(
   bossFloors.map(floor => {
     const room = bossArenaRoom(80, 50, floor);
     return `${room.w}x${room.h}`;
   }),
-  ['16x16', '24x14', '18x18', '20x20', '20x20'],
+  ['16x16', '16x16', '18x18', '20x20', '20x20'],
   'each hall fits inside the rock border on the standard map'
 );
 assert.deepEqual(bossArenaRoom(80, 50, 5), { x: 32, y: 22, w: 16, h: 16, cx: 40, cy: 30 },
@@ -593,4 +595,4 @@ const { BOSS_ARENA_DORMANCY } = Boss;
   }
 }
 
-console.log('Rogue0 boss arena: five distinct per-floor halls (pillared rotunda, long colonnade, octagonal sanctum, cruciform vault, throne hall), sleeping Writhing Maw, entrance/exit placement, hidden room, anchoring and sixteen black wiggling tentacles passed');
+console.log('Rogue0 boss arena: five distinct per-floor halls (pillared rotunda, wand factory, octagonal sanctum, cruciform vault, throne hall), sleeping Writhing Maw, entrance/exit placement, hidden room, anchoring and sixteen black wiggling tentacles passed');

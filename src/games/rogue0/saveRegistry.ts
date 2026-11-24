@@ -59,6 +59,7 @@ import Brute from './monsters/brute';
 import Cultist from './monsters/cultist';
 import DeadlyFrog from './monsters/deadlyFrog';
 import { FireElemental, IceElemental, ShockElemental } from './monsters/elemental';
+import FirePotionThrower from './monsters/firePotionThrower';
 import Ghoul from './monsters/ghoul';
 import Goblin from './monsters/goblin';
 import Mimic from './monsters/mimic';
@@ -147,6 +148,7 @@ export const saveRegistry: Registry = {
   './monsters/elemental.ts:ShockElemental': ShockElemental,
   // Retain BOTH historical aliases; the last is the canonical encoding ID.
   './monsters/elemental.ts:default': FireElemental,
+  'monster:fire-potion-thrower': FirePotionThrower,
   './monsters/ghoul.ts:default': Ghoul,
   './monsters/goblin.ts:default': Goblin,
   './monsters/mimic.ts:default': Mimic,

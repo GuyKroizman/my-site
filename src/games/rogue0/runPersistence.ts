@@ -56,8 +56,8 @@ export type RunState = {
   floors: Map<number, SavedFloor>;
   floor: number;
   kills: number;
-  // Boss floors where the Writhing Maw died. Optional so v1 saves written before boss
-  // floors were sealed still load.
+  // Boss floors cleared by their own win condition. Optional so v1 saves
+  // written before boss floors were sealed still load.
   bossesSlain?: Set<number>;
   // The floor this run gave its chasm room to. Optional so saves written while
   // every early floor carried one still load; the scene rolls a fresh value for
@@ -212,6 +212,19 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
       if (entity instanceof IceElemental && entity.textureKey !== ICE_ELEMENTAL_TEXTURE) {
         entity.textureKey = ICE_ELEMENTAL_TEXTURE;
       }
+    }
+  }
+  // Old saves still put the Writhing Maw on floor 10. That floor is now the
+  // Wand Factory, which has no Boss entity; retire the legacy occupant and
+  // treat a floor with no hostiles as already cleared.
+  const legacyFactory = run.floors.get(10);
+  if (legacyFactory) {
+    legacyFactory.entities = legacyFactory.entities.filter(
+      (entity) => entity.name !== 'The Writhing Maw');
+    if (!legacyFactory.entities.some((entity) =>
+      entity.type === 'enemy' && (entity.healthPoints ?? 0) > 0 && !entity.isDecoy)) {
+      run.bossesSlain ??= new Set();
+      run.bossesSlain.add(10);
     }
   }
   // Pending chasm drops are optional: saves written before the chasm chute

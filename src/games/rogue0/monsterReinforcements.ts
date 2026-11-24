@@ -27,7 +27,10 @@ export type ReinforcementKind =
   | "cultist"
   | "wraith"
   | "elemental"
-  | "frog";
+  | "frog"
+  // Factory-only encounter; boss floors get no reinforcements, so it is never
+  // drawn into a wave. Listed so scene switches stay exhaustive.
+  | "firePotionThrower";
 
 // Far enough that a fresh wave cannot surround or ambush a hero standing on
 // the corpse of the previous last monster.

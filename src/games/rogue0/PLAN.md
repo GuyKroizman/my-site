@@ -70,22 +70,20 @@ has been playtested. Checked boxes mean the described implementation exists.
   last living monster dies: a small wave spawns at least 8 tiles away and
   outside the hero's field of view, scaling with floor depth. Boss floors
   (every fifth) are exempt (`floorAllowsReinforcements`): they are single
-  boss arenas and stay empty once their boss's win condition is met. Today
-  that boss is the Writhing Maw on all five; Phase 8 replaces the placeholders.
+  boss arenas and stay empty once their boss's win condition is met. Floors
+  5/15/20/25 still use the Writhing Maw placeholder; floor 10 is the Wand
+  Factory and clears when every hostile dies.
 - Boss floors are one arena hall (`bossArenaRoom`), not a room network, and
-  every boss floor has its own plan (`bossArenas.ts`: rotunda, long colonnade,
-  octagonal sanctum, cruciform vault, throne hall), centred in the old
-  footprint: the hero enters at the south edge, a boss sleeps at the exact
-  centre, and the stairs sit at the farthest open eastern tile. Floor 5's
-  16x16 rotunda keeps four 2x2 pillars 10 walkable tiles apart; the other halls
-  stand their own rocks, all clear of the middle and both approaches. Boss
-  floors hold no wandering roster, no random floor loot, no chasm, no summon
-  trap and no Skeletal Remains pile; they keep two treasure chests, one ration
-  and the hidden room's gold. All five still use the Writhing Maw as a
-  placeholder today. **Planned:** per-floor boss encounters and win conditions
-  — floor 10 becomes the Wand Factory (clear every hostile to unlock), and
-  floors 15/20/25 get their own bosses instead of the Writhing Maw. See
-  `WAND_FACTORY_PLAN.md` and Phase 8.
+  each has its own plan (`bossArenas.ts`: rotunda, Wand Factory, octagonal
+  sanctum, cruciform vault, throne hall), centred in the old footprint: the
+  hero enters at the south edge and the stairs sit at the farthest open eastern
+  tile. Floor 5's 16x16 rotunda keeps four 2x2 pillars 10 walkable tiles apart;
+  floor 10's 16x16 Wand Factory keeps the same span with offset pillars. Boss
+  floors hold no random floor loot, chasm, summon trap or Skeletal Remains pile;
+  they keep two treasure chests, one ration and the hidden room's gold.
+  `bossEncounters.ts` gives each floor its own identity and win condition:
+  floor 10 is the Wand Factory (clear every hostile), while floors 5/15/20/25
+  use the Writhing Maw placeholder (boss slain). See `WAND_FACTORY_PLAN.md`.
 - The Writhing Maw is rendered with generated 24x24 art (`bossTexture.ts`): a fat
   green blob with one great eye and a maw of interlocking fangs, scaled up past
   the 16px monsters. Its body is a 3x3 footprint (`bodyRadius = 1`): movement,
@@ -98,8 +96,9 @@ has been playtested. Checked boxes mean the described implementation exists.
   revival items do not yet. Boots are planned as the revival item (see Phase 10).
 - `context.ts` defaults to **25 floors**. Five floors was a testing limit.
   Boss floors are 5/10/15/20/25. The Writhing Maw is intended to be the
-  floor-5 boss; it still occupies 10/15/20/25 as a placeholder until those
-  encounters are designed (Phase 8), and its stats are unchanged.
+  floor-5 boss; it still occupies 15/20/25 as a placeholder until those
+  encounters are designed (Phase 8), and its stats are unchanged. Floor 10
+  hosts the Wand Factory instead.
   Five-floor equipment/supply bands exist. Themed regions are visual-only so
   far (crypt → sandstone → crystal → volcanic palettes); per-region enemy,
   trap and boss scaling is future work.
@@ -857,23 +856,24 @@ swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅, Deadly
   - [x] Wraith → magic damage with physical resistance; ordinary movement.
 - [x] AI: monsters open doors and chase through paths.
 - [ ] AI: avoid burning terrain and other self-damaging hazards.
-- [x] Boss floors have distinct arena plans (`bossArenas.ts`), but all five
-      still use the Writhing Maw with no phases or telegraphs.
-- [ ] Per-floor boss encounters with their own win conditions. Floor 10
-      becomes the **Wand Factory**: a floor-5-sized hall with two decorative
+- [x] Boss floors have distinct arena plans (`bossArenas.ts`). The four Maw
+      floors still lack phases; floor 10's factory encounter has its own
+      telegraphed attack.
+- [x] Per-floor boss encounters with their own win conditions (`bossEncounters.ts`).
+      Floor 10 is the **Wand Factory**: a floor-5-sized hall with two decorative
       steampunk machines and a Fire Potion Thrower whose three-turn telegraph
       ends in a liquid-flame burst; its stairs unlock only when **every
       hostile is cleared**. Full spec in `WAND_FACTORY_PLAN.md`. `bossesSlain`
-      then means "this boss floor's condition is satisfied", not specifically
-      "a Writhing Maw died", and floor 10 must not be auto-cleared by the
-      legacy "boss floor with no Boss" guard.
+      now means "this boss floor's condition is satisfied", not specifically
+      "a Writhing Maw died", and the legacy "boss floor with no Boss" guard is
+      Maw-only so it cannot auto-clear the factory.
 - [ ] **Redesign the floors 15/20/25 bosses.** Replace the Writhing Maw
       placeholders with three distinct signature encounters (phases, summons,
       telegraphed attacks and/or arena hazards), each with its own win
       condition and clear counterplay. Floor 5 keeps the Writhing Maw as the
       introductory boss; floor 25's new boss still ends the run in victory.
       Reuse the per-floor encounter/layout registry introduced for floor 10.
-- [ ] Boss floors keep their shared rules: single arena hall, no
+- [x] Boss floors keep their shared rules: single arena hall, no
       reinforcements, sparse loot (two chests, one ration, hidden-room gold),
       no bone pile, no random loot and no cursed gem.
 - **Acceptance:** each boss fight teaches a different tactic and its win
@@ -1540,9 +1540,9 @@ entity/UX remain implementation details to finalize against the spec.
    only curse source. Update the curse/save/scenario suites alongside it.
 4. **Finish Phase 8 signatures and boss redesign.** Remaining monster work:
    avoiding burning terrain, Quloptsh concealment/backstab, ghoul lifesteal.
-   Boss work: land the floor-10 Wand Factory first (`WAND_FACTORY_PLAN.md`),
-   then use its per-floor encounter/win-condition pattern to redesign floors
-   15/20/25. Floor 5 keeps the Writhing Maw as the introductory boss.
+   The floor-10 Wand Factory has landed; use its per-floor encounter/win-condition
+   pattern next to redesign floors 15/20/25. Floor 5 keeps the Writhing Maw as
+   the introductory boss.
 5. **Phase 9 build breadth after Phase 18:** the tree supplies later unlock
    bands; subclasses remain a separate, later step. First-tier talents already
    give a real level-up choice.
@@ -1586,16 +1586,16 @@ is class-specific hero art and a palette pass, neither of which affects depth.
 - **Unidentified items use generic category names and placeholder textures**
   and reveal their identity on use — the core SPD risk loop.
 - **The run is 25 floors.** Five floors was only an initial testing limit.
-  Boss floors are 5/10/15/20/25 and each gets its own encounter identity and
+  Boss floors are 5/10/15/20/25 and each has its own encounter identity and
   win condition; the Writhing Maw is the floor-5 boss and only a placeholder
-  on 10/15/20/25 until those redesigns land. Floor 10 is the Wand Factory
+  on 15/20/25 until those redesigns land. Floor 10 is the Wand Factory
   (clear every hostile); floors 15/20/25 are scheduled redesigns. Do not
   rebalance placeholder bosses as part of progression work. Region themes and
   per-region boss sets remain separate future work.
 - **Boss floors stay sparse and unreinforced:** single arena hall, no random
   loot, bone pile or cursed gem, but two chests, one ration and the hidden gold.
 - **Cursed items are locked on** until Remove Curse/well — do not allow
-  unequipping via the normal toggle path. The standalone Cursed Gem is being
+  unequipping via the normal toggle path. The standalone Cursed Gem has been
   retired globally; named curses on equipment are the only curse source.
 - **No freely available player shove ability.** Involuntary chasm falls should
   come from confusion or displacement effects/traps, affecting either side.

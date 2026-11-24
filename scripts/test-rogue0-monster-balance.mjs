@@ -11,7 +11,8 @@ import { pickReinforcementKind } from '../src/games/rogue0/monsterReinforcements
 import { xpForHeroLevel } from '../src/games/rogue0/progression.ts';
 
 const unlocks = { skeleton: 1, frog: 1, swarm: 2, mimic: 2, goblin: 3,
-  quloptsh: 6, ghoul: 8, brute: 11, cultist: 13, wraith: 16, elemental: 18, boss: 5 };
+  quloptsh: 6, ghoul: 8, brute: 11, cultist: 13, wraith: 16, elemental: 18, boss: 5,
+  firePotionThrower: 10 };
 assert.deepEqual(MONSTER_FIRST_FLOOR, unlocks);
 assert.deepEqual([1, 2, 3, 4].map(f => Object.values(floorMonsterRoster(f)).reduce((a, b) => a + b, 0)),
   [4, 7, 9, 11], 'opening floors build up gradually instead of spawning 15 enemies by floor 3');
@@ -34,16 +35,22 @@ for (const [floor, weighted] of [
 let cumulativeXp = 0;
 for (let floor = 1; floor <= 25; floor++) {
   const boss = floor % 5 === 0;
+  const factory = floor === 10;
   const roster = floorMonsterRoster(floor);
   const pool = new Set(Array.from({ length: 1000 }, (_, i) => pickReinforcementKind(floor, () => i / 1000)));
   for (const [kind, first] of Object.entries(unlocks)) {
     const available = floor >= first && (kind !== 'frog' || floor <= 4);
-    assert.equal(roster[kind] > 0, kind === 'boss' ? boss : !boss && available,
+    const expectedPresence = factory
+      ? ['firePotionThrower', 'skeleton', 'goblin'].includes(kind)
+      : kind === 'boss' ? boss : !boss && available;
+    assert.equal(roster[kind] > 0, expectedPresence,
       `${kind} initial unlock on floor ${floor}`);
-    assert.equal(pool.has(kind), !['mimic', 'boss'].includes(kind) && available,
+    assert.equal(pool.has(kind),
+      !['mimic', 'boss', 'firePotionThrower'].includes(kind) && available,
       `${kind} reinforcement unlock on floor ${floor}`);
   }
-  assert.equal(roster.skeleton, boss ? 0 : 2 + Math.min(floor, 5), 'skeleton counts unchanged');
+  assert.equal(roster.skeleton, factory ? 2 : boss ? 0 : 2 + Math.min(floor, 5),
+    'skeleton counts unchanged outside the factory guard roster');
   assert.equal(roster.mimic, !boss && floor >= 2 ? 1 : 0, 'mimic counts unchanged');
   assert.equal(expectedHeroAtFloor(floor).totalXp, cumulativeXp, 'only preceding floors contribute XP');
   cumulativeXp += Object.entries(roster).reduce((sum, [kind, count]) =>
@@ -55,7 +62,8 @@ assert.deepEqual(elementalKindsForFloor(20), ['fire']);
 assert.deepEqual(elementalKindsForFloor(21), ['fire', 'ice']);
 assert.deepEqual(elementalKindsForFloor(22), ['fire', 'ice']);
 assert.deepEqual(elementalKindsForFloor(23), ['fire', 'ice', 'shock']);
-assert.deepEqual([1, 5, 10, 15, 20, 25].map(f => expectedHeroAtFloor(f).level), [1, 5, 9, 12, 16, 19]);
+assert.deepEqual([1, 5, 10, 15, 20, 25].map(f => expectedHeroAtFloor(f).level), [1, 5, 9, 13, 16, 19],
+  'the factory guard roster adds enough XP for one more level by floor 15');
 assert.equal(expectedHeroAtFloor(2).totalXp, 12, 'three skeletons and one frog on floor 1');
 assert.equal(expectedHeroAtFloor(3).totalXp, 31, 'optional Mimic is not assumed killed');
 assert.equal(expectedHeroAtFloor(7).tier, 2, 'region-two weapon picked up on floor 6');

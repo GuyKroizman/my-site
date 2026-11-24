@@ -119,12 +119,21 @@ import SwarmOfFlies from "./monsters/swarmOfFlies";
 import DeadlyFrog from "./monsters/deadlyFrog";
 import { updateMonsterSleepVisuals, clearMonsterSleepVisuals } from "./monsters/monsterSleepVisuals";
 import Wraith from "./monsters/wraith";
+import FirePotionThrower from "./monsters/firePotionThrower";
+import { generateFirePotionThrowerTexture } from "./monsters/firePotionThrowerTexture";
+import { hasLivingHostiles, isMawFloor, isWandFactoryFloor } from "./bossEncounters";
+import {
+  generateWandFactoryTextures, createWandFactoryVisuals,
+  updateWandFactoryVisuals, clearWandFactoryVisuals
+} from './wandFactoryVisuals';
+import { updateTargetTelegraphs, clearTargetTelegraphs } from './targetTelegraphVisuals';
 import classes from "./classes";
 import type Monster from "./monsters/monster";
 import { reinforceFloor, type ReinforcementKind } from "./monsterReinforcements";
 import { floorMonsterRoster, elementalKindsForFloor } from './monsterBalance';
 import {
   generateMap,
+  bossArenaRoom,
   findFarthestWalkable,
   randomWalkableTiles,
   floorRollsLevitationLoot,
@@ -357,6 +366,8 @@ export class Scene0 extends Phaser.Scene {
       clearHeroLevitating(this);
       clearWandZaps(this);
       clearWandFusionVisuals(this);
+      clearWandFactoryVisuals(this);
+      clearTargetTelegraphs(this);
       clearGasVisuals(this);
       this.context.onGrassBurn = undefined;
       this.context.onWandZap = undefined;
@@ -399,6 +410,8 @@ export class Scene0 extends Phaser.Scene {
     this.makeArrowTexture();
     generateGoblinArrowTexture(this);
     generateCultistBoltTexture(this);
+    generateFirePotionThrowerTexture(this);
+    generateWandFactoryTextures(this);
     generatePotionTextures(this);
     generateRingTextures(this);
     generateGlyphStoneTextures(this);
@@ -746,6 +759,7 @@ export class Scene0 extends Phaser.Scene {
     updateWandZaps(this, this.context, this.time.now, isModalOpen(this.context));
     updateGrassBurns(this, this.context, this.time.now, isModalOpen(this.context));
     updateGasVisuals(this, this.context, this.time.now, isModalOpen(this.context));
+    updateWandFactoryVisuals(this, this.time.now, isModalOpen(this.context), this.visible);
     // Use interpolated sprite positions so walking/lunging actors swap order
     // smoothly, including monsters and items spawned after floor creation.
     // Stacked items are fanned inside their cell, so their depth follows the
@@ -789,6 +803,7 @@ export class Scene0 extends Phaser.Scene {
     this.checkStairs();
     this.checkPortalHint();
     this.refreshFovIfNeeded();
+    updateTargetTelegraphs(this, this.context.entities, this.context.map, this.visible);
     updateMonsterStatusVisuals(this, this.context.entities, this.time.now);
     updateMonsterSleepVisuals(this, this.context.entities, this.time.now);
     updateSurpriseVisuals(this, this.context, this.time.now);
@@ -902,6 +917,8 @@ export class Scene0 extends Phaser.Scene {
     clearHeroLevitating(this);
     clearWandZaps(this);
     clearWandFusionVisuals(this);
+    clearWandFactoryVisuals(this);
+    clearTargetTelegraphs(this);
     this.context.floor = floor;
     // A restored floor brings its own chasm-room population back from the
     // save; the generation-time room only describes the floor being built.
@@ -948,6 +965,10 @@ export class Scene0 extends Phaser.Scene {
     this.context.upstairsX = up.x;
     this.context.upstairsY = up.y;
     this.renderStairs(stairsPos.x, stairsPos.y);
+    if (isWandFactoryFloor(floor)) {
+      createWandFactoryVisuals(this, bossArenaRoom(
+        levelArray[0]?.length ?? 80, levelArray.length ?? 50, floor), this.context.map);
+    }
 
     // Also adds missing portals to already-visited store floors in older saves.
     this.context.shop = this.context.shops?.get(floor);
@@ -1019,10 +1040,15 @@ export class Scene0 extends Phaser.Scene {
       dungeon.log(this.context, `${item.displayName} lies on the floor, fallen from the chasm above.`);
     }
 
-    // A boss floor with no Writhing Maw (a legacy save or an authored scenario)
-    // was cleared before this rule existed. Never seal its stairs behind an
-    // absent boss.
-    if (isBossFloor(floor) && !this.context.entities.some(entity => entity instanceof Boss)) {
+    // A Maw arena with no Writhing Maw (a legacy save or an authored scenario)
+    // was cleared before this rule existed. Never seal it behind an absent
+    // boss. The Wand Factory has no Boss entity on purpose, so it must not
+    // take this path; an empty restored factory is cleared instead.
+    if (isMawFloor(floor) && !this.context.entities.some(entity => entity instanceof Boss)) {
+      if (!this.context.bossesSlain) this.context.bossesSlain = new Set();
+      this.context.bossesSlain.add(floor);
+    }
+    if (isWandFactoryFloor(floor) && !hasLivingHostiles(this.context)) {
       if (!this.context.bossesSlain) this.context.bossesSlain = new Set();
       this.context.bossesSlain.add(floor);
     }
@@ -1092,9 +1118,13 @@ export class Scene0 extends Phaser.Scene {
     player.cancelThrow();
     if (bossSealsFloor(this.context)) {
       player.actionReady = true;
-      dungeon.log(this.context, blinkFall
-        ? "The Writhing Maw's seal repels the Stone of Blink."
-        : "The Writhing Maw's seal holds you above the abyss.");
+      dungeon.log(this.context, isWandFactoryFloor(this.context.floor)
+        ? (blinkFall
+          ? "The factory's security grid repels the Stone of Blink."
+          : "The factory's security grid holds you above the abyss.")
+        : (blinkFall
+          ? "The Writhing Maw's seal repels the Stone of Blink."
+          : "The Writhing Maw's seal holds you above the abyss."));
       return;
     }
     if (this.context.floor >= this.context.maxFloor) {
@@ -1140,9 +1170,11 @@ export class Scene0 extends Phaser.Scene {
     if (this.ended) return;
 
     if (bossSealsFloor(this.context)) {
-      dungeon.log(this.context, this.context.floor >= this.context.maxFloor
-        ? "The Writhing Maw still lives. The dungeon will not release you."
-        : "The way down is sealed. Slay the Writhing Maw first.");
+      dungeon.log(this.context, isWandFactoryFloor(this.context.floor)
+        ? "The factory's security grid holds the way shut. Clear every enemy."
+        : this.context.floor >= this.context.maxFloor
+          ? "The Writhing Maw still lives. The dungeon will not release you."
+          : "The way down is sealed. Slay the Writhing Maw first.");
       return;
     }
 
@@ -1205,6 +1237,7 @@ export class Scene0 extends Phaser.Scene {
       case "cultist": return new Cultist(context, x, y);
       case "wraith": return new Wraith(context, x, y);
       case "elemental": return this.elementalActor(x, y);
+      case "firePotionThrower": return new FirePotionThrower(context, x, y);
       default: return new Skeleton(context, x, y);
     }
   }
@@ -1218,7 +1251,22 @@ export class Scene0 extends Phaser.Scene {
 
   private handleMonsterRemoved(entity: Entity, reinforce: boolean): void {
     if (entity instanceof Boss) this.markBossSlain();
+    else if (isWandFactoryFloor(this.context.floor) &&
+             !(this.context.bossesSlain?.has(this.context.floor) ?? false) &&
+             !hasLivingHostiles(this.context)) {
+      this.markFactoryCleared();
+    }
     if (reinforce && !this.ended) this.reinforceEmptyFloor();
+  }
+
+  private markFactoryCleared(): void {
+    const context = this.context;
+    if (!context.bossesSlain) context.bossesSlain = new Set();
+    context.bossesSlain.add(context.floor);
+    dungeon.log(context, "The factory's security grid powers down. The way down is open.");
+    if (context.stairsX !== undefined && context.stairsY !== undefined) {
+      this.renderStairs(context.stairsX, context.stairsY);
+    }
   }
 
   private markBossSlain(): void {
@@ -1400,7 +1448,9 @@ export class Scene0 extends Phaser.Scene {
         dungeon.log(
           this.context,
           bossSealsFloor(this.context)
-            ? "You stand on sealed stairs. The Writhing Maw still lives."
+            ? (isWandFactoryFloor(this.context.floor)
+              ? "You stand on sealed stairs. Clear every enemy to unlock the factory."
+              : "You stand on sealed stairs. The Writhing Maw still lives.")
             : stairsHint(isExit)
         );
       }
@@ -1908,8 +1958,7 @@ export class Scene0 extends Phaser.Scene {
 
     if (!this.context.map) return;
 
-    const sealed = isBossFloor(this.context.floor) &&
-      !(this.context.bossesSlain?.has(this.context.floor) ?? false);
+    const sealed = bossSealsFloor(this.context);
     const color = sealed ? 0xd9534f : 0x918b94;
     const wx = this.context.map.tileToWorldX(x)!;
     const wy = this.context.map.tileToWorldY(y)!;
@@ -2074,6 +2123,11 @@ export class Scene0 extends Phaser.Scene {
     // one ration and the hidden room's gold are the floor's whole population,
     // so the fight stays the floor's only event.
     const bossFloor = isBossFloor(floor);
+    const mawFloor = isMawFloor(floor);
+    const factoryFloor = isWandFactoryFloor(floor);
+    if (factoryFloor) {
+      dungeon.log(context, "The wand factory's security grid is active. Clear every enemy to unlock the stairs.");
+    }
     const roster = floorMonsterRoster(floor);
     const skeletonCount = roster.skeleton;
     const goblinCount = roster.goblin;
@@ -2089,12 +2143,13 @@ export class Scene0 extends Phaser.Scene {
     const elementalCount = roster.elemental;
     const wraithCount = roster.wraith;
     const frogCount = roster.frog;
+    const firePotionThrowerCount = roster.firePotionThrower;
     const itemCount = bossFloor ? 0 : 3;
     const foodCount = 1;
 
     // The Writhing Maw's own tile is reserved before anything else rolls: it waits
     // in the middle of the arena, and nothing else may stand there.
-    const bossHome = bossFloor ? this.bossArena : undefined;
+    const bossHome = mawFloor ? this.bossArena : undefined;
     // Legacy fixtures can load scene0 with a placeholder Boss class; fall back
     // to one tile when it carries no static footprint.
     const bossFootprint: Footprint = Boss.footprint ?? TILE_FOOTPRINT;
@@ -2113,7 +2168,7 @@ export class Scene0 extends Phaser.Scene {
       levelArray,
       skeletonCount + goblinCount + ghoulCount + bruteCount + quloptshCount +
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
-        frogCount +
+        frogCount + firePotionThrowerCount +
         foodCount + itemCount + progressionCount + chestCount + remainsCount + equipmentCount +
         chasmLevitationCount,
       exclude,
@@ -2189,7 +2244,7 @@ export class Scene0 extends Phaser.Scene {
     spawnGroup(Ration, foodCount);
     // The Writhing Maw stands in the middle of its arena rather than on a random
     // floor tile, and the Boss class keeps it asleep until it is disturbed.
-    if (bossFloor) {
+    if (mawFloor) {
       const centerFree = bossHome !== undefined &&
         footprintIsFree(levelArray, bossFootprint, bossHome.x, bossHome.y,
           MAX_VISIBLE_X, terrain, (tx, ty) => usedCells.has(`${tx},${ty}`));
@@ -2213,6 +2268,7 @@ export class Scene0 extends Phaser.Scene {
     spawnGroup(Cultist, cultistCount);
     spawnGroup(Wraith, wraithCount);
     spawnGroup(DeadlyFrog, frogCount);
+    spawnGroup(FirePotionThrower, firePotionThrowerCount);
 
     // Initial spawns and reinforcements share the same variant unlocks.
     for (let n = 0; n < elementalCount; n++) {

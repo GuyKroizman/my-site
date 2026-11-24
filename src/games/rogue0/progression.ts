@@ -1,3 +1,5 @@
+import { bossEncounter, hasLivingHostiles } from './bossEncounters.ts';
+
 // Five-floor regions establish progression pacing, not themed regions yet.
 export const REGION_SIZE = 5;
 export const FINAL_FLOOR = 25;
@@ -29,12 +31,24 @@ export function isBossFloor(floor: number): boolean {
   return Number.isInteger(floor) && floor > 0 && floor % REGION_SIZE === 0;
 }
 
-// A boss floor stays sealed until the Writhing Maw is recorded as slain. The
+// A boss floor stays sealed until its own win condition is satisfied. The
 // context shape is structural so progression does not depend on the scene.
 export function bossSealsFloor(
-  context: { floor: number; bossesSlain?: ReadonlySet<number> }
+  context: {
+    floor: number;
+    bossesSlain?: ReadonlySet<number>;
+    entities?: readonly { type?: string; healthPoints?: number; isDecoy?: boolean; friendly?: boolean }[];
+  }
 ): boolean {
-  return isBossFloor(context.floor) && !(context.bossesSlain?.has(context.floor) ?? false);
+  const encounter = bossEncounter(context.floor);
+  if (!encounter) return false;
+  const cleared = context.bossesSlain?.has(context.floor) ?? false;
+  if (encounter.win === 'all-hostiles-cleared') {
+    // Both checks: a stale "cleared" flag cannot open a floor that still has
+    // live enemies, and an uncleared save with none is treated as open.
+    return !cleared || hasLivingHostiles(context);
+  }
+  return !cleared;
 }
 
 export function upgradeScrollsForFloor(floor: number): number {

@@ -1,7 +1,9 @@
 import { FINAL_FLOOR, floorProgression, isBossFloor, xpForHeroLevel } from './progression.ts';
+import { isWandFactoryFloor } from './bossEncounters.ts';
 
 export type EncounterKind = 'skeleton' | 'frog' | 'swarm' | 'goblin' | 'quloptsh'
-  | 'ghoul' | 'brute' | 'cultist' | 'wraith' | 'elemental' | 'mimic' | 'boss';
+  | 'ghoul' | 'brute' | 'cultist' | 'wraith' | 'elemental' | 'mimic' | 'boss'
+  | 'firePotionThrower';
 export type ElementalKind = 'fire' | 'ice' | 'shock';
 export type ScaledMonsterKind = Exclude<EncounterKind, 'skeleton' | 'mimic' | 'swarm'>;
 
@@ -10,11 +12,13 @@ export type ScaledMonsterKind = Exclude<EncounterKind, 'skeleton' | 'mimic' | 's
 export const MONSTER_FIRST_FLOOR: Record<EncounterKind, number> = {
   skeleton: 1, frog: 1, swarm: 2, mimic: 2, goblin: 3, boss: 5,
   quloptsh: 6, ghoul: 8, brute: 11, cultist: 13, wraith: 16, elemental: 18,
+  firePotionThrower: 10,
 };
 // Mimics retain their own tier-scaled reward and are excluded from the forecast.
 export const MONSTER_XP: Record<Exclude<EncounterKind, 'mimic'>, number> = {
   skeleton: 2, frog: 6, swarm: 5, goblin: 5, quloptsh: 4,
   ghoul: 5, brute: 10, cultist: 8, wraith: 9, elemental: 7,
+  firePotionThrower: 9,
   boss: 25,
 };
 export const SWARM_HEALTH = 28;
@@ -36,7 +40,16 @@ export function floorMonsterRoster(floor: number): Record<EncounterKind, number>
   const roster: Record<EncounterKind, number> = {
     skeleton: 0, frog: 0, swarm: 0, goblin: 0, quloptsh: 0, ghoul: 0,
     brute: 0, cultist: 0, wraith: 0, elemental: 0, mimic: 0, boss: 0,
+    firePotionThrower: 0,
   };
+  if (isWandFactoryFloor(floor)) {
+    // The factory's "clear every hostile" win condition needs a small guard
+    // force as well as the throwers, but still no boss or Mimic.
+    roster.firePotionThrower = 2;
+    roster.skeleton = 2;
+    roster.goblin = 1;
+    return roster;
+  }
   if (isBossFloor(floor)) { roster.boss = 1; return roster; }
   for (const kind of Object.keys(roster) as EncounterKind[]) {
     if (kind !== 'boss' && monsterAvailable(kind, floor)) roster[kind] = 1;
@@ -99,6 +112,7 @@ const PROFILES: Record<ScaledMonsterKind, {
   cultist: { minHealth: 36, hits: 4, minDamage: 8, healthFraction: 0.16 },
   wraith: { minHealth: 32, hits: 4, minDamage: 7, healthFraction: 0.14, bypassArmor: true },
   elemental: { minHealth: 36, hits: 4, minDamage: 8, healthFraction: 0.15, bypassArmor: true },
+  firePotionThrower: { minHealth: 34, hits: 4, minDamage: 8, healthFraction: 0.16, bypassArmor: true },
   boss: { minHealth: 120, hits: 10, minDamage: 14, healthFraction: 0.25 },
 };
 

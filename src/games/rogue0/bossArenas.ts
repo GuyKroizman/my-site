@@ -9,7 +9,7 @@
 
 export type BossArenaLayoutId =
   | 'colonnade'
-  | 'longHall'
+  | 'factory'
   | 'octagon'
   | 'cross'
   | 'throne';
@@ -46,7 +46,7 @@ const combined =
 
 // Floor 5 — the introductory arena. A square hall with four 2x2 pillars set
 // exactly 10 walkable tiles apart: the room the Writhing Maw is built for.
-const COLONNADE: BossArenaLayout = {
+export const COLONNADE: BossArenaLayout = {
   id: 'colonnade',
   name: 'Pillared Rotunda',
   width: 16,
@@ -59,27 +59,26 @@ const COLONNADE: BossArenaLayout = {
   ])
 };
 
-// Floor 10 — a long hall split by two rows of three pillars. The centre aisle
-// runs from the hero's southern entrance straight to the Writhing Maw, and the
-// side bays let a ranged fight open up around the columns.
-const LONG_HALL: BossArenaLayout = {
-  id: 'longHall',
-  name: 'Long Colonnade',
-  width: 24,
-  height: 14,
+// Floor 10 — the Wand Factory. Same 16x16 footprint and ten-tile central
+// span as floor 5, but the pillars sit one row lower on the north side and one
+// row higher on the south side, so the hall reads as a different room and has
+// room for the two machines along the side walls.
+export const WAND_FACTORY_LAYOUT: BossArenaLayout = {
+  id: 'factory',
+  name: 'Wand Factory',
+  width: 16,
+  height: 16,
   solid: pillarBlocks([
-    [3, 2],
-    [10, 2],
-    [17, 2],
-    [3, 9],
-    [10, 9],
-    [17, 9]
+    [1, 2],
+    [13, 2],
+    [1, 12],
+    [13, 12]
   ])
 };
 
 // Floor 15 — an octagonal sanctum: the four corners are chamfered away, and
 // four obelisks mark the inner corners of the octagon.
-const OCTAGON: BossArenaLayout = {
+export const OCTAGON: BossArenaLayout = {
   id: 'octagon',
   name: 'Octagonal Sanctum',
   width: 18,
@@ -102,7 +101,7 @@ const OCTAGON: BossArenaLayout = {
 
 // Floor 20 — a cruciform vault: four square corner masses leave a plus-shaped
 // room, and a ring of pillars frames the Writhing Maw at the crossing.
-const CROSS: BossArenaLayout = {
+export const CROSS: BossArenaLayout = {
   id: 'cross',
   name: 'Cruciform Vault',
   width: 20,
@@ -126,7 +125,7 @@ const CROSS: BossArenaLayout = {
 // Floor 25 — the final throne hall. A full colonnade ring: corner piers plus a
 // pier in the middle of every side, so the last fight happens in a circuit of
 // eight columns.
-const THRONE: BossArenaLayout = {
+export const THRONE: BossArenaLayout = {
   id: 'throne',
   name: 'Throne Hall',
   width: 20,
@@ -143,10 +142,20 @@ const THRONE: BossArenaLayout = {
   ])
 };
 
-// One layout per boss floor, in floor order: 5, 10, 15, 20, 25.
+// One layout per boss floor. The mapping is explicit: per-floor encounters
+// (see bossEncounters.ts) own the identity and win condition of their halls.
+export const BOSS_FLOOR_LAYOUTS: Readonly<Record<number, BossArenaLayout>> = {
+  5: COLONNADE,
+  10: WAND_FACTORY_LAYOUT,
+  15: OCTAGON,
+  20: CROSS,
+  25: THRONE
+};
+
+// Kept in floor order for tests and tools that iterate the five plans.
 export const BOSS_ARENA_LAYOUTS: readonly BossArenaLayout[] = [
   COLONNADE,
-  LONG_HALL,
+  WAND_FACTORY_LAYOUT,
   OCTAGON,
   CROSS,
   THRONE
@@ -154,13 +163,11 @@ export const BOSS_ARENA_LAYOUTS: readonly BossArenaLayout[] = [
 
 export const BOSS_FLOOR_STEP = 5;
 
-/** Index into BOSS_ARENA_LAYOUTS for a boss floor (5 -> 0, 10 -> 1, ...). */
+/** Index into BOSS_ARENA_LAYOUTS for a boss floor, or -1 for other floors. */
 export function bossArenaLayoutIndex(floor: number): number {
-  const n = BOSS_ARENA_LAYOUTS.length;
-  const step = Math.floor((floor - 1) / BOSS_FLOOR_STEP);
-  return ((step % n) + n) % n;
+  return BOSS_ARENA_LAYOUTS.indexOf(BOSS_FLOOR_LAYOUTS[floor]);
 }
 
 export function bossArenaLayout(floor: number): BossArenaLayout {
-  return BOSS_ARENA_LAYOUTS[bossArenaLayoutIndex(floor)];
+  return BOSS_FLOOR_LAYOUTS[floor];
 }

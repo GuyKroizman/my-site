@@ -43,8 +43,9 @@ export type GameContext = {
   // Discrete-event clock, in normal-action units (not wall-clock seconds).
   simulationTime?: number;
   floor: number;
-  // Boss floors where the Writhing Maw has already been defeated. The stairs (and every
-  // other route below) stay sealed until the current floor is in this set.
+  // Boss floors whose own win condition is satisfied (the Writhing Maw slain
+  // on its floors, every hostile cleared in the Wand Factory). Stairs and
+  // other routes down stay sealed until the current floor is in this set.
   bossesSlain?: Set<number>;
   // The one floor this run gives its chasm room to, rolled at run start from
   // mapgen's CHASM_ROOM_FLOORS and persisted in the run save. Shallower floors

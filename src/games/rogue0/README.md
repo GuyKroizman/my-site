@@ -263,7 +263,8 @@ The forecast assumes clearing the initial non-Mimic roster on earlier floors.
 It excludes optional Mimic kills, endless reinforcements, summons, split bonus
 XP, haunted remains and XP potions. It uses the hero's actual XP thresholds
 (`8 × current level` to advance), +5 HP and +1 attack per level. Expected entry
-levels at floors **1 / 5 / 10 / 15 / 20 / 25** are **1 / 5 / 9 / 12 / 16 / 19**.
+levels at floors **1 / 5 / 10 / 15 / 20 / 25** are **1 / 5 / 9 / 13 / 16 / 19**
+(the factory guard roster adds a little more XP than the old floor-10 boss).
 HP targets also account for mean weapon damage, guaranteed gear availability,
 Strength potions, and a modest equipment budget of one upgrade per completed
 region on each of weapon and armor (8 of 15 scrolls over the run).
@@ -741,42 +742,76 @@ RNG, and clears on expiry, death, floor change and scene shutdown
 
 ## Run length and equipment progression
 
-A run has **25 floors**. Floors **5, 10, 15, 20 and 25** are boss floors, each
-guarded by the Writhing Maw. Their stairs are sealed until the Writhing Maw
-on that floor dies, and slaying it on floor 25 ends the run in victory.
+A run has **25 floors**. Floors **5, 10, 15, 20 and 25** are boss floors, but
+each now has its own encounter identity and win condition (`bossEncounters.ts`).
+Floors **5/15/20/25** are Writhing Maw arenas: their stairs stay sealed until
+the Maw dies, and slaying it on floor 25 ends the run. **Floor 10 is the Wand
+Factory**: its stairs stay sealed until **every hostile on the floor is dead**.
+The Writhing Maw is intended as the floor-5 boss; it remains a placeholder on
+15/20/25 until those encounters are redesigned.
 
-A boss floor is not a room network: map generation carves a single **arena
-hall** behind a border of solid rock, with the Writhing Maw asleep at its exact
-centre. Each boss floor builds its **own hall** (`bossArenas.ts`), so the
-Writhing Maw is fought in five different rooms: a 16x16 **pillared rotunda** on
-floor 5 (four 2x2 pillars exactly 10 tiles apart), a 24x14 **long colonnade**
-on floor 10, an 18x18 **octagonal sanctum** on floor 15, a 20x20 **cruciform
-vault** on floor 20 and a 20x20 **throne hall** ringed by eight piers on floor
-25. The hero always arrives at the south edge, across the hall from the
-Writhing Maw, and the sealed stairs wait in the farthest eastern corner. Every
-hall keeps its middle, its entrance and its exit clear. The arena is the Writhing Maw's alone: no
-wandering roster (skeletons, goblins, ghouls, brutes, Quloptsh, swarms, mimics,
-cultists, elementals, wraiths, frogs), no random floor loot, no cursed gem, no
-chasm, no bone pile and no summon trap. What it does carry is the Writhing Maw, two
-treasure chests, one ration and the hidden room's gold above the north wall;
-grass, water and the
-other hidden traps still dress the hall. Floor 5 is the exception to the trap
-budget: its rotunda is a trap gauntlet with the usual two hidden traps plus five
-visible fire traps, five visible teleport traps and thirty arrow traps,
-alongside the two arrow plates. The arrows fire at the nearest living character
-when stepped on — the Writhing Maw included if it is closer — and visible plates are
-avoided by auto-walk, so the hall becomes a hazard course. Summon is still
-excluded, so none of them adds another monster to the Writhing Maw fight. The
-Writhing Maw naps until disturbed — a
-wound, a noise, the hero stepping within two tiles in its line of sight, or a
-long dormancy running out — so a careful approach earns the first strike. The
-scaled Writhing Maw art is anchored to its tile and its 3×3 body stops the hero
-outside the artwork, so nobody can stand underneath it; taps anywhere on that
-art target the Writhing Maw. The floor is never repopulated after the Writhing Maw
-falls. The old five-floor limit
-was for testing.
+A boss floor is not a room network: map generation carves a single arena hall
+behind solid rock. Each floor builds its own hall (`bossArenas.ts`): a 16x16
+**pillared rotunda** on floor 5 (four 2x2 pillars exactly 10 tiles apart), a
+16x16 **Wand Factory** on floor 10 (four 2x2 pillars, same ten-tile central
+span), an 18x18 **octagonal sanctum** on floor 15, a 20x20 **cruciform vault**
+on floor 20 and a 20x20 **throne hall** ringed by eight piers on floor 25. The
+hero always arrives at the south edge and the sealed stairs sit in the farthest
+eastern corner; every hall keeps its middle, entrance and exit clear. All boss
+floors are sparse: no random loot, no cursed gem, no chasm, no bone pile and no
+summon trap, but two treasure chests, one ration, the hidden room's gold and
+normal grass/water/hidden traps. Floor 5 is the exception to the trap budget:
+its rotunda is a trap gauntlet with five visible fire traps, five visible
+teleport traps and thirty arrow traps. None of them adds another monster.
+
+On Maw floors the boss sleeps at the exact centre until wounded, hears noise,
+sees the hero within two tiles, or its long dormancy expires. Its scaled art is
+anchored to a 3×3 body so the hero cannot stand underneath it. No boss floor is
+ever repopulated after its win condition is met. The old five-floor limit was
+for testing. Themed regions remain future work; encounter variety and strength
+increase throughout the run.
 Themed regions remain future work. Encounter variety and enemy strength now
 increase throughout the run; see Monster depth progression and balance above.
+
+## Wand Factory (floor 10)
+
+The Wand Factory is a 16x16 hall sized and shaped like floor 5's rotunda, with
+two decorative **steampunk machines** and no Writhing Maw. Its roster is two
+Fire Potion Throwers, two Skeletons and one Goblin; the floor keeps the usual
+boss-floor sparse policy (two chests, one ration and the hidden room's gold).
+The **security grid** seals the stairs (and every route down, including chasm
+falls and Blink stones) until the last hostile dies. Clearing the floor logs
+the grid powering down and turns the stairs from red to grey; floor 10 has no
+reinforcement waves, so that state is permanent. `bossesSlain` records the floor
+as cleared; the seal itself is derived from the living monsters, so a stale
+saved flag cannot open a live fight. Old saves that still hold a Writhing Maw on
+floor 10 drop that entity on load.
+
+One machine is a riveted brass-and-copper **flame distiller**: a glowing fire
+element feeds a pipe and liquid flame drips into an empty glass potion bottle
+on a fixed loop. The other is a **wand assembler** whose gear-driven conveyor
+carries wand sprites from the cabinet into a wooden crate. Both are pure art:
+they never change the map, pathfinding, FOV, loot or world time, and they are
+recreated on every visit rather than saved. Phaser tweens and presentation
+clocks drive the loops; menus pause them.
+
+## Fire Potion Thrower
+
+A new factory enemy with a three-turn, telegraphed attack. On its first own
+turn it marks the hero's tile (a red border and faint red fill); on its second
+own turn the eight surrounding tiles gain the same border; on its third turn it
+throws liquid-flame flasks at the **nine fixed tiles** — stepping out of that
+3×3 avoids the burst. The hit deals fire damage (`resolveAttack` with
+`damageType: 'fire'`, so elemental resistance applies and physical armor does
+not) and applies the existing 12-turn `burning` effect from the Potion of Liquid
+Flame. No new potion class exists, and no new status effect is registered.
+
+The windup advances only on the thrower's **own scheduled turns**: sleeping,
+sight and range gates apply, world-time effect ticks and animation frames never
+move it, and each step spends an attack action. Telegraph fields are ordinary
+saved entity data, so a save/load mid-windup keeps the marked tiles. Unseen
+throwers get generic log text instead of being named. The red borders are
+drawn above fog but only on currently visible tiles.
 
 Heroes start with **10 Strength**. Strength potions permanently add one Strength,
 not attack. XP grants +5 max HP / +1 attack and one talent point per level from

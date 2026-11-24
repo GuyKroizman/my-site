@@ -191,7 +191,7 @@ try {
 } finally { Math.random = random; }
 
 const source = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
-assert.match(source, /this\.refreshFovIfNeeded\(\);\s*updateMonsterStatusVisuals\(this, this\.context\.entities, this\.time\.now\)/);
+assert.match(source, /this\.refreshFovIfNeeded\(\);\s*(?:updateTargetTelegraphs\([^\n]*\);\s*)?updateMonsterStatusVisuals\(this, this\.context\.entities, this\.time\.now\)/);
 assert.match(source, /if \(isModalOpen\(this\.context\)\) \{\s*updateMonsterStatusVisuals/);
 assert.equal((source.match(/clearMonsterStatusVisuals\(this\)/g) ?? []).length, 2);
 const ui = fs.readFileSync('src/games/rogue0/ui.ts', 'utf8');

@@ -11,8 +11,8 @@ guarded by a new enemy that throws fire potions after a three-turn telegraph.
   the **Wand Factory**, not the Writhing Maw.
 - Boss floors keep their shared rules: **no reinforcements**, no bone pile, no
   random loot, no cursed gem, hidden-room gold, two chests and one ration.
-  (User direction: cursed gems should be gone everywhere; this plan only
-  guarantees floor 10 never gains one — a global cleanup is separate work.)
+  (The standalone Cursed Gem has since been retired globally; its old wire ID
+  now aliases to Gold so older saves still decode.)
 - Boss floors will have **different boss types and different win conditions**.
   This plan introduces that abstraction and uses it for floor 10. The Writhing
   Maw is conceptually the floor-5 boss; floors 15/20/25 keep it as a legacy

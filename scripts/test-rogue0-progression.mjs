@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 import { createTerrain } from '../src/games/rogue0/terrain.ts';
 import { floorMonsterRoster, elementalKindsForFloor } from '../src/games/rogue0/monsterBalance.ts';
+import { bossEncounter, hasLivingHostiles, isMawFloor, isWandFactoryFloor } from '../src/games/rogue0/bossEncounters.ts';
 const { Entity, upgrade } = load('src/games/rogue0/entity.ts');
 // No rendering in simulation tests; retain the real item constructors/stats.
 Entity.prototype.init = function(context, x, y) { Object.assign(this, { context, x, y }); };
@@ -12,7 +13,7 @@ let maximum = false;
 const Phaser = { Scene: class {}, Math: { Between: (min, max) => maximum ? max : min } };
 const { TieredWeapon, TieredArmor } = load('src/games/rogue0/items/tieredEquipment.ts', { Entity, Phaser });
 const Gold = load('src/games/rogue0/items/gold.ts', { Entity }).default;
-const progression = load('src/games/rogue0/progression.ts');
+const progression = load('src/games/rogue0/progression.ts', { bossEncounter, hasLivingHostiles });
 const { rollFoundUpgrade } = load('src/games/rogue0/foundUpgrades.ts', { Entity });
 const { createGameContext } = load('src/games/rogue0/context.ts');
 const { bossSealsFloor } = progression;
@@ -24,6 +25,18 @@ assert.equal(createGameContext().maxFloor, 25);
   assert.equal(bossSealsFloor(locked), false, 'killing the Writhing Maw unseals the floor');
   locked.floor = 6;
   assert.equal(bossSealsFloor(locked), false, 'ordinary floors are never sealed');
+}
+{
+  const factory = { ...createGameContext(), floor: 10, bossesSlain: new Set(),
+    entities: [{ type: 'enemy', healthPoints: 5 }] };
+  assert.equal(bossSealsFloor(factory), true, 'the factory is sealed while a hostile lives');
+  factory.bossesSlain.add(10);
+  assert.equal(bossSealsFloor(factory), true,
+    'a stale cleared flag cannot open a factory that still has enemies');
+  factory.entities = [];
+  assert.equal(bossSealsFloor(factory), false, 'clearing every hostile opens the factory');
+  assert.equal(bossEncounter(10).win, 'all-hostiles-cleared');
+  assert.equal(bossEncounter(5).win, 'boss-slain');
 }
 
 // Scrolls of Upgrade are a fixed budget, not an RNG outcome: 3 per five-floor
@@ -123,7 +136,8 @@ for (const [start, end] of [[1, 4], [6, 9], [11, 14], [16, 19], [21, 24]]) {
 // Exercise real spawnFloorContent with real maps and item classes. Monsters and
 // unrelated items only need identity/position here; their own suites cover AI.
 const sceneSource = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
-const bindings = { Phaser, Gold, TieredWeapon, TieredArmor, ...progression };
+const bindings = { Phaser, Gold, TieredWeapon, TieredArmor, ...progression,
+  hasLivingHostiles, isMawFloor, isWandFactoryFloor };
 for (const match of sceneSource.matchAll(/import (\w+) from "\.\/(?:items|monsters)\/[^";]+";/g)) {
   const name = match[1];
   bindings[name] = class { constructor(context, x, y) { Object.assign(this, { context, x, y, kind: name }); } };
@@ -210,7 +224,8 @@ for (let run = 0; run < 5; run++) {
     const roster = floorMonsterRoster(floor);
     for (const [kind, cls] of Object.entries({ skeleton: 'Skeleton', frog: 'DeadlyFrog', swarm: 'SwarmOfFlies',
       goblin: 'Goblin', quloptsh: 'Quloptsh', ghoul: 'Ghoul', brute: 'Brute', cultist: 'Cultist',
-      wraith: 'Wraith', mimic: 'Mimic', boss: 'Boss' })) {
+      wraith: 'Wraith', mimic: 'Mimic', boss: 'Boss',
+      firePotionThrower: 'FirePotionThrower' })) {
       assert.equal(count(cls), roster[kind], `floor ${floor}: actual ${kind} quota`);
     }
     const elementalClasses = { fire: 'FireElemental', ice: 'IceElemental', shock: 'ShockElemental' };
@@ -222,7 +237,7 @@ for (let run = 0; run < 5; run++) {
     const spec = progression.floorProgression(floor);
     assert.equal(count('PotionOfStrength'), spec.strengthPotions);
     assert.equal(count('ScrollOfUpgrade'), spec.upgradeScrolls);
-    assert.equal(count('Boss'), progression.isBossFloor(floor) ? 1 : 0, `boss floor ${floor}`);
+    assert.equal(count('Boss'), isMawFloor(floor) ? 1 : 0, `Maw boss floor ${floor}`);
     assert.ok(count('Ration') >= 1);
     assert.equal(count('Chest'), chasmRoom ? 3 : 2,
       'two real treasure chests accompany the encounter roster, plus the chasm room treasure');
@@ -279,9 +294,9 @@ for (let run = 0; run < 5; run++) {
     for (const item of bonusFinds) assert.equal(item.identified, false);
     assert.equal(count('Mimic'), !progression.isBossFloor(floor) && floor >= 2 ? 1 : 0,
       'no mimic disguises itself on a boss floor');
-    if (progression.isBossFloor(floor)) {
-      // The boss floor is the Writhing Maw's arena: it carries the boss,
-      // two treasure chests, one ration and the hidden room's gold, nothing else.
+    if (isMawFloor(floor)) {
+      // A Maw arena carries the boss, two chests, one ration and the hidden
+      // room's gold, nothing else.
       const nameOf = item => item.kind ?? item.constructor?.name;
       const allowed = new Set(['Boss', 'Chest', 'Ration', 'Gold']);
       const strays = items.filter(item => !allowed.has(nameOf(item)));
@@ -294,6 +309,14 @@ for (let run = 0; run < 5; run++) {
         `boss floor ${floor} places its Writhing Maw in the middle of the arena`);
       assert.notDeepEqual({ x: writhingMaw.x, y: writhingMaw.y }, spawn,
         'the hero does not arrive on top of the Writhing Maw');
+    } else if (isWandFactoryFloor(floor)) {
+      const nameOf = item => item.kind ?? item.constructor?.name;
+      const allowed = new Set(['FirePotionThrower', 'Skeleton', 'Goblin', 'Chest', 'Ration', 'Gold']);
+      const strays = items.filter(item => !allowed.has(nameOf(item)));
+      assert.deepEqual(strays.map(nameOf), [],
+        'the factory keeps the sparse boss-floor policy but has no boss or loot');
+      assert.equal(count('FirePotionThrower'), 2, 'the factory is guarded by two throwers');
+      assert.equal(count('Boss'), 0, 'the factory has no Writhing Maw');
     }
     const occupied = new Set(items.map(item => `${item.x},${item.y}`));
     assert.equal(occupied.size, items.length, 'spawns never overlap');
@@ -330,7 +353,8 @@ for (let run = 0; run < 5; run++) {
     scene.descend();
     assert.equal(restored, true);
   }
-  assert.deepEqual(totals, { strength: 10, upgrades: 15, bosses: 5 });
+  assert.deepEqual(totals, { strength: 10, upgrades: 15, bosses: 4 },
+    'floor 10 is the Wand Factory, so only four Writhing Maws are generated');
 }
 
 // SoU are also excluded from every other loot source, so the 15-item budget
@@ -402,5 +426,13 @@ walkableTiles = mapgen.randomWalkableTiles;
   scene.handleMonsterRemoved(new bindings.Boss(scene.context, 2, 2), false);
   assert.equal(scene.context.bossesSlain.has(25), true);
   assert.deepEqual(emitted, ['player-won'], 'the final boss death wins immediately');
+}
+{
+  const scene = Object.create(Scene0.prototype);
+  scene.context = { ...createGameContext(), floor: 10, entities: [], stairsX: 1, stairsY: 1 };
+  scene.renderStairs = () => {};
+  scene.handleMonsterRemoved({ type: 'enemy', healthPoints: 0 }, false);
+  assert.equal(scene.context.bossesSlain.has(10), true,
+    'clearing the last factory hostile satisfies its win condition');
 }
 console.log('Rogue0 progression: deterministic 15 SoU / 3 per region / no boss-floor SoU, 25 floors, final boss, five equipment tiers, supply quotas and revisits passed');
