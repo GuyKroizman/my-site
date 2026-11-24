@@ -12,6 +12,7 @@ const { TieredWeapon, TieredArmor, WEAPON_TEXTURES } = load('src/games/rogue0/it
 });
 const effects = load('src/games/rogue0/effects.ts', { spawnEntityFloatingText() {}, dungeon: {} });
 const ChaliceOfBlood = load('src/games/rogue0/items/ChaliceOfBlood.ts', { Entity }).default;
+const Gold = load('src/games/rogue0/items/gold.ts', { Entity }).default;
 const { restoreEffects } = load('src/games/rogue0/saveEffects.ts', { effects, ChaliceOfBlood });
 const registry = { weapon: TieredWeapon, armor: TieredArmor };
 const context = { messages: [], visibleTiles: new Set(), simulationTime: 4.5 };
@@ -98,11 +99,17 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     item.level = 2;
     return item;
   });
-  const CursedGem = load('src/games/rogue0/items/cursedGem.ts', { Entity }).default;
-  const legacyCursedGem = new CursedGem(savedContext);
-  delete legacyCursedGem.textureKey;
-  legacyCursedGem.tile = 218;
-  legacyCursedGem.count = 3;
+  // A save written before the Cursed Gem was retired decodes through the
+  // old wire ID (aliased to Gold) with all of the gem's fields still present.
+  const legacyCursedGem = Object.assign(Object.create(Gold.prototype), {
+    context: savedContext, type: 'item', name: 'Cursed Gem',
+    description: 'Use to replace the curse on a carried cursed weapon or armor.',
+    textureKey: 'cursed-gem', consumable: true, requiresItemTarget: true,
+    itemTargetTitle: 'CURSED GEM: CHOOSE ITEM',
+    noItemTargetsMessage: 'You have no cursed weapon or armor.',
+    tier: 1, equipSlot: 'consumable', goldAmount: 7, count: 3, tile: 218,
+    identified: true,
+  });
   hero.backpack = [scroll, ...legacyWeapons, legacyCursedGem];
   hero.quickslots = [legacyCursedGem];
   hero.weapon = legacyWeapons[4];
@@ -152,8 +159,10 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     noItemTargetsMessage: 'You have no cursed items to cleanse.',
     description: 'Lifts every curse on your equipment.', locallyIdentified: false });
   const registry = { hero: SavedHero, scroll: ScrollOfUpgrade, removeScroll: ScrollOfRemoveCurse,
-    IceElemental, TieredWeapon, Ghoul, Brute, Quloptsh, CursedGem, Skeleton, Boss,
-    Shield, Sword, Axe };
+    IceElemental, TieredWeapon, Ghoul, Brute, Quloptsh, Skeleton, Boss,
+    Shield, Sword, Axe,
+    './items/gold.ts:default': Gold,
+    './items/cursedGem.ts:default': Gold };
   const mapgen = load('src/games/rogue0/mapgen.ts', { isBlocking: () => false });
   const graph = encodeGraph({ player: hero, floor: 1, time: 0, nextTick: 1, messages: [],
     bossesSlain: new Set([5, 10]),
@@ -169,7 +178,7 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
     BasicHero: SavedHero, classes: { Warrior: SavedHero },
     Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
     CHEST_TEXTURE: 'chest-closed',
-    IceElemental, Ghoul, Brute, Quloptsh, CursedGem, Skeleton,
+    IceElemental, Ghoul, Brute, Quloptsh, Skeleton,
     Shield, Sword, Axe, LongSword: class {}, Hammer: class {}, Shoe: class {},
     ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
     // The run decoder validates the saved chasm floor against the generator's
@@ -193,19 +202,20 @@ assert.throws(() => restoreEffects([{ id: 'unknown', duration: 1 }]));
   }
   assert.equal(run.player.backpack[2].cursed, true, 'other curses remain intact');
   assert.equal(run.player.backpack[2].curseId, 'wayward');
-  const savedCursedGem = run.player.backpack[6];
-  assert.ok(savedCursedGem instanceof CursedGem);
-  assert.equal(savedCursedGem.spriteTextureKey, 'cursed-gem');
-  assert.equal(savedCursedGem.spriteFrame, 0);
-  assert.equal(savedCursedGem.spriteFrame, 0, 'a stale saved tile no longer selects atlas art');
-  assert.equal(savedCursedGem.count, 3, 'art migration preserves the stack');
+  const migratedGold = run.player.backpack[6];
+  assert.ok(migratedGold instanceof Gold, 'a legacy Cursed Gem decodes as gold');
+  assert.equal(migratedGold.spriteTextureKey, 'gold-pile', 'gem art is replaced with gold art');
+  assert.equal(migratedGold.name, '7 gold', 'the retired gem becomes a named gold pile');
+  assert.equal(migratedGold.consumable, false, 'the retired gem has no use action');
+  assert.equal(migratedGold.requiresItemTarget, false, 'no curse-reroll targeting remains');
+  assert.equal(migratedGold.count, 3, 'migration preserves the stack');
   const restoredBosses = run.floors.get(1).entities.filter(entity => entity.name === 'The Writhing Maw');
   assert.equal(restoredBosses.length, 2, 'both legacy boss names are renamed when the save is loaded');
   for (const restoredBoss of restoredBosses) {
     assert.equal(restoredBoss.flying, true, 'restored Writhing Maw floats over traps');
     assert.equal(restoredBoss.movementSpeed, 0.8, 'restored Writhing Maw keeps the slower hover');
   }
-  assert.equal(run.player.quickslots[0], savedCursedGem, 'quickslot retains migrated item identity');
+  assert.equal(run.player.quickslots[0], migratedGold, 'quickslot retains the migrated item identity');
   const restored = run.player.backpack[0];
   assert.deepEqual(run.player.inputBuffer, []);
   assert.throws(() => decodeRunSave({ ...save, heroClass: 'unknown' }, {}), /Invalid saved run/);
@@ -432,7 +442,7 @@ assert.deepEqual(readRunSave(), {});
     ScrollOfUpgrade: class {}, ScrollOfRemoveCurse: class {}, TieredWeapon: class {},
     WEAPON_TEXTURES: [], Mimic: class {}, SwarmOfFlies: class {}, Chest: class {},
     CHEST_TEXTURE: 'chest-closed', IceElemental: class {}, Ghoul: class {}, Brute: class {},
-    Quloptsh: class {}, CursedGem: class {}, Skeleton: class {}, Shield: class {}, Sword: class {},
+    Quloptsh: class {}, Skeleton: class {}, Shield: class {}, Sword: class {},
     Axe: class {}, LongSword: class {}, Hammer: class {}, Shoe,
     ICE_ELEMENTAL_TEXTURE: 'monster-ice-elemental',
     isChasmRoomFloor: mapgen.isChasmRoomFloor, pickChasmRoomFloor: mapgen.pickChasmRoomFloor,

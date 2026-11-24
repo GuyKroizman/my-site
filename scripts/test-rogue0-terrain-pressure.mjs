@@ -552,10 +552,10 @@ assert.equal(struck, stackedEnemy, 'loot does not hide the enemy from impact');
 assert.equal(thrownSetup.item.count, 2);
 assert.ok(thrownSetup.ctx.entities.includes(thrownSetup.item), 'hit cannot remove inventory stack');
 
-// Actual potion and cursed-gem classes: throw one from a stack onto the plate or
-// into an enemy. The remaining inventory entity survives both paths.
+// A real potion and a non-potion consumable: throw one from a stack onto the
+// plate or into an enemy. The remaining inventory entity survives both paths.
 const Potion = load('items/PotionOfHealing', { Entity, spawnEntityFloatingText() {} }).default;
-const CursedGem = load('items/cursedGem', { Entity }).default;
+class ConsumableToken extends Entity { consumable = true; }
 // Pickup may merge only equivalent stack state, never silently erase it.
 for (const difference of [
   { identified: true }, { level: 3 }, { cursed: true }, { blessed: true },
@@ -589,7 +589,7 @@ for (const difference of [
   assert.deepEqual(hero.backpack, [item]);
   assert.ok(!ctx.entities.includes(incoming));
 }
-for (const Item of [Potion, CursedGem]) {
+for (const Item of [Potion, ConsumableToken]) {
   // Dropping a stack must preserve the same state as throwing one unit.
   {
     const { hero, ctx, item } = throwingHero(3, Item);
@@ -634,7 +634,7 @@ for (const Item of [Potion, CursedGem]) {
         assert.equal(ctx.entities.filter(e => e.type === 'item').length, 1,
           'the shattered flask leaves only the original backpack stack');
       } else {
-        assert.ok(landed instanceof Item, 'split retains cursed-gem behavior');
+        assert.ok(landed instanceof Item, 'split retains non-potion consumable behavior');
         assert.notEqual(landed, item);
         assert.equal(landed.count, 1);
         assert.equal(landed.level, item.level);
@@ -660,7 +660,7 @@ for (const Item of [Potion, CursedGem]) {
 
 // A thrown item landing on a chasm falls in and is lost, never resting on the
 // rim or triggering an arrow trap beneath.
-for (const Item of [undefined, Potion, CursedGem]) {
+for (const Item of [undefined, Potion, ConsumableToken]) {
   const label = Item?.name ?? 'plain item';
   const { hero, ctx, item } = throwingHero(3, Item);
   tiles.clearFeature(3, 3);

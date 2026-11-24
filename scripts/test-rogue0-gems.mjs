@@ -19,29 +19,10 @@ for (let level = 0; level <= 3; level++) {
   if (level < 3) upgrade(axe);
 }
 const Shield = load('src/games/rogue0/items/shield.ts', { Entity }).default;
-const CursedGemPickup = load('src/games/rogue0/items/cursedGem.ts', { Entity }).default;
 const { identify } = load('src/games/rogue0/entity.ts');
 const ScrollOfUpgrade = load('src/games/rogue0/items/ScrollOfUpgrade.ts', {
   Entity, upgrade, identify, removeEntity, Wand: class {},
 }).default;
-// Cursed Gem pickups must still merge, including when the backpack is full.
-const Hero = load('src/games/rogue0/classes/basicHero.ts', { Entity }).default;
-const pickupContext = { entities: [], messages: [] };
-const collector = Object.assign(Object.create(Hero.prototype), {
-  context: pickupContext, backpack: [], capacity: 1, refreshUI() {},
-});
-const firstGem = new CursedGemPickup(pickupContext);
-const secondGem = new CursedGemPickup(pickupContext);
-secondGem.count = 3;
-pickupContext.entities.push(firstGem, secondGem);
-assert.equal(collector.addItem(firstGem), true);
-assert.equal(collector.addItem(secondGem), true);
-assert.deepEqual(collector.backpack, [firstGem]);
-assert.equal(firstGem.count, 4);
-assert.ok(!pickupContext.entities.includes(secondGem));
-collector.removeItem(firstGem);
-assert.equal(firstGem.count, 3);
-assert.deepEqual(collector.backpack, [firstGem]);
 
 // Avoid sprite construction; exercise actual item and entity methods.
 const context = { entities: [], messages: [] };
@@ -177,15 +158,7 @@ assert.equal(context.scene.input.enabled, true);
   const dungeon = { log(ctx, message) { ctx.messages.unshift(message); } };
   const removeEffect = (hero, id) => { hero.effects = hero.effects.filter(e => e.id !== id); };
   const applyEffect = (hero, effect) => { removeEffect(hero, effect.id); hero.effects.push(effect); };
-  const curseData = load('src/games/rogue0/curseData.ts');
-  const { rerollCurseId } = load('src/games/rogue0/curses.ts', {
-    CURSE_GENERATION_CHANCE: curseData.CURSE_GENERATION_CHANCE,
-    CURSE_TABLES: curseData.CURSE_TABLES,
-  });
   const ScrollOfRemoveCurse = load('src/games/rogue0/items/ScrollOfRemoveCurse.ts', { Entity, identify, removeEntity }).default;
-  const CursedGem = load('src/games/rogue0/items/cursedGem.ts', {
-    Entity, identify, removeEntity, rerollCurseId, CURSE_NAMES: curseData.CURSE_NAMES,
-  }).default;
   const TargetHero = load('src/games/rogue0/classes/basicHero.ts', {
     Entity, Wand: class {}, dungeon, removeEffect, identify,
   }).default;
@@ -337,61 +310,15 @@ assert.equal(context.scene.input.enabled, true);
       `${file} must not bypass shared curse-description handling`);
   }
 
-  // Cursed Gem is now a consumable: choose a cursed weapon/armor and reroll
-  // its named curse into a different one, consuming the gem and one turn.
-  {
-    const ctx2 = { entities: [], messages: [], scene: { input: { enabled: true } } };
-    let uses2 = 0;
-    const hero2 = Object.assign(Object.create(TargetHero.prototype), {
-      context: ctx2, backpack: [], effects: [], canAct: () => true,
-      refreshUI() {}, clearItemUI() {}, spendTurn() { uses2++; },
-    });
-    ctx2.player = hero2;
-    const gem = new CursedGem(ctx2);
-    assert.equal(gem.spriteTextureKey, 'cursed-gem', 'cursed gem uses dedicated artwork');
-    assert.equal(gem.spriteFrame, 0);
-    assert.equal(gem.tile, 0);
-    const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
-    assert.ok(scene.includes("this.load.image('cursed-gem', cursedGemArtUrl)"));
-    const png = fs.readFileSync('src/games/rogue0/assets/cursed-gem.png');
-    assert.equal(png.readUInt32BE(16), 16);
-    assert.equal(png.readUInt32BE(20), 16);
-    assert.equal(png[25], 6, 'RGBA artwork');
-    gem.count = 1;
-    const clean = Object.assign(new Entity(), {
-      context: ctx2, type: 'item', equipSlot: 'weapon', cursed: false, curseId: '',
-      name: 'Clean Sword', identified: true,
-    });
-    const weapon = Object.assign(new Entity(), {
-      context: ctx2, type: 'item', equipSlot: 'weapon', cursed: true, curseId: 'wayward',
-      name: 'Cursed Sword', identified: false,
-    });
-    const armor = Object.assign(new Entity(), {
-      context: ctx2, type: 'item', equipSlot: 'armor', cursed: true, curseId: 'bulk',
-      name: 'Cursed Shield', identified: false,
-    });
-    hero2.backpack = [gem, clean, weapon, armor];
-    ctx2.entities = [gem, clean, weapon, armor];
-    assert.equal(gem.canTargetItem(gem), false, 'gem cannot target itself');
-    assert.equal(gem.canTargetItem(clean), false, 'gem ignores uncursed gear');
-    assert.equal(gem.canTargetItem(Object.assign(new Entity(), { equipSlot: 'consumable', cursed: true })), false, 'gem only targets weapons/armor');
-    assert.equal(gem.canTargetItem(weapon), true);
-    assert.equal(gem.canTargetItem(armor), true);
-    assert.equal(gem.useOnItem(weapon), true);
-    assert.notEqual(weapon.curseId, 'wayward', 'curse is replaced');
-    assert.ok(curseData.CURSE_TABLES.weapon.includes(weapon.curseId), 'new curse is from the weapon table');
-    assert.equal(weapon.cursed, true, 'the item stays cursed');
-    assert.equal(weapon.identified, true, 'the gem reveals the chosen item');
-    assert.ok(!hero2.getAllItems().includes(gem), 'gem is consumed');
-    assert.ok(!ctx2.entities.includes(gem));
-    assert.equal(uses2, 1, 'using the gem spends one turn');
-    const gem2 = new CursedGem(ctx2);
-    hero2.backpack.push(gem2); ctx2.entities.push(gem2);
-    assert.equal(gem2.useOnItem(armor), true);
-    assert.notEqual(armor.curseId, 'bulk', 'armor curse is replaced');
-    assert.ok(curseData.CURSE_TABLES.armor.includes(armor.curseId), 'new armor curse is from the armor table');
-    assert.equal(uses2, 2);
-  }
+  // The standalone Cursed Gem is retired: no art, no generation, no
+  // curse-reroll ability. Its old wire ID still aliases to gold for old saves.
+  const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
+  assert.ok(!scene.includes('cursed-gem'), 'scene no longer loads cursed-gem art');
+  assert.ok(!fs.existsSync('src/games/rogue0/assets/cursed-gem.png'), 'artwork removed');
+  assert.ok(!fs.existsSync('src/games/rogue0/items/cursedGem.ts'), 'item class removed');
+  const registry = fs.readFileSync('src/games/rogue0/saveRegistry.ts', 'utf8');
+  assert.match(registry, /'\.\/items\/cursedGem\.ts:default': Gold,/,
+    'legacy wire ID aliases to gold so old saves decode');
 }
 // Removing Gems must preserve other monster loot probabilities.
 {
@@ -420,4 +347,4 @@ assert.equal(context.scene.input.enabled, true);
   assert.deepEqual(loot('Skeleton'), [false, false, false, false, false, stub.BerserkPotion]);
   assert.deepEqual(loot('Goblin'), []);
 }
-console.log('Rogue0 Cursed Gem stacking/targeting, scroll targeting, cancellation, cleansing, turn costs and retired-gem drop slots passed');
+console.log('Rogue0 gem upgrades, scroll targeting, cancellation, cleansing, turn costs and retired Cursed Gem checks passed');

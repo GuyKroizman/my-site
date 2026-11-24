@@ -408,7 +408,7 @@ export abstract class Entity {
 
   cursed: boolean = false;
   // Named SPD-style curse rolled at generation (see curseData.ts). Empty
-  // means either uncursed or a legacy bespoke curse (e.g. the Cursed Gem).
+  // means the item is uncursed or has a legacy unnamed curse.
   curseId: string = "";
   // Single magical mark on physical weapons/armor. Empty means no glyph.
   glyph: EquipmentGlyph | "" = "";
@@ -471,7 +471,7 @@ export abstract class Entity {
         const lock = this.curseLockMessage ? ` ${this.curseLockMessage}` : '';
         return `${name}: ${CURSE_FLAVOR[this.curseId as CurseId]}${lock}`;
       }
-      // Legacy bespoke curses (e.g. the Cursed Gem) are always lock-on gear.
+      // An unnamed legacy curse is still lock-on gear until it is lifted.
       return 'Cursed: cannot be removed while equipped until the curse is lifted.';
     }
     return '';

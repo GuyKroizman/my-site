@@ -15,7 +15,6 @@ import ScrollOfRemoveCurse from './items/ScrollOfRemoveCurse';
 import Ring from './items/ring';
 import Wand from './items/wand';
 import Chest from './items/chest';
-import CursedGem from './items/cursedGem';
 import { TieredWeapon, WEAPON_TEXTURES } from './items/tieredEquipment';
 import Shield from './items/shield';
 import Sword from './items/sword';
@@ -72,6 +71,26 @@ export type RunState = {
   // not on any floor yet, so they ride in the run save beside the floors.
   chasmFallen?: Map<number, Entity[]>;
 };
+
+// The standalone Cursed Gem is retired. Old saves decode its wire ID through
+// the Gold alias in saveRegistry; repair the decoded fields into a harmless
+// pile of gold so no gem (and no curse-reroll ability) survives a load.
+function retireLegacyCursedGem(entity: Entity): void {
+  if (entity.type !== 'item') return;
+  if (entity.name !== 'Cursed Gem' && entity.textureKey !== 'cursed-gem') return;
+  const amount = Number.isFinite(entity.goldAmount)
+    ? Math.max(1, Math.floor(entity.goldAmount)) : 1;
+  entity.goldAmount = amount;
+  entity.name = `${amount} gold`;
+  entity.description = 'A pile of gold coins.';
+  entity.textureKey = 'gold-pile';
+  entity.consumable = false;
+  entity.requiresItemTarget = false;
+  entity.equipSlot = 'junk';
+  entity.tier = 1;
+  delete (entity as any).itemTargetTitle;
+  delete (entity as any).noItemTargetsMessage;
+}
 
 // v1 hydration and compatibility repairs live here, not in scene creation.
 // Constructors must not be rerun for restored actors: they roll starting gear
@@ -130,9 +149,7 @@ export function decodeRunSave(save: RunSave, context: GameContext, registry: Reg
       if (entity.textureKey === 'blessed-shoe') entity.textureKey = 'blessed-boot';
       if (entity.name === 'Blessed Shoe') entity.name = 'Blessed Boot';
     }
-    if (entity instanceof CursedGem) {
-      entity.textureKey = 'cursed-gem';
-    }
+    retireLegacyCursedGem(entity);
     if (entity instanceof ScrollOfUpgrade) {
       const defaults = new ScrollOfUpgrade(context);
       Object.assign(entity, {

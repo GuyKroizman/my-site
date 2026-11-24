@@ -10,7 +10,6 @@ import BerserkPotion from './items/berserkPotion';
 import ChaliceOfBlood from './items/ChaliceOfBlood';
 import Chest from './items/chest';
 import SkeletalRemains from './items/skeletalRemains';
-import CursedGem from './items/cursedGem';
 import FangOfTheBeast from './items/FangOfTheBeast';
 import Gold from './items/gold';
 import Hammer from './items/hammer';
@@ -87,7 +86,9 @@ export const saveRegistry: Registry = {
   './items/ChaliceOfBlood.ts:default': ChaliceOfBlood,
   './items/chest.ts:default': Chest,
   'item:skeletal-remains': SkeletalRemains,
-  './items/cursedGem.ts:default': CursedGem,
+  // The standalone Cursed Gem was retired. Its old wire ID stays as an alias
+  // to gold so saved runs still decode; decodeRunSave migrates the fields.
+  './items/cursedGem.ts:default': Gold,
   './items/FangOfTheBeast.ts:default': FangOfTheBeast,
   // The old Minor/Full Heal Potions were folded into the one Potion of
   // Healing. Their wire IDs stay and resolve to it so existing runs load.

@@ -69,18 +69,23 @@ has been playtested. Checked boxes mean the described implementation exists.
 - A floor-population guard (`monsterReinforcements.ts`) tops up a floor when its
   last living monster dies: a small wave spawns at least 8 tiles away and
   outside the hero's field of view, scaling with floor depth. Boss floors
-  (every fifth) are exempt: they are Writhing Maw-only arenas and stay empty
-  once the Writhing Maw falls (`floorAllowsReinforcements`).
+  (every fifth) are exempt (`floorAllowsReinforcements`): they are single
+  boss arenas and stay empty once their boss's win condition is met. Today
+  that boss is the Writhing Maw on all five; Phase 8 replaces the placeholders.
 - Boss floors are one arena hall (`bossArenaRoom`), not a room network, and
   every boss floor has its own plan (`bossArenas.ts`: rotunda, long colonnade,
   octagonal sanctum, cruciform vault, throne hall), centred in the old
-  footprint: the hero enters at the south edge, the Writhing Maw sleeps at the
-  exact centre, and the stairs sit at the farthest open eastern tile. Floor 5's
+  footprint: the hero enters at the south edge, a boss sleeps at the exact
+  centre, and the stairs sit at the farthest open eastern tile. Floor 5's
   16x16 rotunda keeps four 2x2 pillars 10 walkable tiles apart; the other halls
-  stand their own rocks, all clear of the middle and both approaches. The Writhing Maw is the only monster,
-  and no random floor loot, cursed gem, chasm, summon trap or Skeletal Remains
-  pile appears. They keep their two treasure chests, one ration and the hidden
-  room's gold.
+  stand their own rocks, all clear of the middle and both approaches. Boss
+  floors hold no wandering roster, no random floor loot, no chasm, no summon
+  trap and no Skeletal Remains pile; they keep two treasure chests, one ration
+  and the hidden room's gold. All five still use the Writhing Maw as a
+  placeholder today. **Planned:** per-floor boss encounters and win conditions
+  — floor 10 becomes the Wand Factory (clear every hostile to unlock), and
+  floors 15/20/25 get their own bosses instead of the Writhing Maw. See
+  `WAND_FACTORY_PLAN.md` and Phase 8.
 - The Writhing Maw is rendered with generated 24x24 art (`bossTexture.ts`): a fat
   green blob with one great eye and a maw of interlocking fangs, scaled up past
   the 16px monsters. Its body is a 3x3 footprint (`bodyRadius = 1`): movement,
@@ -92,7 +97,9 @@ has been playtested. Checked boxes mean the described implementation exists.
   exist. Portal stores (buy/sell, persistent stock on floors 6/11/16/21) exist;
   revival items do not yet. Boots are planned as the revival item (see Phase 10).
 - `context.ts` defaults to **25 floors**. Five floors was a testing limit.
-  The Writhing Maw guards floors 5/10/15/20/25; its stats are unchanged.
+  Boss floors are 5/10/15/20/25. The Writhing Maw is intended to be the
+  floor-5 boss; it still occupies 10/15/20/25 as a placeholder until those
+  encounters are designed (Phase 8), and its stats are unchanged.
   Five-floor equipment/supply bands exist. Themed regions are visual-only so
   far (crypt → sandstone → crystal → volcanic palettes); per-region enemy,
   trap and boss scaling is future work.
@@ -334,8 +341,8 @@ HUD + modal window system.
 *Depends on G3, G6.*
 
 - [x] Identification: unknown consumables/gear; identify by use or scroll.
-- [x] Cursed-gear machinery (lock-on guards, `removeCurse()`, Scroll of Remove Curse, Cursed Gem). Random curse generation + per-slot penalties
-      are planned below, not implemented yet.
+- [x] Cursed-gear machinery (lock-on guards, `removeCurse()`, Scroll of Remove Curse). Random curse generation + per-slot penalties
+      are planned below, not implemented yet. The standalone Cursed Gem is retired globally (see below).
 - [x] Scroll of Upgrade and item upgrade-level model; upgrade scrolls, gems and
       the Scroll of Remove Curse let the player choose a target.
 - [x] Implement SPD-style Strength, weapon/armor tiers 1–5, upgrade scaling
@@ -468,9 +475,9 @@ SPD's core risk loop is a gamble on every unidentified equipment find: a
 fraction of gear is cursed, applies a specific thematic curse while equipped, and
 stays locked on until the curse is lifted. rogue0 already has the machinery —
 the `cursed` flag, the equip/unequip/drop/throw lock-on guards,
-`removeCurse()` and the Scroll of Remove Curse — but today the **only** cursed
-item is the bespoke Cursed Gem. Weapons, armor and rings are never generated
-cursed, so the loop never fires in normal play.
+`removeCurse()` and the Scroll of Remove Curse. Named curses on generated gear
+are the intended risk loop; the bespoke **Cursed Gem** is a legacy one-off curse
+source that is scheduled for global removal below.
 
 **Landed:** `curseId` assignment, 25% curse generation for weapons/armor/rings,
 all seven weapon curses, all eight armor curses, inverted ring passives, the
@@ -586,6 +593,28 @@ guards, and `scripts/test-rogue0-cursed-items.mjs`.
 
 - **Acceptance:** deciding whether to equip an unidentified item is a real,
   tense choice with consequences in both directions.
+
+#### Retire the Cursed Gem globally (planned)
+
+- [ ] Remove the standalone **Cursed Gem** as both an item and a drop source:
+      `items/cursedGem.ts`, the `cursedGemCount` roll and `spawnGroup()` in
+      `scene0.ts:2097,2228`, the generated art/preload entry (`cursed-gem.png`),
+      and its `saveRegistry.ts` wire ID. Named curses on generated equipment
+      are unaffected.
+- [ ] Migrate old saves: decode any stored `CursedGem` into a harmless item or
+      remove it with a log line, without touching `curseId` on real gear. Keep
+      the old wire ID as an alias so older graphs still decode; validation must
+      not reject a save merely because it contains one.
+- [ ] Remove or retarget the Cursed-Gem-only branches in `curses.ts`,
+      `entity.ts`, `effects.ts`, `runPersistence.ts` and `scenario.ts` once no
+      live item uses them, and update docs/comments that still call it the
+      only cursed item.
+- [ ] Tests: no floor, chest, shop, loot table or scenario can produce a
+      Cursed Gem; legacy saves containing one load cleanly; named curses still
+      generate, proc and clear through equipment. Update the `cursed-items`,
+      `save`, `scenario`, `progression` and `equipment-finds` suites.
+- **Acceptance:** curses come only from cursed equipment, and no legacy Cursed
+  Gem survives in a run, a floor or a save.
 
 ### Phase 7 — Terrain & environment
 *Depends on G4.*
@@ -828,9 +857,27 @@ swarm ✅, cultist ✅, mimic ✅, elemental ✅, archer ✅, wraith ✅, Deadly
   - [x] Wraith → magic damage with physical resistance; ordinary movement.
 - [x] AI: monsters open doors and chase through paths.
 - [ ] AI: avoid burning terrain and other self-damaging hazards.
-- [ ] Bosses: multi-phase, telegraphed attack, summons, arena hazard. Each
-      region boss gets a signature mechanic (not a stat sponge).
-- **Acceptance:** each fight has a "correct" tactic that differs per enemy.
+- [x] Boss floors have distinct arena plans (`bossArenas.ts`), but all five
+      still use the Writhing Maw with no phases or telegraphs.
+- [ ] Per-floor boss encounters with their own win conditions. Floor 10
+      becomes the **Wand Factory**: a floor-5-sized hall with two decorative
+      steampunk machines and a Fire Potion Thrower whose three-turn telegraph
+      ends in a liquid-flame burst; its stairs unlock only when **every
+      hostile is cleared**. Full spec in `WAND_FACTORY_PLAN.md`. `bossesSlain`
+      then means "this boss floor's condition is satisfied", not specifically
+      "a Writhing Maw died", and floor 10 must not be auto-cleared by the
+      legacy "boss floor with no Boss" guard.
+- [ ] **Redesign the floors 15/20/25 bosses.** Replace the Writhing Maw
+      placeholders with three distinct signature encounters (phases, summons,
+      telegraphed attacks and/or arena hazards), each with its own win
+      condition and clear counterplay. Floor 5 keeps the Writhing Maw as the
+      introductory boss; floor 25's new boss still ends the run in victory.
+      Reuse the per-floor encounter/layout registry introduced for floor 10.
+- [ ] Boss floors keep their shared rules: single arena hall, no
+      reinforcements, sparse loot (two chests, one ration, hidden-room gold),
+      no bone pile, no random loot and no cursed gem.
+- **Acceptance:** each boss fight teaches a different tactic and its win
+  condition is explained in the log/UI; no boss is a stat sponge.
 
 ### Phase 9 — Character build depth
 *Depends on G6.*
@@ -1012,8 +1059,10 @@ Visual verification and full-run/five-class balance playtesting remain deferred.
 ### Phase 14 — Regions & run length
 *Depends on G7; the content-multiplication layer.*
 
-- [x] Restore the intended **25-floor** run; move the existing Writhing Maw from
-      floor 5 to floor 25 without rebalancing it.
+- [x] Restore the intended **25-floor** run. The Writhing Maw was moved to
+      floor 25 during that work without rebalancing; the current boss-encounter
+      decision returns it to floor 5 as the introductory boss and schedules
+      new bosses for 10/15/20/25 (Phase 8). Do not rebalance it here.
 - [ ] Split into themed regions (sewers → prison → caves → dwarven halls →
       demon halls), each with its own palette, enemy set, trap set and region boss.
       Partial: five visual palettes (stone/crypt/sandstone/crystal/volcanic) are
@@ -1486,19 +1535,24 @@ on the last dropped placement (thrown potions shatter) with an animation that
 transforms the Shoe and consumes the four potions — and revives with backpack
 and memory retained. Concrete store price/rarity/row and the dropped-container
 entity/UX remain implementation details to finalize against the spec.
-3. **Finish Phase 8 signatures.** Remaining: monsters avoiding burning terrain,
-   then Quloptsh concealment/backstab and ghoul lifesteal. Boss redesign
-   (multi-phase Writhing Maw) stays deferred.
-4. **Phase 9 build breadth after Phase 18:** the tree supplies later unlock
+3. **Retire the Cursed Gem globally (Phase 6).** Remove its generation, art,
+   registry entry and save migrations; keep named curses on equipment as the
+   only curse source. Update the curse/save/scenario suites alongside it.
+4. **Finish Phase 8 signatures and boss redesign.** Remaining monster work:
+   avoiding burning terrain, Quloptsh concealment/backstab, ghoul lifesteal.
+   Boss work: land the floor-10 Wand Factory first (`WAND_FACTORY_PLAN.md`),
+   then use its per-floor encounter/win-condition pattern to redesign floors
+   15/20/25. Floor 5 keeps the Writhing Maw as the introductory boss.
+5. **Phase 9 build breadth after Phase 18:** the tree supplies later unlock
    bands; subclasses remain a separate, later step. First-tier talents already
    give a real level-up choice.
-5. **Phase 14 region identity:** per-region enemy/trap sets and scaling on top
+6. **Phase 14 region identity:** per-region enemy/trap sets and scaling on top
 of the five existing palettes. Today difficulty scales by floor number, not by
 region, so floors 5→6 and 10→11 feel the same apart from colour.
-6. **Phase 13 meta** (seeds, challenges, bestiary, run stats, achievements) and
+7. **Phase 13 meta** (seeds, challenges, bestiary, run stats, achievements) and
 the remaining Phase 15 polish (backpack quick-key paging, Inspect action,
 small-screen verification).
-7. **Phase 12 NPCs** last. Phase 16's atlas removal is done; what remains there
+8. **Phase 12 NPCs** last. Phase 16's atlas removal is done; what remains there
 is class-specific hero art and a palette pass, neither of which affects depth.
 
 ### Original dependency order (reference)
@@ -1532,10 +1586,17 @@ is class-specific hero art and a palette pass, neither of which affects depth.
 - **Unidentified items use generic category names and placeholder textures**
   and reveal their identity on use — the core SPD risk loop.
 - **The run is 25 floors.** Five floors was only an initial testing limit.
-  The Writhing Maw is on floor 25; do not rebalance it as part of progression work.
-  Region themes and additional bosses remain separate future work.
+  Boss floors are 5/10/15/20/25 and each gets its own encounter identity and
+  win condition; the Writhing Maw is the floor-5 boss and only a placeholder
+  on 10/15/20/25 until those redesigns land. Floor 10 is the Wand Factory
+  (clear every hostile); floors 15/20/25 are scheduled redesigns. Do not
+  rebalance placeholder bosses as part of progression work. Region themes and
+  per-region boss sets remain separate future work.
+- **Boss floors stay sparse and unreinforced:** single arena hall, no random
+  loot, bone pile or cursed gem, but two chests, one ration and the hidden gold.
 - **Cursed items are locked on** until Remove Curse/well — do not allow
-  unequipping via the normal toggle path.
+  unequipping via the normal toggle path. The standalone Cursed Gem is being
+  retired globally; named curses on equipment are the only curse source.
 - **No freely available player shove ability.** Involuntary chasm falls should
   come from confusion or displacement effects/traps, affecting either side.
   Explicit voluntary jumping is separate.

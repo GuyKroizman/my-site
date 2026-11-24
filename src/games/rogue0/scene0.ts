@@ -1,6 +1,5 @@
 import Phaser from "phaser";
 import shopArtUrl from './assets/shop.png';
-import cursedGemArtUrl from './assets/cursed-gem.png';
 import { placeStorePortal } from './store/portal';
 import { generatePortalTexture, PORTAL_TEXTURE, portalFrame } from './portalVisuals';
 import { showSurpriseVisual, updateSurpriseVisuals, clearSurpriseVisuals } from './surpriseVisuals';
@@ -66,7 +65,6 @@ import { armorLootTier, bossSealsFloor, floorProgression, isBossFloor, lootTier,
 import { createEquipmentFind, rollFloorEquipment, NON_REMAINS_EQUIPMENT_SCALE } from './equipmentFinds';
 import { generateRemainsTexture } from './remainsTexture';
 import { generateChestTextures } from './chestTextures';
-import CursedGem from "./items/cursedGem";
 import Gold from './items/gold';
 import type { Room } from './mapgen';
 import ScrollOfIdentify from "./items/ScrollOfIdentify";
@@ -325,7 +323,6 @@ export class Scene0 extends Phaser.Scene {
 
   preload() {
     this.load.image('shop-background', shopArtUrl);
-    this.load.image('cursed-gem', cursedGemArtUrl);
     this.load.image('hero-color', heroArtUrl);
     this.load.image('cultist', cultistArtUrl);
     this.load.image('goblin', goblinArtUrl);
@@ -2072,11 +2069,10 @@ export class Scene0 extends Phaser.Scene {
     const progression = floorProgression(floor);
     const progressionCount = progression.strengthPotions + progression.upgradeScrolls
       + Number(progression.weapon) + Number(progression.armor);
-    // A boss floor is the Writhing Maw's arena: no other monster shares it,
-    // and no scattered loot (random items, cursed gems or a bone pile) clutters
-    // it. The Writhing Maw, the treasure chests, one ration and the hidden
-    // room's gold are the floor's whole population, so the fight stays the
-    // floor's only event.
+    // A boss floor is the boss's arena: no other monster shares it and no
+    // scattered loot or bone pile clutters it. The boss, the treasure chests,
+    // one ration and the hidden room's gold are the floor's whole population,
+    // so the fight stays the floor's only event.
     const bossFloor = isBossFloor(floor);
     const roster = floorMonsterRoster(floor);
     const skeletonCount = roster.skeleton;
@@ -2094,7 +2090,6 @@ export class Scene0 extends Phaser.Scene {
     const wraithCount = roster.wraith;
     const frogCount = roster.frog;
     const itemCount = bossFloor ? 0 : 3;
-    const cursedGemCount = bossFloor ? 0 : (Math.random() < 0.2 ? 1 : 0);
     const foodCount = 1;
 
     // The Writhing Maw's own tile is reserved before anything else rolls: it waits
@@ -2119,7 +2114,7 @@ export class Scene0 extends Phaser.Scene {
       skeletonCount + goblinCount + ghoulCount + bruteCount + quloptshCount +
         swarmCount + mimicCount + cultistCount + elementalCount + wraithCount +
         frogCount +
-        cursedGemCount + foodCount + itemCount + progressionCount + chestCount + remainsCount + equipmentCount +
+        foodCount + itemCount + progressionCount + chestCount + remainsCount + equipmentCount +
         chasmLevitationCount,
       exclude,
       MAX_VISIBLE_X,
@@ -2223,9 +2218,6 @@ export class Scene0 extends Phaser.Scene {
     for (let n = 0; n < elementalCount; n++) {
       spawnOne((x, y) => this.elementalActor(x, y));
     }
-
-    // Cursed gem: can appear throughout the run.
-    spawnGroup(CursedGem, cursedGemCount);
 
     // Random loot drawn from a weighted, SPD-style table. Upgrade scrolls are
     // deliberately absent from this table; their 15-per-run budget is fixed.
