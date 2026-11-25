@@ -129,7 +129,7 @@ import {
   generateWandFactoryTextures, createWandFactoryVisuals,
   updateWandFactoryVisuals, clearWandFactoryVisuals
 } from './wandFactoryVisuals';
-import { updateTargetTelegraphs, clearTargetTelegraphs } from './targetTelegraphVisuals';
+import { updateTargetTelegraphs, clearTargetTelegraphs, holdTargetTelegraph } from './targetTelegraphVisuals';
 import classes from "./classes";
 import type Monster from "./monsters/monster";
 import { reinforceFloor, type ReinforcementKind } from "./monsterReinforcements";
@@ -380,6 +380,7 @@ export class Scene0 extends Phaser.Scene {
       this.context.onLiquidFlameShatter = undefined;
       this.context.onPotionSplash = undefined;
       this.context.onFirePotionThrown = undefined;
+      this.context.onFirePotionTelegraph = undefined;
       this.context.onMonsterRemoved = undefined;
       this.clearDeepCells();
       this.chasmCellSignature = '';
@@ -501,6 +502,7 @@ export class Scene0 extends Phaser.Scene {
       this.tweens.add({ targets: splash, alpha: 0, duration: 450, onComplete: () => splash.destroy() });
       if (kind === 'fire') showFireBurstFlames(this, this.context, cells);
     };
+    this.context.onFirePotionTelegraph = entity => holdTargetTelegraph(this, entity);
     this.context.onFirePotionThrown = (event) =>
       showFirePotionThrown(this, this.context, event.from, event.to, event.onArrived);
     this.context.onLiquidFlameShatter = event => {

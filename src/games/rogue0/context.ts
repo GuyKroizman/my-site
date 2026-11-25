@@ -69,7 +69,9 @@ export type GameContext = {
   // Frost effects notify terrain without coupling effect scheduling to rendering.
   onFrostTerrain?: (x: number, y: number) => number;
   onPotionSplash?: (event: { cells: Array<{ x: number; y: number }>; kind: 'fire' | 'frost' }) => void;
-  // Fires when a Fire Potion Thrower levels its flask during the telegraph:
+  // Present each warning before the scheduler can run more enemy/buffered turns.
+  onFirePotionTelegraph?: (entity: Entity) => void;
+  // Fires when a Fire Potion Thrower releases its flask after the telegraph:
   // the thrower's tile to the telegraphed target, for the throwing visuals.
   onFirePotionThrown?: (event: {
     from: { x: number; y: number };

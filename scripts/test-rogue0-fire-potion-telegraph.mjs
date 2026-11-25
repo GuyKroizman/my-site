@@ -3,6 +3,7 @@ recordTestRun('fire-potion-telegraph');
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { TurnManager } from '../src/games/rogue0/turnManager.ts';
+import { holdTargetTelegraph, clearTargetTelegraphs, TARGET_WARNING_HOLD_MS } from '../src/games/rogue0/targetTelegraphVisuals.ts';
 import { encodeGraph, decodeGraph } from '../src/games/rogue0/saveCodec.ts';
 import { loadLogic as load } from './lib/rogue0-logic-loader.mjs';
 
@@ -141,6 +142,66 @@ function setup() {
   assert.equal(thrower.abilityCooldown, 3);
 }
 
+// --- Render boundaries must preserve the single-tile warning -----------------
+{
+  const { context, player, thrower, manager } = setup();
+  thrower.refresh = () => {};
+  thrower.tickEffects = () => {};
+  const presented = [];
+  const animations = [];
+  const scene = { tweens: { addCounter(config) {
+    const tween = { ...config, stopped: false, stop() { this.stopped = true; } };
+    animations.push(tween);
+    return tween;
+  } } };
+  context.onFirePotionTelegraph = entity => {
+    presented.push(entity.telegraphStage);
+    holdTargetTelegraph(scene, entity);
+  };
+  // Under-strength armor can make a step cost more than one enemy action.
+  player.movementCostMultiplier = () => 1.2;
+  player.x = 9;
+  player.spendTime('move');
+  manager.update();
+  assert.equal(thrower.telegraphStage, 1,
+    'a slow move must not consume both warning stages before the first render');
+  assert.deepEqual(presented, [1]);
+  assert.equal(thrower.targetX, 9);
+  const time = manager.time;
+  manager.update();
+  assert.equal(manager.time, time, 'render frames do not advance a pending warning');
+  assert.equal(animations.at(-1).duration, TARGET_WARNING_HOLD_MS);
+  animations.at(-1).onComplete(); // warning has been displayed
+  manager.update();
+  assert.equal(thrower.telegraphStage, 2);
+  assert.deepEqual(presented, [1, 2]);
+  animations.at(-1).onComplete();
+  manager.update();
+  assert.equal(player.actionReady, true);
+
+  // Keep walking with buffered input through the burst/recovery and next aim.
+  // An enemy warning must render BEFORE the next buffered move is consumed.
+  player.movementCostMultiplier = () => 1;
+  player.turn = () => {
+    player.x = player.x === 9 ? 10 : 9;
+    player.spendTime('move');
+    player.moving = true;
+  };
+  for (let frame = 0; frame < 20 && presented.length < 3; frame++) {
+    player.moving = false; // complete the previous walking animation
+    manager.update();
+  }
+  assert.deepEqual(presented, [1, 2, 1], 'the second attack presents its centre warning too');
+  assert.equal(player.moving, false, 'queued movement cannot run ahead of the new warning');
+  assert.equal(thrower.targetX, player.x, 'the first border is still on the hero when presented');
+  const heldTime = manager.time;
+  manager.update();
+  assert.equal(manager.time, heldTime);
+  clearTargetTelegraphs(scene);
+  assert.equal(thrower.moving, false, 'floor/scene teardown releases the presentation hold');
+  assert.equal(animations.at(-1).stopped, true, 'teardown cancels the pending tween');
+}
+
 // --- Dodge and sight gates ---------------------------------------------------
 {
   const { player, thrower } = setup();
@@ -265,6 +326,8 @@ const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 assert.match(scene, /spawnGroup\(FirePotionThrower, firePotionThrowerCount\)/);
 assert.match(scene, /generateFirePotionThrowerTexture\(this\)/);
 assert.match(scene, /context\.onFirePotionThrown = /, 'scene0 wires the throw visual');
+assert.match(scene, /context\.onFirePotionTelegraph = entity => holdTargetTelegraph\(this, entity\)/,
+  'scene0 wires the warning presentation barrier');
 const registry = fs.readFileSync('src/games/rogue0/saveRegistry.ts', 'utf8');
 assert.match(registry, /'monster:fire-potion-thrower': FirePotionThrower/);
 const source = fs.readFileSync('src/games/rogue0/monsters/firePotionThrower.ts', 'utf8');

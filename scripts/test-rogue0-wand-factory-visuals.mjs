@@ -220,6 +220,18 @@ const hall = { x: 32, y: 22, w: 16, h: 16 };
   assert.equal(g.fills.every(f => f.color === TARGET_BORDER_COLOR), true);
   updateTargetTelegraphs(scene, [{ ...thrower, telegraphStage: 0 }], scene.map, new Set());
   assert.equal(g.destroyed, true, 'a finished telegraph removes its overlay');
+
+  thrower.telegraphStage = 1;
+  thrower.targetX = 8;
+  updateTargetTelegraphs(scene, [thrower], scene.map, new Set(['8,6']));
+  const next = graphics.at(-1);
+  assert.notEqual(next, g, 'the next attack gets a fresh overlay');
+  assert.equal(next.strokes.length, 1, 'the next attack starts with just the centre border');
+  assert.equal(next.strokes[0].x, 8 * 16 + 1, 'the border uses the new target tile');
+  thrower.telegraphStage = 2;
+  const visible = new Set(telegraphTiles(thrower).map(tile => `${tile.x},${tile.y}`));
+  updateTargetTelegraphs(scene, [thrower], scene.map, visible);
+  assert.equal(next.strokes.length, 9, 'only the following stage expands to the 3x3');
   clearTargetTelegraphs(scene);
 }
 

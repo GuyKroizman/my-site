@@ -91,6 +91,7 @@ export default class FirePotionThrower extends Monster {
       this.log('Red warning borders snap around the eight tiles next to the target.');
       this.telegraphStage = 2;
       this.spendTime('attack');
+      this.context.onFirePotionTelegraph?.(this);
       return;
     }
     // Cooldown turns are waits, not untelegraphed shots via the ranged AI.
@@ -105,6 +106,7 @@ export default class FirePotionThrower extends Monster {
       this.telegraphStage = 1;
       this.log('A Fire Potion Thrower levels a flask at your tile. The marked tiles are fixed.');
       this.spendTime('attack');
+      this.context.onFirePotionTelegraph?.(this);
       return;
     }
     super.turn();

@@ -33,6 +33,31 @@ export function telegraphTiles(entity: TelegraphEntity): Array<{ x: number; y: n
 }
 
 const states = new WeakMap<Phaser.Scene, Map<Entity, Phaser.GameObjects.Graphics>>();
+const holds = new WeakMap<Phaser.Scene, Map<Entity, Phaser.Tweens.Tween>>();
+export const TARGET_WARNING_HOLD_MS = 200;
+
+/** Like a walk/lunge animation, presentation delays events, not their timestamps.
+ * Without this barrier, a slow hero action can let the scheduler consume both
+ * warning stages in one update, or buffered walking can leave the marked tile
+ * before the centre warning has ever been drawn.
+ */
+export function holdTargetTelegraph(scene: Phaser.Scene, entity: Entity): void {
+  let pending = holds.get(scene);
+  if (!pending) {
+    pending = new Map();
+    holds.set(scene, pending);
+  }
+  pending.get(entity)?.stop();
+  entity.moving = true;
+  const tween = scene.tweens.addCounter({
+    from: 0, to: 1, duration: TARGET_WARNING_HOLD_MS,
+    onComplete: () => {
+      entity.moving = false;
+      pending.delete(entity);
+    }
+  });
+  pending.set(entity, tween);
+}
 
 export function updateTargetTelegraphs(
   scene: Phaser.Scene,
@@ -76,6 +101,15 @@ export function updateTargetTelegraphs(
 }
 
 export function clearTargetTelegraphs(scene: Phaser.Scene): void {
+  const pending = holds.get(scene);
+  if (pending) {
+    for (const [entity, tween] of pending) {
+      tween.stop();
+      entity.moving = false;
+    }
+    pending.clear();
+    holds.delete(scene);
+  }
   const graphics = states.get(scene);
   if (!graphics) return;
   for (const g of graphics.values()) g.destroy();

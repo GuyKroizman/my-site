@@ -818,7 +818,11 @@ three-turn windup. No new potion class exists, and no new status effect is regis
 
 The windup advances only on the thrower's **own scheduled turns**: sleeping,
 sight and range gates apply, world-time effect ticks and animation frames never
-move it, and each step spends an attack action. If the hero becomes adjacent
+move it, and each step spends an attack action. Each warning has a short
+presentation hold, like a movement animation: slow hero actions cannot consume
+both warnings before a redraw, and buffered walking cannot leave the centre
+tile before its first border is shown. This does not change simulation deadlines
+or the three-turn windup. If the hero becomes adjacent
 (including diagonally), the thrower abandons the windup and switches to its
 weaker melee sidearm, like goblins and cultists. Telegraph fields are ordinary
 saved entity data, so a save/load mid-windup keeps the marked tiles. Unseen
