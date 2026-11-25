@@ -6,7 +6,8 @@ import {
   clearWandFactoryVisuals, factoryMachineFrame, factoryMachinePixels, factoryBeltOffset,
   factoryWandProgress, FACTORY_ASSEMBLER_TEXTURE, FACTORY_DISTILLER_TEXTURE,
   FACTORY_BELT_TEXTURE, FACTORY_CRATE_TEXTURE, FACTORY_WAND_TEXTURE, FACTORY_FRAMES,
-  FACTORY_BELT_TILES, FACTORY_MACHINE_WIDTH_TILES, FACTORY_MACHINE_HEIGHT_TILES
+  FACTORY_BELT_TILES, FACTORY_MACHINE_WIDTH_TILES, FACTORY_MACHINE_HEIGHT_TILES,
+  FACTORY_OUT_OF_SIGHT_ALPHA
 } from '../src/games/rogue0/wandFactoryVisuals.ts';
 import {
   telegraphTiles, updateTargetTelegraphs, clearTargetTelegraphs, TARGET_BORDER_COLOR
@@ -98,9 +99,9 @@ function makeScene() {
         return sprite;
       },
       tileSprite(x, y, w, h, key) {
-        const sprite = { kind: 'tile', x, y, width: w, height: h, key, visible: true,
+        const sprite = { kind: 'tile', x, y, width: w, height: h, key, visible: true, alpha: 1,
           tilePositionX: 0, setOrigin() { return this; }, setDepth(d) { this.depth = d; return this; },
-          setVisible(v) { this.visible = v; return this; },
+          setVisible(v) { this.visible = v; return this; }, setAlpha(a) { this.alpha = a; return this; },
           destroy() { this.destroyed = true; } };
         sprites.push(sprite);
         return sprite;
@@ -151,31 +152,39 @@ const hall = { x: 32, y: 22, w: 16, h: 16 };
       'wands travel from the assembler on the right toward the crate on the left');
     assert.ok(sprites.every(s => Number.isInteger(s.x) && Number.isInteger(s.y)),
       'moving parts remain on native pixels');
-    updateWandFactoryVisuals(scene, 6000, false, new Set());
+    // Everything is in sight: out-of-FOV dimming does not mask the fade.
+    const sight = () => new Set(sprites.map(s => `${Math.floor(s.x / 16)},${Math.floor(s.y / 16)}`));
+    // Everything is in sight: out-of-FOV dimming does not mask the fade.
+    updateWandFactoryVisuals(scene, 6000, false, sight());
     assert.ok(wands.some(s => s.y > belt.y && s.x < belt.x),
       'a wand drops off the left lip toward the crate, still opaque during its fall');
-    updateWandFactoryVisuals(scene, 6400, false, new Set());
+    updateWandFactoryVisuals(scene, 6400, false, sight());
     assert.ok(wands.some(s => s.y > belt.y && s.alpha < 1),
       'a wand fades only as it enters the crate');
 
     const snapshot = () => sprites.map(s => ({ x: s.x, y: s.y, frame: s.frame,
       alpha: s.alpha, offset: s.tilePositionX }));
     const paused = snapshot();
-    updateWandFactoryVisuals(scene, 7000, true, new Set());
+    updateWandFactoryVisuals(scene, 7000, true, sight());
     assert.deepEqual(snapshot(), paused,
       'a modal pause freezes the machines');
 
+    // Machines are decorative floor art: always drawn; out of FOV they dim
+    // like the player cursor outside sight instead of being hidden.
     const seen = new Set([`${hall.x + 4},${hall.y + 4}`]);
     updateWandFactoryVisuals(scene, 7100, false, seen);
     for (const s of sprites) {
-      assert.equal(s.visible, seen.has(`${Math.floor(s.x / 16)},${Math.floor(s.y / 16)}`),
-        'each machine tile and moving wand follows its own current FOV cell');
+      assert.equal(s.visible, true, 'machines, belts, crate and wands stay drawn');
+      const inSight = seen.has(`${Math.floor(s.x / 16)},${Math.floor(s.y / 16)}`);
+      assert.ok(s.alpha >= 0 && s.alpha <= 1, 'alpha stays in range');
+      if (s.key !== FACTORY_WAND_TEXTURE) {
+        assert.equal(s.alpha, inSight ? 1 : FACTORY_OUT_OF_SIGHT_ALPHA,
+          'machine tiles dim out of sight instead of being hidden');
+      }
     }
-    assert.equal(sprites.filter(s => s.visible).length, 1, 'only the visible distiller tile is drawn');
     const wand = wands[0];
-    const wandTile = new Set([`${Math.floor(wand.x / 16)},${Math.floor(wand.y / 16)}`]);
-    updateWandFactoryVisuals(scene, 7100, true, wandTile);
-    assert.equal(wand.visible, true, 'wand visibility tracks its current position');
+    updateWandFactoryVisuals(scene, 7100, true, new Set());
+    assert.equal(wand.visible, true, 'wands stay drawn while paused');
 
     clearWandFactoryVisuals(scene);
     assert.equal(sprites.every(s => s.destroyed), true, 'floor change destroys the props');

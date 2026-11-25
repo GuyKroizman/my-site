@@ -251,7 +251,9 @@ Integration rules:
   (`scene0.ts:738-805`), passing `isModalOpen(this.context)` as the pause flag
   like gas/grass visuals (`749-751`). Never write `context.simulationTime`;
   animation completion never lands an action.
-- Depth below fog (world art), with FOV/visibility handled like `syncFeatures()`.
+- Depth below fog (world art). The machines are always drawn; a tile outside
+  the hero's FOV dims to alpha 0.4 (like the player cursor outside sight)
+  instead of being hidden by FOV.
 
 ---
 

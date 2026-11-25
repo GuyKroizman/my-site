@@ -5,6 +5,10 @@ import { FIRE_ELEMENTAL_PIXELS, FIRE_ELEMENTAL_PALETTE } from './monsters/fireEl
 export const FACTORY_ASSEMBLER_TEXTURE = 'factory-assembler';
 export const FACTORY_DISTILLER_TEXTURE = 'factory-distiller';
 export const FACTORY_BELT_TEXTURE = 'factory-belt';
+// Machines are decorative floor art: they always draw. When the hero moves
+// out of a machine's tile, the art dims (the player cursor outside sight
+// uses the same 0.4 dim) instead of being hidden by FOV.
+export const FACTORY_OUT_OF_SIGHT_ALPHA = 0.4;
 export const FACTORY_CRATE_TEXTURE = 'factory-crate';
 export const FACTORY_WAND_TEXTURE = 'wand-fire';
 export const FACTORY_FRAMES = 16;
@@ -291,12 +295,23 @@ export function updateWandFactoryVisuals(
     const travel = Math.min(progress / 0.8, 1), fall = Math.max(0, (progress - 0.8) / 0.2);
     sprite.x = Math.round(state.beltX + 40 - travel * 40 - fall * 8);
     sprite.y = Math.round(state.beltY - 1 + fall * 20);
-    sprite.setAlpha(fall > 0.75 ? (1 - fall) * 4 : 1);
-  });
-  for (const { sprite } of state.watches) {
-    // Moving wands use their current tile, not their original spawn point.
+    sprite.setVisible(true);
+    // Wands use their current tile, not their original spawn point, to test
+    // the hero's sight (see below).
     const x = state.map.worldToTileX(sprite.x), y = state.map.worldToTileY(sprite.y);
-    sprite.setVisible(!visibleTiles || visibleTiles.has(`${x},${y}`));
+    const inSight = !visibleTiles || visibleTiles.has(`${x},${y}`);
+    const fade = fall > 0.75 ? (1 - fall) * 4 : 1;
+    sprite.setAlpha(fade * (inSight ? 1 : FACTORY_OUT_OF_SIGHT_ALPHA));
+  });
+  const wandSprites = new Set<Watch['sprite']>(state.wands);
+  for (const { sprite } of state.watches) {
+    if (wandSprites.has(sprite)) continue;
+    // Machines and their belts/crate always draw; outside the current FOV
+    // they dim like the player cursor outside sight.
+    const x = state.map.worldToTileX(sprite.x), y = state.map.worldToTileY(sprite.y);
+    const inSight = !visibleTiles || visibleTiles.has(`${x},${y}`);
+    sprite.setVisible(true);
+    sprite.setAlpha(inSight ? 1 : FACTORY_OUT_OF_SIGHT_ALPHA);
   }
 }
 
