@@ -62,7 +62,7 @@ export function updateTargetTelegraphs(
       const x = map.tileToWorldX(tile.x);
       const y = map.tileToWorldY(tile.y);
       if (x === null || y === null || x === undefined || y === undefined) continue;
-      g.lineStyle(2, TARGET_BORDER_COLOR, 1);
+      g.lineStyle(1, TARGET_BORDER_COLOR, 1);
       g.strokeRect(x + 1, y + 1, 14, 14);
       g.fillStyle(TARGET_BORDER_COLOR, 0.18);
       g.fillRect(x, y, 16, 16);

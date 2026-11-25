@@ -215,7 +215,7 @@ const hall = { x: 32, y: 22, w: 16, h: 16 };
   updateTargetTelegraphs(scene, [thrower], scene.map, new Set(['5,6', '6,6']));
   const g = graphics[0];
   assert.equal(g.strokes.length, 2, 'only visible tiles are outlined');
-  assert.ok(g.strokes.every(s => s.color === TARGET_BORDER_COLOR && s.width === 2));
+  assert.ok(g.strokes.every(s => s.color === TARGET_BORDER_COLOR && s.width === 1));
   assert.equal(g.depth, 300, 'the warning draws above fog');
   assert.equal(g.fills.every(f => f.color === TARGET_BORDER_COLOR), true);
   updateTargetTelegraphs(scene, [{ ...thrower, telegraphStage: 0 }], scene.map, new Set());
