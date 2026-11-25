@@ -311,11 +311,13 @@ for (let run = 0; run < 5; run++) {
         'the hero does not arrive on top of the Writhing Maw');
     } else if (isWandFactoryFloor(floor)) {
       const nameOf = item => item.kind ?? item.constructor?.name;
-      const allowed = new Set(['FirePotionThrower', 'Skeleton', 'Goblin', 'Chest', 'Ration', 'Gold']);
+      const allowed = new Set(['FirePotionThrower', 'Skeleton', 'Goblin', 'FireElemental',
+        'Chest', 'Ration', 'Gold']);
       const strays = items.filter(item => !allowed.has(nameOf(item)));
       assert.deepEqual(strays.map(nameOf), [],
         'the factory keeps the sparse boss-floor policy but has no boss or loot');
       assert.equal(count('FirePotionThrower'), 2, 'the factory is guarded by two throwers');
+      assert.equal(count('FireElemental'), roster.elemental, 'fire elements guard the factory');
       assert.equal(count('Boss'), 0, 'the factory has no Writhing Maw');
     }
     const occupied = new Set(items.map(item => `${item.x},${item.y}`));

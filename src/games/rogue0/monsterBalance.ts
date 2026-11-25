@@ -30,7 +30,8 @@ export function monsterAvailable(kind: EncounterKind, floor: number): boolean {
 
 export function elementalKindsForFloor(floor: number): ElementalKind[] {
   const kinds: ElementalKind[] = [];
-  if (floor >= 18) kinds.push('fire');
+  // The Wand Factory's captured fire elements are fire elementals.
+  if (floor === 10 || floor >= 18) kinds.push('fire');
   if (floor >= 21) kinds.push('ice');
   if (floor >= 23) kinds.push('shock');
   return kinds;
@@ -48,6 +49,7 @@ export function floorMonsterRoster(floor: number): Record<EncounterKind, number>
     roster.firePotionThrower = 2;
     roster.skeleton = 2;
     roster.goblin = 1;
+    roster.elemental = 2;
     return roster;
   }
   if (isBossFloor(floor)) { roster.boss = 1; return roster; }

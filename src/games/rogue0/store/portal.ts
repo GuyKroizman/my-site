@@ -83,6 +83,16 @@ export function placeStorePortal(
     return DIRECTIONS.every(([dx, dy]) => map[point.y + dy]?.[point.x + dx] === 0 &&
       !occupied.has(key(point.x + dx, point.y + dy)));
   });
+  // Degenerate rooms may not offer a full ring or even all four cardinal
+  // neighbours. A free-standing door only needs walkable tiles above and
+  // below it so the hero can pass in front and behind; fall back to that
+  // before giving up on the floor's store entirely.
+  if (!candidates.length) candidates = queue.filter(point =>
+    !occupied.has(key(point.x, point.y)) && !avoid.has(key(point.x, point.y)) &&
+    map[point.y - 1]?.[point.x] === 0 && map[point.y + 1]?.[point.x] === 0);
+  if (!candidates.length) candidates = queue.filter(point =>
+    !occupied.has(key(point.x, point.y)) && key(point.x, point.y) !== key(spawn.x, spawn.y) &&
+    map[point.y - 1]?.[point.x] === 0 && map[point.y + 1]?.[point.x] === 0);
   if (!candidates.length) return undefined;
   const best = Math.max(...candidates.map(point => openness(point.x, point.y)));
   const openCenters = candidates.filter(point => openness(point.x, point.y) >= best - 2);

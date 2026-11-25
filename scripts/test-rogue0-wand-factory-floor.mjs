@@ -63,8 +63,9 @@ assert.equal(roster.boss, 0, 'no Writhing Maw');
 assert.equal(roster.firePotionThrower, 2);
 assert.equal(roster.skeleton, 2);
 assert.equal(roster.goblin, 1);
+assert.equal(roster.elemental, 2, 'captured fire elements guard the factory');
 assert.equal(roster.mimic, 0);
-for (const kind of ['frog', 'swarm', 'quloptsh', 'ghoul', 'brute', 'cultist', 'wraith', 'elemental']) {
+for (const kind of ['frog', 'swarm', 'quloptsh', 'ghoul', 'brute', 'cultist', 'wraith']) {
   assert.equal(roster[kind], 0, `no ${kind} share the factory arena`);
 }
 

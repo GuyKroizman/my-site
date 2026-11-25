@@ -777,8 +777,9 @@ increase throughout the run; see Monster depth progression and balance above.
 
 The Wand Factory is a 16x16 hall sized and shaped like floor 5's rotunda, with
 two decorative **steampunk machines** and no Writhing Maw. Its roster is two
-Fire Potion Throwers, two Skeletons and one Goblin; the floor keeps the usual
-boss-floor sparse policy (two chests, one ration and the hidden room's gold).
+Fire Potion Throwers, two Fire Elementals, two Skeletons and one Goblin; the
+floor keeps the usual boss-floor sparse policy (two chests, one ration and the
+hidden room's gold).
 The **security grid** seals the stairs (and every route down, including chasm
 falls and Blink stones) until the last hostile dies. Clearing the floor logs
 the grid powering down and turns the stairs from red to grey; floor 10 has no
@@ -787,13 +788,15 @@ as cleared; the seal itself is derived from the living monsters, so a stale
 saved flag cannot open a live fight. Old saves that still hold a Writhing Maw on
 floor 10 drop that entity on load.
 
-One machine is a riveted brass-and-copper **flame distiller**: a glowing fire
-element feeds a pipe and liquid flame drips into an empty glass potion bottle
-on a fixed loop. The other is a **wand assembler** whose gear-driven conveyor
-carries wand sprites from the cabinet into a wooden crate. Both are pure art:
-they never change the map, pathfinding, FOV, loot or world time, and they are
-recreated on every visit rather than saved. Phaser tweens and presentation
-clocks drive the loops; menus pause them.
+One machine is a riveted brass-and-copper **flame distiller**: a captured fire
+element is plugged into its copper pipe, and the extracted liquid flame drips
+into an empty glass potion bottle on a fixed loop. The other is a **wand
+assembler**, a 5x3 clockwork cabinet with two animated clocks. Its three-tile
+conveyor runs right-to-left at half the old scroll speed, and wands take 6.6
+seconds to cross before dropping off the lip into a wooden crate. Both are pure
+art: they never change the map, pathfinding, FOV, loot or world time, and they
+are recreated on every visit rather than saved. Presentation clocks drive the
+loops; menus pause them.
 
 ## Fire Potion Thrower
 

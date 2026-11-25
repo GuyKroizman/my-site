@@ -41,7 +41,7 @@ for (let floor = 1; floor <= 25; floor++) {
   for (const [kind, first] of Object.entries(unlocks)) {
     const available = floor >= first && (kind !== 'frog' || floor <= 4);
     const expectedPresence = factory
-      ? ['firePotionThrower', 'skeleton', 'goblin'].includes(kind)
+      ? ['firePotionThrower', 'skeleton', 'goblin', 'elemental'].includes(kind)
       : kind === 'boss' ? boss : !boss && available;
     assert.equal(roster[kind] > 0, expectedPresence,
       `${kind} initial unlock on floor ${floor}`);

@@ -4,9 +4,12 @@ import assert from 'node:assert/strict';
 import {
   generateWandFactoryTextures, createWandFactoryVisuals, updateWandFactoryVisuals,
   clearWandFactoryVisuals, factoryDropFrame, factoryBeltOffset, factoryWandProgress,
-  FACTORY_CABINET_TEXTURE, FACTORY_BELT_TEXTURE, FACTORY_CRATE_TEXTURE,
-  FACTORY_BOTTLE_TEXTURE, FACTORY_DROP_TEXTURE, FACTORY_WAND_TEXTURE
+  factoryClockAngle, FACTORY_CABINET_TEXTURE, FACTORY_BELT_TEXTURE, FACTORY_CRATE_TEXTURE,
+  FACTORY_BOTTLE_TEXTURE, FACTORY_DROP_TEXTURE, FACTORY_WAND_TEXTURE,
+  FACTORY_PIPE_TEXTURE, FACTORY_CLOCK_TEXTURE, FACTORY_CLOCK_HAND_TEXTURE,
+  FACTORY_BELT_TILES, FACTORY_MACHINE_WIDTH_TILES, FACTORY_MACHINE_HEIGHT_TILES
 } from '../src/games/rogue0/wandFactoryVisuals.ts';
+import { FIRE_ELEMENTAL_TEXTURE } from '../src/games/rogue0/monsters/fireElementalTexture.ts';
 import {
   telegraphTiles, updateTargetTelegraphs, clearTargetTelegraphs, TARGET_BORDER_COLOR
 } from '../src/games/rogue0/targetTelegraphVisuals.ts';
@@ -15,11 +18,13 @@ import {
 assert.deepEqual([0, 140, 280, 420, 560].map(t => factoryDropFrame(t)), [0, 1, 2, 3, 0]);
 assert.equal(factoryDropFrame(140, 2), 3);
 for (const time of [0, 7, 99, 1000, 99999]) assert.ok(factoryBeltOffset(time) >= 16);
-assert.notEqual(factoryBeltOffset(0), factoryBeltOffset(40));
+assert.equal(factoryBeltOffset(56), 17, 'the belt scroll is half its old speed');
+assert.equal(factoryBeltOffset(112), 18);
 assert.ok(factoryWandProgress(0, 0) < factoryWandProgress(550, 0));
 assert.ok(factoryWandProgress(0, 0) < factoryWandProgress(0, 1));
-assert.ok(Math.abs(factoryWandProgress(1100, 0) - 1 / 3) < 1e-9,
-  'a wand takes 3.3 seconds to cross the belt, one third of its old speed');
+assert.ok(Math.abs(factoryWandProgress(1100, 0) - 1 / 6) < 1e-9,
+  'a wand takes 6.6 seconds to cross the belt, half its previous speed');
+assert.notEqual(factoryClockAngle(0), factoryClockAngle(500));
 
 function makeGraphics() {
   return {
@@ -93,20 +98,37 @@ const hall = { x: 32, y: 22, w: 16, h: 16 };
     Math.random = () => { throw new Error('factory visuals must not roll gameplay RNG'); };
     generateWandFactoryTextures(scene);
     for (const key of [FACTORY_CABINET_TEXTURE, FACTORY_BELT_TEXTURE, FACTORY_CRATE_TEXTURE,
-      FACTORY_BOTTLE_TEXTURE, FACTORY_DROP_TEXTURE(0), FACTORY_DROP_TEXTURE(3)]) {
+      FACTORY_BOTTLE_TEXTURE, FACTORY_PIPE_TEXTURE, FACTORY_CLOCK_TEXTURE,
+      FACTORY_CLOCK_HAND_TEXTURE, FIRE_ELEMENTAL_TEXTURE,
+      FACTORY_DROP_TEXTURE(0), FACTORY_DROP_TEXTURE(3)]) {
       assert.equal(textures.has(key), true, `${key} is generated`);
     }
     createWandFactoryVisuals(scene, hall, scene.map);
-    assert.equal(sprites.length, 11, 'two cabinets, belt, crate, bottle, three drops and three wands');
+    assert.equal(FACTORY_MACHINE_WIDTH_TILES, 5);
+    assert.equal(FACTORY_MACHINE_HEIGHT_TILES, 3);
+    assert.equal(sprites.length, 17,
+      'two cabinets, fire source, pipe, bottle, belt, crate, clocks, hands, drops and wands');
     assert.equal(sprites.filter(s => s.key === FACTORY_WAND_TEXTURE).length, 3,
       'the belt carries existing wand art');
+    assert.equal(sprites.filter(s => s.key === FIRE_ELEMENTAL_TEXTURE).length, 1,
+      'a captured fire elemental feeds the distiller');
+    const belt = sprites.find(s => s.kind === 'tile');
+    assert.equal(belt.width, FACTORY_BELT_TILES * 16, 'the belt is three tiles long');
 
     updateWandFactoryVisuals(scene, 0, false, new Set()); // establish the clock baseline
-    const before = sprites.map(s => ({ x: s.x, key: s.key, offset: s.tilePositionX }));
+    const before = sprites.map(s => ({ x: s.x, y: s.y, key: s.key, offset: s.tilePositionX }));
     updateWandFactoryVisuals(scene, 500, false, new Set());
     assert.ok(sprites.some((s, i) => s.tilePositionX !== before[i].offset), 'the belt scrolls');
     assert.ok(sprites.some((s, i) => s.key !== before[i].key), 'the drip uses looping frames');
-    assert.ok(sprites.some((s, i) => s.x !== before[i].x), 'wands ride the belt');
+    const wands = sprites.filter(s => s.key === FACTORY_WAND_TEXTURE);
+    assert.ok(wands.every((s, i) => s.x < before[sprites.indexOf(s)].x),
+      'wands travel from the assembler on the right toward the crate on the left');
+    const hands = sprites.filter(s => s.key === FACTORY_CLOCK_HAND_TEXTURE);
+    assert.equal(hands.length, 2);
+    assert.ok(hands.every(hand => typeof hand.rotation === 'number'), 'clock hands rotate');
+    updateWandFactoryVisuals(scene, 6000, false, new Set());
+    assert.ok(wands.some(s => s.y > belt.y && s.alpha < 1),
+      'a wand drops off the belt into the crate');
 
     const paused = sprites.map(s => ({ x: s.x, key: s.key, offset: s.tilePositionX }));
     updateWandFactoryVisuals(scene, 5000, true, new Set());

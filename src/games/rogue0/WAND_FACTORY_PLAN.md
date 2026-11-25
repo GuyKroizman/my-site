@@ -152,9 +152,9 @@ hasLivingHostiles(context): boolean; // structural context, excludes friendly de
 - `monsterBalance.ts:35-49` `floorMonsterRoster()` dispatches on
   `bossEncounter(floor)?.kind`:
   - Maw floors: unchanged `{boss: 1}` and nothing else.
-  - Factory floor: a factory roster — **two** Fire Potion Throwers plus a few
-    ordinary tier-2 guards (e.g. Skeletons/Goblins) for the "clear every
-    enemy" win condition. Add `firePotionThrower` to `EncounterKind`,
+  - Factory floor: a factory roster — **two** Fire Potion Throwers, **two**
+    Fire Elementals (the captured fire sources), two Skeletons and one Goblin
+    for the "clear every enemy" win condition. Add `firePotionThrower` to `EncounterKind`,
     `MONSTER_XP`, `ScaledMonsterKind` and `PROFILES` so the XP forecast
     (`55-103`) keeps working; update its boss-floor expectations in tests.
 - `scene0.ts:2080-2206`: for Maw floors keep the existing branch. For the
@@ -225,16 +225,16 @@ New renderer-only module `wandFactoryVisuals.ts` (with pure pixel/frame helpers
 so it can be tested without Phaser):
 
 - **Flame distiller** — a riveted brass-and-copper cabinet anchored to one of
-  the hall's pillar/wall cells, with pressure gauges and pipework. A glowing
-  fire element feeds a copper pipe down one side; a nozzle drips liquid flame
-  in a looping frame animation into an **empty** glass potion bottle on the
-  other side. The bottle resets empty at the start of each loop.
-- **Wand assembler** — a second riveted cabinet with gearwork and a
-  steam-driven conveyor strip running to a wooden crate. A `TileSprite` belt
-  scrolls via `tilePositionX` (positive offset pattern from
-  `chasmVisuals.ts:26-28`); small wand sprites ride the belt and vanish into
-  the crate on a fixed loop. Reuse existing wand texture keys; no new wand
-  behaviour.
+  the hall's pillar/wall cells, with pressure gauges and pipework. A captured
+  fire elemental (the existing monster art) is plugged into its copper pipe;
+  the extracted liquid flame drips in a looping frame animation into an
+  **empty** glass potion bottle. The bottle resets empty at the start of each
+  loop.
+- **Wand assembler** — a 5x3 clockwork cabinet with two animated clocks and a
+  three-tile `TileSprite` conveyor running right-to-left. The belt scroll is
+  half its previous speed; wand sprites take 6.6 seconds to cross, then drop
+  off the left lip into a wooden crate. Reuse existing wand texture keys; no
+  new wand behaviour.
 
 Integration rules:
 
