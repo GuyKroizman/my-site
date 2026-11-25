@@ -38,6 +38,7 @@ import { updateMonsterStatusVisuals, clearMonsterStatusVisuals } from './monster
 import { updateHeroChilled, clearHeroChilled } from './heroChilledVisuals';
 import { updateHeroLevitating, clearHeroLevitating } from './heroLevitatingVisuals';
 import { showWandZap, showShockArc, updateWandZaps, clearWandZaps } from './wandZapVisuals';
+import { showFirePotionThrown, clearFirePotionThrows } from './firePotionThrowVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
@@ -368,12 +369,14 @@ export class Scene0 extends Phaser.Scene {
       clearWandFusionVisuals(this);
       clearWandFactoryVisuals(this);
       clearTargetTelegraphs(this);
+      clearFirePotionThrows(this);
       clearGasVisuals(this);
       this.context.onGrassBurn = undefined;
       this.context.onWandZap = undefined;
       this.context.onShockArc = undefined;
       this.context.onLiquidFlameShatter = undefined;
       this.context.onPotionSplash = undefined;
+      this.context.onFirePotionThrown = undefined;
       this.context.onMonsterRemoved = undefined;
       this.clearDeepCells();
       this.chasmCellSignature = '';
@@ -494,6 +497,8 @@ export class Scene0 extends Phaser.Scene {
       }
       this.tweens.add({ targets: splash, alpha: 0, duration: 450, onComplete: () => splash.destroy() });
     };
+    this.context.onFirePotionThrown = (event) =>
+      showFirePotionThrown(this, this.context, event.from, event.to, event.onArrived);
     this.context.onLiquidFlameShatter = event => {
       // Sound follows the drawn animation, so an off-screen shatter stays silent.
       if (showLiquidFlameShatter(this, this.context, event) && event.fusion) sfx.wandFusion();

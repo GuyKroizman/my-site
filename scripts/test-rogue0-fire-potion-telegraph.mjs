@@ -190,10 +190,36 @@ function setup() {
   assert.equal(decoded.thrower.abilityCooldown, 1);
 }
 
+// --- Thrown flask visual -----------------------------------------------------
+{
+  const { context, thrower } = setup();
+  const thrown = [];
+  context.onFirePotionThrown = event => thrown.push(event);
+  thrower.turn(); // stage 1
+  assert.equal(thrown.length, 0, 'no visual yet during the telegraph');
+  thrower.turn(); // stage 2
+  assert.equal(thrown.length, 0, 'still no visual as the borders snap');
+  thrower.turn(); // burst
+  assert.equal(thrown.length, 1, 'the throw is announced on the third turn');
+  assert.deepEqual(thrown[0].from, { x: thrower.x, y: thrower.y });
+  assert.deepEqual(thrown[0].to, { x: context.player.x, y: context.player.y });
+}
+{
+  // Closing to melee abandons the telegraph before it starts: no throw shown.
+  const { context, player, thrower } = setup();
+  const thrown = [];
+  context.onFirePotionThrown = event => thrown.push(event);
+  player.x = 14;
+  thrower.turn();
+  assert.equal(thrown.length, 0);
+  assert.equal(thrower.telegraphStage, 0);
+}
+
 // --- Wiring ------------------------------------------------------------------
 const scene = fs.readFileSync('src/games/rogue0/scene0.ts', 'utf8');
 assert.match(scene, /spawnGroup\(FirePotionThrower, firePotionThrowerCount\)/);
 assert.match(scene, /generateFirePotionThrowerTexture\(this\)/);
+assert.match(scene, /context\.onFirePotionThrown = /, 'scene0 wires the throw visual');
 const registry = fs.readFileSync('src/games/rogue0/saveRegistry.ts', 'utf8');
 assert.match(registry, /'monster:fire-potion-thrower': FirePotionThrower/);
 const source = fs.readFileSync('src/games/rogue0/monsters/firePotionThrower.ts', 'utf8');

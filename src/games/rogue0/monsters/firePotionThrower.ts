@@ -120,7 +120,19 @@ export default class FirePotionThrower extends Monster {
     const cells = FIRE_POTION_TELEGRAPH_OFFSETS
       .map(([dx, dy]) => ({ x: this.targetX + dx, y: this.targetY + dy }))
       .filter((cell) => level[cell.y]?.[cell.x] !== undefined);
-    context.onPotionSplash?.({ cells, kind: 'fire' });
+    // The flask is thrown; the floor splash follows the flight.
+    let arrived = false;
+    const splash = () => {
+      if (arrived) return;
+      arrived = true;
+      context.onPotionSplash?.({ cells, kind: 'fire' });
+    };
+    context.onFirePotionThrown?.({
+      from: { x: this.x!, y: this.y! },
+      to: { x: this.targetX, y: this.targetY },
+      onArrived: splash,
+    });
+    if (!context.onFirePotionThrown) splash();
 
     const player = context.player;
     if (player && player.healthPoints > 0 && player.x !== undefined && player.y !== undefined) {

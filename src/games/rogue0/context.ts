@@ -69,6 +69,14 @@ export type GameContext = {
   // Frost effects notify terrain without coupling effect scheduling to rendering.
   onFrostTerrain?: (x: number, y: number) => number;
   onPotionSplash?: (event: { cells: Array<{ x: number; y: number }>; kind: 'fire' | 'frost' }) => void;
+  // Fires when a Fire Potion Thrower levels its flask during the telegraph:
+  // the thrower's tile to the telegraphed target, for the throwing visuals.
+  onFirePotionThrown?: (event: {
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    // The scene calls it when the flight ends, just before the floor splash.
+    onArrived?: () => void;
+  }) => void;
   // Called only after a successful shock hit has applied its primary damage.
   onShockWater?: (target: Entity, damage: number) => void;
   // Cosmetic secondary bolts; damage is resolved once by the shock splash.

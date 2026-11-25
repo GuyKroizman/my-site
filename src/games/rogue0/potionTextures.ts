@@ -321,7 +321,7 @@ function drawDoorThreshold(g: Phaser.GameObjects.Graphics, style: DoorStyle, sid
 
 // Draws a 16x16 round-bottom flask: cork, glass neck + bulb, colored liquid,
 // a dark outline, and a glass shine.
-function drawFlask(g: Phaser.GameObjects.Graphics, liquid: number): void {
+export function drawFlask(g: Phaser.GameObjects.Graphics, liquid: number): void {
   // Cork.
   g.fillStyle(0x8a5a2b, 1);
   g.fillRect(6, 0, 4, 2);
