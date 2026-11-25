@@ -39,6 +39,7 @@ const Thrower = load('src/games/rogue0/monsters/firePotionThrower.ts', {
   Monster,
   monsterStats: () => ({ healthPoints: 30, attackDamage: 8, meleeDamage: 4 }),
   MONSTER_XP: { firePotionThrower: 9 },
+  tiles: { getFeature: () => 'grass', clearFeature() {} },
   dungeon: { getCurrentLevel: () => map, log: (context, text) => context.messages.unshift(text) },
   resolveAttack: (_context, _attacker, _victim, options) => {
     attackOptions.push(options);
@@ -188,6 +189,17 @@ function setup() {
   assert.equal(decoded.thrower.targetX, 5);
   assert.equal(decoded.thrower.targetY, 7);
   assert.equal(decoded.thrower.abilityCooldown, 1);
+}
+
+// --- Grass in the burst catches fire ------------------------------------------
+{
+  const { context, thrower } = setup();
+  const burned = [];
+  context.onGrassBurn = cells => burned.push(...cells);
+  thrower.turn();
+  thrower.turn();
+  thrower.turn(); // burst
+  assert.equal(burned.length, 9, 'grass in the 3x3 catches fire');
 }
 
 // --- Thrown flask visual -----------------------------------------------------

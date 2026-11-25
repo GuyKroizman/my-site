@@ -10,6 +10,7 @@ import { enemyCanSeePlayer } from "../ai";
 import { isEnemyVisible } from "../combatFeedback";
 import { actorFootprint } from "../actorBodies.ts";
 import { footprintContains } from "../footprint.ts";
+import { terrainFor } from '../terrain';
 import {
   FIRE_POTION_THROWER_TEXTURE,
   generateFirePotionThrowerTexture
@@ -120,6 +121,18 @@ export default class FirePotionThrower extends Monster {
     const cells = FIRE_POTION_TELEGRAPH_OFFSETS
       .map(([dx, dy]) => ({ x: this.targetX + dx, y: this.targetY + dy }))
       .filter((cell) => level[cell.y]?.[cell.x] !== undefined);
+    // The burst bakes the marked cells: grass there catches fire. The burn is
+    // bounded to the 3x3 (dungeon.igniteGrass spreads through whole grass patches).
+    const terrain = terrainFor(context);
+    const burned = cells.filter((cell) => {
+      if (terrain.getFeature?.(cell.x, cell.y) !== 'grass') return false;
+      terrain.clearFeature?.(cell.x, cell.y);
+      return true;
+    });
+    if (burned.length) {
+      context.onGrassBurn?.(burned);
+      dungeon.onTerrainChanged?.();
+    }
     // The flask is thrown; the floor splash follows the flight.
     let arrived = false;
     const splash = () => {
