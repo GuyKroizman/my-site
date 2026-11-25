@@ -117,11 +117,28 @@ function setup() {
   assert.equal(splash.at(-1).cells.length, 9, 'centre plus eight neighbours');
 
   // A cooldown in the monster's own turns prevents back-to-back bursts.
-  assert.equal(thrower.abilityCooldown, 2);
+  assert.equal(thrower.abilityCooldown, 3);
+  const aiTurns = meleeTurns;
+  const bursts = splash.length;
+  for (const remaining of [2, 1]) {
+    const timeBefore = thrower.nextActionTime;
+    thrower.turn();
+    assert.equal(thrower.abilityCooldown, remaining);
+    assert.equal(thrower.telegraphStage, 0, 'two full turns pass before another windup');
+    assert.equal(player.healthPoints, 24);
+    assert.equal(meleeTurns, aiTurns, 'cooldown waits instead of using ordinary ranged AI');
+    assert.equal(splash.length, bursts);
+    assert.ok(thrower.nextActionTime > timeBefore, 'each recovery turn spends an action');
+  }
   thrower.turn();
-  assert.equal(thrower.telegraphStage, 0);
-  assert.equal(player.healthPoints, 24);
-  assert.ok(thrower.nextActionTime > 0, 'each telegraph step spends an action');
+  assert.equal(thrower.abilityCooldown, 0);
+  assert.equal(thrower.telegraphStage, 1, 'the third turn after a burst starts the next windup');
+  thrower.turn();
+  assert.equal(thrower.telegraphStage, 2);
+  assert.equal(splash.length, bursts, 'the next burst still needs the full warning sequence');
+  thrower.turn();
+  assert.equal(splash.length, bursts + 1);
+  assert.equal(thrower.abilityCooldown, 3);
 }
 
 // --- Dodge and sight gates ---------------------------------------------------
@@ -144,7 +161,9 @@ function setup() {
   assert.equal(meleeTurns, before + 1, 'an adjacent hero triggers the melee AI turn');
   assert.equal(thrower.telegraphStage, 0, 'no flask is readied at touching distance');
   assert.equal(attackOptions.length, attacks, 'no fire burst is resolved');
-  player.y = 11; // diagonal adjacency counts too
+  player.y = 11; // diagonal adjacency counts too, after attack recovery
+  thrower.turn();
+  assert.equal(meleeTurns, before + 1, 'the turn after a melee attack is spent recovering');
   thrower.turn();
   assert.equal(meleeTurns, before + 2);
   assert.equal(thrower.telegraphStage, 0);

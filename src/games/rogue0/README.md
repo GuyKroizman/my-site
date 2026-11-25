@@ -813,7 +813,8 @@ throws liquid-flame flasks at the **nine fixed tiles** — stepping out of that
 3×3 avoids the burst. The hit deals fire damage (`resolveAttack` with
 `damageType: 'fire'`, so elemental resistance applies and physical armor does
 not) and applies the existing 12-turn `burning` effect from the Potion of Liquid
-Flame. No new potion class exists, and no new status effect is registered.
+Flame. After a burst it waits for two own turns before starting another
+three-turn windup. No new potion class exists, and no new status effect is registered.
 
 The windup advances only on the thrower's **own scheduled turns**: sleeping,
 sight and range gates apply, world-time effect ticks and animation frames never

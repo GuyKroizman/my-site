@@ -17,8 +17,8 @@ import {
   generateFirePotionThrowerTexture
 } from './firePotionThrowerTexture';
 
-/** Own turns between completed fire-potion bursts. */
-export const FIRE_POTION_COOLDOWN = 2;
+/** Own turns until the next windup; decremented before checking readiness. */
+export const FIRE_POTION_COOLDOWN = 3;
 /** The centre plus its eight neighbours, fixed when the telegraph starts. */
 export const FIRE_POTION_TELEGRAPH_OFFSETS: ReadonlyArray<readonly [number, number]> = [
   [-1, -1], [0, -1], [1, -1],
@@ -33,6 +33,8 @@ export default class FirePotionThrower extends Monster {
   targetX = -1;
   targetY = -1;
   abilityCooldown = 0;
+  /** True on the turn after an attack: the thrower cannot move yet. */
+  attackRecovery = false;
 
   constructor(context: GameContext, x?: number, y?: number) {
     if (context.scene) generateFirePotionThrowerTexture(context.scene);
@@ -59,6 +61,14 @@ export default class FirePotionThrower extends Monster {
     if (this.waitWhileSleeping()) return;
     if (this.abilityCooldown > 0) this.abilityCooldown--;
 
+    // An attack was spent on the previous turn: the thrower must not move on
+    // this one, so it waits instead of closing the distance.
+    if (this.attackRecovery) {
+      this.attackRecovery = false;
+      this.spendTime('wait');
+      return;
+    }
+
     // Like goblins and cultists, a ranged attacker cannot bring a flask to
     // bear at touching distance. Close-range turns use the melee sidearm
     // instead, abandoning any half-finished telegraph.
@@ -67,6 +77,8 @@ export default class FirePotionThrower extends Monster {
         this.log('A Fire Potion Thrower abandons its marked flasks and closes to melee.');
         this.cancelTelegraph();
       }
+      // The adjacent AI turn resolves as an attack: mark the recovery turn.
+      this.attackRecovery = true;
       super.turn();
       return;
     }
@@ -81,7 +93,12 @@ export default class FirePotionThrower extends Monster {
       this.spendTime('attack');
       return;
     }
-    if (this.abilityCooldown === 0 && this.canStartTelegraph()) {
+    // Cooldown turns are waits, not untelegraphed shots via the ranged AI.
+    if (this.abilityCooldown > 0) {
+      this.spendTime('wait');
+      return;
+    }
+    if (this.canStartTelegraph()) {
       const player = this.context.player!;
       this.targetX = player.x!;
       this.targetY = player.y!;
@@ -180,6 +197,7 @@ export default class FirePotionThrower extends Monster {
     this.targetX = -1;
     this.targetY = -1;
     this.abilityCooldown = FIRE_POTION_COOLDOWN;
+    this.attackRecovery = true;
     this.spendTime('attack');
   }
 

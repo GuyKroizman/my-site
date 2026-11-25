@@ -18,7 +18,11 @@ export function removeEffect(entity: Entity, effectId: string): void {
 
   const [effect] = entity.effects.splice(index, 1);
   effect.remove?.(entity, entity.context);
-  logStatusEffect(entity, `${entity.type === 'player' ? 'Your' : `${entity.name}'s`} ${effect.name} wears off.`);
+  // The potion's delayed mending ends quietly: its payouts are visible in the
+  // health display, so no "wears off" line for it.
+  if (effect.id !== 'potion-healing') {
+    logStatusEffect(entity, `${entity.type === 'player' ? 'Your' : `${entity.name}'s`} ${effect.name} wears off.`);
+  }
 }
 
 export function tickEffects(entity: Entity, context: GameContext): void {
