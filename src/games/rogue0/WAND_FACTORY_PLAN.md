@@ -224,17 +224,20 @@ hasLivingHostiles(context): boolean; // structural context, excludes friendly de
 New renderer-only module `wandFactoryVisuals.ts` (with pure pixel/frame helpers
 so it can be tested without Phaser):
 
-- **Flame distiller** — a riveted brass-and-copper cabinet anchored to one of
-  the hall's pillar/wall cells, with pressure gauges and pipework. A captured
-  fire elemental (the existing monster art) is plugged into its copper pipe;
-  the extracted liquid flame drips in a looping frame animation into an
-  **empty** glass potion bottle. The bottle resets empty at the start of each
-  loop.
-- **Wand assembler** — a 5x3 clockwork cabinet with two animated clocks and a
-  three-tile `TileSprite` conveyor running right-to-left. The belt scroll is
-  half its previous speed; wand sprites take 6.6 seconds to cross, then drop
-  off the left lip into a wooden crate. Reuse existing wand texture keys; no
-  new wand behaviour.
+- **Flame distiller** — a cohesive 4x4 native-pixel copper boiler and coiled
+  condenser on a riveted iron plinth. The captured fire elemental (existing
+  monster pixels) sits behind furnace bars; a moving pressure gauge, valve
+  wheel and steam puffs animate the machinery. A nozzle drips liquid flame
+  into a glass bottle that visibly fills and resets empty each loop.
+- **Wand assembler** — a 5x3 native-pixel clockwork machine with brass gears,
+  two animated dials, a reciprocating stamping piston, steam exhaust and an
+  inset wand blueprint. Its three-tile conveyor runs right-to-left at half
+  its previous speed. Existing wand sprites follow a 6.6-second production
+  loop, dropping off the left lip into a wooden crate before fading out.
+- Both use 16-frame pixel atlases (180 ms/frame), with integer-positioned
+  movement rather than smoothly rotated sprites. Machine frames and conveyor
+  strips are split into tile-sized pieces for FOV clipping; moving wands use
+  their current world tile. No WebGL masks or gameplay changes.
 
 Integration rules:
 

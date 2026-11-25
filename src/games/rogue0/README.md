@@ -788,15 +788,21 @@ as cleared; the seal itself is derived from the living monsters, so a stale
 saved flag cannot open a live fight. Old saves that still hold a Writhing Maw on
 floor 10 drop that entity on load.
 
-One machine is a riveted brass-and-copper **flame distiller**: a captured fire
-element is plugged into its copper pipe, and the extracted liquid flame drips
-into an empty glass potion bottle on a fixed loop. The other is a **wand
-assembler**, a 5x3 clockwork cabinet with two animated clocks. Its three-tile
-conveyor runs right-to-left at half the old scroll speed, and wands take 6.6
-seconds to cross before dropping off the lip into a wooden crate. Both are pure
-art: they never change the map, pathfinding, FOV, loot or world time, and they
-are recreated on every visit rather than saved. Presentation clocks drive the
-loops; menus pause them.
+Both machines use native-resolution, animated **pixel art**, with riveted iron
+chassis, shaded copper pipes and brass fittings. The **flame distiller** has a
+captured fire elemental behind boiler bars, a pressure gauge, a copper-coil
+condenser and a dripping nozzle. Its glass bottle visibly fills with liquid
+flame, then resets empty. The **wand assembler** is a 5x3 clockwork machine
+with meshing gears, two moving dials, a reciprocating stamping piston and
+little steam puffs. Its three-tile conveyor runs right-to-left at half the old
+scroll speed; wands follow a 6.6-second production loop and drop into a wooden
+crate, fading only as they enter it.
+
+Both are pure art: they never change the map, pathfinding, FOV, loot or world
+time, and they are recreated on every visit rather than saved. Machine art
+and belts are split into tile-sized pieces for fog-of-war visibility; moving
+wands use their current tile. Presentation clocks drive the loops; menus pause
+them.
 
 ## Fire Potion Thrower
 

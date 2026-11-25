@@ -3,20 +3,32 @@ recordTestRun('wand-factory-visuals');
 import assert from 'node:assert/strict';
 import {
   generateWandFactoryTextures, createWandFactoryVisuals, updateWandFactoryVisuals,
-  clearWandFactoryVisuals, factoryDropFrame, factoryBeltOffset, factoryWandProgress,
-  factoryClockAngle, FACTORY_CABINET_TEXTURE, FACTORY_BELT_TEXTURE, FACTORY_CRATE_TEXTURE,
-  FACTORY_BOTTLE_TEXTURE, FACTORY_DROP_TEXTURE, FACTORY_WAND_TEXTURE,
-  FACTORY_PIPE_TEXTURE, FACTORY_CLOCK_TEXTURE, FACTORY_CLOCK_HAND_TEXTURE,
+  clearWandFactoryVisuals, factoryMachineFrame, factoryMachinePixels, factoryBeltOffset,
+  factoryWandProgress, FACTORY_ASSEMBLER_TEXTURE, FACTORY_DISTILLER_TEXTURE,
+  FACTORY_BELT_TEXTURE, FACTORY_CRATE_TEXTURE, FACTORY_WAND_TEXTURE, FACTORY_FRAMES,
   FACTORY_BELT_TILES, FACTORY_MACHINE_WIDTH_TILES, FACTORY_MACHINE_HEIGHT_TILES
 } from '../src/games/rogue0/wandFactoryVisuals.ts';
-import { FIRE_ELEMENTAL_TEXTURE } from '../src/games/rogue0/monsters/fireElementalTexture.ts';
 import {
   telegraphTiles, updateTargetTelegraphs, clearTargetTelegraphs, TARGET_BORDER_COLOR
 } from '../src/games/rogue0/targetTelegraphVisuals.ts';
 
 // Pure animation selectors never touch gameplay state or RNG.
-assert.deepEqual([0, 140, 280, 420, 560].map(t => factoryDropFrame(t)), [0, 1, 2, 3, 0]);
-assert.equal(factoryDropFrame(140, 2), 3);
+assert.deepEqual([0, 180, 360, 2700, 2880].map(factoryMachineFrame), [0, 1, 2, 15, 0]);
+for (const kind of ['assembler', 'distiller']) {
+  const frames = Array.from({ length: FACTORY_FRAMES }, (_,i) => factoryMachinePixels(kind, i));
+  assert.equal(frames[0].length, kind === 'assembler' ? 48 : 64);
+  assert.ok(frames.every(rows => rows.every(row => row.length === (kind === 'assembler' ? 80 : 64))));
+  assert.ok(frames.flat(2).every(color => Number.isInteger(color) && color >= -1 && color <= 0xffffff));
+  assert.equal(new Set(frames.map(f => JSON.stringify(f))).size, FACTORY_FRAMES,
+    'every native-pixel animation frame is distinct');
+  assert.deepEqual(factoryMachinePixels(kind, 0), frames[0], 'pixel generation is deterministic');
+}
+const empty = factoryMachinePixels('distiller', 0);
+const filled = factoryMachinePixels('distiller', 12);
+assert.notEqual(empty[58][50], filled[58][50], 'liquid flame fills the bottle');
+assert.equal(factoryMachinePixels('distiller', 15)[58][50], empty[58][50], 'bottle resets empty');
+assert.notDeepEqual(factoryMachinePixels('assembler', 0).slice(26, 34),
+  factoryMachinePixels('assembler', 4).slice(26, 34), 'the stamping piston reciprocates');
 for (const time of [0, 7, 99, 1000, 99999]) assert.ok(factoryBeltOffset(time) >= 16);
 assert.equal(factoryBeltOffset(56), 17, 'the belt scroll is half its old speed');
 assert.equal(factoryBeltOffset(112), 18);
@@ -24,7 +36,6 @@ assert.ok(factoryWandProgress(0, 0) < factoryWandProgress(550, 0));
 assert.ok(factoryWandProgress(0, 0) < factoryWandProgress(0, 1));
 assert.ok(Math.abs(factoryWandProgress(1100, 0) - 1 / 6) < 1e-9,
   'a wand takes 6.6 seconds to cross the belt, half its previous speed');
-assert.notEqual(factoryClockAngle(0), factoryClockAngle(500));
 
 function makeGraphics() {
   return {
@@ -48,25 +59,37 @@ function makeGraphics() {
 
 function makeScene() {
   const textures = new Set();
+  const atlasFrames = new Map();
+  const textureSizes = new Map();
   const sprites = [];
   const graphics = [];
   const scene = {
     textures: {
       exists: key => textures.has(key),
-      create: key => textures.add(key)
+      get: key => ({ add(name, source, x, y, w, h) {
+        const [width, height] = textureSizes.get(key);
+        assert.ok(x >= 0 && y >= 0 && x + w <= width && y + h <= height, 'atlas frame fits texture');
+        atlasFrames.set(`${key}/${name}`, { x, y, w, h });
+      } })
     },
     make: {
       graphics: () => {
         const g = makeGraphics();
         const generate = g.generateTexture.bind(g);
-        g.generateTexture = key => { textures.add(key); return generate(key); };
+        g.generateTexture = (key, w, h) => {
+          textures.add(key); textureSizes.set(key, [w, h]); return generate(key);
+        };
         return g;
       }
     },
     add: {
-      sprite(x, y, key) {
-        const sprite = { kind: 'sprite', x, y, key, visible: true, alpha: 1,
+      sprite(x, y, key, frame) {
+        const sprite = { kind: 'sprite', x, y, key, frame, visible: true, alpha: 1,
           setOrigin() { return this; }, setDepth(d) { this.depth = d; return this; },
+          setFrame(f) {
+            assert.ok(atlasFrames.has(`${this.key}/${f}`), 'animation frame is registered');
+            this.frame = f; return this;
+          },
           setVisible(v) { this.visible = v; return this; },
           setTexture(key) { this.key = key; return this; },
           setAlpha(a) { this.alpha = a; return this; },
@@ -84,66 +107,85 @@ function makeScene() {
       },
       graphics() { const g = makeGraphics(); graphics.push(g); return g; }
     },
-    map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16 }
+    map: { tileToWorldX: x => x * 16, tileToWorldY: y => y * 16,
+      worldToTileX: x => Math.floor(x / 16), worldToTileY: y => Math.floor(y / 16) }
   };
-  return { scene, textures, sprites, graphics };
+  return { scene, textures, sprites, graphics, atlasFrames };
 }
 
 const hall = { x: 32, y: 22, w: 16, h: 16 };
 
 {
-  const { scene, textures, sprites } = makeScene();
+  const { scene, textures, sprites, atlasFrames } = makeScene();
   const originalRandom = Math.random;
   try {
     Math.random = () => { throw new Error('factory visuals must not roll gameplay RNG'); };
     generateWandFactoryTextures(scene);
-    for (const key of [FACTORY_CABINET_TEXTURE, FACTORY_BELT_TEXTURE, FACTORY_CRATE_TEXTURE,
-      FACTORY_BOTTLE_TEXTURE, FACTORY_PIPE_TEXTURE, FACTORY_CLOCK_TEXTURE,
-      FACTORY_CLOCK_HAND_TEXTURE, FIRE_ELEMENTAL_TEXTURE,
-      FACTORY_DROP_TEXTURE(0), FACTORY_DROP_TEXTURE(3)]) {
+    for (const key of [FACTORY_ASSEMBLER_TEXTURE, FACTORY_DISTILLER_TEXTURE,
+      FACTORY_BELT_TEXTURE, FACTORY_CRATE_TEXTURE]) {
       assert.equal(textures.has(key), true, `${key} is generated`);
     }
     createWandFactoryVisuals(scene, hall, scene.map);
     assert.equal(FACTORY_MACHINE_WIDTH_TILES, 5);
     assert.equal(FACTORY_MACHINE_HEIGHT_TILES, 3);
-    assert.equal(sprites.length, 17,
-      'two cabinets, fire source, pipe, bottle, belt, crate, clocks, hands, drops and wands');
+    assert.equal(sprites.length, 38, '31 fog-clipped machine tiles, three belt tiles, crate and three wands');
+    assert.equal(atlasFrames.size, 31 * FACTORY_FRAMES, 'all tile animation frames exist');
+    const count = atlasFrames.size;
+    generateWandFactoryTextures(scene);
+    assert.equal(atlasFrames.size, count, 'texture generation is idempotent');
     assert.equal(sprites.filter(s => s.key === FACTORY_WAND_TEXTURE).length, 3,
       'the belt carries existing wand art');
-    assert.equal(sprites.filter(s => s.key === FIRE_ELEMENTAL_TEXTURE).length, 1,
-      'a captured fire elemental feeds the distiller');
-    const belt = sprites.find(s => s.kind === 'tile');
-    assert.equal(belt.width, FACTORY_BELT_TILES * 16, 'the belt is three tiles long');
+    const belts = sprites.filter(s => s.kind === 'tile');
+    const belt = belts[0];
+    assert.equal(belts.reduce((w, s) => w + s.width, 0), FACTORY_BELT_TILES * 16,
+      'the fog-clipped belt is three tiles long');
+    assert.deepEqual(belts.map(s => s.x), [41, 42, 43].map(x => x * 16));
 
     updateWandFactoryVisuals(scene, 0, false, new Set()); // establish the clock baseline
-    const before = sprites.map(s => ({ x: s.x, y: s.y, key: s.key, offset: s.tilePositionX }));
+    const before = sprites.map(s => ({ x: s.x, y: s.y, frame: s.frame, offset: s.tilePositionX }));
     updateWandFactoryVisuals(scene, 500, false, new Set());
     assert.ok(sprites.some((s, i) => s.tilePositionX !== before[i].offset), 'the belt scrolls');
-    assert.ok(sprites.some((s, i) => s.key !== before[i].key), 'the drip uses looping frames');
+    assert.ok(sprites.some((s, i) => s.frame !== before[i].frame), 'gears, steam, gauges and bottling animate');
     const wands = sprites.filter(s => s.key === FACTORY_WAND_TEXTURE);
     assert.ok(wands.every((s, i) => s.x < before[sprites.indexOf(s)].x),
       'wands travel from the assembler on the right toward the crate on the left');
-    const hands = sprites.filter(s => s.key === FACTORY_CLOCK_HAND_TEXTURE);
-    assert.equal(hands.length, 2);
-    assert.ok(hands.every(hand => typeof hand.rotation === 'number'), 'clock hands rotate');
+    assert.ok(sprites.every(s => Number.isInteger(s.x) && Number.isInteger(s.y)),
+      'moving parts remain on native pixels');
     updateWandFactoryVisuals(scene, 6000, false, new Set());
+    assert.ok(wands.some(s => s.y > belt.y && s.x < belt.x),
+      'a wand drops off the left lip toward the crate, still opaque during its fall');
+    updateWandFactoryVisuals(scene, 6400, false, new Set());
     assert.ok(wands.some(s => s.y > belt.y && s.alpha < 1),
-      'a wand drops off the belt into the crate');
+      'a wand fades only as it enters the crate');
 
-    const paused = sprites.map(s => ({ x: s.x, key: s.key, offset: s.tilePositionX }));
-    updateWandFactoryVisuals(scene, 5000, true, new Set());
-    assert.deepEqual(sprites.map(s => ({ x: s.x, key: s.key, offset: s.tilePositionX })), paused,
+    const snapshot = () => sprites.map(s => ({ x: s.x, y: s.y, frame: s.frame,
+      alpha: s.alpha, offset: s.tilePositionX }));
+    const paused = snapshot();
+    updateWandFactoryVisuals(scene, 7000, true, new Set());
+    assert.deepEqual(snapshot(), paused,
       'a modal pause freezes the machines');
 
     const seen = new Set([`${hall.x + 4},${hall.y + 4}`]);
-    updateWandFactoryVisuals(scene, 5100, false, seen);
-    assert.equal(sprites.every(s => typeof s.visible === 'boolean'), true);
-    assert.ok(sprites.every(s => !s.visible || seen.has(`${hall.x + 3},${hall.y + 4}`) ||
-      seen.has(`${hall.x + 4},${hall.y + 4}`)), 'unseen machine tiles are hidden');
+    updateWandFactoryVisuals(scene, 7100, false, seen);
+    for (const s of sprites) {
+      assert.equal(s.visible, seen.has(`${Math.floor(s.x / 16)},${Math.floor(s.y / 16)}`),
+        'each machine tile and moving wand follows its own current FOV cell');
+    }
+    assert.equal(sprites.filter(s => s.visible).length, 1, 'only the visible distiller tile is drawn');
+    const wand = wands[0];
+    const wandTile = new Set([`${Math.floor(wand.x / 16)},${Math.floor(wand.y / 16)}`]);
+    updateWandFactoryVisuals(scene, 7100, true, wandTile);
+    assert.equal(wand.visible, true, 'wand visibility tracks its current position');
 
     clearWandFactoryVisuals(scene);
     assert.equal(sprites.every(s => s.destroyed), true, 'floor change destroys the props');
-    updateWandFactoryVisuals(scene, 6000, false);
+    updateWandFactoryVisuals(scene, 8000, false);
+    createWandFactoryVisuals(scene, hall, scene.map);
+    const recreated = sprites.filter(s => !s.destroyed);
+    assert.equal(recreated.length, 38);
+    createWandFactoryVisuals(scene, undefined, scene.map);
+    assert.ok(recreated.every(s => s.destroyed), 'leaving the factory tears down all animation');
+    clearWandFactoryVisuals(scene);
   } finally {
     Math.random = originalRandom;
   }
