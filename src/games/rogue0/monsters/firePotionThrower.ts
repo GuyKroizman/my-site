@@ -11,6 +11,7 @@ import { isEnemyVisible } from "../combatFeedback";
 import { actorFootprint } from "../actorBodies.ts";
 import { footprintContains } from "../footprint.ts";
 import { terrainFor } from '../terrain';
+import { tryFuseWands } from '../wandFusion';
 import {
   FIRE_POTION_THROWER_TEXTURE,
   generateFirePotionThrowerTexture
@@ -132,6 +133,11 @@ export default class FirePotionThrower extends Monster {
     if (burned.length) {
       context.onGrassBurn?.(burned);
       dungeon.onTerrainChanged?.();
+    }
+    // Fire bursts can fuse a floor-wand pair to the right of a burst cell,
+    // the same merge a Liquid Flame shatter causes at its impact tile.
+    for (const cell of cells) {
+      tryFuseWands(context, cell.x, cell.y);
     }
     // The flask is thrown; the floor splash follows the flight.
     let arrived = false;

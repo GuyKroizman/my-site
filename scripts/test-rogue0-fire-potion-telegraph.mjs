@@ -35,11 +35,13 @@ let canSee = true;
 let attackOptions = [];
 let applied = [];
 let splash = [];
+let fuseCalls = [];
 const Thrower = load('src/games/rogue0/monsters/firePotionThrower.ts', {
   Monster,
   monsterStats: () => ({ healthPoints: 30, attackDamage: 8, meleeDamage: 4 }),
   MONSTER_XP: { firePotionThrower: 9 },
   tiles: { getFeature: () => 'grass', clearFeature() {} },
+  tryFuseWands: (context, x, y) => { fuseCalls.push({ x, y }); return undefined; },
   dungeon: { getCurrentLevel: () => map, log: (context, text) => context.messages.unshift(text) },
   resolveAttack: (_context, _attacker, _victim, options) => {
     attackOptions.push(options);
@@ -189,6 +191,18 @@ function setup() {
   assert.equal(decoded.thrower.targetX, 5);
   assert.equal(decoded.thrower.targetY, 7);
   assert.equal(decoded.thrower.abilityCooldown, 1);
+}
+
+// --- The burst can fuse floor wands to the right -------------------------------
+{
+  const { context, thrower } = setup();
+  fuseCalls = [];
+  thrower.turn();
+  thrower.turn();
+  thrower.turn(); // burst
+  assert.ok(fuseCalls.length > 0, 'the burst calls tryFuseWands');
+  assert.ok(fuseCalls.some(c => c.x === context.player.x && c.y === context.player.y),
+    'the burst cell itself is tried');
 }
 
 // --- Grass in the burst catches fire ------------------------------------------
