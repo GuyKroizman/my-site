@@ -38,7 +38,9 @@ import { updateMonsterStatusVisuals, clearMonsterStatusVisuals } from './monster
 import { updateHeroChilled, clearHeroChilled } from './heroChilledVisuals';
 import { updateHeroLevitating, clearHeroLevitating } from './heroLevitatingVisuals';
 import { showWandZap, showShockArc, updateWandZaps, clearWandZaps } from './wandZapVisuals';
-import { showFirePotionThrown, clearFirePotionThrows } from './firePotionThrowVisuals';
+import {
+  showFirePotionThrown, clearFirePotionThrows, showFireBurstFlames, clearFireBurstFlames,
+} from './firePotionThrowVisuals';
 import { showGrassBurn, updateGrassBurns, clearGrassBurns } from './grassBurnVisuals';
 import { showLiquidFlameShatter, clearWandFusionVisuals } from './wandFusionVisuals';
 import { WATER_TEXTURE, generateWaterTexture, waterShoreMask, waterFrame } from './waterVisuals';
@@ -370,6 +372,7 @@ export class Scene0 extends Phaser.Scene {
       clearWandFactoryVisuals(this);
       clearTargetTelegraphs(this);
       clearFirePotionThrows(this);
+      clearFireBurstFlames(this);
       clearGasVisuals(this);
       this.context.onGrassBurn = undefined;
       this.context.onWandZap = undefined;
@@ -496,6 +499,7 @@ export class Scene0 extends Phaser.Scene {
         splash.fillRect(map.tileToWorldX(cell.x)!, map.tileToWorldY(cell.y)!, map.tileWidth, map.tileHeight);
       }
       this.tweens.add({ targets: splash, alpha: 0, duration: 450, onComplete: () => splash.destroy() });
+      if (kind === 'fire') showFireBurstFlames(this, this.context, cells);
     };
     this.context.onFirePotionThrown = (event) =>
       showFirePotionThrown(this, this.context, event.from, event.to, event.onArrived);

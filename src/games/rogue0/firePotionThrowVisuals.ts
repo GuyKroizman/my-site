@@ -95,3 +95,47 @@ export function clearFirePotionThrows(scene: Phaser.Scene): void {
   }
   states.delete(scene);
 }
+
+type FlameState = { groups: Phaser.GameObjects.Graphics[] };
+const flameStates = new WeakMap<Phaser.Scene, FlameState>();
+
+/** Small flame columns above a fire burst, mirroring the grass-burn style. */
+export function showFireBurstFlames(scene: Phaser.Scene, context: GameContext,
+                                    cells: Array<{ x: number; y: number }>): void {
+  const map = context.map;
+  if (!map) return;
+  let state = flameStates.get(scene);
+  if (!state) flameStates.set(scene, state = { groups: [] });
+  for (const cell of cells) {
+    if (!context.visibleTiles.has(`${cell.x},${cell.y}`)) continue;
+    const group = scene.add.graphics().setDepth(286);
+    state.groups.push(group);
+    const x = map.tileToWorldX(cell.x), y = map.tileToWorldY(cell.y);
+    if (x == null || y == null) continue;
+    const pixel = (px: number, py: number, w: number, h: number, color: number, alpha: number) => {
+      // Never paint over tiles the player cannot see.
+      if (!context.visibleTiles.has(`${Math.floor(px / 16)},${Math.floor(py / 16)}`) ||
+          !context.visibleTiles.has(`${Math.floor((px + w - 1) / 16)},${Math.floor((py + h - 1) / 16)}`)) return;
+      group.fillStyle(color, alpha);
+      group.fillRect(px, py, w, h);
+    };
+    // Golden core and red tongues rising from the tile, plus drifting smoke.
+    pixel(x + 5, y + 3, 6, 2, 0xffe596, 0.8);
+    pixel(x + 3, y + 6, 10, 3, 0xf58427, 0.6);
+    pixel(x + 4, y + 8, 8, 5, 0xa63824, 0.8);
+    pixel(x + 5, y + 10, 6, 4, 0xd94e20, 1);
+    pixel(x + 6, y + 13, 4, 2, 0x282320, 0.5);
+    for (const i of [0, 3, 6]) pixel(x + 8 + i, y + 2, 1, 10, 0xffbf54, 0.6);
+    scene.tweens.add({ targets: group, alpha: 0, duration: 500, onComplete: () => group.destroy() });
+  }
+}
+
+export function clearFireBurstFlames(scene: Phaser.Scene): void {
+  const state = flameStates.get(scene);
+  if (!state) return;
+  for (const group of state.groups) {
+    scene.tweens.killTweensOf(group);
+    group.destroy();
+  }
+  flameStates.delete(scene);
+}
