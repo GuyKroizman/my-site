@@ -38,6 +38,7 @@ export default class FirePotionThrower extends Monster {
       name: "Fire Potion Thrower",
       description: "A brass-goggled worker hurling flasks of liquid flame. Red borders mark fixed tiles; step clear of the 3x3 before the burst.",
       textureKey: FIRE_POTION_THROWER_TEXTURE,
+      musicCue: 'firePotionThrower',
       ...monsterStats('firePotionThrower', context.floor),
       movementSpeed: 1,
       attackDelay: 1,

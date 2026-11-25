@@ -76,6 +76,7 @@ const names = {
   Quloptsh: 'quloptsh', Mimic: 'mimic', 'Deadly Frog': 'deadlyFrog',
   'Swarm of Flies': 'swarmOfFlies', 'Fire Elemental': 'fireElemental',
   'Ice Elemental': 'iceElemental', 'Lightning Elemental': 'lightningElemental',
+  'Fire Potion Thrower': 'firePotionThrower',
 };
 for (const [name, cue] of Object.entries(names)) {
   const state = selectMusicState(context([enemy({ name, x: 13, y: 10 })]));

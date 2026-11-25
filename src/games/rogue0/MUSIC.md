@@ -22,6 +22,7 @@ giving characters their own instruments is borrowed from Prokofiev's
 | Deadly Frog | Marimba | Bubbling, uneven taps |
 | Swarm of Flies | Tremolo strings | Dense, fast buzz |
 | Fire Elemental | Trumpet | Bright, insistent blare |
+| Fire Potion Thrower | Trombone | Slow, heavy brass stomps as flasks burst |
 | Ice Elemental | Glockenspiel | Glassy, sustained bells |
 | Lightning Elemental | Xylophone | Sharp, brittle cracks |
 | The Writhing Maw (boss) | French horn + timpani | Low, slow horn statement with heavy downbeats |

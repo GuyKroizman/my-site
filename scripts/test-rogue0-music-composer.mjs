@@ -44,6 +44,7 @@ const cueInstruments = {
   quloptsh: 'piccolo', mimic: 'tuba', deadlyFrog: 'marimba',
   swarmOfFlies: 'tremolo_strings', fireElemental: 'trumpet',
   iceElemental: 'glockenspiel', lightningElemental: 'xylophone',
+  firePotionThrower: 'trombone',
 };
 for (const [cue, instrument] of Object.entries(cueInstruments)) {
   const notes = collect({ intensity: 'combat', cues: [{ cue, level: 1, visible: true }] }, 0, 8);

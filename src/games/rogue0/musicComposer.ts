@@ -52,6 +52,7 @@ const CUE_LAYER: Partial<Record<MusicCue, Layer>> = {
   skeleton: 'pizzicato',
   ghoul: 'oboe',
   brute: 'trombone',
+  firePotionThrower: 'trombone',
   cultist: 'bassoon',
   wraith: 'flute',
   quloptsh: 'piccolo',

@@ -19,7 +19,8 @@ export type MusicCue =
   | 'swarmOfFlies'
   | 'fireElemental'
   | 'iceElemental'
-  | 'lightningElemental';
+  | 'lightningElemental'
+  | 'firePotionThrower';
 export type MusicIntensity = 'calm' | 'uneasy' | 'combat' | 'boss';
 export type ActiveCue = { cue: MusicCue; level: number; visible: boolean };
 export type MusicState = { intensity: MusicIntensity; cues: ActiveCue[] };
@@ -50,6 +51,7 @@ const NAME_CUES: Record<string, MusicCue> = {
   'Fire Elemental': 'fireElemental',
   'Ice Elemental': 'iceElemental',
   'Lightning Elemental': 'lightningElemental',
+  'Fire Potion Thrower': 'firePotionThrower',
 };
 
 function cueFor(entity: Entity): MusicCue | undefined {
