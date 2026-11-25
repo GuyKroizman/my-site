@@ -77,7 +77,14 @@ class BasicHero extends FakeEntity {
     this.ring1 = undefined;
     this.ring2 = undefined;
     this.artifact = undefined;
+    // Real heroes have a sprite from their constructor and an action-ready
+    // clock the class starting gear runs down; scenario tests below mirror
+    // both.
+    this.sprite = undefined;
+    this.actionReady = true;
   }
+  canAct() { return this.actionReady; }
+  spendTurn() { this.actionReady = false; }
   xpForNextLevel() { return 8 + (this.level - 1) * 8; }
   gainXp(amount) {
     this.xp += amount;
@@ -97,9 +104,14 @@ class BasicHero extends FakeEntity {
     this.backpack.push(item);
     return true;
   }
+  // Mirrors inventory.ts: the canAct() gate blocks equips while the hero is
+  // busy, and a successful equip spends the turn.
   equipItem(item) {
+    if (this.sprite && !this.canAct()) return;
     this.backpack = this.backpack.filter(candidate => candidate !== item);
-    this.weapon = item;
+    if (item.equipSlot === 'armor') this.armor = item;
+    else this.weapon = item;
+    this.spendTurn();
   }
 }
 class Warrior extends BasicHero {}
@@ -128,10 +140,10 @@ class ScrollOfUpgrade extends Item {
   constructor(context) { super(context); this.name = 'Scroll of Upgrade'; this.consumable = true; this.textureKey = 'scroll-upgrade'; }
 }
 class TieredWeapon extends Item {
-  constructor(context, _x, _y, tier = 1) { super(context); this.tier = tier; this.name = `Tier ${tier} weapon`; }
+  constructor(context, _x, _y, tier = 1) { super(context); this.tier = tier; this.equipSlot = 'weapon'; this.name = `Tier ${tier} weapon`; }
 }
 class TieredArmor extends Item {
-  constructor(context, _x, _y, tier = 1) { super(context); this.tier = tier; this.name = `Tier ${tier} armor`; }
+  constructor(context, _x, _y, tier = 1) { super(context); this.tier = tier; this.equipSlot = 'armor'; this.name = `Tier ${tier} armor`; }
 }
 class RingOfMight extends Ring { constructor(context) { super(); this.name = 'Ring of Might'; this.context = context; this.level = 0; this.maxLevel = 5; this.isContainer = false; } onUpgrade() { this.upgraded = (this.upgraded ?? 0) + 1; } }
 class WandOfFrost extends Wand {
@@ -344,6 +356,25 @@ const {
   assert.equal(cursed.upgrades, 2, 'upgrade hooks ran');
   assert.equal(cursed.identified, false, 'identified:false keeps the unknown flow');
   assert.equal(removals, 0, 'replace never deletes entities');
+}
+
+// Every equip-marked loadout item installs, even after an earlier equip spent
+// the action (equipItem's canAct() gate must not block the scenario loop).
+{
+  const hero = new Warrior();
+  hero.sprite = {}; // the real hero has a sprite once its constructor ran
+  hero.actionReady = false; // ...and the class's starting gear already spent one
+  const warnings = applyScenarioInventory(hero, {
+    floor: 1,
+    inventory: [
+      { id: 'TieredWeapon', tier: 2, equip: true },
+      { id: 'TieredArmor', tier: 2, equip: true },
+    ],
+  });
+  assert.deepEqual(warnings, []);
+  assert.equal(hero.weapon.tier, 2, 'first equip-marked item installs');
+  assert.equal(hero.armor.tier, 2, 'second equip-marked item installs, not stuck in the backpack');
+  assert.ok(!hero.backpack.some(item => item === hero.armor || item === hero.weapon));
 }
 
 // undefined inventory keeps the class's gear.

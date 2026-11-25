@@ -451,7 +451,14 @@ export function applyScenarioInventory(
         warnings.push(`Backpack full: ${item.name} was not added.`);
         break;
       }
-      if (spec.equip) hero.equipItem(item);
+      if (spec.equip) {
+        // Installing the loadout is not an action. The first equip spends
+        // the turn that otherwise blocks the rest of the loop at equipItem's
+        // canAct() gate; setupFloor resets scheduler readiness after the
+        // floor is built anyway.
+        hero.actionReady = true;
+        hero.equipItem(item);
+      }
     }
   }
   return warnings;
