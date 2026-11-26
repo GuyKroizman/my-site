@@ -18,7 +18,7 @@ import {
 } from './firePotionThrowerTexture';
 
 /** Own turns until the next windup; decremented before checking readiness. */
-export const FIRE_POTION_COOLDOWN = 3;
+export const FIRE_POTION_COOLDOWN = 4;
 /** The centre plus its eight neighbours, fixed when the telegraph starts. */
 export const FIRE_POTION_TELEGRAPH_OFFSETS: ReadonlyArray<readonly [number, number]> = [
   [-1, -1], [0, -1], [1, -1],
